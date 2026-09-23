@@ -8,6 +8,12 @@ name: Release
 # It opens a "Version Packages" pull request rather than publishing straight
 # from develop; merging that PR is what releases. That keeps the version bump
 # and the changelog reviewable, and keeps an accidental merge from publishing.
+#
+# Until v0.1 every package here carries `"private": true`, so this workflow runs
+# and publishes nothing: `scripts/publish.ts` skips a private package, and
+# `verify:artifacts` does NOT — it globs `packages/*/package.json` regardless, so
+# the one-class-per-entry scan keeps running on every push. Removing that flag is
+# what makes a package publishable, and it is a deliberate commit of its own.
 
 on:
   push:
@@ -25,8 +31,8 @@ permissions:
 jobs:
   release:
     name: Release
-    # GitHub-hosted: this repository is public, so the minutes are free and
-    # unlimited.
+    # GitHub-hosted. This repository is private until v0.1, so these minutes
+    # are billed against the organisation's allowance until it goes public.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
