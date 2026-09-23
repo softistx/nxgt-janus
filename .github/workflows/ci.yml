@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+    # `feat/**` too: an effort built with large-feature-branch-workflow merges
+    # each slice into its integration branch `feat/<slug>`, and those slices
+    # are merged without waiting for a human. Without this they merged with no
+    # CI at all — no tests, no artifact check.
+    branches: [develop, main, 'feat/**']
+  # On `develop` as well, and the reason is the caches rather than the tests.
+  # A cache written by a pull request is scoped to `refs/pull/<N>/merge` and
+  # **no other branch can read it** — a pull request reads its base branch's
+  # caches and the default branch's, never another pull request's. With CI on
+  # `pull_request` alone, nothing is ever written under `refs/heads/develop`
+  # and every run starts cold.
+  #
+  # Measured in nxgt-data on 2026-09-20, where this was learned: 173 cache
+  # entries, seven separate copies of mongod — one per pull request — and the
+  # only entry on `refs/heads/develop` was `bun-`. The version pull request
+  # failed twice in a row under that load, on different tests each time, which
+  # is load and not a regression.
+  #
+  # Today this repository caches only Bun itself. The binary caches arrive with
+  # the first adapter that needs a real server, and this trigger is what will
+  # make them readable when they do.
+  push:
+    branches: [develop]
+
+jobs:
+  ci:
+    name: CI
+    # GitHub-hosted. This repository is private until v0.1, so these minutes
+    # are billed against the organisation's allowance until it goes public.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # `changeset status --since=origin/develop` needs the base branch.
+          fetch-depth: 0
+      - name: Setup
+        uses: ./.github/actions/setup
+      - name: Lint code
+        run: biome ci
+      # Build FIRST. Every package's `exports` points at `./dist/*`, so on a
+      # clean checkout a package that imports a sibling resolves it to nothing
+      # and typecheck reports phantom TS2307s. A developer's tree always has a
+      # stale `dist/` lying around, which hides this locally — it only ever
+      # shows up in CI. `bun run --filter` builds in dependency order, so
+      # building from nothing works.
+      - name: Build packages
+        run: bun run build
+      - name: Type checking
+        run: bun run typecheck
+      # Per package, then the scripts' own specs.
+      # No service-binary caches yet: every spec in this repository runs in
+      # process, against the in-memory reference store. `@nxgt/janus-mongo`
+      # adds a mongod cache keyed on the file that pins its version, the way
+      # nxgt-data keys its four.
+      - name: Run tests
+        run: bun run test
+      # The build exits 0 on packages that throw the instant they are imported —
+      # it happened three times in nxgt-core. This packs them, installs them as a consumer
+      # does and imports every declared subpath.
+      - name: Verify the built artifacts load
+        run: bun run verify:artifacts
+      # A change to a package without a changeset is a change that never
+      # reaches a consumer: the release workflow has nothing to version.
+      #
+      # Except on the release branch itself. "Version packages" is the PR that
+      # *consumes* the changesets: it rewrites every version, deletes the
+      # `.changeset/*.md` that justified them, and so trips this check on its
+      # own output. Requiring a changeset there would mean requiring one for
+      # the act of releasing.
+      #
+      # And only on a pull request. On a push to `develop` the check compares
+      # `develop` with `origin/develop`, which is an empty diff: measured on
+      # changesets 3.0.3 it exits 0, so it cannot fail there — but it cannot
+      # catch anything either, and a step that can only pass is one a reader
+      # has to work out.
+      - name: Changeset present
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.head_ref != 'changeset-release/develop'
+        run: bun run changeset:status
