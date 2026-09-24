@@ -56,7 +56,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
-| `permission(access, permission, type, load, options?)` | Middleware. Loads the object with `load(c)`, checks `access.can(c.var.user, permission, { type, ...object })`, and sets `c.var.object` to what `load` answered. Anonymous: 401, before loading. `load` answers `null`: 404. A denial: 403. `{ ctx }` is required exactly when the permission reaches a condition; `{ subject }` replaces `c.var.user` |
+| `permission(access, permission, type, load, options?)` | Middleware. Loads the object with `load(c)`, checks `access.can(c.var.user, permission, object)` with `type` added, and sets `c.var.object` to what `load` answered. Anonymous: 401, before loading. `load` answers `null`: 404. A denial: 403. `{ ctx: (c, object) => … }` is required exactly when the permission reaches a condition; `{ subject: (c) => … }` replaces `c.var.user`. One per route |
 | `provide({ auth?, access? })` | Middleware. Sets `c.var.auth` and `c.var.access` to the instances given — only those — for a route that writes users or tuples |
 | `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
 
@@ -70,18 +70,21 @@ creates a record grants its owner through `c.var.access`:
 
 ```ts
 import { permission, provide, session } from '@nxgt/janus-hono';
-import { access } from './access'; // permissions() over the guide's model
+import { Hono } from 'hono';
+import { access, recordOf } from './access'; // the guide's model, and a loader
+import { auth } from './auth';
+import { records } from './records'; // your own store
 
 const app = new Hono()
 	.use(session(auth), provide({ auth, access }))
 	.get(
 		'/records/:id',
-		permission(access, 'view', 'record', (c) => records.find(c.req.param('id'))),
+		permission(access, 'view', 'record', recordOf),
 		(c) => c.json(c.var.object), // your record type, loaded once
 	)
 	.put(
 		'/records/:id',
-		permission(access, 'edit', 'record', (c) => records.find(c.req.param('id')), {
+		permission(access, 'edit', 'record', recordOf, {
 			ctx: (c, record) => ({ locked: record.locked }), // `edit` reaches a when()
 		}),
 		async (c) => c.json(await records.update(c.var.object.id, await c.req.json())),
@@ -94,7 +97,7 @@ const app = new Hono()
 ```
 
 The model — `owner`, a `doctor` read from the record, `edit` under a condition
-— is the one of the [guarded routes guide](docs/guide/permissions.md). The
+— and `recordOf` are those of the [guarded routes guide](docs/guide/permissions.md). The
 permission, the object type, the fields a `fromField` reads and the `ctx`
 of a condition are typed from the model, as they are for `can()`.
 `janusErrors()` answers the failures of both sides alike — `can()`'s
@@ -133,10 +136,13 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
   response cannot tell which users exist. Log the error before you answer it
   if you need the reason: `janusErrors` is a function of `(error, c)` you can
   wrap.
-
-- **`load` does not know the route's path.** Hono types `c.req.param()` in
-  the route's own handler only; in a middleware it is `string | undefined`.
-  Answer `null` for a missing id — that is a 404.
+- **`load` does not know the route's path.** It takes a plain `Context`:
+  `permission()` is built before Hono attaches it to a route, so
+  `c.req.param('id')` is `string | undefined` there. Answer `null` for a
+  missing id — that is a 404.
+- **One `permission()` per route.** Both would claim `c.var.object`, so a
+  second throws a `TypeError`. Check a parent object through an arrow in the
+  model.
 - **`permission()` needs `session()` before it**, or `{ subject }`. Without
   either, it throws a `TypeError` at the first request — a wiring error, not
   an anonymous 401.
@@ -151,18 +157,19 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Type safety, counted
 
-Fifteen plausible mistakes are refused by the compiler, each with a
+Sixteen plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - six in `session.ts`: reading `c.var.user` where it may be `null` (twice,
   directly and through `SessionEnv`), a field of another user type, a user type
   the instance does not know (twice, in `session()` and in `SessionEnv`), and a
   cookie sent without its session;
-- nine in `permission.ts`: a permission the object type does not declare, an
-  object type the model does not, an object loaded without a field a
-  `fromField` reads, a condition reached with no `ctx`, a `ctx` of the wrong
-  shape, a `ctx` where no condition is reachable, a field the loaded object does
-  not have, a grant of a relation read from a field, and an instance
+- ten in `permission.ts`: a permission the object type does not declare, an
+  object type the model does not (twice: in a model of one object type and of
+  several, each reported on the misspelled argument), an object loaded without
+  a field a `fromField` reads, a condition reached with no `ctx`, a `ctx` of the
+  wrong shape, a `ctx` where no condition is reachable, a field the loaded
+  object does not have, granting a relation read from a field, and an instance
   `provide()` was not given.
 
 ## Licence

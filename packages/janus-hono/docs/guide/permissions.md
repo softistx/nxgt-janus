@@ -1,15 +1,16 @@
 # Guarded routes and writing tuples
 
-The permissions side of `@nxgt/janus` in Hono routes: `permission()` lets a
-request through only if its subject holds a permission on the object the route
-serves, and `provide()` puts the instances on the context, for the routes that
-grant and revoke. The model, `can` and the tuples are
+The permissions side of `@nxgt/janus` in Hono routes. A **guarded route** runs
+only when its subject holds a permission on the object it serves:
+`permission()` makes it one. `provide()` puts the instances on the context, for
+the routes that grant and revoke. The model, `can` and the tuples are
 [`@nxgt/janus`'s permissions guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/permissions.md);
 this page is only about the routes.
 
-The examples use this model:
+The examples use this model, and one loader for its records:
 
 ```ts
+import type { Context } from 'hono';
 import { defineModel, fromField, permissions, when } from '@nxgt/janus/permissions';
 
 const model = defineModel({
@@ -29,7 +30,18 @@ const model = defineModel({
 });
 
 export const access = permissions({ model, store: relations });
+
+/** The record a route's `:id` names. A missing id is nothing to load: `null`, a 404. */
+export const recordOf = (c: Context) => {
+	const id = c.req.param('id');
+	return id === undefined ? null : records.find(id); // records: your own store
+};
 ```
+
+`recordOf` takes a plain `Context` because it is written apart from any route,
+and `permission()` is too: Hono types a path's parameters only in a handler
+written inline on that route. So `c.req.param('id')` is `string | undefined`
+in a loader, and the missing case is answered `null`.
 
 ## A guarded route
 
@@ -39,7 +51,7 @@ import { permission, session } from '@nxgt/janus-hono';
 app.get(
 	'/records/:id',
 	session(auth),
-	permission(access, 'view', 'record', (c) => records.find(c.req.param('id'))),
+	permission(access, 'view', 'record', recordOf),
 	(c) => c.json(c.var.object),
 );
 ```
@@ -51,39 +63,49 @@ permission, type)` — runs in this order:
 | --- | --- | --- |
 | 1. The subject: `c.var.user`, set by `session()` | anonymous | 401, no body — nothing is loaded |
 | 2. `load(c)` | it answers `null` | 404, no body |
-| 3. `access.can(subject, permission, { ...object, type })` | `false` | 403, no body |
+| 3. `access.can(subject, permission, object)`, the object seen with `type` added | `false` | 403, no body |
 | 4. `c.set('object', object)`, then the route | — | the route's answer |
 
-A store that cannot answer, at step 3 or in `load`, **throws**: `STORE_FAILED`
-reaches `app.onError`, and `janusErrors()` answers it 503. It is never a 403 —
-an outage does not deny anybody.
+A relation store that cannot answer at step 3 **throws** `STORE_FAILED`, and
+`janusErrors()` answers it 503 — never 403: an outage does not deny anybody.
+Whatever `load` throws reaches `app.onError` too, and goes to
+`janusErrors(fallback)`.
 
 ### What `load` answers
 
 The object as your application keeps it: its `id`, **every field a
 `fromField` of its type reads** — `doctorId` here — and whatever else it
-carries. The middleware adds `type` for the check, and hands the route what
-`load` answered, with its own type: `c.var.object` is your record, not a
-reference to it. The route does not load it a second time.
+carries. The route gets exactly that, with its own type: `c.var.object` is
+your record, not a reference to it, and the route does not load it again.
 
-An object missing a `fromField`'s field is a compile error, not a silent
-denial. A field that holds nobody is `null`.
+`can()` sees the object with `type` set to the object type named in
+`permission()` — a `type` field of your own is not read by the check, and
+stays in `c.var.object`. Every other field is read from the object itself, so
+a class instance's getters and an ORM document's accessors answer as they do
+in the route.
 
-`c.req.param()` is `string | undefined` in `load`: Hono types a route's path in
-its own handler only, never in a middleware. A missing id is simply nothing to
-load — answer `null`, and the request gets a 404.
+An object missing a `fromField`'s field is a compile error. At run time it
+would be a `TypeError` from `can()`, never a denial. A field that holds nobody
+is `null`.
+
+### One per route
+
+`permission()` sets `c.var.object`, so a route has one. A second throws a
+`TypeError` at the first request rather than type `c.var.object` as both
+objects at once. A parent — the folder of a record — is checked through an
+arrow in the model: `view: ['owner', 'folder->view']`.
 
 ### A condition's context
 
 A permission that reaches a `when()` needs its `ctx`, and `permission()`
-requires the option exactly then, typed from the condition. It reads the
-request and the loaded object:
+requires the option exactly then, typed from the condition — through arrows
+too. It is a function of the request and the loaded object:
 
 ```ts
 app.put(
 	'/records/:id',
 	session(auth),
-	permission(access, 'edit', 'record', (c) => records.find(c.req.param('id')), {
+	permission(access, 'edit', 'record', recordOf, {
 		ctx: (c, record) => ({ locked: record.locked }),
 	}),
 	async (c) => c.json(await records.update(c.var.object.id, await c.req.json())),
@@ -97,25 +119,28 @@ app.put(
 signed-in user:
 
 ```ts
-permission(access, 'view', 'record', load, {
-	subject: (c) => serviceAccountOf(c.req.header('x-api-key')), // { type, id } or null
+permission(access, 'view', 'record', recordOf, {
+	subject: (c) => subjectOfApiKey(c.req.header('x-api-key')), // { type, id } or null
 });
 ```
 
-Without `session()` before it and without `subject`, `permission()` throws a
+`null` is anonymous, and answered 401 before anything is loaded. Without
+`session()` before it and without `subject`, `permission()` throws a
 `TypeError` at the first request: a wiring error, never an anonymous 401.
 
 ### Hiding what exists
 
 A 403 tells the caller the object exists. Where that is a leak, make `load`
-answer `null` for what the user may not see — `list()` gives the ids they may:
+answer `null` for what the user may not see — ask `can()` there, so a record
+they may not view is a 404 like one that does not exist:
 
 ```ts
 permission(access, 'view', 'record', async (c) => {
-	const record = await records.find(c.req.param('id'));
-	return record !== null && (await access.can(c.var.user, 'view', { type: 'record', ...record }))
+	const record = await recordOf(c);
+	return record !== null &&
+		(await access.can(c.get('user'), 'view', { ...record, type: 'record' }))
 		? record
-		: null; // 404 either way
+		: null;
 });
 ```
 
@@ -123,11 +148,11 @@ permission(access, 'view', 'record', async (c) => {
 
 `provide({ auth, access })` sets `c.var.auth` and `c.var.access` to the
 instances — only those given, and typed — so a route writes through the
-context rather than a module import, and a test can hand the app other
-instances:
+context rather than a module import, and a test can hand those routes other
+instances. `permission()` takes its instance as an argument.
 
 ```ts
-import { provide, session } from '@nxgt/janus-hono';
+import { permission, provide, session } from '@nxgt/janus-hono';
 
 const app = new Hono().use(session(auth), provide({ auth, access }));
 
@@ -140,7 +165,7 @@ app.post('/records', session(auth, { type: 'patient', required: true }), async (
 app.delete(
 	'/records/:id/owner',
 	session(auth, { type: 'patient', required: true }),
-	permission(access, 'edit', 'record', (c) => records.find(c.req.param('id')), {
+	permission(access, 'edit', 'record', recordOf, {
 		ctx: (c, record) => ({ locked: record.locked }),
 	}),
 	async (c) => {

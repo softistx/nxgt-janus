@@ -1,7 +1,7 @@
 # Troubleshooting `@nxgt/janus-hono`
 
-Each entry is headed by what you see: a compiler error, or a status and its
-body. Search this page for its words.
+Each entry is headed by what you see: a compiler error, a thrown `TypeError`,
+or a status and its body. Search this page for its words.
 
 This package **defines no error class**. What reaches `app.onError` is one of
 `@nxgt/janus`'s errors, and the codes are those of the core — see
@@ -17,11 +17,12 @@ for what causes each.
 - [`Type '"doctor"' is not assignable to type '"patient" | "staff"'`](#type-doctor-is-not-assignable-to-type-patient--staff)
 - [`Argument of type 'string | undefined' is not assignable to parameter of type 'string'`, in `load`](#argument-of-type-string--undefined-is-not-assignable-to-parameter-of-type-string-in-load)
 - [`Expected 5 arguments, but got 4`, on `permission()`](#expected-5-arguments-but-got-4-on-permission)
-- [`Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…>>'`](#type--id-string--is-not-assignable-to-type-awaitableobjectdata)
+- [`Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…> | null>'`](#type--id-string--is-not-assignable-to-type-awaitableobjectdata--null)
 - [`Property 'access' does not exist on type 'Readonly<ContextVariableMap & …>'`](#property-access-does-not-exist-on-type-readonlycontextvariablemap--)
 
 **Runtime**
 - [`500 Internal Server Error` for every refusal](#500-internal-server-error-for-every-refusal)
+- [`TypeError: permission(): c.var.object is already set`](#typeerror-permission-cvarobject-is-already-set)
 - [`TypeError: permission(): c.var.user is not set`](#typeerror-permission-cvaruser-is-not-set)
 - [`403` where the user should be allowed](#403-where-the-user-should-be-allowed)
 - [`401` with an empty body, for a signed-in user](#401-with-an-empty-body-for-a-signed-in-user)
@@ -89,8 +90,8 @@ not one of them — a misspelling, or a type from another `janus()`.
 
 **When:** `permission(access, 'view', 'record', (c) => records.find(c.req.param('id')))`.
 
-**Why:** Hono types a route's path in the route's own handler only. In a
-middleware, `c.req.param('id')` is `string | undefined`.
+**Why:** `load` takes a plain `Context`: `permission()` is built before Hono
+attaches it to a route, so `c.req.param('id')` is `string | undefined` there.
 
 **Fix:** a missing id is nothing to load: answer `null`, which is a 404.
 
@@ -117,19 +118,24 @@ permission(access, 'edit', 'record', load, {
 });
 ```
 
-### `Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…>>'`
+### `Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…> | null>'`
+
+Also: `Property 'doctorId' is missing in type '{ id: string; }'`.
 
 **When:** `load` answers an object without a field a `fromField` of its type
 reads — `doctorId` for `fromField('doctorId', 'staff')`.
 
-**Why:** `can()` reads that relation from the object. Without the field, the
-check could only deny, so it is refused at compile time instead.
+**Why:** `can()` reads that relation from the object. At run time a missing
+field is a `TypeError` — `can: record.doctor reads doctorId, which the object
+does not carry …` — never a denial, so the type refuses it first.
 
 **Fix:** load the field — `null` when it holds nobody.
 
 ### `Property 'access' does not exist on type 'Readonly<ContextVariableMap & …>'`
 
-**When:** `c.var.access` or `c.var.auth` in a route.
+**When:** `c.var.access` or `c.var.auth` in a route. With nothing before the
+route that sets a variable, the type is `'Readonly<ContextVariableMap>'`, with
+no `&`.
 
 **Why:** `provide()` was not in the chain before the route, or was not given
 that instance: it sets, and types, only what it is given.
@@ -141,6 +147,24 @@ const app = new Hono().use(session(auth), provide({ auth, access }));
 ```
 
 ## Runtime
+
+### `TypeError: permission(): c.var.object is already set`
+
+**When:** the first request to a route with two `permission()` guards, or one
+behind a middleware of yours that sets `c.var.object`.
+
+**Why:** `permission()` hands the route its object as `c.var.object`. Two
+would claim the one variable, and the route would be typed as if it held both.
+
+**Fix:** one `permission()` per route. Check a parent through an arrow in the
+model, so the one check covers it.
+
+```ts
+record: {
+	relations: { owner: ['patient'], folder: ['folder'] },
+	permissions: { view: ['owner', 'folder->view'] },
+},
+```
 
 ### `TypeError: permission(): c.var.user is not set`
 
@@ -167,13 +191,14 @@ app.get('/records/:id', session(auth), permission(access, 'view', 'record', load
    include it — `edit` is not `view`.
 2. A condition answered `false`: check what `ctx` computes.
 3. A `fromField`'s field holds another id, or `null`, in what `load` answered.
-4. The tuple was granted to another user type than the one signed in — a
-   `staff` user holding `owner`, which admits only `patient`, grants nothing.
+4. The tuple names another user type than the one signed in — granted to
+   `patient:u1`, checked for `staff:u1`: the same id under another type is
+   somebody else.
 
 **Fix:** ask `can()` directly with the same arguments; it answers the same.
 
 ```ts
-await access.can(user, 'view', { type: 'record', ...record }); // the check permission() makes
+await access.can(user, 'view', { ...record, type: 'record' }); // the check permission() makes
 ```
 
 ### `500 Internal Server Error` for every refusal

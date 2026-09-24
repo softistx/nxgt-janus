@@ -4,6 +4,12 @@
  * day it compiles.
  */
 
+import {
+	createMemoryRelations,
+	defineModel,
+	permissions,
+	when,
+} from '@nxgt/janus/permissions';
 import { Hono } from 'hono';
 import { permission, provide, session } from '../../src/index';
 import { type MedicalRecord, setup } from '../app';
@@ -32,9 +38,14 @@ new Hono()
 		(c) => c.body(null),
 	);
 
-// 8. A permission the object type does not declare.
-// @ts-expect-error — 'delete' is neither a relation nor a permission of record.
-permission(access, 'delete', 'record', (c) => find(c.req.param('id')));
+// 8. A permission the object type does not declare — reported on itself.
+permission(
+	access,
+	// @ts-expect-error — 'delete' is neither a relation nor a permission of record.
+	'delete',
+	'record',
+	(c) => find(c.req.param('id')),
+);
 
 // 9. An object type the model does not declare.
 // @ts-expect-error — 'folder' is not an object type.
@@ -76,4 +87,39 @@ new Hono().post(
 		c.var.auth;
 		return c.body(null, 201);
 	},
+);
+
+// A model of several object types, one of them reached through a condition.
+const folders = permissions({
+	model: defineModel({
+		subjects: auth.types,
+		types: {
+			folder: {
+				relations: { owner: ['patient'] },
+				permissions: {
+					open: [when('owner', (ctx: { unlocked: boolean }) => ctx.unlocked)],
+				},
+			},
+			record: {
+				relations: { parent: ['folder'] },
+				permissions: { view: ['parent->open'] },
+			},
+		},
+	}),
+	store: createMemoryRelations(),
+});
+declare const record: { id: string; parent: string };
+
+permission(folders, 'view', 'record', () => record, {
+	ctx: () => ({ unlocked: true }), // reached through the arrow
+});
+
+// 16. A misspelled object type, reported on itself — not as a missing `ctx`,
+// which would land on the call's first line and leave this directive unused.
+permission(
+	folders,
+	'view',
+	// @ts-expect-error — 'folderz' is not an object type.
+	'folderz',
+	() => record,
 );

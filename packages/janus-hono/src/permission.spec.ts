@@ -129,15 +129,15 @@ describe('permission()', () => {
 	});
 
 	it('answers an outage 503, never 403', async () => {
-		const { auth, access, routes, outage } = app();
-		const { user, token } = await auth.patient.signUp({ ...ada, password });
+		const { auth, access, routes, outage, loads } = app();
+		const { user } = await auth.patient.signUp({ ...ada, password });
 		await access.grant({ type: 'record', id: 'r1' }, 'owner', user);
 		outage.on = true;
 
-		const response = await routes.request(
-			`/as/${user.id}/records/r1`,
-			bearer(token),
-		);
+		// No session credential: the only store call is the relation store's,
+		// inside can().
+		const response = await routes.request(`/as/${user.id}/records/r1`);
+		expect(loads).toEqual(['r1']);
 		expect(response.status).toBe(503);
 		expect(await response.json()).toEqual({ code: 'STORE_FAILED' });
 	});
@@ -161,6 +161,78 @@ describe('permission()', () => {
 		expect((await bare.request('/')).status).toBe(500);
 		expect(thrown).toBeInstanceOf(TypeError);
 		expect((thrown as Error).message).toContain('put session(auth) before it');
+	});
+
+	it('reads the fields of a class instance through its getters', async () => {
+		const { auth, access } = app();
+		const { user, token } = await auth.staff.signUp({
+			username: 'grace',
+			password,
+		});
+		class Chart {
+			readonly #doctor: string;
+			constructor(
+				readonly id: string,
+				doctor: string,
+				readonly type = 'lab',
+			) {
+				this.#doctor = doctor;
+			}
+			get doctorId() {
+				return this.#doctor;
+			}
+		}
+		const chart = new Chart('c1', user.id);
+		const routes = new Hono().use(session(auth)).get(
+			'/',
+			permission(access, 'view', 'record', () => chart),
+			(c) => c.json({ same: c.var.object === chart, type: c.var.object.type }),
+		);
+
+		const response = await routes.request('/', bearer(token));
+		expect(await response.json()).toEqual({ same: true, type: 'lab' });
+	});
+
+	it('refuses a second permission() on one route: both would claim c.var.object', async () => {
+		const { auth, access } = app();
+		const { user, token } = await auth.patient.signUp({ ...ada, password });
+		await access.grant({ type: 'record', id: 'r1' }, 'owner', user);
+		const record = { id: 'r1', doctorId: null };
+		const twice = new Hono().use(session(auth)).get(
+			'/',
+			permission(access, 'view', 'record', () => record),
+			permission(access, 'view', 'record', () => record),
+			(c) => c.body(null),
+		);
+		let thrown: unknown;
+		twice.onError((error, c) => {
+			thrown = error;
+			return c.body(null, 500);
+		});
+
+		expect((await twice.request('/', bearer(token))).status).toBe(500);
+		expect((thrown as Error).message).toContain('one permission() per route');
+	});
+
+	it('treats a subject answered as undefined as anonymous', async () => {
+		const { access } = app();
+		let loaded = false;
+		const routes = new Hono().get(
+			'/',
+			permission(
+				access,
+				'view',
+				'record',
+				() => {
+					loaded = true;
+					return null;
+				},
+				{ subject: () => undefined as never },
+			),
+			(c) => c.body(null),
+		);
+		expect((await routes.request('/')).status).toBe(401);
+		expect(loaded).toBe(false);
 	});
 });
 

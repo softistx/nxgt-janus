@@ -43,12 +43,24 @@ export type PermissionOptions<
 		});
 
 /**
- * The options argument: required exactly when `ctx` is. Loose when `P` is its
- * whole constraint — what the compiler falls back to when the permission was
- * wrong — so the error names the permission, not a missing argument; the rule
- * `can()` follows.
+ * The options argument: required exactly when `ctx` is. Loose when `T` or `P`
+ * is its whole constraint — what the compiler falls back to when the object
+ * type or the permission was wrong — so the error names that argument, not a
+ * missing one; the rule `can()` follows.
  */
 type OptionsArgs<
+	C extends ModelConfig,
+	T extends ObjectTypeOf<C>,
+	P extends string,
+	O,
+> = [ObjectTypeOf<C>] extends [T]
+	? IsSingle<ObjectTypeOf<C>> extends true
+		? PermissionArgs<C, T, P, O>
+		: [options?: LooseOptions]
+	: PermissionArgs<C, T, P, O>;
+
+/** `OptionsArgs` once `T` is known right: loose when `P` is its whole constraint. */
+type PermissionArgs<
 	C extends ModelConfig,
 	T extends ObjectTypeOf<C>,
 	P extends string,
@@ -103,6 +115,9 @@ type LooseCan = (
  * | a denial | 403, no body |
  * | allowed | the route runs, `c.var.object` set |
  *
+ * One per route: a second one throws a `TypeError`, since both would claim
+ * `c.var.object`. A parent object is checked through an arrow in the model.
+ *
  * **A failure throws**, as everywhere: a store that cannot answer is
  * `STORE_FAILED`, never a 403 — `janusErrors()` answers it 503.
  */
@@ -136,9 +151,14 @@ export function permission(
 	const can = access.can as LooseCan;
 
 	return async (c, next) => {
+		if (c.get('object') !== undefined) {
+			throw new TypeError(
+				'permission(): c.var.object is already set — one permission() per route; check a parent object through an arrow in the model',
+			);
+		}
 		const subject =
 			options.subject === undefined ? userOf(c) : await options.subject(c);
-		if (subject === null) return c.body(null, 401);
+		if (subject === null || subject === undefined) return c.body(null, 401);
 
 		const object = await load(c);
 		if (object === null) return c.body(null, 404);
@@ -146,7 +166,7 @@ export function permission(
 		const allowed = await can(
 			subject,
 			permission,
-			{ ...object, type },
+			view(object, type),
 			options.ctx === undefined
 				? undefined
 				: { ctx: await options.ctx(c, object) },
@@ -156,6 +176,22 @@ export function permission(
 		c.set('object', object);
 		await next();
 	};
+}
+
+/**
+ * The object as `can()` reads it: `type` added, every other field read from
+ * the loaded object itself — so a getter, a class's `#private` state or an
+ * ORM document's accessors answer as they do in the route. A spread would
+ * copy own enumerable fields only.
+ */
+function view(
+	object: object,
+	type: string,
+): { readonly type: string; readonly id: string } {
+	return new Proxy(object, {
+		get: (target, key) => (key === 'type' ? type : Reflect.get(target, key)),
+		has: (target, key) => key === 'type' || Reflect.has(target, key),
+	}) as { readonly type: string; readonly id: string };
 }
 
 /** `c.var.user`, which `session()` sets — or a wiring error when nothing did. */
