@@ -15,6 +15,7 @@ import {
 	UserInvalidError,
 } from '../errors/janus-error';
 import { isId, mintId } from '../ids/id';
+import type { RelationStore } from '../permissions/port/types';
 import type { Clock } from '../time/clock';
 import {
 	normalizeEmail,
@@ -39,6 +40,8 @@ export interface Context {
 	readonly config: ResolvedConfig;
 	/** Already guarded by `outage.ts`. */
 	readonly store: JanusStores;
+	/** Already guarded. `null` when no relation store is wired. */
+	readonly relations: RelationStore | null;
 	readonly capabilities: StoreCapabilities;
 	readonly clock: Clock;
 	readonly hasher: PasswordHasher | null;
@@ -51,6 +54,7 @@ export interface Context {
 export function createContext(
 	config: ResolvedConfig,
 	store: JanusStores,
+	relations: RelationStore | null,
 	capabilities: StoreCapabilities,
 	clock: Clock,
 	hasher: PasswordHasher | null,
@@ -61,6 +65,7 @@ export function createContext(
 	return {
 		config,
 		store,
+		relations,
 		capabilities,
 		clock,
 		hasher,

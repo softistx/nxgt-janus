@@ -16,6 +16,10 @@
  * - `describeJanusStores`, which describes them all under bun:test, vitest
  *   or jest.
  *
+ * The same three for a relation store, the port `@nxgt/janus/permissions`
+ * reads: `relationStoreCases`, `relationOutageCases`, `allRelationCases`;
+ * `runRelationCase`; `describeRelationStores`.
+ *
  * It imports no test framework and no assertion library.
  */
 
@@ -30,6 +34,20 @@ export {
 	SKIP_REASONS,
 } from './describe';
 export { referenceHarness } from './reference';
+export {
+	allRelationCases,
+	describeRelationStores,
+	type OpenedRelations,
+	type RelationCase,
+	type RelationContext,
+	type RelationFaults,
+	type RelationHarness,
+	type RelationMethod,
+	referenceRelationHarness,
+	relationOutageCases,
+	relationStoreCases,
+	runRelationCase,
+} from './relations';
 export type {
 	CaseContext,
 	ConformanceCase,

@@ -224,8 +224,11 @@ export interface UserTypeApi<U, In> {
 	 * `true` when this call deleted them; `false` for a malformed id, an
 	 * unknown one, or one of another type, which is left untouched.
 	 *
-	 * Idempotent: an outage half-way leaves sessions and tokens that already
-	 * authenticate nobody, and calling it again deletes them.
+	 * With `relations` wired into `janus()`, every tuple naming the user goes
+	 * too, last.
+	 *
+	 * Idempotent: an outage half-way leaves sessions, tokens and tuples that
+	 * name somebody who no longer exists, and calling it again deletes them.
 	 */
 	delete(user: UserRef): Promise<boolean>;
 }

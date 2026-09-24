@@ -196,12 +196,13 @@ consumer should call.
 | Entry point | State |
 | --- | --- |
 | `.` | `janus()`, its store port, the reference store and the hashers — and the vocabulary shared with permissions: errors, subjects, pagination, time, ids |
-| `./conformance` | The suite an adapter runs, and `referenceHarness()`. Shipped as product surface, not as a test helper |
+| `./permissions` | `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the `RelationStore` port and `createMemoryRelations()` |
+| `./conformance` | The suites an adapter runs — `describeJanusStores`, `describeRelationStores` — and their reference harnesses. Shipped as product surface, not as a test helper |
 
-`./permissions` is **not** published, and will not be until a real traversal is
-written against the tuple port. The permission *vocabulary* lives at `.` today
-because both modules import it — and because the equality between a user id and
-a subject id is the only reason users and permissions are one package.
+The permission *vocabulary* — subjects, the notation, `PermissionDepthError` —
+lives at `.`, not `./permissions`, because both modules import it — and because
+the equality between a user id and a subject id is the only reason users and
+permissions are one package.
 
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied

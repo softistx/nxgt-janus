@@ -14,6 +14,7 @@ import { scryptHasher } from '../src/auth/hashers';
 import { janus } from '../src/auth/janus';
 import { createMemoryStores } from '../src/auth/port/memory';
 import type { JanusStores } from '../src/auth/port/types';
+import type { RelationStore } from '../src/permissions/port/types';
 import { fixedClock } from '../src/time/clock';
 
 export const hasher = scryptHasher({ cost: 10 });
@@ -52,7 +53,9 @@ export const Staff = z.strictObject({
 	service: z.string(),
 });
 
-export function clinic(options: { store?: JanusStores } = {}) {
+export function clinic(
+	options: { store?: JanusStores; relations?: RelationStore } = {},
+) {
 	const clock = fixedClock(Date.UTC(2026, 8, 23));
 	const store = options.store ?? createMemoryStores();
 	const auth = janus({
@@ -67,6 +70,9 @@ export function clinic(options: { store?: JanusStores } = {}) {
 		store,
 		hasher,
 		clock,
+		...(options.relations === undefined
+			? {}
+			: { relations: options.relations }),
 	});
 
 	return { auth, store, clock };
