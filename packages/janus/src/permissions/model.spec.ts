@@ -141,6 +141,25 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'fromField must name a top-level field',
 		],
 		[
+			'a fromField whose lookup is not a function',
+			define({
+				subjects,
+				types: {
+					record: {
+						relations: {
+							doctor: {
+								kind: 'fromField',
+								field: 'doctorId',
+								subject: 'staff',
+								lookup: 'ids',
+							},
+						},
+					},
+				},
+			}),
+			"fromField's lookup must be a function",
+		],
+		[
 			'a relation and a permission with one name',
 			define({
 				subjects,
