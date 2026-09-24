@@ -1,6 +1,6 @@
 # @nxgt/janus-mongo
 
-The MongoDB adapter for [`@nxgt/janus`](../janus/README.md): its three stores —
+The MongoDB adapter for [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus): its three stores —
 users, sessions and one-time tokens — and the relation store of
 `@nxgt/janus/permissions`, over one database, on
 [`@nxgt/mongo`](https://www.npmjs.com/package/@nxgt/mongo).
@@ -38,9 +38,12 @@ export const access = permissions({ model, store: createMongoRelations(db) });
 bun add @nxgt/janus-mongo @nxgt/janus @nxgt/mongo mongodb zod
 ```
 
-`@nxgt/janus` is a **required peer**, never a dependency: this package defines
-no error class and throws the peer's own, so `instanceof StoreFailure` holds in
-your code. Like it, this package expects `"moduleResolution": "bundler"`.
+Every peer is required: `@nxgt/janus`, `@nxgt/mongo` (`>=0.17 <1`), `mongodb`
+(7), `zod` (4.6.5 or later, which `@nxgt/mongo` defines collections with) and `typescript`
+(6). `@nxgt/janus` is a **peer**, never a dependency: this package defines no
+error class and throws the peer's own, so `instanceof StoreFailure` holds in
+your code. Like it, this package expects `"moduleResolution": "bundler"`: the
+declarations import without extensions, so `nodenext` is not supported.
 
 ## API
 
@@ -95,3 +98,9 @@ passwords a self-describing hash.
   what it gathers itself, so its pages do not depend on it; a caller of the
   store directly sees bytes order, which differs from JavaScript's `<` only past
   U+FFFF.
+
+## Documentation
+
+- [Guides](docs/README.md) — wiring the stores, syncing the collections
+- [Troubleshooting](docs/troubleshooting.md) — by the error message you see
+- [Roadmap](docs/roadmap.md) — what is next, and what is not planned
