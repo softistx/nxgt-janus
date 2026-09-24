@@ -175,6 +175,34 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'when() takes a function',
 		],
 		[
+			'a subject set on a relation read from a field',
+			define({
+				subjects,
+				types: {
+					team: { relations: { lead: fromField('leadId', 'staff') } },
+					record: { relations: { viewer: ['team#lead'] } },
+				},
+			}),
+			'"team#lead" reads team.leadId, and a subject set reaches teams nobody passed to can()',
+		],
+		[
+			'an arrow to a permission read from the target’s own fields',
+			define({
+				subjects,
+				types: {
+					team: {
+						relations: { lead: fromField('leadId', 'staff') },
+						permissions: { manage: ['lead'] },
+					},
+					record: {
+						relations: { team: ['team'] },
+						permissions: { view: ['team->manage'] },
+					},
+				},
+			}),
+			'"team->manage" reaches team.manage, which reads team.leadId',
+		],
+		[
 			'a loop no relation ends',
 			define({
 				subjects,

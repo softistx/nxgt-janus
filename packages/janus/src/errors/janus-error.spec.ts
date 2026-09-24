@@ -5,6 +5,7 @@ import {
 	JanusError,
 	type JanusErrorCode,
 	NotFoundError,
+	PermissionDepthError,
 	StoreConflict,
 	StoreFailure,
 	TokenError,
@@ -37,6 +38,8 @@ describe('JanusError', () => {
 		expect(new UnsupportedError('x').name).toBe('UnsupportedError');
 		expect(new UserInvalidError('x').name).toBe('UserInvalidError');
 		expect(new UserInactiveError('x').name).toBe('UserInactiveError');
+		expect(new PermissionDepthError('x').name).toBe('PermissionDepthError');
+		expect(new PermissionDepthError('x').code).toBe('PERMISSION_DEPTH');
 	});
 });
 
@@ -89,6 +92,8 @@ describe('the codes a caller switches on', () => {
 					return 403;
 				case 'UNSUPPORTED':
 					return 501;
+				case 'PERMISSION_DEPTH':
+					return 500;
 			}
 		};
 

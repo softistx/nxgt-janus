@@ -133,9 +133,20 @@ type RelationDefOf<Ts, T, R> = T extends keyof Ts
 		: never
 	: never;
 
-/** `'team#member'` for every relation of every object type. */
+/** The relations of `T` that are stored as tuples: every one but its `fromField`s. */
+type StoredRelationsOf<Ts, T> = {
+	[R in RelationsOf<Ts, T>]: RelationDefOf<Ts, T, R> extends FromField
+		? never
+		: R;
+}[RelationsOf<Ts, T>];
+
+/**
+ * `'team#member'` for every stored relation of every object type. Not a
+ * `fromField`: a subject set reaches objects nobody passed to `can()`, so there
+ * is no data to read the field from.
+ */
 type SubjectSetOf<Ts> = {
-	[T in keyof Ts & string]: `${T}#${RelationsOf<Ts, T>}`;
+	[T in keyof Ts & string]: `${T}#${StoredRelationsOf<Ts, T>}`;
 }[keyof Ts & string];
 
 type SubjectRefOf<S extends string, Ts> =
@@ -319,6 +330,52 @@ export type Can<C extends ModelConfig> = <
 	object: ObjectRef<C, T>,
 	...options: CheckArgs<C, T, P>
 ) => Promise<boolean>;
+
+/** The relations of an object type that `grant` can write: not its `fromField`s. */
+export type GrantableOf<
+	C extends ModelConfig,
+	T extends ObjectTypeOf<C>,
+> = StoredRelationsOf<TypesOf<C>, T>;
+
+/**
+ * Who may be granted relation `R` on an object of type `T`: an entity of each
+ * subject type it names, and a subject set for each set it names.
+ */
+export type HolderOf<C extends ModelConfig, T extends ObjectTypeOf<C>, R> =
+	RelationDefOf<TypesOf<C>, T, R> extends readonly (infer E)[]
+		? E extends `${infer SetType}#${infer SetRelation}`
+			? {
+					readonly type: SetType;
+					readonly id: string;
+					readonly relation: SetRelation;
+				}
+			: { readonly type: E; readonly id: string }
+		: never;
+
+/** Writes one tuple, or removes it: typed like `can()`. */
+export type Grant<C extends ModelConfig> = <
+	T extends ObjectTypeOf<C>,
+	R extends GrantableOf<C, T>,
+>(
+	object: { readonly type: T; readonly id: string },
+	relation: R,
+	subject: HolderOf<C, T, R>,
+) => Promise<void>;
+
+/** What `permissions()` answers. */
+export interface Permissions<C extends ModelConfig> {
+	readonly model: PermissionModel<C>;
+	/**
+	 * Whether `subject` holds `permission` on `object`: `true` or `false`, and
+	 * **a failure throws** — a store that cannot answer is `STORE_FAILED`, never
+	 * a denial. `null` is anonymous, and `false` before any store call.
+	 */
+	readonly can: Can<C>;
+	/** Stores that `subject` holds `relation` on `object`. Idempotent. */
+	readonly grant: Grant<C>;
+	/** Removes it. Idempotent: revoking what is not held is not an error. */
+	readonly revoke: Grant<C>;
+}
 
 /** The configuration a model was defined from. */
 export type ConfigOf<M> = M extends PermissionModel<infer C> ? C : never;

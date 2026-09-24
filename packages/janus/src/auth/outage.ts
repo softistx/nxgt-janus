@@ -21,16 +21,17 @@ import {
 	StoreConflict,
 	StoreFailure,
 } from '../errors/janus-error';
+import type { RelationStore } from '../permissions/port/types';
 import type { JanusStores } from './port/types';
 
-type Slot = keyof JanusStores;
+type Slot = keyof JanusStores | 'relations';
 
 /**
  * The methods whose answer is legitimately nothing: `undefined` from them is
  * not a forgotten `return`. Every other method answers a value, `null`,
  * `false`, `0` or a page — **never `undefined`**.
  */
-const ANSWERS_NOTHING = new Set(['insertSession', 'insertToken']);
+const ANSWERS_NOTHING = new Set(['insertSession', 'insertToken', 'write']);
 
 /**
  * The stores, with every method guarded.
@@ -54,6 +55,14 @@ export function guardStores(stores: JanusStores): JanusStores {
 		sessions: guardSlot('sessions', stores.sessions),
 		tokens: guardSlot('tokens', stores.tokens),
 	};
+}
+
+/**
+ * The relation store, guarded the same way: the permission engine's only way
+ * to a store, so a failure there is `STORE_FAILED` and never a denial.
+ */
+export function guardRelations(store: RelationStore): RelationStore {
+	return guardSlot('relations', store);
 }
 
 function guardSlot<S extends object>(slot: Slot, store: S): S {

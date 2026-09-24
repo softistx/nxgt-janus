@@ -102,7 +102,15 @@ export type JanusErrorCode =
 	 * needs. Names the method and the slot, so the sentence says which store to
 	 * change or which call to stop making.
 	 */
-	| 'UNSUPPORTED';
+	| 'UNSUPPORTED'
+	/**
+	 * A permission check walked deeper than `maxDepth` relations without an
+	 * answer. **Not a refusal**: an evaluation that stopped half-way has not
+	 * decided anything, and answering `false` would hide a model that is too
+	 * deep behind denials nobody can explain. A cycle in the data is not this —
+	 * it is cut, silently. Carries `permission` and `maxDepth`.
+	 */
+	| 'PERMISSION_DEPTH';
 
 /** One thing that was wrong with a user's fields, at one path. */
 export interface Issue {
@@ -144,6 +152,10 @@ export interface JanusErrorOptions {
 	readonly operation?: string;
 	/** Which store slot: the sentence should say which store to change. */
 	readonly slot?: 'users' | 'sessions' | 'tokens' | 'relations';
+	/** The permission being checked, in the notation: `record:r1#view`. */
+	readonly permission?: string;
+	/** The depth a check may walk. */
+	readonly maxDepth?: number;
 	readonly cause?: unknown;
 }
 
@@ -177,6 +189,8 @@ export class JanusError extends Error {
 	readonly minLength: number | undefined;
 	readonly operation: string | undefined;
 	readonly slot: 'users' | 'sessions' | 'tokens' | 'relations' | undefined;
+	readonly permission: string | undefined;
+	readonly maxDepth: number | undefined;
 
 	constructor(message: string, options?: JanusErrorOptions) {
 		super(message, { cause: options?.cause });
@@ -191,6 +205,8 @@ export class JanusError extends Error {
 		this.minLength = options?.minLength;
 		this.operation = options?.operation;
 		this.slot = options?.slot;
+		this.permission = options?.permission;
+		this.maxDepth = options?.maxDepth;
 	}
 }
 
@@ -294,4 +310,10 @@ export class InvalidCursorError extends JanusError {
 export class UnsupportedError extends JanusError {
 	override name = 'UnsupportedError';
 	override readonly code = 'UNSUPPORTED' as const;
+}
+
+/** A permission check walked deeper than `maxDepth` without an answer. */
+export class PermissionDepthError extends JanusError {
+	override name = 'PermissionDepthError';
+	override readonly code = 'PERMISSION_DEPTH' as const;
 }
