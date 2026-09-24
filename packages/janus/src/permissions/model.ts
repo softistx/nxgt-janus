@@ -21,16 +21,26 @@
  * names, cycles — is refused by {@link defineModel} with a `TypeError`.
  */
 
+import type { CursorPage } from '../pagination/cursor-page';
 import { type ResolvedModel, resolveModel } from './resolve';
 
 // ─── The two building blocks ──────────────────────────────────────────────
+
+/**
+ * The ids of the objects whose field names this subject id — what `list()`
+ * needs to reverse a `fromField`: `(doctorId) => db.records.ids({ doctorId })`.
+ * Unpaged; a failure throws, as a store's does.
+ */
+export type Lookup = (subjectId: string) => Promise<readonly string[]>;
 
 /**
  * A relation read from the object's own data: `fromField('doctorId', 'staff')`
  * holds for the subject of type `staff` whose id is `object.doctorId`.
  *
  * Nothing is stored. `can()` receives the object — the route has already
- * loaded it — and the compiler requires the field on it.
+ * loaded it — and the compiler requires the field on it. `list()` cannot read
+ * a field of objects it has not found yet, so it asks `lookup` instead; a
+ * `list()` that would need one it was not given is a compile error.
  */
 export interface FromField<
 	Field extends string = string,
@@ -39,13 +49,39 @@ export interface FromField<
 	readonly kind: 'fromField';
 	readonly field: Field;
 	readonly subject: Subject;
+	readonly lookup?: Lookup;
+}
+
+/** A `fromField` `list()` can reverse. */
+export interface ReversibleFromField<
+	Field extends string = string,
+	Subject extends string = string,
+> extends FromField<Field, Subject> {
+	readonly lookup: Lookup;
 }
 
 export function fromField<
 	const Field extends string,
 	const Subject extends string,
->(field: Field, subject: Subject): FromField<Field, Subject> {
-	return Object.freeze({ kind: 'fromField', field, subject });
+>(field: Field, subject: Subject): FromField<Field, Subject>;
+export function fromField<
+	const Field extends string,
+	const Subject extends string,
+>(
+	field: Field,
+	subject: Subject,
+	options: { readonly lookup: Lookup },
+): ReversibleFromField<Field, Subject>;
+export function fromField(
+	field: string,
+	subject: string,
+	options?: { readonly lookup: Lookup },
+): FromField {
+	return Object.freeze(
+		options === undefined
+			? { kind: 'fromField' as const, field, subject }
+			: { kind: 'fromField' as const, field, subject, lookup: options.lookup },
+	);
 }
 
 /**
@@ -296,13 +332,21 @@ export type CheckArgs<
 	? [ObjectTypeOf<C>] extends [never]
 		? [options?: { readonly ctx?: unknown }]
 		: IsSingle<ObjectTypeOf<C>> extends true
-			? Strict<C, T, P>
+			? // One object type: `T` is its constraint and right; `P` may not be.
+				PermissionArgs<C, T, P>
 			: [options?: { readonly ctx?: unknown }]
-	: [CheckableOf<C, T>] extends [P]
-		? IsSingle<CheckableOf<C, T>> extends true
-			? Strict<C, T, P>
-			: [options?: { readonly ctx?: unknown }]
-		: Strict<C, T, P>;
+	: PermissionArgs<C, T, P>;
+
+/** `CheckArgs` once `T` is known right: loose when `P` is its whole constraint. */
+type PermissionArgs<
+	C extends ModelConfig,
+	T extends ObjectTypeOf<C>,
+	P extends string,
+> = [CheckableOf<C, T>] extends [P]
+	? IsSingle<CheckableOf<C, T>> extends true
+		? Strict<C, T, P>
+		: [options?: { readonly ctx?: unknown }]
+	: Strict<C, T, P>;
 
 type Strict<
 	C extends ModelConfig,
@@ -330,6 +374,98 @@ export type Can<C extends ModelConfig> = <
 	object: ObjectRef<C, T>,
 	...options: CheckArgs<C, T, P>
 ) => Promise<boolean>;
+
+// ─── What list() can reverse ──────────────────────────────────────────────
+
+/** `'record.doctor'` when relation `R` of `T` is a `fromField` with no `lookup`. */
+type GapOfRelation<Ts, T, R> =
+	RelationDefOf<Ts, T, R> extends { readonly lookup: Lookup }
+		? never
+		: RelationDefOf<Ts, T, R> extends FromField
+			? `${T & string}.${R & string}`
+			: never;
+
+type GapOfName<Ts, T, N, Seen> = N extends `${infer R}->${infer P}`
+	?
+			| GapOfRelation<Ts, T, R>
+			| GapOfPermission<Ts, ArrowTargets<Ts, T, R>, P, Seen>
+	: GapOfPermission<Ts, T, N, Seen>;
+
+/**
+ * The `fromField`s without a `lookup` that `list(…, P, T)` would have to
+ * reverse — through `P`'s rules, the names they reach, and arrows. A subject
+ * set never reaches one: `defineModel` refuses that.
+ */
+type GapOfPermission<Ts, T, P, Seen> = T extends keyof Ts & string
+	? P extends string
+		? `${T}.${P}` extends Seen
+			? never
+			: P extends RelationsOf<Ts, T>
+				? GapOfRelation<Ts, T, P>
+				: Ts[T] extends { readonly permissions: infer Ps }
+					? P extends keyof Ps
+						? Ps[P] extends readonly (infer E)[]
+							? GapOfName<Ts, T, NameOfRule<E>, Seen | `${T}.${P}`>
+							: never
+						: never
+					: never
+		: never
+	: never;
+
+/** Every `fromField` without a `lookup` that `list(…, P, T)` would reach; `never` when none. */
+export type LookupGap<
+	C extends ModelConfig,
+	T extends ObjectTypeOf<C>,
+	P extends string,
+> = GapOfPermission<TypesOf<C>, T, P, never>;
+
+/** What a permission must also be for `list()`: reversible. */
+type ListCheck<
+	C extends ModelConfig,
+	T extends ObjectTypeOf<C>,
+	P extends string,
+> = [LookupGap<C, T, P>] extends [never]
+	? unknown
+	: Refusal<
+			`list cannot reverse ${LookupGap<C, T, P>}: give that fromField a lookup`,
+			never
+		>;
+
+/** Where a page of `list()` starts, and how much it holds. */
+export interface ListPage {
+	/** The `nextCursor` of the previous page; absent or `null` for the first. */
+	readonly after?: string | null;
+	/** Between 1 and 100; 20 when absent. */
+	readonly limit?: number;
+}
+
+/** `CheckArgs`, with a page. */
+type ListArgs<
+	C extends ModelConfig,
+	T extends ObjectTypeOf<C>,
+	P extends string,
+> =
+	CheckArgs<C, T, P> extends [infer O]
+		? [options: O & ListPage]
+		: CheckArgs<C, T, P> extends [options?: infer O]
+			? [options?: O & ListPage]
+			: never;
+
+/**
+ * The signature of `list()`: the ids of the objects of `type` on which
+ * `subject` holds `permission`, in ascending order, by pages. Typed like
+ * `can()`, and refuses a permission that reaches a `fromField` with no
+ * `lookup`: nothing could find the objects whose field names the subject.
+ */
+export type List<C extends ModelConfig> = <
+	T extends ObjectTypeOf<C>,
+	P extends CheckableOf<C, T>,
+>(
+	subject: SubjectRef<C> | null,
+	permission: P & ListCheck<C, T, P>,
+	type: T,
+	...options: ListArgs<C, T, P>
+) => Promise<CursorPage<string>>;
 
 /** The relations of an object type that `grant` can write: not its `fromField`s. */
 export type GrantableOf<
@@ -371,6 +507,13 @@ export interface Permissions<C extends ModelConfig> {
 	 * a denial. `null` is anonymous, and `false` before any store call.
 	 */
 	readonly can: Can<C>;
+	/**
+	 * The ids of the objects of `type` on which `subject` holds `permission`,
+	 * ascending, by pages — what `can()` answers `true` for, found without
+	 * naming them. `null` is anonymous, and an empty page before any store call.
+	 * A failure throws, as for `can()`.
+	 */
+	readonly list: List<C>;
 	/** Stores that `subject` holds `relation` on `object`. Idempotent. */
 	readonly grant: Grant<C>;
 	/** Removes it. Idempotent: revoking what is not held is not an error. */

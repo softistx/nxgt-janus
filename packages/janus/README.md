@@ -66,7 +66,7 @@ compilation of callers that exhaust it:
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
 | `UNSUPPORTED` | 500 — a wiring mistake, and the message names the store to change |
-| `PERMISSION_DEPTH` | 500 — a permission check walked past `maxDepth`; not a denial. From the permission engine, which is not published yet |
+| `PERMISSION_DEPTH` | 500 — a permission check or list walked past `maxDepth`; not a denial. From the permission engine, which is not published yet |
 
 `StoreFailure` and `StoreConflict` are exported **because an adapter throws
 them**. An adapter defines no error class of its own, so `instanceof` holds
@@ -368,7 +368,7 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the store port, from the side of the person
 implementing it) and `test/types/auth.ts` (twenty, on `janus()`, from the side
-of the application). `test/types/permissions.ts` holds twenty more for the
+of the application). `test/types/permissions.ts` holds twenty-four more for the
 permission model, which is not published yet and is not counted above. The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

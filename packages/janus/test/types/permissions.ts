@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Twenty plausible mistakes, twenty refused**, each verified to fail for
+ * **Twenty-four plausible mistakes, twenty-four refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -199,6 +199,37 @@ defineModel({
 	},
 });
 
+// ─── Listing ──────────────────────────────────────────────────────────────
+
+// @ts-expect-error 21. view reaches record.doctor, a fromField with no lookup: nothing finds those records
+access.list(staff, 'view', 'record', { ctx: { onShift: true } });
+
+// @ts-expect-error 22. a relation read from a field, listed directly, without its lookup
+access.list(staff, 'patient', 'record');
+
+const ward = permissions({
+	model: defineModel({
+		subjects,
+		types: {
+			bed: {
+				relations: {
+					nurse: fromField('nurseId', 'staff', { lookup: async () => [] }),
+				},
+				permissions: {
+					use: [when('nurse', (ctx: { onShift: boolean }) => ctx.onShift)],
+				},
+			},
+		},
+	}),
+	store: createMemoryRelations(),
+});
+
+// @ts-expect-error 23. use is conditional, and list() needs the ctx as can() does
+ward.list(staff, 'use', 'bed');
+
+// @ts-expect-error 24. "view" is no permission of bed
+ward.list(staff, 'view', 'bed');
+
 // ─── What is allowed ──────────────────────────────────────────────────────
 
 async function allowed() {
@@ -220,6 +251,12 @@ async function allowed() {
 			relation: 'member',
 		}),
 		await access.can(staff, 'view', record, { ctx: { onShift: true } }),
+		// Stored relations and arrows need nothing more to be listed.
+		await access.list(staff, 'view', 'team', { limit: 10 }),
+		await access.list(staff, 'team', 'record', { after: null }),
+		// A fromField with a lookup can be listed; its condition still needs ctx.
+		await ward.list(staff, 'nurse', 'bed'),
+		await ward.list(staff, 'use', 'bed', { ctx: { onShift: true }, limit: 5 }),
 	];
 }
 

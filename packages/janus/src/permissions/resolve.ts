@@ -21,6 +21,8 @@ export type ResolvedRelation =
 			readonly kind: 'fromField';
 			readonly field: string;
 			readonly subject: string;
+			/** What `list()` reverses it with. Absent: `list()` cannot reach through it. */
+			readonly lookup?: (subjectId: string) => Promise<readonly string[]>;
 	  };
 
 /** One rule of a permission. `test`, when present, must pass for it to grant. */
@@ -200,7 +202,7 @@ function resolveRelation(
 	},
 ): ResolvedRelation {
 	if (isRecord(value) && value.kind === 'fromField') {
-		const { field, subject } = value;
+		const { field, subject, lookup } = value;
 		if (typeof field !== 'string' || !FIELD.test(field)) {
 			throw refuse(`${here}: fromField must name a top-level field`);
 		}
@@ -209,7 +211,17 @@ function resolveRelation(
 				`${here}: fromField names "${String(subject)}", which is not a subject type`,
 			);
 		}
-		return { kind: 'fromField', field, subject };
+		if (lookup !== undefined && typeof lookup !== 'function') {
+			throw refuse(`${here}: fromField's lookup must be a function`);
+		}
+		return lookup === undefined
+			? { kind: 'fromField', field, subject }
+			: {
+					kind: 'fromField',
+					field,
+					subject,
+					lookup: lookup as (subjectId: string) => Promise<readonly string[]>,
+				};
 	}
 
 	if (!Array.isArray(value) || value.length === 0) {
