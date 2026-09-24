@@ -1,7 +1,8 @@
 # @nxgt/janus
 
-Authentication and permissions as an **embeddable** TypeScript library: your
-process, your database, behind a port you can implement.
+Identities and permissions as an **embeddable** TypeScript library: your
+process, your database, behind a port you can implement. Use **identities**
+alone, **permissions** alone, or both — see [Three ways to use it](#three-ways-to-use-it).
 
 ```ts
 import { z } from 'zod';
@@ -18,11 +19,7 @@ const { user, token } = await auth.signUp({ email, name, password });
 const current = await auth.authenticate(request); // { user, session, token, renewed } | null
 ```
 
-> **0.x.** A minor version may still change the surface. `.` is `janus()` and the vocabulary it shares with the
-> permissions — errors, subjects, pagination, time, ids. `./permissions` is the
-> ReBAC engine. `./conformance` is the suite an adapter runs. A subpath appears in `exports`
-> only once it exports something you should call, because a published entry
-> point is a promise.
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 
@@ -39,9 +36,92 @@ supported.
 
 | Import | What it holds |
 | --- | --- |
-| `@nxgt/janus` | `janus()`, the store port and its reference store (`createMemoryStores`), the hashers, and the vocabulary shared with the permissions: errors, subjects and the tuple notation, ids, pagination, time |
-| `@nxgt/janus/permissions` | `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the `RelationStore` port and `createMemoryRelations()` |
-| `@nxgt/janus/conformance` | The suites an adapter runs — `describeJanusStores`, `describeRelationStores` — their cases as data, and the reference harnesses |
+| `@nxgt/janus` | **Identities**: `janus()`, the identity stores' port and its in-memory reference (`createMemoryStores`), the hashers. And the **shared vocabulary**: errors, subjects and the tuple notation, ids, pagination, time |
+| `@nxgt/janus/permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the relation store's port and its in-memory reference (`createMemoryRelations`) |
+| `@nxgt/janus/conformance` | **For adapters**: the suites a store runs — `describeJanusStores`, `describeRelationStores` — their cases as data, and the reference harnesses |
+
+A subpath appears in `exports` only once it exports something you should call:
+a published entry point is a promise.
+
+## Three ways to use it
+
+Janus has two sides. **Identities** answers *who is this?* — users, their
+logins and passwords, sessions, one-time tokens. **Permissions** answers *may
+they?* — a model, the tuples stored against it, and `can`. Each side is usable
+alone, and neither loads the other's code: a spec reads the import graph of
+each entry point and fails if one reaches into the other.
+
+**Identities only** — sign-up, sign-in, sessions, e-mail flows:
+
+```ts
+import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
+
+const auth = janus({
+	user: z.object({ email: z.email() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
+	hasher: scryptHasher(),
+});
+```
+
+**Permissions only** — your users live elsewhere; name their types as the
+subjects:
+
+```ts
+import {
+	createMemoryRelations,
+	defineModel,
+	permissions,
+} from '@nxgt/janus/permissions';
+
+const access = permissions({
+	model: defineModel({
+		subjects: ['user'],
+		types: {
+			document: {
+				relations: { owner: ['user'], viewer: ['user'] },
+				permissions: { view: ['owner', 'viewer'] },
+			},
+		},
+	}),
+	store: createMemoryRelations(),
+});
+
+await access.grant({ type: 'document', id: 'd1' }, 'viewer', { type: 'user', id: 'u1' });
+await access.can({ type: 'user', id: 'u1' }, 'view', { type: 'document', id: 'd1' }); // true
+```
+
+**Both** — the user types become the subjects, and deleting a user deletes
+every tuple naming them:
+
+```ts
+const relations = createMemoryRelations();
+
+const auth = janus({
+	user: z.object({ email: z.email() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
+	relations,
+	hasher: scryptHasher(),
+});
+
+const access = permissions({
+	model: defineModel({
+		subjects: auth.types,
+		types: {
+			document: {
+				relations: { owner: ['user'] },
+				permissions: { view: ['owner'] },
+			},
+		},
+	}),
+	store: relations,
+});
+```
+
+The words used throughout — side, subject, tuple, identity stores, relation
+store, adapter — are defined once, in
+[the shared vocabulary](docs/guide/vocabulary.md#words).
 
 ## The one rule
 
@@ -50,8 +130,8 @@ supported.
 Everything else in this package is downstream of that sentence. A store that
 cannot answer — a refused connection, a timeout, a primary stepping down, a bug
 in the adapter — **throws**, and a caller answers 503. Mapping that to a 404, to
-`null` or to `false` turns an outage into a silent lockout: everybody who has an
-account is told they do not. That has been measured twice in this organisation,
+`null` or to `false` turns an outage into a silent lockout: every user is told
+they do not exist. That has been measured twice in this organisation,
 two days apart, which is why it is a term of the port here rather than a note in
 the documentation.
 
@@ -183,7 +263,7 @@ is the loop.
 `fixedClock` is **shipped, not test-only** — testing session expiry needs it, and
 so do your own tests.
 
-### Users — `janus()`
+### Identities — `janus()`
 
 ```ts
 import { z } from 'zod';
@@ -239,8 +319,8 @@ else reaches the store and is asynchronous.
   schema producing a `Date` is refused at compile time.
 - **Several user types** live in one instance: `auth.patient.*`, `auth.staff.*`,
   and one `authenticate` whose answer is a union narrowed by `user.type`. A
-  login is unique **per type**: the same e-mail may hold a patient account and
-  a staff account.
+  login is unique **per type**: the same e-mail may hold a patient user and a
+  staff user.
 - **`password.login`** names a top-level, required string field. A typo is a
   compile error on `login`, and the message lists the fields you could have
   meant. It is normalised with `'lowercaseTrim'` unless you say otherwise.
@@ -535,7 +615,7 @@ one gap, named.**
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
-`test/types/port.ts` (fifteen, on the store port, from the side of the person
+`test/types/port.ts` (fifteen, on the identity stores' port, from the side of the person
 implementing it), `test/types/auth.ts` (twenty, on `janus()`, from the side
 of the application) and `test/types/permissions.ts` (twenty-six, on the
 permission model and the questions asked of it). The rule

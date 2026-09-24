@@ -13,7 +13,7 @@ Nothing yet.
 
 ## Later
 
-- **More official adapters** — the store port is cut where atomicity is not
+- **More official adapters** — the ports are cut where atomicity is not
   required, so users, sessions and permission tuples can each live in the
   database that suits them. MongoDB is the first adapter
   ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo)).
@@ -88,6 +88,6 @@ The first public release, v0.1.
   — v0.1
 - **The conformance suite** — `@nxgt/janus/conformance`, the suite an adapter
   runs, outages included. — v0.1
-- **The store port and its in-memory reference** — `JanusStores` and
+- **The identity stores' port and its in-memory reference** — `JanusStores` and
   `createMemoryStores()`, for your tests and as the model for an adapter.
   — v0.1

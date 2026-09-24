@@ -294,7 +294,7 @@ Also `janus: cookie.name must be a cookie-name token — letters, digits and !#$
 
 **When:** any call that reaches the store — `authenticate`, `signIn`, `get`, `can` — while the database is down, times out, or the adapter throws.
 **Why:** a store that cannot answer throws; it never answers `null`. The driver's own error is on `error.cause` — not in the message, because a driver message can hold a connection string, and a connection string holds a password.
-**Fix:** answer **503**, and log `cause`. Never map it to 401, 404, `null` or `false`: that turns an outage into a silent lockout, where everybody with an account is told they do not have one.
+**Fix:** answer **503**, and log `cause`. Never map it to 401, 404, `null` or `false`: that turns an outage into a silent lockout, where every user is told they do not exist.
 
 ```ts
 import { JanusError } from '@nxgt/janus';
@@ -333,7 +333,7 @@ const user = await auth.find(id); // null when there is nobody
 `StoreConflict` with `on: 'login'`, carrying `login` and `userType`.
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
-**Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient account and a staff account.
+**Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.
 **Fix:** answer 409. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
 
 ### `VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`
@@ -378,7 +378,7 @@ Also `changePassword: the current password does not match`.
 **Fix:** answer 401 with the same body whatever the reason:
 
 ```ts
-// Never: { reason: error.reason } — `unknownLogin` tells an attacker which accounts exist.
+// Never: { reason: error.reason } — `unknownLogin` tells an attacker which users exist.
 return new Response('Wrong e-mail or password', { status: 401 });
 ```
 

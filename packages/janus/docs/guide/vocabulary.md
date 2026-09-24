@@ -1,7 +1,7 @@
 # The shared vocabulary
 
-This page is for the small pieces `@nxgt/janus` exports beside `janus()` and
-the permissions, because both use them: subjects and the tuple notation, ids,
+This page defines the words the documentation uses, then the small pieces
+`@nxgt/janus` exports for both sides: subjects and the tuple notation, ids,
 pagination, durations and clocks. All of it is imported from `@nxgt/janus`.
 
 ```ts
@@ -18,6 +18,33 @@ formatTuple({
 parseDuration('8h', 'session.lifespan'); // 28800000
 ```
 
+## Words
+
+One word per idea, the same in the README, these guides, the error messages
+and the code.
+
+| Word | Means | Not |
+| --- | --- | --- |
+| **side** | One of the two things Janus does, each usable alone: identities or permissions | "half", "module" |
+| **identities** | The side that answers *who is this?* — users, logins, passwords, sessions, one-time tokens. `janus()`, from `@nxgt/janus` | "auth", "authentication", in prose; `auth` is only the variable name in examples |
+| **permissions** | The side that answers *may they?* — a model, the tuples stored against it, `can`, `list`, `grant`, `revoke`. `@nxgt/janus/permissions` | "authorization", "access control", "ACL" |
+| **user** | One stored person or machine, of one user type | "account" — kept only in *account takeover* and *account enumeration*, the names of those attacks |
+| **user type** | A kind of user with its own schema and login: `staff`, `patient`. Its name is also a subject type | "role": a role is a relation in the permissions model |
+| **login** | The value a user signs in with: an e-mail, a username. **sign in** is the verb, **sign-in** the noun | "identifier", "credential" (a credential is what a request carries: a token or a cookie) |
+| **session** | A signed-in period, carried by a session token | |
+| **one-time token** | A single-use code sent by e-mail: verification or password reset | |
+| **object** | What a permission is about: `{ type: 'document', id }` | "resource" |
+| **subject** | Who a permission is about: a user, an object, or a subject set | "principal", "actor" |
+| **subject set** | Everyone holding one relation on one object: `team:t1#member` | "group" — a group is modelled as an object with a `member` relation |
+| **relation** | A named link stored as tuples, or read from a field (`fromField`) | |
+| **permission** | A name computed from relations and other permissions by the model's rules | |
+| **tuple** | One stored fact — object, relation, subject: `document:d1#viewer@user:u1` | "grant", "ACL entry" |
+| **model** | What `defineModel()` answers: the object types, their relations and permissions | "schema", "policy" |
+| **store** | Where a side keeps its data, behind a port. The **identity stores** are `users`, `sessions` and `tokens`; the **relation store** holds the tuples | "database", "repository" |
+| **port** | The interface a store implements: `JanusStores`, `RelationStore` | "driver" |
+| **adapter** | A package implementing the ports for one database: `@nxgt/janus-mongo` | "plugin", "connector" |
+| **outage** | A store that cannot answer. It throws `STORE_FAILED` — never an absence, never a denial | |
+
 ## Subjects and the tuple notation
 
 ```ts
@@ -30,7 +57,7 @@ interface RelationTuple { readonly object: Entity; readonly relation: string; re
 **Subjects are typed**: `{ type, id }` for one entity, `{ type, id, relation }`
 for a subject set — every `member` of `team:t1`. `type` is the same word as a
 user's own, so a user id and a subject id are the same thing, and
-`subjectOf(user)` is the one-line join between the two halves of the package.
+`subjectOf(user)` is the one-line join between the two sides of the package.
 It copies `type` and `id` only, so none of the user's own fields ever reaches
 a tuple.
 

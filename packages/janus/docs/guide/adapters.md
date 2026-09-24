@@ -1,4 +1,4 @@
-# Writing an adapter — the store port and `@nxgt/janus/conformance`
+# Writing an adapter — the ports and `@nxgt/janus/conformance`
 
 This page is for putting `janus()` or `permissions()` on a database of your
 choice: the two ports you implement, the rules they carry, and the conformance

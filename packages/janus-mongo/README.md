@@ -6,7 +6,8 @@ users, sessions and one-time tokens — and the relation store of
 [`@nxgt/mongo`](https://www.npmjs.com/package/@nxgt/mongo).
 
 It passes both `@nxgt/janus/conformance` suites against a real mongod, outages
-included.
+included. Each side is usable alone, as in `@nxgt/janus`: `createMongoStores`
+for identities, `createMongoRelations` for permissions, or both, as below.
 
 ```ts
 import { janus, scryptHasher } from '@nxgt/janus';

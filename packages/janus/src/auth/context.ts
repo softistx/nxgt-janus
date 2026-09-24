@@ -38,7 +38,7 @@ import type { User, UserRef, WriteOptions } from './types';
 
 export interface Context {
 	readonly config: ResolvedConfig;
-	/** Already guarded by `outage.ts`. */
+	/** Already guarded, by `src/stores/guard.ts`. */
 	readonly store: JanusStores;
 	/** Already guarded. `null` when no relation store is wired. */
 	readonly relations: RelationStore | null;

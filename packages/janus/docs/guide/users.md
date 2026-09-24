@@ -1,8 +1,9 @@
 # Users — `janus()`
 
 This page is for wiring `janus()` and managing users with it: the
-configuration, one or several kinds of user, and every method a user type
-answers. Sessions have [their own page](sessions.md), and so do the
+configuration, one or several user types, and every method a user type
+answers. It is the **identities** side, usable alone: nothing here needs
+[permissions](permissions.md), and `@nxgt/janus` loads none of their code. Sessions have [their own page](sessions.md), and so do the
 [e-mail flows](email-flows.md) and [password hashing](passwords.md).
 
 ```ts
@@ -151,7 +152,7 @@ if (current?.user.type === 'staff') current.user.service; // narrowed by type
 
 Each type carries `schema` and, optionally, `password`, `email`, `session`
 and `schemaVersion`, with the defaults above. A login is unique **per type**:
-the same e-mail may hold a patient account and a staff account. A type name is
+the same e-mail may hold a patient user and a staff user. A type name is
 camelCase, and may not be one of `janus()`'s own methods (`authenticate`,
 `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`,
 `collectExpired`, `types`) — a compile error, and a `TypeError` for a
@@ -274,4 +275,4 @@ fields against your schema, not that `password` is a string.
 
 - [Sessions](sessions.md) — `authenticate`, the cookie, signing out
 - [Errors](errors.md) — every code, and the status it deserves
-- [Writing an adapter](adapters.md) — the store port behind `store`
+- [Writing an adapter](adapters.md) — the identity stores behind `store`

@@ -24,9 +24,9 @@
  * nothing, and `false` would hide it.
  */
 
-import { guardRelations } from '../auth/outage';
 import type { CursorPage } from '../pagination/cursor-page';
 import { pageLimit } from '../pagination/cursor-page';
+import { guardRelations } from '../stores/guard';
 import { objectOf, subjectOf, tupleOf, typeOf } from './input';
 import type { ModelConfig, PermissionModel, Permissions } from './model';
 import { resolvedOf } from './model';

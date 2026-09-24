@@ -1,37 +1,23 @@
 /**
- * **The one place a store call is caught, and the one place a `null` becomes an
- * error.**
- *
- * The transposition of `call.ts` in `nxgt-ory`'s SDK — "the only place a call
- * is unwrapped" — into a core with no status codes. The invariant this whole
- * package is built around is checked by reading this file:
+ * **The identity side's two conversions**, and the one place a `null` becomes
+ * an error.
  *
  * > An absence is `null`. A failure throws.
  *
- * `outage.spec.ts` reads every other file of `src/auth/` and fails if a
- * `catch` appears in one, because the failure this design exists to prevent is
- * a single careless `catch { return null }`. There are two `catch`es below: the
- * guard's always rethrows, and {@link unlessVersionConflict}'s absorbs one
- * named conflict and rethrows everything else. The spec holds both to that.
+ * {@link guardStores} puts the three identity stores behind the shared guard
+ * (`src/stores/guard.ts`), the one place a store's answer is caught.
+ * {@link required} turns an absence the caller cannot accept into its refusal,
+ * and {@link unlessVersionConflict} absorbs one named conflict and rethrows
+ * everything else.
+ *
+ * `outage.spec.ts` reads every other file of `src/auth/`, `src/permissions/`
+ * and `src/stores/` and fails if a `catch` appears in one, because the failure
+ * this design exists to prevent is a single careless `catch { return null }`.
  */
 
-import {
-	type JanusError,
-	JanusError as JanusErrorClass,
-	StoreConflict,
-	StoreFailure,
-} from '../errors/janus-error';
-import type { RelationStore } from '../permissions/port/types';
+import { type JanusError, StoreConflict } from '../errors/janus-error';
+import { guardStore } from '../stores/guard';
 import type { JanusStores } from './port/types';
-
-type Slot = keyof JanusStores | 'relations';
-
-/**
- * The methods whose answer is legitimately nothing: `undefined` from them is
- * not a forgotten `return`. Every other method answers a value, `null`,
- * `false`, `0` or a page — **never `undefined`**.
- */
-const ANSWERS_NOTHING = new Set(['insertSession', 'insertToken', 'write']);
 
 /**
  * The stores, with every method guarded.
@@ -51,79 +37,10 @@ const ANSWERS_NOTHING = new Set(['insertSession', 'insertToken', 'write']);
  */
 export function guardStores(stores: JanusStores): JanusStores {
 	return {
-		users: guardSlot('users', stores.users),
-		sessions: guardSlot('sessions', stores.sessions),
-		tokens: guardSlot('tokens', stores.tokens),
+		users: guardStore('users', stores.users),
+		sessions: guardStore('sessions', stores.sessions),
+		tokens: guardStore('tokens', stores.tokens),
 	};
-}
-
-/**
- * The relation store, guarded the same way: the permission engine's only way
- * to a store, so a failure there is `STORE_FAILED` and never a denial.
- */
-export function guardRelations(store: RelationStore): RelationStore {
-	return guardSlot('relations', store);
-}
-
-function guardSlot<S extends object>(slot: Slot, store: S): S {
-	const guarded: Record<string, unknown> = {};
-
-	for (const method of methodsOf(store)) {
-		const original = (store as Record<string, unknown>)[method];
-		if (typeof original !== 'function') continue;
-
-		guarded[method] = async (...args: unknown[]) => {
-			let answer: unknown;
-
-			try {
-				answer = await original.apply(store, args);
-			} catch (error) {
-				// Rethrown, always. The only question is under which class.
-				throw asFailure(error, slot, method);
-			}
-
-			if (answer === undefined && !ANSWERS_NOTHING.has(method)) {
-				throw new StoreFailure(
-					`${slot}.${method} answered undefined: an absence is null, so this store forgot to answer`,
-					{ slot, operation: method },
-				);
-			}
-
-			return answer;
-		};
-	}
-
-	return guarded as S;
-}
-
-/** Own and prototype methods, so a class-based store is guarded like a literal. */
-function methodsOf(store: object): string[] {
-	const names = new Set<string>();
-
-	for (
-		let proto: object | null = store;
-		proto !== null && proto !== Object.prototype;
-		proto = Object.getPrototypeOf(proto)
-	) {
-		for (const name of Object.getOwnPropertyNames(proto)) {
-			if (name !== 'constructor') names.add(name);
-		}
-	}
-
-	return [...names];
-}
-
-function asFailure(error: unknown, slot: Slot, method: string): JanusError {
-	if (error instanceof JanusErrorClass) return error;
-
-	// The message names where, never what: a driver's message may hold a
-	// connection string, and a connection string holds a password. It is kept
-	// as `cause`, for the operator's logs.
-	return new StoreFailure(`${slot}.${method}: the store could not answer`, {
-		slot,
-		operation: method,
-		cause: error,
-	});
 }
 
 /**

@@ -1,7 +1,8 @@
+import { guardRelations } from '../stores/guard';
 import { systemClock } from '../time/clock';
 import { type JanusConfig, resolveConfig } from './config';
 import { createContext } from './context';
-import { guardRelations, guardStores } from './outage';
+import { guardStores } from './outage';
 import { assertStores } from './port/assert-stores';
 import { sharedApi } from './sessions';
 import type { Checked, Janus } from './types';

@@ -157,7 +157,7 @@ if (error instanceof JanusError && error.code === 'STORE_FAILED') {
 `StoreConflict` with `on: 'login'`, for example `insertUser: the login "ada@example.com" is taken by another patient`. It carries `login` and `userType`.
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user **of the same type** already holds it. The message names the port method (`insertUser`, `updateUser`), not your call.
-**Why:** the `loginUnique` index on `{ type, logins }` refused the write. The same e-mail may hold one account per user type.
+**Why:** the `loginUnique` index on `{ type, logins }` refused the write. The same e-mail may hold one user per user type.
 **Fix:** answer 409.
 
 ### `STORE_FAILED` — `<slot>.<operation>: a duplicate key on <fields>, which this adapter never writes on purpose`
