@@ -1,0 +1,296 @@
+# Writing an adapter — the store port and `@nxgt/janus/conformance`
+
+This page is for putting `janus()` or `permissions()` on a database of your
+choice: the two ports you implement, the rules they carry, and the conformance
+suites that check an implementation keeps them. If you only use an existing
+adapter, such as `@nxgt/janus-mongo`, you do not need it.
+
+```ts
+import { describe, it } from 'bun:test';
+import { describeJanusStores } from '@nxgt/janus/conformance';
+
+// Yours: myStores(db) builds your adapter's stores, freshDatabase() an empty
+// database with a way to make one command fail.
+describeJanusStores({
+	name: 'my adapter',
+	runner: { describe, it },
+	harness: {
+		async open() {
+			const db = await freshDatabase(); // one per case, never shared
+			return {
+				stores: myStores(db),
+				faults: { fail: (slot, method) => db.failNext(method) },
+				close: () => db.drop(),
+			};
+		},
+	},
+});
+```
+
+## The two ports
+
+| Port | Taken by | Methods |
+| --- | --- | --- |
+| `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 + 6 (+ 1 optional) + 3 |
+| `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 |
+
+They are separate on purpose: an application that only authenticates
+implements nothing for permissions, and each of the three user slots may come
+from a different adapter — users in one database, sessions and tokens in
+another:
+
+```ts
+janus({
+	user: User,
+	password: { login: 'email' },
+	store: { users: mongo.users, sessions: other.sessions, tokens: other.tokens },
+	hasher: scryptHasher(),
+});
+```
+
+The seam is where atomicity is not required: a user and their password are one
+record, a session is derived state, a token is ephemeral.
+
+### `UserStore`
+
+```ts
+interface UserStore {
+	insertUser(record: UserRecord): Promise<UserRecord>;
+	findUser(id: Id): Promise<UserRecord | null>;
+	findUserByLogin(type: string, login: string): Promise<UserRecord | null>;
+	listUsers(page: UserPageRequest): Promise<CursorPage<UserRecord>>;
+	updateUser(id: Id, patch: UserPatch, ifVersion: number): Promise<UserRecord>;
+	deleteUser(id: Id): Promise<boolean>;
+}
+```
+
+- `insertUser` is **idempotent under retry**: a user with this `id` already
+  stored is answered as stored. A login held by another user of the same type
+  rejects with `StoreConflict('login', …)`, from the database's own unique
+  constraint.
+- `updateUser` writes **only if the stored version is exactly `ifVersion`**,
+  and never replaces a record whole: a field the patch does not name is left
+  as it is. It rejects with `NotFoundError` for an unknown id — the one
+  absence on the port that throws, because an update always follows a read —
+  and `StoreConflict('version', …)` when the version moved.
+- `listUsers` pages in ascending id order; `after` is the last id of the
+  previous page, already checked by the core.
+
+### `SessionStore` and `TokenStore`
+
+```ts
+interface SessionStore {
+	insertSession(record: SessionRecord): Promise<void>;
+	findSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
+	extendSession(id: SessionId, expiresAt: Date): Promise<SessionRecord | null>; // null once revoked
+	revokeSession(id: SessionId, at: Date): Promise<boolean>;
+	revokeUserSessions(userId: Id, at: Date, except?: SessionId): Promise<number>;
+	deleteUserSessions(userId: Id): Promise<number>;
+	deleteExpiredSessions?(before: Date): Promise<number>; // optional: omit it if the database expires on its own
+}
+
+interface TokenStore {
+	insertToken(record: TokenRecord): Promise<void>;
+	consumeToken(tokenHash: string, kind: TokenKind, at: Date): Promise<TokenRecord | null>;
+	deleteUserTokens(userId: Id): Promise<number>;
+}
+```
+
+`consumeToken` is the most important method on the port: it spends the token
+and answers it **as it was before the call**, in **one conditional write**.
+Twenty concurrent calls must produce exactly one answer with `spentAt: null`;
+in MongoDB that is one `findOneAndUpdate` returning the document before the
+update. A read followed by a write lets two requests redeem one reset code.
+
+Expiry is the core's decision: a read answers a stored session verbatim,
+lapsed or revoked, and never a record it has changed.
+
+### `RelationStore`
+
+```ts
+interface RelationStore {
+	write(changes: { add?: readonly RelationTuple[]; remove?: readonly RelationTuple[] }): Promise<void>;
+	has(tuple: RelationTuple): Promise<boolean>;
+	findSubjectSets(object: Entity, relation: string): Promise<readonly SubjectSet[]>;
+	findEntities(object: Entity, relation: string): Promise<readonly Entity[]>;
+	findObjects(page: ObjectPageRequest): Promise<CursorPage<string>>;
+	deleteEntity(entity: Entity): Promise<number>;
+}
+```
+
+One-hop questions about stored tuples, never a permission: the traversal is
+the core's. `write` is **all or nothing**, removals first, and idempotent.
+`findObjects` is the reverse index `list()` walks, in ascending id order.
+`deleteEntity` removes every tuple naming the entity as object, as subject,
+and as the entity of a subject set.
+
+## The six rules
+
+Written on the port's types, and checked by the suites:
+
+1. **An absence is `null`. A failure throws.** A method that can find nothing
+   answers `null`, `false`, `0` or an empty page; everything else throws,
+   preferably `StoreFailure` with the driver's error as `cause`. Never write
+   `try { … } catch { return null }` in an implementation.
+2. **`null`, not `undefined`.** A function that forgot to `return` produces
+   `undefined`; `null` has to be written on purpose.
+3. **Uniqueness is a constraint** — a unique index, never a read followed by a
+   write.
+4. **Bytes round-trip.** No normalising, trimming or retyping. The core
+   normalises logins before a store sees them.
+5. **Every method is atomic on its own.** The core opens no transaction; an
+   adapter may open one inside a method.
+6. **Schema management is not on the port.** Expose your own `sync`; the core
+   never calls it.
+
+```ts
+import { type Id, StoreFailure, type UserRecord, type UserStore } from '@nxgt/janus';
+
+export const findUser: UserStore['findUser'] = async (id: Id) => {
+	let found: UserRecord | undefined;
+	try {
+		found = await db.users.findOne({ _id: id });
+	} catch (cause) {
+		throw new StoreFailure('users.findUser: the store could not answer', {
+			slot: 'users',
+			operation: 'findUser',
+			cause,
+		});
+	}
+	return found ?? null; // an absence, written on purpose
+};
+```
+
+An adapter **defines no error class**. It throws `@nxgt/janus`'s own
+`StoreFailure`, `StoreConflict` and `NotFoundError`, and declares
+`@nxgt/janus` as a **peer dependency**, never a dependency, so there is one
+copy of each class and `instanceof` holds in the application. A cursor it
+cannot read is `invalidCursor(where, cursor)`. Records, patches and page
+requests are exported as types: `UserRecord`, `UserPatch`, `UserPageRequest`,
+`PasswordRecord`, `SessionRecord`, `TokenRecord`, `TokenKind`, `Json`,
+`JsonObject`, and `ObjectPageRequest`, `RelationChanges` from
+`@nxgt/janus/permissions`.
+
+`createMemoryStores()` and `createMemoryRelations()` are the reference
+implementations: read them when a rule is unclear. `janus()` runs
+`assertStores` on what it is given, and a partially implemented store is a
+compile error naming the missing method.
+
+## The conformance suites
+
+| Suite | Cases | Harness opens |
+| --- | --- | --- |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 37: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" | `{ stores, faults?, close? }` |
+| `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
+
+`harness.open()` is called **once per case** and must answer fresh, empty
+stores: a case that leaks into the next is the hardest failure to debug.
+`close()` runs after the case, pass or fail.
+
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `name` | string | — | The suite's title |
+| `harness` | `ConformanceHarness` / `RelationHarness` | — | Opens fresh stores per case |
+| `runner` | `{ describe, it }` | `globalThis` | **Required under `bun test`**: Bun does not put `describe` and `it` on `globalThis`. jest, and vitest with `globals: true`, are found without it |
+| `faults` | boolean | — | Declare `false` up front and the report says so in the suite's title |
+| `skip` | `{ [caseId]: reason }` | `{}` | Skips a case, reported with the reason — never silent |
+
+The suites import no test framework and no assertion library.
+
+### `faults`: prove the outage invariant
+
+`faults` is optional, and **its absence is reported, never passed over**:
+without it the outage cases are skipped with the reason *"faults not provided:
+the outage invariant is not proven for this adapter"*.
+
+```ts
+import type { StoreFaults } from '@nxgt/janus/conformance';
+
+const faults: StoreFaults = {
+	async fail(slot, method) {
+		await database.failNext(method); // make the DATABASE fail this call
+	},
+};
+```
+
+Make the database fail the way it really fails — for MongoDB, the
+`failCommand` fail point with code 91 (`ShutdownInProgress`). A wrapper that
+throws in front of your adapter proves the wrapper, not the adapter's
+translation of a driver error. Fail **only the method named**: the write
+outage cases read the store back afterwards, to prove a rejected write changed
+nothing.
+
+The relation suite's `faults` is `{ fail(method) }`, with no slot:
+
+```ts
+import { describeRelationStores } from '@nxgt/janus/conformance';
+
+describeRelationStores({
+	name: 'my adapter',
+	runner: { describe, it },
+	harness: {
+		async open() {
+			const database = await freshDatabase();
+			return {
+				store: myRelations(database),
+				faults: { fail: (method) => database.failNext(method) },
+				close: () => database.drop(),
+			};
+		},
+	},
+});
+```
+
+### Skipping a case, and declaring no faults
+
+```ts
+describeJanusStores({
+	name: 'my adapter',
+	runner: { describe, it },
+	faults: false,
+	skip: { 'users.omission': 'not yet: tracked in the issue tracker' },
+	harness: {
+		async open() {
+			const database = await freshDatabase();
+			return { stores: myStores(database), close: () => database.drop() };
+		},
+	},
+});
+```
+
+A skipped case still appears in the run, with its reason in its name. A case
+that cannot run on the stores it was given — an outage case with no `faults`,
+`collectExpired` on a store without `deleteExpiredSessions` — passes, and
+emits a `JANUS_CONFORMANCE_SKIPPED` warning with the reason.
+
+### Without a test runner
+
+The cases are data, and `runCase` runs one against a harness:
+
+```ts
+import { allCases, referenceHarness, runCase } from '@nxgt/janus/conformance';
+
+for (const conformanceCase of allCases) {
+	const outcome = await runCase(conformanceCase, referenceHarness());
+	console.log(conformanceCase.id, 'skipped' in outcome ? `skipped: ${outcome.skipped}` : 'passed');
+}
+```
+
+| Export | What it is |
+| --- | --- |
+| `allCases`, `userStoreCases`, `sessionStoreCases`, `tokenStoreCases`, `outageCases` | The user-port cases, as `ConformanceCase` objects with a stable `id` |
+| `runCase(case, harness)` | Runs one; throws on failure, answers `{ passed: true }` or `{ skipped }` |
+| `SKIP_REASONS` | The reasons the suite gives itself |
+| `allRelationCases`, `relationStoreCases`, `relationOutageCases`, `runRelationCase` | The same for the relation port |
+| `referenceHarness()`, `referenceRelationHarness()` | The suites against the reference stores: the examples to copy |
+
+Types: `ConformanceHarness`, `OpenedStores`, `StoreFaults`, `ConformanceCase`,
+`CaseContext`, `ConformanceRunner`, `PortMethod`, and `RelationHarness`,
+`OpenedRelations`, `RelationFaults`, `RelationCase`, `RelationContext`,
+`RelationMethod`.
+
+## See also
+
+- [Errors](errors.md) — `StoreFailure`, `StoreConflict` and the rule behind them
+- [Vocabulary](vocabulary.md) — ids, cursors and `invalidCursor`
+- `@nxgt/janus-mongo` — an adapter that passes both suites against a real mongod, outages included

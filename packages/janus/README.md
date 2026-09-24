@@ -4,6 +4,9 @@ Authentication and permissions as an **embeddable** TypeScript library: your
 process, your database, behind a port you can implement.
 
 ```ts
+import { z } from 'zod';
+import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
+
 const auth = janus({
 	user: z.object({ email: z.email(), name: z.string() }),
 	password: { login: 'email' },
@@ -12,7 +15,7 @@ const auth = janus({
 });
 
 const { user, token } = await auth.signUp({ email, name, password });
-const current = await auth.authenticate(request); // { user, session } | null
+const current = await auth.authenticate(request); // { user, session, token, renewed } | null
 ```
 
 > **Pre-v0.1.** `.` is `janus()` and the vocabulary it shares with the
@@ -27,10 +30,18 @@ const current = await auth.authenticate(request); // { user, session } | null
 bun add @nxgt/janus
 ```
 
-No runtime dependency. `typescript` is a peer. Your tsconfig resolves as a
+No runtime dependency. `typescript` (6) is a required peer. Your tsconfig resolves as a
 bundler does (`"moduleResolution": "bundler"`, which Bun and every bundler
 use): the declarations import without extensions, so `nodenext` is not
 supported.
+
+## Subpaths
+
+| Import | What it holds |
+| --- | --- |
+| `@nxgt/janus` | `janus()`, the store port and its reference store (`createMemoryStores`), the hashers, and the vocabulary shared with the permissions: errors, subjects and the tuple notation, ids, pagination, time |
+| `@nxgt/janus/permissions` | `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the `RelationStore` port and `createMemoryRelations()` |
+| `@nxgt/janus/conformance` | The suites an adapter runs — `describeJanusStores`, `describeRelationStores` — their cases as data, and the reference harnesses |
 
 ## The one rule
 
@@ -50,6 +61,18 @@ the documentation.
 
 ```ts
 import { JanusError, StoreFailure, NotFoundError, type JanusErrorCode } from '@nxgt/janus';
+
+async function signIn(email: string, password: string): Promise<Response> {
+	try {
+		const { token } = await auth.signIn({ email, password });
+		return Response.json({ token });
+	} catch (error) {
+		if (error instanceof JanusError && error.code === 'CREDENTIALS_INVALID') {
+			return new Response(null, { status: 401 });
+		}
+		throw error; // STORE_FAILED included: that is your 503, never a 401
+	}
+}
 ```
 
 `JanusError` is the base of everything thrown at call time. It extends `Error`,
@@ -68,17 +91,20 @@ compilation of callers that exhaust it:
 | `USER_INACTIVE` | 403 |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
-| `UNSUPPORTED` | 500 — a wiring mistake, and the message names the store to change |
+| `UNSUPPORTED` | 501 — a wiring mistake, and the message names the store to change |
 | `PERMISSION_DEPTH` | 500 — a permission check or list walked past `maxDepth`; not a denial |
 
-`StoreFailure` and `StoreConflict` are exported **because an adapter throws
-them**. An adapter defines no error class of its own, so `instanceof` holds
+Each code has its class, all exported: `StoreFailure`, `StoreConflict` (`on:
+'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `CredentialError`,
+`UserInactiveError`, `TokenError`, `InvalidCursorError`, `UnsupportedError`
+and `PermissionDepthError`. `StoreFailure` and `StoreConflict` are exported
+**because an adapter throws them**. An adapter defines no error class of its own, so `instanceof` holds
 across the two packages.
 
 **No message ever holds a secret** — not a password, not a hash, not a session
 token, not a token's hash, and not a connection URI, because a connection string
-holds a password. An `identifier` may appear in an `IDENTIFIER_TAKEN` message,
-since the caller just sent it.
+holds a password. A `login` may appear in a `LOGIN_TAKEN` message, since the
+caller just sent it.
 
 A refusal that can only come from how you wired the library — a lifespan that is
 not a duration, a store missing a method — throws a bare `TypeError` instead. No
@@ -87,7 +113,7 @@ request handler should ever answer one, so no handler needs to tell it apart.
 ### Subjects
 
 ```ts
-import { type Subject, subjectOf, formatTuple, parseTuple } from '@nxgt/janus';
+import { type Subject, subjectOf, formatTuple, parseTuple, isSubjectSet } from '@nxgt/janus';
 
 subjectOf(user);                        // { type: 'staff', id: '…' }: the user IS the subject
 formatTuple({
@@ -96,7 +122,12 @@ formatTuple({
   subject: { type: 'team', id: 't1', relation: 'member' },
 });
 // 'record:r1#viewer@team:t1#member'
+parseTuple('record:r1#viewer@staff:u1'); // the RelationTuple back
 ```
+
+`formatEntity`, `formatSubject` and `parseSubject` do the same for one part,
+and `isSubjectSet` tells `{ type, id, relation }` from `{ type, id }`. The
+types are `Entity`, `SubjectSet`, `Subject` (either) and `RelationTuple`.
 
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
@@ -111,7 +142,11 @@ staff, and an object can hold a relation too, so a bare id does not say who.
 ### Ids
 
 ```ts
-import { mintId, isId, mintedAt } from '@nxgt/janus';
+import { type Id, mintId, isId, mintedAt } from '@nxgt/janus';
+
+const id: Id = mintId(); // '0199…': a UUIDv7
+isId(id);                // true — and false for anything this package could not have minted
+mintedAt(id);            // a Date, to the millisecond
 ```
 
 UUIDv7, **minted by the core and not by the store**. Ids sort in creation order
@@ -123,8 +158,22 @@ cannot reuse an existing numeric primary key.
 ### Pagination and time
 
 ```ts
-import { type CursorPage, pageLimit, systemClock, fixedClock, parseDuration } from '@nxgt/janus';
+import { fixedClock, parseDuration } from '@nxgt/janus';
+
+let cursor: string | null = null;
+do {
+	const page = await auth.list({ after: cursor, limit: 100 }); // CursorPage<User>
+	cursor = page.nextCursor;
+} while (cursor);
+
+const clock = fixedClock(Date.UTC(2026, 0, 1)); // .now(), .advance(ms), .set(at)
+parseDuration('8h', 'session.lifespan');        // 28800000
 ```
+
+The types are `CursorPage<T>`, `Clock` and `Duration` (`'15m'`, `'8h'`, `'7d'`,
+or milliseconds). `DEFAULT_PAGE_SIZE` (20), `MAX_PAGE_SIZE` (100), `pageLimit` and
+`invalidCursor` are what an adapter uses to page the way the core does;
+`systemClock` is the default `Clock`.
 
 `CursorPage` has `items` and `nextCursor`, and **no `total`**: a count over a
 cursor-paged collection is a second query whose answer is stale by the time you
@@ -235,11 +284,15 @@ change; the user's `version` moves. The write happens only at the version just
 read. If a concurrent update wins, the sign-in still succeeds and the next
 sign-in tries again. An outage on that write still fails the sign-in.
 
-**The port.** `JanusStores` is three stores — `users`, `sessions`, `tokens` —
+**The port.** `JanusStores` is three stores — `UserStore`, `SessionStore`,
+`TokenStore`, whose records are `UserRecord`, `SessionRecord` and
+`TokenRecord` — in the slots `users`, `sessions`, `tokens`,
 cut where atomicity is not required, so sessions can live in Redis while users
 live in MongoDB. `createMemoryStores()` is the reference implementation. It is
 shipped for your own tests, and it is what to compare against when writing an
-adapter. The six rules an adapter keeps are written on the port's types.
+adapter. `assertStores(store, where)` is the check `janus()` runs on it, for an
+adapter that wants to fail as early. The six rules an adapter keeps are
+written on the port's types.
 
 ### Permissions — `@nxgt/janus/permissions`
 
@@ -247,7 +300,7 @@ adapter. The six rules an adapter keeps are written on the port's types.
 import { defineModel, fromField, when, permissions, createMemoryRelations } from '@nxgt/janus/permissions';
 
 export const model = defineModel({
-	subjects: auth.types, // 'patient' | 'staff': a user type is a subject type
+	subjects: clinic.types, // 'patient' | 'staff': a user type is a subject type
 	types: {
 		team: {
 			relations: { member: ['staff', 'team#member'], lead: ['staff'] },
@@ -269,7 +322,8 @@ export const model = defineModel({
 const access = permissions({ model, store: createMemoryRelations() });
 await access.grant({ type: 'team', id: 't1' }, 'member', staff);
 await access.can(staff, 'edit', { type: 'record', ...record }, { ctx: { onShift } }); // boolean
-await access.list(staff, 'view', 'record', { ctx: { onShift }, limit: 50 });     // CursorPage<string>
+await access.list(staff, 'view', 'record', { limit: 50 });                        // CursorPage<string>; view reaches no condition
+await access.revoke({ type: 'team', id: 't1' }, 'member', staff);                // idempotent
 ```
 
 Zanzibar's model — relations between objects and subjects, permissions
@@ -353,7 +407,10 @@ There are 37 cases. They cover:
 
 The suite imports no test framework and no assertion library. It runs under
 `bun test`, vitest and jest. Its cases are also exported as data
-(`allCases`), with `runCase` to run one without any runner.
+(`allCases`, or by group: `userStoreCases`, `sessionStoreCases`,
+`tokenStoreCases`, `outageCases`), with `runCase` to run one without any
+runner. `skip: { [caseId]: reason }` skips a case and reports why;
+`SKIP_REASONS` holds the reasons the suite gives itself.
 
 **`faults` is optional, and its absence is reported, never passed over.**
 Without it, the outage cases are skipped under the reason *"the outage
@@ -368,10 +425,12 @@ example to copy.
 
 A relation store has its own suite, `describeRelationStores({ name, harness })`
 — 15 cases: round-trip, a subject whose `relation` is `undefined` read as its
-entity, absence, idempotent writes, a tuple stored once, the one-hop reads, the
-reverse index in pages, `deleteEntity`, and an outage for each of the six
-methods — a write that rejects must have changed nothing.
-`referenceRelationHarness()` is its example.
+entity, absence, idempotent writes, a tuple stored once, one write's removals
+and additions applied together, the one-hop reads, the reverse index in pages,
+`deleteEntity`, and an outage for each of the six methods — a write that
+rejects must have changed nothing. `referenceRelationHarness()` is its
+example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
+`runRelationCase` are the runner-less layer.
 
 ## Traps
 
@@ -456,6 +515,12 @@ a query of your own.
 **A `lookup` is your code, and not guarded.** A lookup that throws rejects
 `list()` with its own error, as it threw. Never answer `[]` for a database that
 could not answer: that is a denial made of an outage.
+
+## Documentation
+
+- [Guides](docs/README.md) — one page per area, every option with an example
+- [Troubleshooting](docs/troubleshooting.md) — by the error message you see
+- [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
