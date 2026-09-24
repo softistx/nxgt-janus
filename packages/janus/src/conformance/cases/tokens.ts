@@ -15,14 +15,18 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 			const first = at('2026-02-01T00:00:00.000Z');
 
 			equal(
-				await stores.tokens.consumeToken(record.tokenHash, 'recovery', first),
+				await stores.tokens.consumeToken(
+					record.tokenHash,
+					'resetPassword',
+					first,
+				),
 				record,
 				'consumeToken the first time should answer the token as it was — spentAt null',
 			);
 			equal(
 				await stores.tokens.consumeToken(
 					record.tokenHash,
-					'recovery',
+					'resetPassword',
 					at('2026-02-02T00:00:00.000Z'),
 				),
 				{ ...record, spentAt: first },
@@ -41,7 +45,7 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 
 			const answers = await Promise.all(
 				Array.from({ length: 20 }, () =>
-					stores.tokens.consumeToken(record.tokenHash, 'recovery', now),
+					stores.tokens.consumeToken(record.tokenHash, 'resetPassword', now),
 				),
 			);
 
@@ -49,7 +53,7 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 				answers.filter((answer) => answer !== null && answer.spentAt === null)
 					.length,
 				1,
-				'consumeToken: of twenty concurrent calls, exactly one should see spentAt null — a recovery code redeemed twice is an account takeover',
+				'consumeToken: of twenty concurrent calls, exactly one should see spentAt null — a reset code redeemed twice is an account takeover',
 			);
 		},
 	},
@@ -58,20 +62,20 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 		group,
 		name: 'does not know, and does not spend, a token of the other kind',
 		async run({ stores }) {
-			const record = tokenRecord({ kind: 'verification' });
+			const record = tokenRecord({ kind: 'verifyEmail' });
 			await stores.tokens.insertToken(record);
 
 			isNull(
 				await stores.tokens.consumeToken(
 					record.tokenHash,
-					'recovery',
+					'resetPassword',
 					at('2026-02-01T00:00:00.000Z'),
 				),
-				'consumeToken for a verification token redeemed as recovery',
+				'consumeToken for a verifyEmail token redeemed as resetPassword',
 			);
 			const own = await stores.tokens.consumeToken(
 				record.tokenHash,
-				'verification',
+				'verifyEmail',
 				at('2026-02-02T00:00:00.000Z'),
 			);
 			equal(
@@ -82,7 +86,7 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 			isNull(
 				await stores.tokens.consumeToken(
 					'0'.repeat(64),
-					'recovery',
+					'resetPassword',
 					at('2026-02-01T00:00:00.000Z'),
 				),
 				'consumeToken for an unknown hash',
@@ -100,7 +104,7 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 
 			const first = await stores.tokens.consumeToken(
 				record.tokenHash,
-				'recovery',
+				'resetPassword',
 				now,
 			);
 			// A store may have dropped a lapsed token already; if it answers, it
@@ -112,8 +116,13 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 					'consumeToken on a lapsed token should answer it as it was',
 				);
 				equal(
-					(await stores.tokens.consumeToken(record.tokenHash, 'recovery', now))
-						?.spentAt,
+					(
+						await stores.tokens.consumeToken(
+							record.tokenHash,
+							'resetPassword',
+							now,
+						)
+					)?.spentAt,
 					now,
 					'consumeToken should have spent the lapsed token, so it can never be retried',
 				);
@@ -135,7 +144,7 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 			equal(
 				await stores.tokens.consumeToken(
 					record.tokenHash,
-					'recovery',
+					'resetPassword',
 					at('2026-02-01T00:00:00.000Z'),
 				),
 				record,

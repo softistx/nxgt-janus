@@ -3,8 +3,16 @@
 `nxgt-janus` is an **embeddable, typed alternative to the Ory suite**: a library
 the application runs in its own process, whose persistence is a port the
 developer may implement, with official adapters for the databases this
-organisation already runs. Two modules — identities first, permissions second,
-the latter on a deliberately Keto-compatible subset of Zanzibar.
+organisation already runs. Two modules — users first (`janus()`: sign-up,
+sign-in, sessions, e-mail verification, password reset, several kinds of user
+in one instance), permissions second: embedded relationship-based access
+control on Zanzibar's data model without its infrastructure, plus relations
+read from the application's own data and conditions written in TypeScript.
+
+The surface is **flow-shaped and deliberately not Kratos's**: `user.email`, not
+`identity.traits.email`; `auth.signIn(...)`, not a credential identifier
+derived from a schema annotation. Kratos is what this replaces, not the model
+to follow.
 
 It is a **product for people outside this organisation**. The parc will be its
 first user, not its audience. Two things follow from that and they are the
@@ -150,14 +158,19 @@ not type safety, it is a bug.
 
 What this commits us to in the code:
 
-- The traits type travels through everything: `Identities<Traits>` and every
-  method on it.
+- Each user type's schema travels through everything: `auth.staff.signIn`
+  takes a `username`, and `authenticate` answers a union narrowed by
+  `user.type`.
 - Refusals land **on the offending key**, by template-literal types intersected
-  into the parameter (`config: C & Checked<C>`), because `defineIdentities`
-  infers its argument and excess-property checks therefore do not fire. Measured
-  pattern: `nxgt-data/packages/mongo-kit/src/config/types.ts:46`.
-- An identifier must name a **string leaf of the traits schema**, refused at
-  compile time: `identifiers.password.from: 'emial'` is a type error on `from`.
+  into the parameter (`config: C & Checked<C>`), because `janus` infers its
+  argument and excess-property checks therefore do not fire. Measured pattern:
+  `nxgt-data/packages/mongo-kit/src/config/types.ts:46`.
+- A login must name a **top-level, required string field** of the schema,
+  refused at compile time: `password: { login: 'emial' }` is a type error on
+  `login`. So is a schema declaring a field `janus` sets, and a user type named
+  like a method.
+- A flow a type cannot run is **absent from its type**: a user type with no
+  e-mail has no `resetPassword`, rather than one that throws.
 - A partially implemented store is a compile error naming the missing method,
   with the runtime check as a net for JavaScript callers.
 - Error codes are a union of literals, so a `switch` over them is exhaustive and
@@ -165,7 +178,7 @@ What this commits us to in the code:
 - **No `any` in the public surface** — `noExplicitAny` is *not* disabled in
   `biome.json`, unlike nxgt-data — and `noUncheckedIndexedAccess` is on.
 - **`exactOptionalPropertyTypes` is on** in `packages/janus`. Without it,
-  `{ state: undefined }` is a valid `IdentityPatch`, and a naive adapter writes
+  `{ active: undefined }` is a valid `UserPatch`, and a naive adapter writes
   it as an erasure — the Kratos `PUT` trap, arriving through the type system.
   The reference store still treats a key present as `undefined` as absent, for
   JavaScript callers.
@@ -180,14 +193,13 @@ consumer should call.
 
 | Entry point | State |
 | --- | --- |
-| `.` | The shared vocabulary: errors, subjects, pagination, time, ids |
-| `./identities` | The identity core, its store port, the reference store, and the hashers |
+| `.` | `janus()`, its store port, the reference store and the hashers — and the vocabulary shared with permissions: errors, subjects, pagination, time, ids |
 | `./conformance` | The suite an adapter runs, and `referenceHarness()`. Shipped as product surface, not as a test helper |
 
 `./permissions` is **not** published, and will not be until a real traversal is
 written against the tuple port. The permission *vocabulary* lives at `.` today
-because both modules import it — and because the equality between an identity id
-and a subject id is the only reason identities and permissions are one package.
+because both modules import it — and because the equality between a user id and
+a subject id is the only reason users and permissions are one package.
 
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied

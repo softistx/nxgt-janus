@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'bun:test';
-import { isIdentityId, mintedAt, mintIdentityId } from './identity-id';
+import { isId, mintedAt, mintId } from './id';
 
-describe('mintIdentityId', () => {
+describe('mintId', () => {
 	it('mints a UUIDv7: version 7, variant 10', () => {
-		const id = mintIdentityId();
+		const id = mintId();
 
 		expect(id).toHaveLength(36);
 		expect(id).toMatch(
 			/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
 		);
-		expect(isIdentityId(id)).toBe(true);
+		expect(isId(id)).toBe(true);
 	});
 
 	it('sorts in creation order as a STRING, which is what the cursor relies on', () => {
 		// The whole reason the core mints the id: the pagination cursor is the
 		// last id, and the ordering is already total with one index.
-		const ids = Array.from({ length: 500 }, () => mintIdentityId());
+		const ids = Array.from({ length: 500 }, () => mintId());
 
 		expect([...ids].sort()).toEqual(ids);
 	});
@@ -26,7 +26,7 @@ describe('mintIdentityId', () => {
 		// would be wrong for anything created in a burst. A signup storm is
 		// exactly such a burst.
 		const at = 1_700_000_000_000;
-		const ids = Array.from({ length: 1_000 }, () => mintIdentityId(at));
+		const ids = Array.from({ length: 1_000 }, () => mintId(at));
 
 		expect([...ids].sort()).toEqual(ids);
 		expect(new Set(ids).size).toBe(1_000);
@@ -37,7 +37,7 @@ describe('mintIdentityId', () => {
 		// A repeated id would break the cursor, so the timestamp goes a hair
 		// ahead of the clock instead.
 		const at = 1_700_000_100_000;
-		const ids = Array.from({ length: 5_000 }, () => mintIdentityId(at));
+		const ids = Array.from({ length: 5_000 }, () => mintId(at));
 
 		expect(new Set(ids).size).toBe(5_000);
 		expect([...ids].sort()).toEqual(ids);
@@ -47,23 +47,23 @@ describe('mintIdentityId', () => {
 	it('keeps ids ordered when the clock steps backwards', () => {
 		// An NTP step, or a container resumed. Ids stay ordered even though they
 		// stop matching the wall clock for a moment.
-		const forward = mintIdentityId(1_700_000_200_000);
-		const backward = mintIdentityId(1_700_000_100_000);
+		const forward = mintId(1_700_000_200_000);
+		const backward = mintId(1_700_000_100_000);
 
 		expect(backward > forward).toBe(true);
 	});
 });
 
-describe('isIdentityId', () => {
+describe('isId', () => {
 	it('refuses what this package could not have minted', () => {
-		// An id arrives off a URL. One of the wrong shape is "no such identity",
+		// An id arrives off a URL. One of the wrong shape is "no such user",
 		// which an adapter can answer WITHOUT reaching the store.
-		expect(isIdentityId('')).toBe(false);
-		expect(isIdentityId('abc')).toBe(false);
-		expect(isIdentityId('507f1f77bcf86cd799439011')).toBe(false);
-		// A valid UUIDv4 is not a valid identity id: the version nibble differs,
+		expect(isId('')).toBe(false);
+		expect(isId('abc')).toBe(false);
+		expect(isId('507f1f77bcf86cd799439011')).toBe(false);
+		// A valid UUIDv4 is not a valid id: the version nibble differs,
 		// and a v4 would have no orderable prefix for the cursor.
-		expect(isIdentityId('f47ac10b-58cc-4372-a567-0e02b2c3d479')).toBe(false);
+		expect(isId('f47ac10b-58cc-4372-a567-0e02b2c3d479')).toBe(false);
 	});
 });
 
@@ -73,7 +73,7 @@ describe('mintedAt', () => {
 		// state is module-level and monotonic — see the next case.
 		const at = Date.now() + 60_000;
 
-		expect(mintedAt(mintIdentityId(at)).getTime()).toBe(at);
+		expect(mintedAt(mintId(at)).getTime()).toBe(at);
 	});
 
 	it('does not follow a clock that went backwards, and says so', () => {
@@ -87,8 +87,8 @@ describe('mintedAt', () => {
 		// The consequence for a caller: `now` steers ids forward, never back, and
 		// `mintedAt` is therefore accurate to the millisecond and no further. A
 		// test that needs a fixed instant wants `fixedClock`, not this argument.
-		const ahead = mintIdentityId(Date.now() + 120_000);
-		const behind = mintIdentityId(1_700_000_300_000);
+		const ahead = mintId(Date.now() + 120_000);
+		const behind = mintId(1_700_000_300_000);
 
 		expect(behind > ahead).toBe(true);
 		expect(mintedAt(behind).getTime()).toBeGreaterThanOrEqual(

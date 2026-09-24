@@ -1,4 +1,4 @@
-import type { IdentityStores, StoreCapabilities } from './types';
+import type { JanusStores, StoreCapabilities } from './types';
 
 /**
  * The methods each slot must answer, in the order the port declares them.
@@ -8,22 +8,22 @@ import type { IdentityStores, StoreCapabilities } from './types';
  * compiler never saw.
  */
 const REQUIRED = {
-	identities: [
-		'insertIdentity',
-		'findIdentity',
-		'findIdentityByIdentifier',
-		'listIdentities',
-		'updateIdentity',
+	users: [
+		'insertUser',
+		'findUser',
+		'findUserByLogin',
+		'listUsers',
+		'updateUser',
 	],
 	sessions: [
 		'insertSession',
 		'findSessionByTokenHash',
 		'extendSession',
 		'revokeSession',
-		'revokeIdentitySessions',
+		'revokeUserSessions',
 	],
 	tokens: ['insertToken', 'consumeToken'],
-} as const satisfies Record<keyof IdentityStores, readonly string[]>;
+} as const satisfies Record<keyof JanusStores, readonly string[]>;
 
 /**
  * Checks that every slot answers every method the port declares, and reports
@@ -35,7 +35,7 @@ const REQUIRED = {
  * the application was wired — no request produces one, and no handler should
  * answer one.
  *
- * `where` names the call the consumer wrote — `createIdentities` — so the
+ * `where` names the call the consumer wrote — `janus` — so the
  * sentence says which call to fix and which slot to change.
  */
 export function assertStores(
@@ -44,7 +44,7 @@ export function assertStores(
 ): StoreCapabilities {
 	if (typeof stores !== 'object' || stores === null) {
 		throw new TypeError(
-			`${where}: stores must be an object with identities, sessions and tokens`,
+			`${where}: store must be an object with users, sessions and tokens`,
 		);
 	}
 
@@ -52,13 +52,13 @@ export function assertStores(
 		const store: unknown = (stores as Record<string, unknown>)[slot];
 
 		if (typeof store !== 'object' || store === null) {
-			throw new TypeError(`${where}: stores.${slot} is missing`);
+			throw new TypeError(`${where}: store.${slot} is missing`);
 		}
 
 		for (const method of REQUIRED[slot]) {
 			if (typeof (store as Record<string, unknown>)[method] !== 'function') {
 				throw new TypeError(
-					`${where}: stores.${slot} has no method ${method}, which the port requires`,
+					`${where}: store.${slot} has no method ${method}, which the port requires`,
 				);
 			}
 		}
@@ -71,7 +71,7 @@ export function assertStores(
 	// reporting it as "unsupported" would send the reader to the wrong fix.
 	if (collect !== undefined && typeof collect !== 'function') {
 		throw new TypeError(
-			`${where}: stores.sessions.deleteExpiredSessions must be a function or absent`,
+			`${where}: store.sessions.deleteExpiredSessions must be a function or absent`,
 		);
 	}
 

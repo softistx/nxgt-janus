@@ -1,11 +1,12 @@
 /**
- * The identity store port: what an adapter implements, and nothing else.
+ * The store port: what an adapter implements, and nothing else.
  *
  * **This is the contract strangers are asked to implement**, so every line of
  * it is a promise. It is small on purpose — anything the core can derive from
- * what the port already offers (verifying an address, merging traits, deciding
- * that a session has lapsed) lives in the core, where it is written once,
- * rather than here, where every adapter would write it again, differently.
+ * what the port already offers (merging fields, deciding that an e-mail is no
+ * longer verified, deciding that a session has lapsed) lives in the core, where
+ * it is written once, rather than here, where every adapter would write it
+ * again, differently.
  *
  * ## The six rules an implementation keeps
  *
@@ -25,46 +26,44 @@
  * 3. **Uniqueness is yours, and it is a constraint.** A unique index, a
  *    constraint, an atomic `SET NX` — never a read followed by a write, which
  *    two concurrent sign-ups both pass.
- * 4. **Bytes round-trip.** Identifiers, hashes, traits and metadata come back
- *    exactly as they were written: no normalisation, no trimming, no `1` turned
- *    into `'1'`. The core normalises identifiers before a store ever sees them,
- *    so uniqueness is uniqueness of bytes and no adapter needs a collation.
+ * 4. **Bytes round-trip.** Logins, hashes and fields come back exactly as they
+ *    were written: no normalisation, no trimming, no `1` turned into `'1'`. The
+ *    core normalises a login before a store ever sees it, so uniqueness is
+ *    uniqueness of bytes and no adapter needs a collation.
  * 5. **Every method is atomic on its own.** Nothing composes into a
  *    transaction, and the core never opens one. An adapter may open one
  *    *inside* a method — a normalised SQL schema writes several rows per
- *    identity — but the port exposes none.
+ *    user — but the port exposes none.
  * 6. **Schema management is not on this interface.** An adapter exposes its own
  *    `sync()`; the core never calls it.
  *
  * ## Why three stores and not one
  *
- * The seam is **where atomicity is not required**. An identity and its
- * credentials are written together — a sign-up that stores the identity and
- * loses the password hash is an account nobody can enter — so they are one
- * interface and one unit of atomicity. A session is derived state: losing them
- * all signs everybody out, which recovers. A one-time token is ephemeral by
- * construction. So `sessions` and `tokens` may live in Redis while `identities`
- * lives in MongoDB, in one call to `createIdentities`, with no distributed
- * transaction anywhere.
+ * The seam is **where atomicity is not required**. A user and their password
+ * are written together — a sign-up that stores the user and loses the hash is
+ * an account nobody can enter — so they are one record. A session is derived
+ * state: losing them all signs everybody out, which recovers. A one-time token
+ * is ephemeral by construction. So `sessions` and `tokens` may live in Redis
+ * while `users` lives in MongoDB, with no distributed transaction anywhere.
  *
  * ## Why the port is not generic
  *
- * A store does not know the traits schema, and must not have to: traits are a
- * {@link JsonObject} here, and the core casts once, at the boundary, after the
- * schema has validated them. That is the shape `nxgt-data` uses — a generic
- * public form, a degenericised mirror inside — and it keeps every adapter free
- * of type parameters it could only pass through.
+ * A store does not know the application's schemas, and must not have to:
+ * fields are a {@link JsonObject} here, and the core casts once, at the
+ * boundary, after the schema has validated them. That is the shape `nxgt-data`
+ * uses — a generic public form, a degenericised mirror inside — and it keeps
+ * every adapter free of type parameters it could only pass through.
  */
 
-import type { IdentityId } from '../../ids/identity-id';
+import type { Id } from '../../ids/id';
 import type { CursorPage } from '../../pagination/cursor-page';
 
 /**
  * A value a store must be able to round-trip byte for byte.
  *
- * JSON and nothing else. A `Date` inside traits round-trips through MongoDB and
+ * JSON and nothing else. A `Date` inside fields round-trips through MongoDB and
  * not through a JSON column or Redis, so an adapter could pass the conformance
- * suite on one database and corrupt traits on the next. The record's own
+ * suite on one database and corrupt fields on the next. The record's own
  * timestamps are `Date`s, because every adapter stores those in a column it
  * chose for them.
  */
@@ -85,108 +84,59 @@ export type Json =
  */
 export type JsonObject = { readonly [key: string]: Json };
 
-/**
- * Whether an identity may sign in.
- *
- * `inactive` keeps the record and its credentials and refuses every sign-in.
- * There is no third state, and no deletion on this port yet.
- */
-export type IdentityState = 'active' | 'inactive';
-
-/**
- * The credential an identifier signs in with.
- *
- * `password` and `code` in v1. A code credential holds no secret — the code is
- * a one-time token sent to the identifier — so only `password` has a slot in
- * {@link IdentityCredentials}.
- */
-export type CredentialType = 'password' | 'code';
-
-/**
- * One way to name an identity at sign-in.
- *
- * **`value` is already normalised** by the core, as the definition's
- * `normalize` says. The store compares bytes and is never asked to lowercase,
- * trim or collate anything.
- *
- * The pair `(type, value)` is unique across every identity in the store, and
- * that uniqueness is a constraint the store enforces (rule 3).
- */
-export interface IdentityIdentifier {
-	readonly type: CredentialType;
-	readonly value: string;
-}
-
 /** A password, as the store holds it: a self-describing hash, never the plain text. */
-export interface PasswordCredential {
+export interface PasswordRecord {
 	/** Self-describing — `$argon2id$…`, `$scrypt$…` — so any wired verifier can read it. */
 	readonly hash: string;
 	readonly updatedAt: Date;
 }
 
 /**
- * The secrets an identity signs in with.
- *
- * Every slot is present and `null` when absent, never missing: rule 2, applied
- * to the one place a missing field would read as "no password" rather than as
- * "the store forgot".
- */
-export interface IdentityCredentials {
-	readonly password: PasswordCredential | null;
-}
-
-/** How a verifiable address is reached. Only e-mail in v1. */
-export type AddressChannel = 'email';
-
-/**
- * An address the identity can prove it controls.
- *
- * Addressed **by value** by the core, never by index. In Kratos, moving
- * `verified` is a patch on two fields at an index taken from the record just
- * read, and getting either wrong shows an address as verified in one place and
- * pending in another. Here `verified` and `verifiedAt` are one fact, set
- * together by the core, and written with the rest of `addresses`.
- */
-export interface VerifiableAddress {
-	readonly value: string;
-	readonly via: AddressChannel;
-	readonly verified: boolean;
-	/** `null` until verified, and set in the same write that sets `verified`. */
-	readonly verifiedAt: Date | null;
-}
-
-/**
- * An identity, as a store holds it.
+ * A user, as a store holds it.
  *
  * Everything is `readonly`: the core hands records to application code, and a
  * mutation would not reach the store — it could only mislead whoever wrote it.
  */
-export interface IdentityRecord {
+export interface UserRecord {
 	/** A UUIDv7 minted by the core. The store never mints an id. */
-	readonly id: IdentityId;
+	readonly id: Id;
 	/**
-	 * Which version of the application's traits schema these traits were last
-	 * validated against.
+	 * Which of the application's user types — `'patient'`, `'staff'`, or
+	 * `'user'` when it declares one. Never changes after insertion.
+	 */
+	readonly type: string;
+	/**
+	 * Which version of the type's schema these fields were last validated
+	 * against.
 	 *
-	 * **Nothing reads it yet**, and it is here from v1 on purpose. Tightening the
-	 * schema changes what an update accepts, and every stored identity was
-	 * validated against the old one: without this field there is no way to find
-	 * the identities that are now unmodifiable. Adding a field to the port later
-	 * breaks every adapter; adding it now costs one column.
+	 * **Nothing reads it yet**, and it is here from v1 on purpose. Tightening a
+	 * schema changes what an update accepts, and every stored user was validated
+	 * against the old one: without this field there is no way to find the users
+	 * that are now unmodifiable. Adding a field to the port later breaks every
+	 * adapter; adding it now costs one column.
 	 */
 	readonly schemaVersion: string;
-	readonly state: IdentityState;
-	readonly traits: JsonObject;
-	readonly identifiers: readonly IdentityIdentifier[];
-	readonly credentials: IdentityCredentials;
-	readonly addresses: readonly VerifiableAddress[];
-	/** Readable by the identity itself. `{}` when empty — never `null`, so there is one way to be empty. */
-	readonly metadataPublic: JsonObject;
-	/** Readable by the application only. `{}` when empty. */
-	readonly metadataAdmin: JsonObject;
+	/** `false` keeps the record and its password, and refuses every sign-in. */
+	readonly active: boolean;
+	/** The application's own fields, as the type's schema validated them. */
+	readonly fields: JsonObject;
+	/**
+	 * What the user signs in with, **already normalised** by the core. Unique
+	 * per `type`, and that uniqueness is a constraint the store enforces
+	 * (rule 3): the same e-mail may hold a patient account and a staff account,
+	 * and never two of either.
+	 */
+	readonly logins: readonly string[];
+	/** `null` when the user has no password. */
+	readonly password: PasswordRecord | null;
+	/**
+	 * When the user proved they hold their current e-mail, or `null`. The core
+	 * sets it back to `null` in the same write that changes the e-mail.
+	 */
+	readonly emailVerifiedAt: Date | null;
 	/**
 	 * `0` at insertion, and one more on every accepted write. What
-	 * {@link IdentityStore.updateIdentity}'s `ifVersion` is compared against.
+	 * {@link UserStore.updateUser}'s `ifVersion` is compared against.
 	 */
 	readonly version: number;
 	readonly createdAt: Date;
@@ -194,100 +144,91 @@ export interface IdentityRecord {
 }
 
 /**
- * What one {@link IdentityStore.updateIdentity} changes.
+ * What one {@link UserStore.updateUser} changes.
  *
  * **A field the patch does not name is left as it is.** There is no full
  * replacement of a record anywhere on this port: in Kratos, an update that
  * omits `state` deactivates the account, and an edit form that omits a trait
  * deletes it. A conformance case carries that trap's name.
  *
- * A field the patch *does* name is replaced whole — `traits`, `addresses` and
- * `identifiers` included. A deep merge would make every adapter implement a
- * merge on nested arrays, differently on every database. The core computes the
- * next value from the record it just read, under `ifVersion`, so no write is
- * lost by it.
+ * A field the patch *does* name is replaced whole — `fields` and `logins`
+ * included. A deep merge would make every adapter implement a merge on nested
+ * values, differently on every database. The core computes the next value from
+ * the record it just read, under `ifVersion`, so no write is lost by it.
  *
- * `credentials` is the one field patched slot by slot: `{ password: null }`
- * removes the password, and a patch that does not name `password` keeps it.
+ * `password: null` removes the password; a patch that does not name `password`
+ * keeps it.
  *
- * `id`, `version` and `createdAt` are not patchable: the first two are the
- * store's to keep, the last is history. `updatedAt` is **required**, and comes
- * from the core's clock rather than the database's, so every timestamp on a
- * record comes from one clock.
+ * `id`, `type`, `version` and `createdAt` are not patchable. `updatedAt` is
+ * **required**, and comes from the core's clock rather than the database's, so
+ * every timestamp on a record comes from one clock.
  *
  * A key present with the value `undefined` is absent. This package is compiled
  * with `exactOptionalPropertyTypes`, so the core cannot write one; an adapter
  * receiving one from JavaScript still treats it as absent, never as an erasure.
  */
-export interface IdentityPatch {
+export interface UserPatch {
 	readonly updatedAt: Date;
 	readonly schemaVersion?: string;
-	readonly state?: IdentityState;
-	readonly traits?: JsonObject;
-	readonly identifiers?: readonly IdentityIdentifier[];
-	readonly credentials?: { readonly password?: PasswordCredential | null };
-	readonly addresses?: readonly VerifiableAddress[];
-	readonly metadataPublic?: JsonObject;
-	readonly metadataAdmin?: JsonObject;
+	readonly active?: boolean;
+	readonly fields?: JsonObject;
+	readonly logins?: readonly string[];
+	readonly password?: PasswordRecord | null;
+	readonly emailVerifiedAt?: Date | null;
 }
 
-/** Where a page of identities starts, and how much of it to read. */
-export interface IdentityPageRequest {
+/** Which users a page lists, where it starts, and how much of it to read. */
+export interface UserPageRequest {
+	/** Only users of this type. */
+	readonly type: string;
 	/**
 	 * The last id of the previous page, or `null` for the first.
 	 *
 	 * Already checked by the core to be an id this package could have minted,
-	 * so the store never parses a cursor. It need not name a stored identity:
-	 * the page is every id strictly greater than it.
+	 * so the store never parses a cursor. It need not name a stored user: the
+	 * page is every id strictly greater than it.
 	 */
-	readonly after: IdentityId | null;
+	readonly after: Id | null;
 	/** Already bounded by the core, between 1 and `MAX_PAGE_SIZE`. */
 	readonly limit: number;
 }
 
-/**
- * Identities, their credentials and their identifiers: one unit of atomicity.
- */
-export interface IdentityStore {
+/** Users and their passwords: one unit of atomicity. */
+export interface UserStore {
 	/**
-	 * Stores a new identity, verbatim, and answers what is stored.
+	 * Stores a new user, verbatim, and answers what is stored.
 	 *
-	 * **Idempotent under retry.** When an identity with this `id` already
-	 * exists, it answers the stored record and writes nothing — a retry after a
-	 * timeout whose first attempt landed is a success, not a conflict. That
-	 * includes the identifiers: an identifier held by the identity with this
-	 * same `id` is not taken.
+	 * **Idempotent under retry.** When a user with this `id` already exists, it
+	 * answers the stored record and writes nothing — a retry after a timeout
+	 * whose first attempt landed is a success, not a conflict. That includes the
+	 * logins: a login held by the user with this same `id` is not taken.
 	 *
-	 * An identifier held by **another** identity rejects with
-	 * `StoreConflict('identifier', …)`, carrying `identifier` and
-	 * `credentialType`, and writes nothing. That refusal comes from the store's
-	 * own constraint, never from a read made first.
+	 * A login held by **another** user of the same type rejects with
+	 * `StoreConflict('login', …)`, carrying `login` and `userType`, and writes
+	 * nothing. That refusal comes from the store's own constraint, never from a
+	 * read made first.
 	 */
-	insertIdentity(record: IdentityRecord): Promise<IdentityRecord>;
+	insertUser(record: UserRecord): Promise<UserRecord>;
 
-	/** The identity with this id, or `null`. */
-	findIdentity(id: IdentityId): Promise<IdentityRecord | null>;
+	/** The user with this id, whatever their type, or `null`. */
+	findUser(id: Id): Promise<UserRecord | null>;
 
 	/**
-	 * The identity holding this identifier, or `null`.
+	 * The user of this type holding this login, or `null`.
 	 *
-	 * `value` is compared byte for byte: the core normalised it with the same
-	 * rule it used when the identifier was written.
+	 * `login` is compared byte for byte: the core normalised it with the same
+	 * rule it used when the login was written.
 	 */
-	findIdentityByIdentifier(
-		type: CredentialType,
-		value: string,
-	): Promise<IdentityRecord | null>;
+	findUserByLogin(type: string, login: string): Promise<UserRecord | null>;
 
 	/**
-	 * One page of identities, in ascending id order — which is creation order.
+	 * One page of users of one type, in ascending id order — which is creation
+	 * order.
 	 *
 	 * `nextCursor` is the last id of the page when more follow, and `null` on
 	 * the last page. An empty store answers an empty page, never `null`.
 	 */
-	listIdentities(
-		page: IdentityPageRequest,
-	): Promise<CursorPage<IdentityRecord>>;
+	listUsers(page: UserPageRequest): Promise<CursorPage<UserRecord>>;
 
 	/**
 	 * Applies a patch, **only if the stored version is exactly `ifVersion`**,
@@ -300,28 +241,21 @@ export interface IdentityStore {
 	 *
 	 * Rejects, **writing nothing**, with:
 	 *
-	 * - `NotFoundError` when no identity has this id. The one method on this
-	 *   port that throws for an absence: it always follows a read, so an absence
-	 *   here is a race, not an answer;
+	 * - `NotFoundError` when no user has this id. The one method on this port
+	 *   that throws for an absence: it always follows a read, so an absence here
+	 *   is a race, not an answer;
 	 * - `StoreConflict('version', …)` with `expectedVersion` and
 	 *   `actualVersion` when the version moved. A conditional write cannot tell
 	 *   this from an absent id on its own, so the adapter reads again after a
 	 *   write that matched nothing;
-	 * - `StoreConflict('identifier', …)` when the patch's identifiers collide
-	 *   with another identity's.
+	 * - `StoreConflict('login', …)` when the patch's logins collide with another
+	 *   user's of the same type.
 	 */
-	updateIdentity(
-		id: IdentityId,
-		patch: IdentityPatch,
-		ifVersion: number,
-	): Promise<IdentityRecord>;
+	updateUser(id: Id, patch: UserPatch, ifVersion: number): Promise<UserRecord>;
 }
 
-/** A session's id: a UUIDv7 minted by the core, as an identity's is. */
+/** A session's id: a UUIDv7 minted by the core, as a user's is. */
 export type SessionId = string;
-
-/** How strongly the session's holder proved who they are. */
-export type AuthenticatorAssuranceLevel = 'aal1' | 'aal2';
 
 /**
  * A session, as a store holds it.
@@ -334,8 +268,7 @@ export interface SessionRecord {
 	readonly id: SessionId;
 	/** `sha256` of the session token, hex. Unique across the store. */
 	readonly tokenHash: string;
-	readonly identityId: IdentityId;
-	readonly aal: AuthenticatorAssuranceLevel;
+	readonly userId: Id;
 	/** When credentials were last presented — not when the session was last extended. */
 	readonly authenticatedAt: Date;
 	readonly expiresAt: Date;
@@ -382,15 +315,11 @@ export interface SessionStore {
 	revokeSession(id: SessionId, at: Date): Promise<boolean>;
 
 	/**
-	 * Revokes every standing session of one identity, except `except` when
-	 * given — "sign out everywhere else". Answers how many this call revoked;
-	 * `0` is an answer, not a failure.
+	 * Revokes every standing session of one user, except `except` when given —
+	 * "sign out everywhere else". Answers how many this call revoked; `0` is an
+	 * answer, not a failure.
 	 */
-	revokeIdentitySessions(
-		identityId: IdentityId,
-		at: Date,
-		except?: SessionId,
-	): Promise<number>;
+	revokeUserSessions(userId: Id, at: Date, except?: SessionId): Promise<number>;
 
 	/**
 	 * **Optional capability.** Deletes every session whose `expiresAt` is at or
@@ -398,22 +327,22 @@ export interface SessionStore {
 	 *
 	 * A store with its own expiry — a TTL index, a key TTL — does not implement
 	 * it. The core reads its presence rather than assuming it, and
-	 * `sessions.collectExpired()` throws `UNSUPPORTED`, naming this method and
-	 * the `sessions` slot, when it is absent.
+	 * `collectExpired()` throws `UNSUPPORTED`, naming this method and the
+	 * `sessions` slot, when it is absent.
 	 */
 	deleteExpiredSessions?(before: Date): Promise<number>;
 }
 
 /** What a one-time token is for. A token redeemed for the other purpose is unknown. */
-export type TokenKind = 'verification' | 'recovery';
+export type TokenKind = 'verifyEmail' | 'resetPassword';
 
 /** A one-time token, as a store holds it: its hash, never its secret. */
 export interface TokenRecord {
 	/** `sha256` of the token's secret, hex. Unique across the store. */
 	readonly tokenHash: string;
 	readonly kind: TokenKind;
-	readonly identityId: IdentityId;
-	/** The address the token was sent to — the one a verification marks verified. */
+	readonly userId: Id;
+	/** The e-mail the token was sent to — the one a verification marks verified. */
 	readonly address: string;
 	readonly expiresAt: Date;
 	/** `null` until spent. Once set, never changes. */
@@ -439,8 +368,8 @@ export interface TokenStore {
 	 * - `null` means no token of this `kind` has this hash — including one the
 	 *   store has already dropped. A token of the other kind is not touched.
 	 *
-	 * **One conditional write, never a read followed by a write.** A recovery
-	 * code two concurrent requests both redeem is an account takeover: twenty
+	 * **One conditional write, never a read followed by a write.** A reset code
+	 * two concurrent requests both redeem is an account takeover: twenty
 	 * concurrent calls must produce exactly one answer with `spentAt: null`, and
 	 * the conformance suite runs exactly that. In MongoDB this is one
 	 * `findOneAndUpdate` returning the document *before* the update.
@@ -456,14 +385,14 @@ export interface TokenStore {
 }
 
 /**
- * The three stores `createIdentities` takes.
+ * The three stores `janus()` takes.
  *
  * Each slot may come from a different adapter. That is the point of the seam:
  * `@nxgt/janus-redis` can serve `sessions` and `tokens` while
- * `@nxgt/janus-mongo` serves `identities`.
+ * `@nxgt/janus-mongo` serves `users`.
  */
-export interface IdentityStores {
-	readonly identities: IdentityStore;
+export interface JanusStores {
+	readonly users: UserStore;
 	readonly sessions: SessionStore;
 	readonly tokens: TokenStore;
 }

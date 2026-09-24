@@ -10,22 +10,22 @@
  *
  * Three layers, and the lowest depends on no test runner:
  *
- * - the cases, as data — `identityStoreCases`, `sessionStoreCases`,
+ * - the cases, as data — `userStoreCases`, `sessionStoreCases`,
  *   `tokenStoreCases`, `outageCases`, `allCases`;
  * - `runCase`, which runs one against a harness;
- * - `describeIdentityStores`, which describes them all under bun:test, vitest
+ * - `describeJanusStores`, which describes them all under bun:test, vitest
  *   or jest.
  *
  * It imports no test framework and no assertion library.
  */
 
-export { identityStoreCases } from './cases/identities';
 export { outageCases } from './cases/outage';
 export { sessionStoreCases } from './cases/sessions';
 export { tokenStoreCases } from './cases/tokens';
+export { userStoreCases } from './cases/users';
 export {
 	allCases,
-	describeIdentityStores,
+	describeJanusStores,
 	runCase,
 	SKIP_REASONS,
 } from './describe';

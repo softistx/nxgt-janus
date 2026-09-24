@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { createMemoryStores } from '../identities/port/memory';
+import { createMemoryStores } from '../auth/port/memory';
 import {
 	allCases,
-	describeIdentityStores,
+	describeJanusStores,
 	runCase,
 	SKIP_REASONS,
 } from './describe';
@@ -11,7 +11,7 @@ import type { ConformanceRunner } from './types';
 
 // The suite proved before any adapter exists: every case, outages included,
 // against the reference store — no binary, no server.
-describeIdentityStores({
+describeJanusStores({
 	name: 'the reference store',
 	harness: referenceHarness(),
 	runner: { describe, it },
@@ -22,13 +22,13 @@ describe('the suite itself', () => {
 		expect(
 			allCases.filter((c) => c.group === 'outage').map((c) => c.id),
 		).toEqual([
-			'outage.findIdentity',
-			'outage.findIdentityByIdentifier',
-			'outage.listIdentities',
+			'outage.findUser',
+			'outage.findUserByLogin',
+			'outage.listUsers',
 			'outage.findSessionByTokenHash',
 			'outage.extendSession',
 			'outage.revokeSession',
-			'outage.revokeIdentitySessions',
+			'outage.revokeUserSessions',
 			'outage.consumeToken',
 		]);
 	});
@@ -42,7 +42,7 @@ describe('the suite itself', () => {
 		const withoutFaults = {
 			open: async () => ({ stores: createMemoryStores() }),
 		};
-		const outage = allCases.find((c) => c.id === 'outage.findIdentity');
+		const outage = allCases.find((c) => c.id === 'outage.findUser');
 		if (outage === undefined) throw new Error('no outage case');
 
 		expect(await runCase(outage, withoutFaults)).toEqual({
@@ -63,12 +63,12 @@ describe('the suite itself', () => {
 			}),
 		};
 
-		describeIdentityStores({
+		describeJanusStores({
 			name: 'an adapter',
 			harness: referenceHarness(),
 			runner: recording,
 			faults: false,
-			skip: { 'identities.pagination': 'our database pages by timestamp' },
+			skip: { 'users.pagination': 'our database pages by timestamp' },
 		});
 
 		expect(names[0]).toContain('WITHOUT faults');
@@ -85,7 +85,7 @@ describe('the suite itself', () => {
 		// Measured: bun test gives a file describe and it as bare identifiers,
 		// not on globalThis.
 		expect(() =>
-			describeIdentityStores({ name: 'x', harness: referenceHarness() }),
+			describeJanusStores({ name: 'x', harness: referenceHarness() }),
 		).toThrow(
 			"pass runner: { describe, it } (under bun test: import them from 'bun:test')",
 		);

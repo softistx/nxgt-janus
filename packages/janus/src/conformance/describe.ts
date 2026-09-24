@@ -1,7 +1,7 @@
-import { identityStoreCases } from './cases/identities';
 import { outageCases } from './cases/outage';
 import { sessionStoreCases } from './cases/sessions';
 import { tokenStoreCases } from './cases/tokens';
+import { userStoreCases } from './cases/users';
 import type {
 	ConformanceCase,
 	ConformanceHarness,
@@ -11,7 +11,7 @@ import type {
 
 /** Every case, in the order they are described. */
 export const allCases: readonly ConformanceCase[] = [
-	...identityStoreCases,
+	...userStoreCases,
 	...sessionStoreCases,
 	...tokenStoreCases,
 	...outageCases,
@@ -64,7 +64,7 @@ export async function runCase(
  *
  * ```ts
  * import { describe, it } from 'bun:test';
- * describeIdentityStores({ name: 'my adapter', harness, runner: { describe, it } });
+ * describeJanusStores({ name: 'my adapter', harness, runner: { describe, it } });
  * ```
  *
  * `runner` may be left out under jest, or vitest with `globals: true`: the
@@ -77,7 +77,7 @@ export async function runCase(
  * cannot run passes **and says so in its name**, and a run without `faults`
  * is written above the suite, where it cannot be scrolled past.
  */
-export function describeIdentityStores(options: {
+export function describeJanusStores(options: {
 	readonly name: string;
 	readonly harness: ConformanceHarness;
 	readonly runner?: ConformanceRunner;
@@ -143,7 +143,7 @@ function fromGlobals(): ConformanceRunner {
 		typeof globals.it !== 'function'
 	) {
 		throw new TypeError(
-			"describeIdentityStores: no test runner on globalThis — pass runner: { describe, it } (under bun test: import them from 'bun:test')",
+			"describeJanusStores: no test runner on globalThis — pass runner: { describe, it } (under bun test: import them from 'bun:test')",
 		);
 	}
 

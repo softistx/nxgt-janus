@@ -1,5 +1,5 @@
 /**
- * An identity's id: a UUIDv7, lowercase, hyphenated.
+ * An id — of a user, a session: a UUIDv7, lowercase, hyphenated.
  *
  * **The core mints it, not the store**, and that decision pays for itself three
  * times over:
@@ -10,9 +10,9 @@
  *     store-minted id would need a `createdAt` index plus the id as a tiebreak,
  *     because a timestamp alone is not a total order, and an opaque cursor per
  *     adapter.
- *   - `insertIdentity` becomes **idempotent under retry**: the id is decided
+ *   - `insertUser` becomes **idempotent under retry**: the id is decided
  *     before the call, so a retry after a timeout writes the same row rather
- *     than a second identity.
+ *     than a second user.
  *   - Every adapter reports the same shape, so moving an application from one
  *     adapter to another is a copy rather than a rewrite of every stored
  *     reference.
@@ -21,7 +21,7 @@
  * key. It gets a `uuid` column, or a 36-character string, and the monotonic
  * prefix gives it the index locality a UUIDv4 destroys.
  */
-export type IdentityId = string;
+export type Id = string;
 
 const HEX: readonly string[] = Array.from({ length: 256 }, (_, i) =>
 	i.toString(16).padStart(2, '0'),
@@ -42,15 +42,15 @@ let sequence = 0;
 const SEQUENCE_MAX = 0xfff;
 
 /**
- * A fresh identity id.
+ * A fresh id.
  *
  * Strictly increasing: within one millisecond it uses the sequence, and if that
- * overflows — more than 4096 identities in a millisecond, which no real
+ * overflows — more than 4096 ids in a millisecond, which no real
  * application reaches — it borrows the next millisecond rather than repeating
  * one. Across processes the 62 random bits of the tail are what keep two machines
  * apart.
  */
-export function mintIdentityId(now: number = Date.now()): IdentityId {
+export function mintId(now: number = Date.now()): Id {
 	let ms = now;
 
 	if (ms === lastMs) {
@@ -104,11 +104,11 @@ const UUID_V7 =
  *
  * Used by an adapter to answer `null` for a malformed id **without reaching the
  * store**: an id arrives off a URL, and one of the wrong shape is "no such
- * identity", not an outage and not a query. Rejecting it here also keeps a
+ * user", not an outage and not a query. Rejecting it here also keeps a
  * hand-written id out of a store that would then hold something the cursor
  * cannot order.
  */
-export function isIdentityId(value: string): boolean {
+export function isId(value: string): boolean {
 	return UUID_V7.test(value);
 }
 
@@ -121,7 +121,7 @@ export function isIdentityId(value: string): boolean {
  * a millisecond, and a clock that stepped backwards is held rather than
  * followed, so this is accurate to the millisecond and no further.
  */
-export function mintedAt(id: IdentityId): Date {
+export function mintedAt(id: Id): Date {
 	const hex = id.replace(/-/g, '').slice(0, 12);
 	return new Date(Number.parseInt(hex, 16));
 }

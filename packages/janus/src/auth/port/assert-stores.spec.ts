@@ -4,7 +4,7 @@ import { createMemoryStores } from './memory';
 
 describe('assertStores', () => {
 	it('accepts a complete set of stores, and reports the optional capability', () => {
-		expect(assertStores(createMemoryStores(), 'createIdentities')).toEqual({
+		expect(assertStores(createMemoryStores(), 'janus')).toEqual({
 			collectExpired: true,
 		});
 	});
@@ -13,7 +13,7 @@ describe('assertStores', () => {
 		const stores = createMemoryStores();
 		const { deleteExpiredSessions: _, ...sessions } = stores.sessions;
 
-		expect(assertStores({ ...stores, sessions }, 'createIdentities')).toEqual({
+		expect(assertStores({ ...stores, sessions }, 'janus')).toEqual({
 			collectExpired: false,
 		});
 	});
@@ -22,11 +22,9 @@ describe('assertStores', () => {
 		const stores = createMemoryStores();
 		const { consumeToken: _, ...tokens } = stores.tokens;
 
-		expect(() =>
-			assertStores({ ...stores, tokens }, 'createIdentities'),
-		).toThrow(
+		expect(() => assertStores({ ...stores, tokens }, 'janus')).toThrow(
 			new TypeError(
-				'createIdentities: stores.tokens has no method consumeToken, which the port requires',
+				'janus: store.tokens has no method consumeToken, which the port requires',
 			),
 		);
 	});
@@ -34,11 +32,11 @@ describe('assertStores', () => {
 	it('refuses a missing slot with a bare TypeError: only wiring produces one', () => {
 		const { sessions: _, ...stores } = createMemoryStores();
 
-		expect(() => assertStores(stores, 'createIdentities')).toThrow(TypeError);
-		expect(() => assertStores(stores, 'createIdentities')).toThrow(
-			'createIdentities: stores.sessions is missing',
+		expect(() => assertStores(stores, 'janus')).toThrow(TypeError);
+		expect(() => assertStores(stores, 'janus')).toThrow(
+			'janus: store.sessions is missing',
 		);
-		expect(() => assertStores(null, 'createIdentities')).toThrow(TypeError);
+		expect(() => assertStores(null, 'janus')).toThrow(TypeError);
 	});
 
 	it('refuses an optional method that is present but not a function', () => {
@@ -52,10 +50,10 @@ describe('assertStores', () => {
 					...stores,
 					sessions: { ...stores.sessions, deleteExpiredSessions: true },
 				},
-				'createIdentities',
+				'janus',
 			),
 		).toThrow(
-			'createIdentities: stores.sessions.deleteExpiredSessions must be a function or absent',
+			'janus: store.sessions.deleteExpiredSessions must be a function or absent',
 		);
 	});
 });

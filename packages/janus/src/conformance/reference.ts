@@ -1,6 +1,6 @@
+import { createMemoryStores } from '../auth/port/memory';
+import type { JanusStores } from '../auth/port/types';
 import { StoreFailure } from '../errors/janus-error';
-import { createMemoryStores } from '../identities/port/memory';
-import type { IdentityStores } from '../identities/port/types';
 import type { ConformanceHarness, StoreFaults } from './types';
 
 /**
@@ -31,9 +31,9 @@ export function referenceHarness(): ConformanceHarness {
 }
 
 function withFaults(
-	stores: IdentityStores,
+	stores: JanusStores,
 	failing: ReadonlySet<string>,
-): IdentityStores {
+): JanusStores {
 	const wrap = <S extends object>(slot: string, store: S): S => {
 		const wrapped: Record<string, unknown> = {};
 		for (const [method, fn] of Object.entries(store)) {
@@ -41,7 +41,7 @@ function withFaults(
 				if (failing.has(`${slot}.${method}`)) {
 					return Promise.reject(
 						new StoreFailure(`${slot}.${method}: the store could not answer`, {
-							slot: slot as keyof IdentityStores,
+							slot: slot as keyof JanusStores,
 							operation: method,
 						}),
 					);
@@ -53,7 +53,7 @@ function withFaults(
 	};
 
 	return {
-		identities: wrap('identities', stores.identities),
+		users: wrap('users', stores.users),
 		sessions: wrap('sessions', stores.sessions),
 		tokens: wrap('tokens', stores.tokens),
 	};

@@ -1,5 +1,5 @@
 /**
- * What the identity store port refuses at COMPILE time, seen from the side of
+ * What the store port refuses at COMPILE time, seen from the side of
  * the person implementing it.
  *
  * Checked by `tsc --noEmit`, never run — see `refusals.ts` for why a
@@ -12,18 +12,18 @@
  * gains something it should refuse; never delete one to make a change pass.
  */
 
-import { createMemoryStores } from '../../src/identities/port/memory';
+import { createMemoryStores } from '../../src/auth/port/memory';
 import type {
-	IdentityPatch,
-	IdentityRecord,
-	IdentityStore,
-	IdentityStores,
+	JanusStores,
 	SessionStore,
 	TokenStore,
-} from '../../src/identities/port/types';
+	UserPatch,
+	UserRecord,
+	UserStore,
+} from '../../src/auth/port/types';
 
-declare const record: IdentityRecord;
-declare const identities: IdentityStore;
+declare const record: UserRecord;
+declare const users: UserStore;
 declare const sessions: SessionStore;
 declare const tokens: TokenStore;
 const now = new Date();
@@ -31,21 +31,21 @@ const now = new Date();
 // ── 1. A store missing a method ─────────────────────────────────────────────
 // The compiler names the missing method; `assertStores` is the net for
 // JavaScript.
-// @ts-expect-error updateIdentity is missing
-const partial: IdentityStore = {
-	insertIdentity: identities.insertIdentity,
-	findIdentity: identities.findIdentity,
-	findIdentityByIdentifier: identities.findIdentityByIdentifier,
-	listIdentities: identities.listIdentities,
+// @ts-expect-error updateUser is missing
+const partial: UserStore = {
+	insertUser: users.insertUser,
+	findUser: users.findUser,
+	findUserByLogin: users.findUserByLogin,
+	listUsers: users.listUsers,
 };
 
 // ── 2. An absence answered as undefined ────────────────────────────────────
 // Rule 2. `undefined` is what a function that forgot to `return` produces, so
 // "not found" by accident is refused here rather than discovered in production.
-const undefinedAbsence: IdentityStore = {
-	...identities,
+const undefinedAbsence: UserStore = {
+	...users,
 	// @ts-expect-error an absence is null, not undefined
-	findIdentity: async () => undefined,
+	findUser: async () => undefined,
 };
 
 // ── 3. A revocation that answers nothing ───────────────────────────────────
@@ -66,9 +66,9 @@ const booleanConsume: TokenStore = {
 };
 
 // ── 5. The wrong store in a slot ───────────────────────────────────────────
-const swapped: IdentityStores = {
-	// @ts-expect-error a session store is not an identity store
-	identities: sessions,
+const swapped: JanusStores = {
+	// @ts-expect-error a session store is not a user store
+	users: sessions,
 	sessions,
 	tokens,
 };
@@ -77,22 +77,22 @@ const swapped: IdentityStores = {
 // `ifVersion` is required on the port: an optional check is the one somebody
 // forgets on the one write where it mattered.
 // @ts-expect-error ifVersion is required
-identities.updateIdentity(record.id, { updatedAt: now });
+users.updateUser(record.id, { updatedAt: now });
 
 // ── 7. A redemption that does not say what the token is for ────────────────
-// Without `kind`, a verification token redeems as a recovery token.
+// Without `kind`, a verification token redeems as a reset token.
 // @ts-expect-error kind is required
 tokens.consumeToken('hash', now);
 
 // ── 8. A patch that sets the version ───────────────────────────────────────
-const patchVersion: IdentityPatch = {
+const patchVersion: UserPatch = {
 	updatedAt: now,
 	// @ts-expect-error version is the store's to keep
 	version: 3,
 };
 
 // ── 9. A patch that changes the id ────────────────────────────────────────
-const patchId: IdentityPatch = {
+const patchId: UserPatch = {
 	updatedAt: now,
 	// @ts-expect-error id is not patchable
 	id: 'x',
@@ -100,44 +100,47 @@ const patchId: IdentityPatch = {
 
 // ── 10. A patch that writes undefined over a field ─────────────────────────
 // The Kratos `PUT` trap arriving through the type system: without
-// `exactOptionalPropertyTypes`, `{ state: undefined }` is a valid patch and a
+// `exactOptionalPropertyTypes`, `{ active: undefined }` is a valid patch and a
 // naive adapter writes it as an erasure.
 // Under that flag the compiler reports it on the declaration, not on the key.
 // @ts-expect-error a field is named with a value, or not named at all
-const patchUndefined: IdentityPatch = { updatedAt: now, state: undefined };
+const patchUndefined: UserPatch = { updatedAt: now, active: undefined };
 
 // ── 11. A patch with no timestamp ──────────────────────────────────────────
 // `updatedAt` comes from the core's clock, so every timestamp on a record comes
 // from one clock and a fixed clock in a test controls all of them.
 // @ts-expect-error updatedAt is required
-const patchUntimed: IdentityPatch = { state: 'inactive' };
+const patchUntimed: UserPatch = { active: false };
 
 // ── 12. Editing a record a store answered ──────────────────────────────────
-// @ts-expect-error state is readonly
-record.state = 'inactive';
+// @ts-expect-error active is readonly
+record.active = false;
 
-// ── 13. A trait a store cannot round-trip ──────────────────────────────────
+// ── 13. A field a store cannot round-trip ──────────────────────────────────
 // A Date survives MongoDB and not a JSON column: an adapter could pass on one
-// database and corrupt traits on the next.
-const dateTrait: IdentityRecord = {
+// database and corrupt fields on the next.
+const dateField: UserRecord = {
 	...record,
-	// @ts-expect-error traits are JSON, and a Date is not
-	traits: { born: new Date() },
+	// @ts-expect-error fields are JSON, and a Date is not
+	fields: { born: new Date() },
 };
 
-// ── 14. Metadata absent as null ────────────────────────────────────────────
-// `{}` is the one way to be empty.
-const nullMetadata: IdentityRecord = {
-	...record,
-	// @ts-expect-error metadataPublic is an object, {} when empty
-	metadataPublic: null,
+// ── 14. A patch that moves a user to another type ──────────────────────────
+// A patient turned staff member by a stray key would keep a patient's fields
+// under a staff schema, and sign in to the staff side.
+const patchType: UserPatch = {
+	updatedAt: now,
+	// @ts-expect-error type is not patchable
+	type: 'staff',
 };
 
-// ── 15. A password slot left out rather than null ──────────────────────────
-const missingPassword: IdentityRecord = {
+// ── 15. A password left undefined rather than null ─────────────────────────
+// Rule 2 on the one field where a missing value would read as "no password"
+// rather than as "the store forgot".
+const missingPassword: UserRecord = {
 	...record,
 	// @ts-expect-error password is present, and null when absent
-	credentials: {},
+	password: undefined,
 };
 
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
@@ -147,19 +150,16 @@ const { deleteExpiredSessions: _, ...withoutCollect } = sessions;
 const minimalSessions: SessionStore = withoutCollect;
 
 // The reference store is a complete set.
-const reference: IdentityStores = createMemoryStores();
+const reference: JanusStores = createMemoryStores();
 
 // A patch may name nothing but the time, and may remove the password.
-const timeOnly: IdentityPatch = { updatedAt: now };
-const removePassword: IdentityPatch = {
-	updatedAt: now,
-	credentials: { password: null },
-};
+const timeOnly: UserPatch = { updatedAt: now };
+const removePassword: UserPatch = { updatedAt: now, password: null };
 
-// Traits nest, and hold arrays and numbers.
-const nestedTraits: IdentityRecord = {
+// Fields nest, and hold arrays and numbers.
+const nestedFields: UserRecord = {
 	...record,
-	traits: { name: { first: 'Ada' }, tags: ['a', 1, true, null] },
+	fields: { name: { first: 'Ada' }, tags: ['a', 1, true, null] },
 };
 
 // A class implements the port as well as an object literal does.
@@ -181,8 +181,8 @@ export const checked = {
 		patchId,
 		patchUndefined,
 		patchUntimed,
-		dateTrait,
-		nullMetadata,
+		dateField,
+		patchType,
 		missingPassword,
 	],
 	allowed: [
@@ -190,7 +190,7 @@ export const checked = {
 		reference,
 		timeOnly,
 		removePassword,
-		nestedTraits,
+		nestedFields,
 		ClassStore,
 	],
 };

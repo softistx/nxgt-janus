@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'bun:test';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ada, rejection, setup } from '../../test/identities';
+import { ada, password, rejection, setup } from '../../test/auth';
 import { JanusError, NotFoundError, StoreFailure } from '../errors/janus-error';
 import { createMemoryStores } from './port/memory';
-import type { IdentityStores } from './port/types';
+import type { JanusStores } from './port/types';
 
 /** The reference stores, with one method replaced by one that fails. */
 function failing(
-	slot: keyof IdentityStores,
+	slot: keyof JanusStores,
 	method: string,
 	failure: () => unknown,
-): IdentityStores {
+): JanusStores {
 	const stores = createMemoryStores();
 	return {
 		...stores,
@@ -23,7 +23,7 @@ describe('the scan: no catch around a store call, anywhere but here', () => {
 	// The failure this whole design exists to prevent is a single careless
 	// `catch { return null }`. So this spec reads the source and refuses any
 	// `catch` — and any two-argument `.then`, the same thing spelled
-	// differently — in the identity core outside `outage.ts`.
+	// differently — in the core outside `outage.ts`.
 	it('finds none', async () => {
 		const offenders: string[] = [];
 
@@ -70,44 +70,40 @@ describe('the scan: no catch around a store call, anywhere but here', () => {
 describe('guarded stores', () => {
 	it('turns a driver error into STORE_FAILED, keeping it as cause and out of the message', async () => {
 		const driver = new Error('connect ECONNREFUSED mongodb://root:sentinel@db');
-		const { identities } = setup({
-			stores: failing('identities', 'findIdentityByIdentifier', () => {
+		const { auth } = setup({
+			store: failing('users', 'findUserByLogin', () => {
 				throw driver;
 			}),
 		});
 
-		const error = await rejection(
-			identities.findByIdentifier('password', ada.email),
-		);
+		const error = await rejection(auth.findByLogin(ada.email));
 
 		expect(error).toBeInstanceOf(StoreFailure);
 		expect((error as StoreFailure).cause).toBe(driver);
-		expect((error as StoreFailure).slot).toBe('identities');
-		expect((error as StoreFailure).operation).toBe('findIdentityByIdentifier');
+		expect((error as StoreFailure).slot).toBe('users');
+		expect((error as StoreFailure).operation).toBe('findUserByLogin');
 		expect((error as Error).message).not.toContain('sentinel');
 	});
 
 	it('lets a JanusError the adapter threw through, so instanceof holds', async () => {
-		const own = new NotFoundError('updateIdentity: gone');
-		const { identities } = setup({
-			stores: failing('identities', 'updateIdentity', () => {
+		const own = new NotFoundError('updateUser: gone');
+		const { auth } = setup({
+			store: failing('users', 'updateUser', () => {
 				throw own;
 			}),
 		});
-		const created = await identities.create({ traits: ada });
+		const created = await auth.create(ada);
 
-		expect(await rejection(identities.setState(created.id, 'inactive'))).toBe(
-			own,
-		);
+		expect(await rejection(auth.setActive(created, false))).toBe(own);
 	});
 
 	it('refuses undefined where the port says null: the store forgot to answer', async () => {
-		const { identities } = setup({
-			stores: failing('identities', 'findIdentity', () => undefined),
+		const { auth } = setup({
+			store: failing('users', 'findUser', () => undefined),
 		});
 
 		const error = await rejection(
-			identities.find('018f0000-0000-7000-8000-000000000000'),
+			auth.find('018f0000-0000-7000-8000-000000000000'),
 		);
 
 		expect(error).toBeInstanceOf(StoreFailure);
@@ -122,11 +118,11 @@ describe('guarded stores', () => {
 				throw new Error('socket hang up');
 			}
 		}
-		const { identities } = setup({
-			stores: { ...createMemoryStores(), tokens: new Tokens() },
+		const { auth } = setup({
+			store: { ...createMemoryStores(), tokens: new Tokens() },
 		});
 
-		const error = await rejection(identities.tokens.consumeRecovery('x'));
+		const error = await rejection(auth.verifyEmail.confirm('x'));
 
 		expect(error).toBeInstanceOf(StoreFailure);
 	});
@@ -134,63 +130,66 @@ describe('guarded stores', () => {
 
 describe('an outage is never a negative answer', () => {
 	// For each call whose honest answer can be "nothing", the store failing
-	// must reject — never resolve null, false, ok: false or an empty page.
+	// must reject — never resolve null, false, 0, an empty page, or a refusal
+	// that reads like a wrong password.
 	const outage = () => {
 		throw new Error('primary stepped down');
 	};
 
-	it('verifyPassword rejects, and never resolves ok: false', async () => {
-		const { identities } = setup({
-			stores: failing('identities', 'findIdentityByIdentifier', outage),
+	it('signIn rejects with STORE_FAILED, never CREDENTIALS_INVALID', async () => {
+		const { auth } = setup({
+			store: failing('users', 'findUserByLogin', outage),
+		});
+
+		const error = await rejection(auth.signIn({ email: ada.email, password }));
+
+		expect(error).toBeInstanceOf(StoreFailure);
+	});
+
+	it('authenticate rejects, and never resolves anonymous', async () => {
+		const { auth } = setup({
+			store: failing('sessions', 'findSessionByTokenHash', outage),
 		});
 
 		const error = await rejection(
-			identities.verifyPassword(ada.email, 'whatever1'),
+			auth.authenticate({ authorization: 'Bearer anything' }),
 		);
 
 		expect(error).toBeInstanceOf(StoreFailure);
 	});
 
-	it('resolve rejects, and never resolves anonymous', async () => {
-		const { identities } = setup({
-			stores: failing('sessions', 'findSessionByTokenHash', outage),
-		});
-
-		const error = await rejection(
-			identities.sessions.resolve({ authorization: 'Bearer anything' }),
-		);
-
-		expect(error).toBeInstanceOf(StoreFailure);
-	});
-
-	it('find, list, revoke and a token redemption reject', async () => {
+	it('find, list, sign-outs, a reset request and a token redemption reject', async () => {
+		type Auth = ReturnType<typeof setup>['auth'];
+		const id = '018f0000-0000-7000-8000-000000000000';
 		const cases: [
-			keyof IdentityStores,
+			keyof JanusStores,
 			string,
-			(i: ReturnType<typeof setup>['identities']) => Promise<unknown>,
+			(auth: Auth) => Promise<unknown>,
 		][] = [
+			['users', 'findUser', (auth) => auth.find(id)],
+			['users', 'findUser', (auth) => auth.findUser(id)],
+			['users', 'listUsers', (auth) => auth.list()],
 			[
-				'identities',
-				'findIdentity',
-				(i) => i.find('018f0000-0000-7000-8000-000000000000'),
+				'users',
+				'findUserByLogin',
+				(auth) => auth.resetPassword.request(ada.email),
 			],
-			['identities', 'listIdentities', (i) => i.list()],
-			[
-				'sessions',
-				'revokeSession',
-				(i) => i.sessions.revoke('018f0000-0000-7000-8000-000000000000'),
-			],
+			['sessions', 'revokeUserSessions', (auth) => auth.signOutEverywhere(id)],
 			[
 				'sessions',
-				'revokeIdentitySessions',
-				(i) => i.sessions.revokeAll('018f0000-0000-7000-8000-000000000000'),
+				'findSessionByTokenHash',
+				(auth) => auth.signOut({ authorization: 'Bearer anything' }),
 			],
-			['tokens', 'consumeToken', (i) => i.tokens.consumeRecovery('x')],
+			[
+				'tokens',
+				'consumeToken',
+				(auth) => auth.resetPassword.confirm('x', password),
+			],
 		];
 
 		for (const [slot, method, call] of cases) {
-			const { identities } = setup({ stores: failing(slot, method, outage) });
-			const error = await rejection(call(identities));
+			const { auth } = setup({ store: failing(slot, method, outage) });
+			const error = await rejection(call(auth));
 
 			expect(error).toBeInstanceOf(JanusError);
 			expect((error as JanusError).code).toBe('STORE_FAILED');

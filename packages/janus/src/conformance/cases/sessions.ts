@@ -1,4 +1,4 @@
-import { mintIdentityId } from '../../ids/identity-id';
+import { mintId } from '../../ids/id';
 import { equal, isNull, ok } from '../assert';
 import { at, sessionRecord } from '../fixtures';
 import type { ConformanceCase } from '../types';
@@ -59,7 +59,10 @@ export const sessionStoreCases: readonly ConformanceCase[] = [
 		async run({ stores }) {
 			const record = sessionRecord();
 			await stores.sessions.insertSession(record);
-			await stores.sessions.insertSession({ ...record, aal: 'aal2' });
+			await stores.sessions.insertSession({
+				...record,
+				expiresAt: new Date('2099-06-01T00:00:00.000Z'),
+			});
 
 			equal(
 				await stores.sessions.findSessionByTokenHash(record.tokenHash),
@@ -96,7 +99,7 @@ export const sessionStoreCases: readonly ConformanceCase[] = [
 				'extendSession refused on a revoked session should have written nothing',
 			);
 			isNull(
-				await stores.sessions.extendSession(mintIdentityId(), later),
+				await stores.sessions.extendSession(mintId(), later),
 				'extendSession on an unknown session',
 			);
 		},
@@ -130,22 +133,22 @@ export const sessionStoreCases: readonly ConformanceCase[] = [
 				'revokeSession twice should keep the first revokedAt',
 			);
 			equal(
-				await stores.sessions.revokeSession(mintIdentityId(), first),
+				await stores.sessions.revokeSession(mintId(), first),
 				false,
 				'revokeSession on an unknown session',
 			);
 		},
 	},
 	{
-		id: 'sessions.revokeIdentity',
+		id: 'sessions.revokeUser',
 		group,
-		name: 'revokes every standing session of one identity but the one excepted, and counts only what it revoked',
+		name: 'revokes every standing session of one user but the one excepted, and counts only what it revoked',
 		async run({ stores }) {
-			const identityId = mintIdentityId();
-			const current = sessionRecord({ identityId });
-			const other = sessionRecord({ identityId });
+			const userId = mintId();
+			const current = sessionRecord({ userId });
+			const other = sessionRecord({ userId });
 			const already = sessionRecord({
-				identityId,
+				userId,
 				revokedAt: at('2026-01-02T00:00:00.000Z'),
 			});
 			const stranger = sessionRecord();
@@ -155,39 +158,35 @@ export const sessionStoreCases: readonly ConformanceCase[] = [
 			const now = at('2026-02-01T00:00:00.000Z');
 
 			equal(
-				await stores.sessions.revokeIdentitySessions(
-					identityId,
-					now,
-					current.id,
-				),
+				await stores.sessions.revokeUserSessions(userId, now, current.id),
 				1,
-				'revokeIdentitySessions with except: how many this call revoked',
+				'revokeUserSessions with except: how many this call revoked',
 			);
 			isNull(
 				(await stores.sessions.findSessionByTokenHash(current.tokenHash))
 					?.revokedAt ?? null,
-				'revokeIdentitySessions should spare the excepted session',
+				'revokeUserSessions should spare the excepted session',
 			);
 			equal(
 				(await stores.sessions.findSessionByTokenHash(already.tokenHash))
 					?.revokedAt,
 				already.revokedAt,
-				'revokeIdentitySessions should keep an earlier revokedAt',
+				'revokeUserSessions should keep an earlier revokedAt',
 			);
 			equal(
 				await stores.sessions.findSessionByTokenHash(stranger.tokenHash),
 				stranger,
-				'revokeIdentitySessions should not touch another identity',
+				'revokeUserSessions should not touch another user',
 			);
 			equal(
-				await stores.sessions.revokeIdentitySessions(identityId, now),
+				await stores.sessions.revokeUserSessions(userId, now),
 				1,
-				'revokeIdentitySessions without except',
+				'revokeUserSessions without except',
 			);
 			equal(
-				await stores.sessions.revokeIdentitySessions(mintIdentityId(), now),
+				await stores.sessions.revokeUserSessions(mintId(), now),
 				0,
-				'revokeIdentitySessions for an identity with none answers 0, not a failure',
+				'revokeUserSessions for a user with none answers 0, not a failure',
 			);
 		},
 	},

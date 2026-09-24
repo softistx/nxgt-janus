@@ -1,8 +1,8 @@
-import type { IdentityStores } from '../identities/port/types';
+import type { JanusStores } from '../auth/port/types';
 
 /** A port method of one slot, by name. */
-export type PortMethod<S extends keyof IdentityStores> =
-	keyof IdentityStores[S] & string;
+export type PortMethod<S extends keyof JanusStores> = keyof JanusStores[S] &
+	string;
 
 /**
  * How the suite makes a store fail **the way its database fails**.
@@ -24,7 +24,7 @@ export interface StoreFaults {
 	 * timeout. **Not** a decorator that throws in front of the adapter — that
 	 * would prove the decorator, and not the adapter's translation.
 	 */
-	fail<S extends keyof IdentityStores>(
+	fail<S extends keyof JanusStores>(
 		slot: S,
 		method: PortMethod<S>,
 	): Promise<void>;
@@ -32,7 +32,7 @@ export interface StoreFaults {
 
 /** One set of stores, opened for one case. */
 export interface OpenedStores {
-	readonly stores: IdentityStores;
+	readonly stores: JanusStores;
 	readonly faults?: StoreFaults;
 	/** Called after the case, pass or fail. */
 	close?(): Promise<void>;
@@ -49,7 +49,7 @@ export interface ConformanceHarness {
 
 /** What a case runs against. */
 export interface CaseContext {
-	readonly stores: IdentityStores;
+	readonly stores: JanusStores;
 	readonly faults: StoreFaults | null;
 }
 
@@ -61,9 +61,9 @@ export interface CaseContext {
  * plain loop.
  */
 export interface ConformanceCase {
-	/** Stable: `'identities.omission'`. What `skip` names. */
+	/** Stable: `'users.omission'`. What `skip` names. */
 	readonly id: string;
-	readonly group: 'identities' | 'sessions' | 'tokens' | 'outage';
+	readonly group: 'users' | 'sessions' | 'tokens' | 'outage';
 	/** A sentence: what the store must do. */
 	readonly name: string;
 	/** What the case cannot run without; absent, the case is skipped with a reason. */
