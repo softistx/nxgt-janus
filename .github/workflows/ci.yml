@@ -20,9 +20,8 @@ on:
   # failed twice in a row under that load, on different tests each time, which
   # is load and not a regression.
   #
-  # Today this repository caches only Bun itself. The binary caches arrive with
-  # the first adapter that needs a real server, and this trigger is what will
-  # make them readable when they do.
+  # This repository caches Bun and, since `@nxgt/janus-mongo`, mongod; this
+  # trigger is what makes those caches readable from every pull request.
   push:
     branches: [develop]
 
@@ -52,11 +51,16 @@ jobs:
         run: bun run build
       - name: Type checking
         run: bun run typecheck
+      # @nxgt/janus-mongo's specs start a real mongod, as a single-node replica
+      # set, which is what `failCommand` needs. mongodb-memory-server downloads
+      # it on the first start; the version is pinned in the file this key
+      # hashes, the way nxgt-data keys its own.
+      - name: Cache the mongod binary
+        uses: actions/cache@v4
+        with:
+          path: .cache/mongodb
+          key: mongod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts') }}
       # Per package, then the scripts' own specs.
-      # No service-binary caches yet: every spec in this repository runs in
-      # process, against the in-memory reference store. `@nxgt/janus-mongo`
-      # adds a mongod cache keyed on the file that pins its version, the way
-      # nxgt-data keys its four.
       - name: Run tests
         run: bun run test
       # The build exits 0 on packages that throw the instant they are imported —
