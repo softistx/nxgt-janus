@@ -2,7 +2,7 @@
 	"name": "@nxgt/janus",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Embeddable, type-safe identities and permissions: bring your own database",
+	"description": "Embeddable, type-safe authentication and permissions: bring your own database",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -20,6 +20,16 @@
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
 		},
+		"./conformance": {
+			"types": "./dist/conformance/index.d.ts",
+			"import": "./dist/conformance/index.js",
+			"default": "./dist/conformance/index.js"
+		},
+		"./permissions": {
+			"types": "./dist/permissions/index.d.ts",
+			"import": "./dist/permissions/index.js",
+			"default": "./dist/permissions/index.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"keywords": [
@@ -27,8 +37,8 @@
 		"authentication",
 		"authorization",
 		"permissions",
-		"zanzibar",
-		"typescript"
+		"typescript",
+		"rebac"
 	],
 	"repository": {
 		"type": "git",
@@ -46,11 +56,14 @@
 	},
 	"nxgt": {
 		"entrypoints": [
-			"src/index.ts"
+			"src/index.ts",
+			"src/conformance/index.ts",
+			"src/permissions/index.ts"
 		]
 	},
 	"devDependencies": {
-		"@types/bun": "^1.4.0"
+		"@types/bun": "^1.4.2",
+		"zod": "^4"
 	},
 	"peerDependencies": {
 		"typescript": "^6.0.3"

@@ -1,14 +1,13 @@
 /**
- * `@nxgt/janus` — embeddable, type-safe identities and permissions, over a
+ * `@nxgt/janus` — embeddable, type-safe authentication and permissions, over a
  * store you provide.
  *
- * This entry point holds what **both** modules share and neither owns: the
- * subject vocabulary, the error family, pagination, time, and identity ids.
- * `./identities` is the identity core; the permissions module will be
- * `./permissions` when there is an engine behind it. Until then its vocabulary
- * lives here, because the identities module needs it too — `subjectOf` is the
- * join between the two, and it is a function rather than a convention on
- * purpose.
+ * This entry point is `janus()` — users, sessions, sign-up, sign-in, e-mail
+ * verification and password reset — and what it shares with the permissions
+ * module: the subject vocabulary, the error family, pagination, time, and
+ * ids. Permissions are `@nxgt/janus/permissions`. Their vocabulary lives here,
+ * because users need it too — `subjectOf` is the join between the two, and it
+ * is a function rather than a convention on purpose.
  *
  * ## The one rule this package is built around
  *
@@ -21,27 +20,30 @@
  * `@nxgt/janus/conformance` fails an adapter that breaks it.
  */
 
+export * from './auth/index';
 export {
 	CredentialError,
+	type CredentialRefusal,
 	InvalidCursorError,
+	type Issue,
 	JanusError,
 	type JanusErrorCode,
 	type JanusErrorOptions,
 	NotFoundError,
-	SessionError,
+	PermissionDepthError,
 	StoreConflict,
 	StoreFailure,
 	TokenError,
-	type TraitIssue,
-	TraitsInvalidError,
 	UnsupportedError,
+	UserInactiveError,
+	UserInvalidError,
 } from './errors/janus-error';
 export {
-	type IdentityId,
-	isIdentityId,
+	type Id,
+	isId,
 	mintedAt,
-	mintIdentityId,
-} from './ids/identity-id';
+	mintId,
+} from './ids/id';
 export {
 	type CursorPage,
 	DEFAULT_PAGE_SIZE,
@@ -50,13 +52,14 @@ export {
 	pageLimit,
 } from './pagination/cursor-page';
 export {
+	formatEntity,
 	formatSubject,
-	formatSubjectSet,
 	formatTuple,
 	parseSubject,
 	parseTuple,
 } from './subjects/notation';
 export {
+	type Entity,
 	isSubjectSet,
 	type RelationTuple,
 	type Subject,

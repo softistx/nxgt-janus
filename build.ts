@@ -126,7 +126,11 @@ for (const file of written) {
 		.importedFiles.filter(
 			({ fileName }) => fileName.startsWith('./') || fileName.startsWith('../'),
 		)
-		.filter(({ fileName }) => !/\.(?:[cm]?js|json)$/.test(fileName));
+		// An extension already written — `.js`, or a hand-written `.d.ts`
+		// importing another — is left as it is.
+		.filter(
+			({ fileName }) => !/\.(?:d\.[cm]?ts|[cm]?[jt]s|json)$/.test(fileName),
+		);
 	if (imports.length === 0) continue;
 
 	let next = text;
