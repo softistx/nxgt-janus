@@ -209,4 +209,5 @@ as staff replaces the patient's cookie.
 
 - [`@nxgt/janus` — sessions](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sessions.md) — lifespans, renewal, the cookie's attributes
 - [`@nxgt/janus` — errors](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) — every code
+- [Guarded routes and writing tuples](permissions.md) — `permission()`, `provide()`
 - [Troubleshooting](../troubleshooting.md)

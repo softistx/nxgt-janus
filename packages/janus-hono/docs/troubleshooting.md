@@ -15,9 +15,15 @@ for what causes each.
 - [`Property 'user' does not exist on type 'Readonly<ContextVariableMap>'`](#property-user-does-not-exist-on-type-readonlycontextvariablemap)
 - [`Property 'email' does not exist on type 'User<"patient", …> | User<"staff", …>'`](#property-email-does-not-exist-on-type-userpatient---userstaff-)
 - [`Type '"doctor"' is not assignable to type '"patient" | "staff"'`](#type-doctor-is-not-assignable-to-type-patient--staff)
+- [`Argument of type 'string | undefined' is not assignable to parameter of type 'string'`, in `load`](#argument-of-type-string--undefined-is-not-assignable-to-parameter-of-type-string-in-load)
+- [`Expected 5 arguments, but got 4`, on `permission()`](#expected-5-arguments-but-got-4-on-permission)
+- [`Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…>>'`](#type--id-string--is-not-assignable-to-type-awaitableobjectdata)
+- [`Property 'access' does not exist on type 'Readonly<ContextVariableMap & …>'`](#property-access-does-not-exist-on-type-readonlycontextvariablemap--)
 
 **Runtime**
 - [`500 Internal Server Error` for every refusal](#500-internal-server-error-for-every-refusal)
+- [`TypeError: permission(): c.var.user is not set`](#typeerror-permission-cvaruser-is-not-set)
+- [`403` where the user should be allowed](#403-where-the-user-should-be-allowed)
 - [`401` with an empty body, for a signed-in user](#401-with-an-empty-body-for-a-signed-in-user)
 - [`503 {"code":"STORE_FAILED"}` on every route](#503-codestore_failed-on-every-route)
 - [`400 {"code":"HASH_UNSUPPORTED"}` on sign-in](#400-codehash_unsupported-on-sign-in)
@@ -79,7 +85,96 @@ not one of them — a misspelling, or a type from another `janus()`.
 **Fix:** use one of the names in the message, the keys of `users` in
 `janus({ users })`.
 
+### `Argument of type 'string | undefined' is not assignable to parameter of type 'string'`, in `load`
+
+**When:** `permission(access, 'view', 'record', (c) => records.find(c.req.param('id')))`.
+
+**Why:** Hono types a route's path in the route's own handler only. In a
+middleware, `c.req.param('id')` is `string | undefined`.
+
+**Fix:** a missing id is nothing to load: answer `null`, which is a 404.
+
+```ts
+permission(access, 'view', 'record', (c) => {
+	const id = c.req.param('id');
+	return id === undefined ? null : records.find(id);
+});
+```
+
+### `Expected 5 arguments, but got 4`, on `permission()`
+
+**When:** the permission reaches a `when()` condition, and no options were
+passed.
+
+**Why:** a condition needs its `ctx`, and `permission()` requires it exactly
+then — as `can()` does.
+
+**Fix:** pass `ctx`, read from the request and the loaded object.
+
+```ts
+permission(access, 'edit', 'record', load, {
+	ctx: (c, record) => ({ locked: record.locked }),
+});
+```
+
+### `Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…>>'`
+
+**When:** `load` answers an object without a field a `fromField` of its type
+reads — `doctorId` for `fromField('doctorId', 'staff')`.
+
+**Why:** `can()` reads that relation from the object. Without the field, the
+check could only deny, so it is refused at compile time instead.
+
+**Fix:** load the field — `null` when it holds nobody.
+
+### `Property 'access' does not exist on type 'Readonly<ContextVariableMap & …>'`
+
+**When:** `c.var.access` or `c.var.auth` in a route.
+
+**Why:** `provide()` was not in the chain before the route, or was not given
+that instance: it sets, and types, only what it is given.
+
+**Fix:**
+
+```ts
+const app = new Hono().use(session(auth), provide({ auth, access }));
+```
+
 ## Runtime
+
+### `TypeError: permission(): c.var.user is not set`
+
+**When:** the first request to a route guarded by `permission()`.
+
+**Why:** nothing set `c.var.user`: no `session()` before `permission()` in that
+route's chain, and no `subject` option. It is a wiring error, so it is thrown
+rather than answered 401.
+
+**Fix:** put `session(auth)` before it — on the route or with `app.use` — or
+say who the subject is.
+
+```ts
+app.get('/records/:id', session(auth), permission(access, 'view', 'record', load), handler);
+```
+
+### `403` where the user should be allowed
+
+**When:** a user who holds the relation is refused.
+
+**Why**, in the order to check:
+
+1. The user holds a relation, and the route asks a permission that does not
+   include it — `edit` is not `view`.
+2. A condition answered `false`: check what `ctx` computes.
+3. A `fromField`'s field holds another id, or `null`, in what `load` answered.
+4. The tuple was granted to another user type than the one signed in — a
+   `staff` user holding `owner`, which admits only `patient`, grants nothing.
+
+**Fix:** ask `can()` directly with the same arguments; it answers the same.
+
+```ts
+await access.can(user, 'view', { type: 'record', ...record }); // the check permission() makes
+```
 
 ### `500 Internal Server Error` for every refusal
 
