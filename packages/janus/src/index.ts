@@ -4,11 +4,10 @@
  *
  * This entry point is `janus()` — users, sessions, sign-up, sign-in, e-mail
  * verification and password reset — and what it shares with the permissions
- * module to come: the subject vocabulary, the error family, pagination, time,
- * and ids. Permissions will be `./permissions` when there is an engine behind
- * it. Its vocabulary lives here already, because users need it too —
- * `subjectOf` is the join between the two, and it is a function rather than a
- * convention on purpose.
+ * module: the subject vocabulary, the error family, pagination, time, and
+ * ids. Permissions are `@nxgt/janus/permissions`. Their vocabulary lives here,
+ * because users need it too — `subjectOf` is the join between the two, and it
+ * is a function rather than a convention on purpose.
  *
  * ## The one rule this package is built around
  *
@@ -31,6 +30,7 @@ export {
 	type JanusErrorCode,
 	type JanusErrorOptions,
 	NotFoundError,
+	PermissionDepthError,
 	StoreConflict,
 	StoreFailure,
 	TokenError,

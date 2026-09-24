@@ -7,6 +7,7 @@
  * from a request.
  */
 
+import type { RelationStore } from '../permissions/port/types';
 import type { Clock } from '../time/clock';
 import { type Duration, parseDuration } from '../time/duration';
 import type { JanusStores } from './port/types';
@@ -134,6 +135,12 @@ export interface CookieConfig {
 interface SharedConfig {
 	/** The three stores: `createMemoryStores()`, or an adapter's. */
 	readonly store: JanusStores;
+	/**
+	 * The relation store `permissions()` is given, when the application has
+	 * one. Wired here, deleting a user deletes every tuple naming them too — as
+	 * a subject, and through no one else's memory of it.
+	 */
+	readonly relations?: RelationStore;
 	/**
 	 * Hashes new passwords. **Required as soon as a type signs in with a
 	 * password** — there is no silent fallback. `scryptHasher()` runs on Node and

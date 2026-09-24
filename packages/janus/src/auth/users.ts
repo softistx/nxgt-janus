@@ -268,6 +268,8 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			const deleted = record !== null && (await store.users.deleteUser(id));
 			await store.sessions.deleteUserSessions(id);
 			await store.tokens.deleteUserTokens(id);
+			// Last, and on a replay too: the tuples naming them.
+			await context.relations?.deleteEntity({ type: type.name, id });
 			return deleted;
 		},
 

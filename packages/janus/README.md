@@ -16,8 +16,8 @@ const current = await auth.authenticate(request); // { user, session } | null
 ```
 
 > **Pre-v0.1.** `.` is `janus()` and the vocabulary it shares with the
-> permissions module to come — errors, subjects, pagination, time, ids.
-> `./conformance` is the suite an adapter runs. A subpath appears in `exports`
+> permissions — errors, subjects, pagination, time, ids. `./permissions` is the
+> ReBAC engine. `./conformance` is the suite an adapter runs. A subpath appears in `exports`
 > only once it exports something you should call, because a published entry
 > point is a promise.
 
@@ -66,7 +66,7 @@ compilation of callers that exhaust it:
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
 | `UNSUPPORTED` | 500 — a wiring mistake, and the message names the store to change |
-| `PERMISSION_DEPTH` | 500 — a permission check or list walked past `maxDepth`; not a denial. From the permission engine, which is not published yet |
+| `PERMISSION_DEPTH` | 500 — a permission check or list walked past `maxDepth`; not a denial |
 
 `StoreFailure` and `StoreConflict` are exported **because an adapter throws
 them**. An adapter defines no error class of its own, so `instanceof` holds
@@ -238,6 +238,78 @@ live in MongoDB. `createMemoryStores()` is the reference implementation. It is
 shipped for your own tests, and it is what to compare against when writing an
 adapter. The six rules an adapter keeps are written on the port's types.
 
+### Permissions — `@nxgt/janus/permissions`
+
+```ts
+import { defineModel, fromField, when, permissions, createMemoryRelations } from '@nxgt/janus/permissions';
+
+export const model = defineModel({
+	subjects: auth.types, // 'patient' | 'staff': a user type is a subject type
+	types: {
+		team: {
+			relations: { member: ['staff', 'team#member'], lead: ['staff'] },
+			permissions: { manage: ['lead'], view: ['member', 'manage'] },
+		},
+		record: {
+			relations: {
+				doctor: fromField('doctorId', 'staff', { lookup: (id) => db.records.ids({ doctorId: id }) }),
+				team: ['team'],
+			},
+			permissions: {
+				view: ['doctor', 'team->view'],
+				edit: [when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)],
+			},
+		},
+	},
+});
+
+const access = permissions({ model, store: createMemoryRelations() });
+await access.grant({ type: 'team', id: 't1' }, 'member', staff);
+await access.can(staff, 'edit', { type: 'record', ...record }, { ctx: { onShift } }); // boolean
+await access.list(staff, 'view', 'record', { ctx: { onShift }, limit: 50 });     // CursorPage<string>
+```
+
+Zanzibar's model — relations between objects and subjects, permissions
+computed from them — **without its infrastructure**: the tuples live in your
+database, so a read follows a write and there is nothing to cache or to
+sequence. Subject sets (`'team#member'`), arrows (`'team->view'`: whoever can
+view the record's team) and permissions naming permissions are Zanzibar's. Two
+things are not:
+
+- **`fromField`** reads a relation from the object's own data — a record's
+  `doctorId` — instead of a tuple kept in sync with it. `can()` is given the
+  object, and the compiler requires every field a `fromField` of its type
+  reads. `list()` cannot read a field of objects it has not found, so it asks
+  the `lookup`;
+- **`when`** puts a condition written in TypeScript on a rule. Its `ctx` is
+  what `can()` and `list()` then require — and only for the permissions whose
+  rules reach it.
+
+**A denial is `false`, a failure throws.** A relation store that cannot answer
+is `STORE_FAILED`; a walk that crosses more than `maxDepth` relations (`25`) is
+`PERMISSION_DEPTH`. Neither is ever `false`, which would deny everybody
+everything during an outage and say nothing. A cycle in the data — a team
+member of itself — is cut, and is not an error. `null` is anonymous: `false`,
+or an empty page, before any store call.
+
+**Everything is typed from the model.** A relation naming a type that does not
+exist, a rule naming nothing, an arrow to a permission its target lacks, a
+permission asked of the wrong type, an object missing a field, a missing
+`ctx`, a `grant` of a relation read from a field or to a holder it does not
+admit, a `list()` through a `fromField` without a `lookup`: each is a compile
+error, on the offending argument. `defineModel` refuses with a `TypeError`
+what only running it can see: names that are not camelCase, a permission that
+reaches itself without crossing a relation, a subject set or an arrow that
+would have to read another object's field.
+
+**Wire the relation store into `janus()` too** — `janus({ …, relations })` —
+and deleting a user deletes every tuple naming them. Deleting an object's
+tuples is `store.deleteEntity({ type, id })`, from your own code.
+
+The port is `RelationStore`: six methods answering one-hop questions about
+stored tuples (`write`, `has`, `findSubjectSets`, `findEntities`,
+`findObjects`, `deleteEntity`). The traversal is the core's, written once.
+
 ### Conformance — `@nxgt/janus/conformance`
 
 If you write an adapter, you run this suite against it:
@@ -288,6 +360,11 @@ that throws in front of your adapter proves the wrapper, not the adapter.
 
 `referenceHarness()` runs the suite against the reference store, and is the
 example to copy.
+
+A relation store has its own suite, `describeRelationStores({ name, harness })`
+— 14 cases: round-trip, absence, idempotent writes, a tuple stored once, the
+one-hop reads, the reverse index in pages, `deleteEntity`, and an outage for
+each of the six methods. `referenceRelationHarness()` is its example.
 
 ## Traps
 
@@ -358,18 +435,33 @@ reason the core mints ids at all. A test that needs a fixed instant wants
 are data values, not keys. There is no `snake_case` key anywhere in this package,
 unlike Ory — a Biome naming-convention rule holds it.
 
+**`list()` costs what the subject can reach, every round.** It walks backwards
+from the subject — every page of `findObjects` for every id each step reaches —
+and repeats a round whenever a relation loops back on itself (a folder
+viewable through its parent) until a round finds nothing new. Fine for what one
+user can see; not for a subject set holding most of the database, which wants
+a query of your own.
+
+**`can()` wants the loaded object, spread.** `{ type: 'record', ...record }`: a
+`fromField` reads its field there, and a field missing at run time is a
+`TypeError`, never a denial. `null` in the field holds nobody.
+
+**A `lookup` is your code, and not guarded.** A lookup that throws rejects
+`list()` with its own error, as it threw. Never answer `[]` for a database that
+could not answer: that is a denial made of an outage.
+
 ## Type safety, counted
 
-**Forty-nine plausible mistakes, forty-nine refused at compile time — and one
-gap, named.**
+**Seventy-three plausible mistakes, seventy-three refused at compile time — and
+one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the store port, from the side of the person
-implementing it) and `test/types/auth.ts` (twenty, on `janus()`, from the side
-of the application). `test/types/permissions.ts` holds twenty-four more for the
-permission model, which is not published yet and is not counted above. The rule
+implementing it), `test/types/auth.ts` (twenty, on `janus()`, from the side
+of the application) and `test/types/permissions.ts` (twenty-four, on the
+permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on
 `@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count

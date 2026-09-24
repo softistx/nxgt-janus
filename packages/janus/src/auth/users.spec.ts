@@ -16,6 +16,7 @@ import type {
 	UserInvalidError,
 } from '../errors/janus-error';
 import { mintId } from '../ids/id';
+import { createMemoryRelations } from '../permissions/port/memory';
 import { scryptHasher } from './hashers';
 import { janus } from './janus';
 import { createMemoryStores } from './port/memory';
@@ -600,5 +601,76 @@ describe('delete', () => {
 		expect(
 			await inner.sessions.findSessionByTokenHash(hashSecret(token)),
 		).toBeNull();
+	});
+
+	describe('with a relation store wired', () => {
+		const signUp = (auth: ReturnType<typeof clinic>['auth']) =>
+			auth.patient.signUp({
+				email: `${mintId()}@example.test`,
+				birthDate: '1815-12-10',
+				password,
+			});
+		const viewer = (subject: { type: string; id: string }) => ({
+			object: { type: 'record', id: mintId() },
+			relation: 'viewer',
+			subject,
+		});
+
+		it('deletes every tuple naming the user, and no one else’s', async () => {
+			const relations = createMemoryRelations();
+			const { auth } = clinic({ relations });
+			const [ada, bob] = [await signUp(auth), await signUp(auth)];
+			const own = viewer({ type: 'patient', id: ada.user.id });
+			const through = {
+				object: { type: 'team', id: mintId() },
+				relation: 'member',
+				subject: { type: 'patient', id: ada.user.id },
+			};
+			// Same id, another type: somebody else.
+			const namesake = viewer({ type: 'staff', id: ada.user.id });
+			const other = viewer({ type: 'patient', id: bob.user.id });
+			await relations.write({ add: [own, through, namesake, other] });
+
+			expect(await auth.patient.delete(ada.user)).toBe(true);
+
+			expect(await relations.has(own)).toBe(false);
+			expect(await relations.has(through)).toBe(false);
+			expect(await relations.has(namesake)).toBe(true);
+			expect(await relations.has(other)).toBe(true);
+		});
+
+		it('rejects STORE_FAILED when the tuples cannot be deleted, and a replay deletes them', async () => {
+			let down = true;
+			const inner = createMemoryRelations();
+			const { auth } = clinic({
+				relations: {
+					...inner,
+					deleteEntity: async (entity) => {
+						if (down) throw new Error('primary stepped down');
+						return inner.deleteEntity(entity);
+					},
+				},
+			});
+			const { user } = await signUp(auth);
+			const own = viewer({ type: 'patient', id: user.id });
+			await inner.write({ add: [own] });
+
+			const error = (await rejection(auth.patient.delete(user))) as JanusError;
+			expect(error.code).toBe('STORE_FAILED');
+			expect(await auth.patient.find(user.id)).toBeNull();
+			expect(await inner.has(own)).toBe(true);
+
+			down = false;
+			expect(await auth.patient.delete(user)).toBe(false);
+			expect(await inner.has(own)).toBe(false);
+		});
+
+		it('refuses, when wiring, a relation store that cannot delete', () => {
+			const { deleteEntity: _, ...partial } = createMemoryRelations();
+
+			expect(() => clinic({ relations: partial as never })).toThrow(
+				'relations.deleteEntity is missing',
+			);
+		});
 	});
 });

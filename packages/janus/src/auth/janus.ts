@@ -1,7 +1,7 @@
 import { systemClock } from '../time/clock';
 import { type JanusConfig, resolveConfig } from './config';
 import { createContext } from './context';
-import { guardStores } from './outage';
+import { guardRelations, guardStores } from './outage';
 import { assertStores } from './port/assert-stores';
 import { sharedApi } from './sessions';
 import type { Checked, Janus } from './types';
@@ -66,9 +66,20 @@ export function janus<const C extends JanusConfig>(
 		prefixes.add(verifier.prefix);
 	}
 
+	const relations = config.relations ?? null;
+	if (
+		relations !== null &&
+		typeof (relations as { deleteEntity?: unknown }).deleteEntity !== 'function'
+	) {
+		throw new TypeError(
+			`${where}: relations must be a relation store — relations.deleteEntity is missing`,
+		);
+	}
+
 	const context = createContext(
 		resolved,
 		guardStores(config.store),
+		relations === null ? null : guardRelations(relations),
 		capabilities,
 		config.clock ?? systemClock,
 		hasher,
