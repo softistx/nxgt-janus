@@ -1,0 +1,63 @@
+{
+	"name": "@nxgt/janus-hono",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Hono middleware for @nxgt/janus: the signed-in user on every request, the session cookie, and every error as its status",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"docs",
+		"README.md",
+		"package.json",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"keywords": [
+		"identity",
+		"authentication",
+		"hono",
+		"middleware",
+		"janus",
+		"typescript"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/softistx/nxgt-janus.git",
+		"directory": "packages/janus-hono"
+	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org",
+		"access": "public"
+	},
+	"scripts": {
+		"build": "bun run ../../build.ts",
+		"test": "bun test src",
+		"typecheck": "tsc --noEmit"
+	},
+	"nxgt": {
+		"entrypoints": [
+			"src/index.ts"
+		]
+	},
+	"devDependencies": {
+		"@nxgt/janus": "workspace:^",
+		"@types/bun": "^1.4.2",
+		"hono": "^4.13.9",
+		"zod": "^4.6.5"
+	},
+	"peerDependencies": {
+		"@nxgt/janus": "workspace:^",
+		"hono": "^4.13.4",
+		"typescript": "^6.0.3"
+	}
+}

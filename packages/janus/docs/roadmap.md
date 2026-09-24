@@ -5,7 +5,9 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing in progress.
+- **A Hono integration** — in a package of its own, `@nxgt/janus-hono`:
+  the session middleware, the cookie, and every error as its status. Built,
+  not yet published.
 
 ## Next
 

@@ -43,6 +43,9 @@ either finds this row.
 | **credential** | What a caller presents to prove who they are: a login and a password at sign-in (`CredentialError`, `CREDENTIALS_INVALID`), or a token on a request — always written *session credential* | |
 | **password policy** | The rules a new password must meet: `minLength`, `normalize` | the model |
 | **session** | A signed-in period, carried by a **session token** | |
+| **lapsed**, **revoked**, **renewed** | A session past its `expiresAt`; one ended by a sign-out or a password reset; one whose `expiresAt` moved in passing (`renewAfter`) | "expired" — kept for `TOKEN_EXPIRED`, a one-time token |
+| **anonymous** | A request that presents no session credential, or one that authenticates nobody: `authenticate` answers `null` | "unauthenticated", "guest", "logged out" |
+| **bearer client** | A client that sends its session token as `Authorization: Bearer` rather than in a cookie | |
 | **one-time token** | A single-use token sent by e-mail, for verification or a password reset | "code" — `code` is an error's code |
 | **token** | Never alone in prose: a *session token* or a *one-time token*. The `tokens` store and the `TOKEN_*` codes are one-time tokens only | |
 | **e-mail flow** | `verifyEmail` or `resetPassword`: send a one-time token, then confirm it | |
@@ -72,6 +75,7 @@ either finds this row.
 | **store** | Where a side keeps its data, behind a port. The **identity stores** are `users`, `sessions` and `tokens`; the **relation store** holds the tuples | "database", "repository" |
 | **port** | The interface a store implements: `JanusStores` for the identity stores — named after the package, not the side — and `RelationStore` | "driver" |
 | **adapter** | A package implementing the ports for one database: `@nxgt/janus-mongo` | "plugin", "connector" |
+| **integration** | A package fitting Janus into one web framework: `@nxgt/janus-hono`. It implements no port | "plugin", "adapter" |
 
 ### Answers
 

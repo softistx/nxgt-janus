@@ -216,7 +216,7 @@ other — that is how `guardRelations` left `src/auth/outage.ts`.
 **One word per idea.** The documentation, the error messages and the doc
 comments use the words defined in `packages/janus/docs/guide/vocabulary.md`
 (`## Words`): *side*, *identities*, *permissions*, *user*, *user type*,
-*login*, *subject*, *tuple*, *identity stores*, *relation store*, *adapter*.
+*login*, *subject*, *tuple*, *identity stores*, *relation store*, *adapter*, *integration*.
 A new idea gets a row there before it gets a second name.
 
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
@@ -262,8 +262,9 @@ inside `@nxgt/janus`. **Two copies of that class and the whole product is wrong
 about what an outage is.** Three guard rails, all mandatory from the first
 commit:
 
-1. `@nxgt/janus` is a **required peer** of every adapter, never a dependency,
-   and the adapter **defines no error class** — it throws the peer's.
+1. `@nxgt/janus` is a **required peer** of every adapter and integration
+   (`@nxgt/janus-hono`), never a dependency, and neither **defines an error
+   class** — they throw, and test `instanceof` against, the peer's.
 2. The **one-class-per-entry-point scan** in `scripts/verify-artifacts.ts`, plus
    its peer-range checks (a range that excludes the sibling's current version,
    an exact pin, a package that lists itself).

@@ -23,6 +23,21 @@
         "typescript": "^6.0.3",
       },
     },
+    "packages/janus-hono": {
+      "name": "@nxgt/janus-hono",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@nxgt/janus": "workspace:^",
+        "@types/bun": "^1.4.2",
+        "hono": "^4.13.9",
+        "zod": "^4.6.5",
+      },
+      "peerDependencies": {
+        "@nxgt/janus": "workspace:^",
+        "hono": "^4.13.4",
+        "typescript": "^6.0.3",
+      },
+    },
     "packages/janus-mongo": {
       "name": "@nxgt/janus-mongo",
       "version": "0.1.1",
@@ -113,6 +128,8 @@
 
     "@nxgt/janus": ["@nxgt/janus@workspace:packages/janus"],
 
+    "@nxgt/janus-hono": ["@nxgt/janus-hono@workspace:packages/janus-hono"],
+
     "@nxgt/janus-mongo": ["@nxgt/janus-mongo@workspace:packages/janus-mongo"],
 
     "@nxgt/mongo": ["@nxgt/mongo@0.17.1", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-mkG+G9ebZImja9qJgywhyzonSHDYXH7eAEGt2y6hEj29qnw++Z7U38LI3cH4mdXqZpxi6VO06AG2BpsOm7tfNA=="],
@@ -174,6 +191,8 @@
     "find-up": ["find-up@4.1.0", "", { "dependencies": { "locate-path": "^5.0.0", "path-exists": "^4.0.0" } }, "sha512-PpOwAdQ/YlXQ2vj8a3h8IipDuYRi3wceVQQGYWxNINccq40Anw7BlsEXCMbt1Zt+OLA6Fq9suIpIWD0OsnISlw=="],
 
     "follow-redirects": ["follow-redirects@1.16.0", "", { "peerDependencies": { "debug": "*" }, "optionalPeers": ["debug"] }, "sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw=="],
+
+    "hono": ["hono@4.13.9", "", {}, "sha512-7dMkQmZoC4E6F7AtaQSPhlWAdnBti+j7rreMZl8QB4jFiEhP9TWbGWUMi8WYzBCgmgulxuvLQupKqo+Co6Omyg=="],
 
     "https-proxy-agent": ["https-proxy-agent@7.0.6", "", { "dependencies": { "agent-base": "^7.1.2", "debug": "4" } }, "sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw=="],
 
