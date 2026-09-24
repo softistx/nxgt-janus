@@ -1,8 +1,9 @@
 # Users — `janus()`
 
 This page is for wiring `janus()` and managing users with it: the
-configuration, one or several kinds of user, and every method a user type
-answers. Sessions have [their own page](sessions.md), and so do the
+configuration, one or several user types, and every method a user type
+answers. It is the **identities** side, usable alone: nothing here needs
+[permissions](permissions.md), and `@nxgt/janus` loads none of their code. Sessions have [their own page](sessions.md), and so do the
 [e-mail flows](email-flows.md) and [password hashing](passwords.md).
 
 ```ts
@@ -71,8 +72,8 @@ before the store sees it.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `user` | Standard Schema | — | One kind of user, named `'user'`. Exactly one of `user` and `users` |
-| `users` | `{ [type]: UserTypeConfig }` | — | Several kinds of user. See [Several kinds of user](#several-kinds-of-user) |
+| `user` | Standard Schema | — | One user type, named `'user'`. Exactly one of `user` and `users` |
+| `users` | `{ [type]: UserTypeConfig }` | — | Several user types. See [Several user types](#several-user-types) |
 | `password.login` | a field name | — | The field users sign in with: a **top-level, required string** field. A typo is a compile error |
 | `password.normalize` | `'none' \| 'lowercase' \| 'lowercaseTrim' \| 'nfkcLowercaseTrim' \| (value) => string` | `'lowercaseTrim'` | Applied to the login before any store sees it, at sign-up and at sign-in alike |
 | `password.minLength` | integer ≥ 1 | `8` | Below it: `PASSWORD_TOO_SHORT` |
@@ -122,7 +123,7 @@ A function is accepted, and must be deterministic: the same rule normalises
 at sign-up and at sign-in. An e-mail used by the e-mail flows is always
 compared lower-cased and trimmed, whatever the login's rule.
 
-## Several kinds of user
+## Several user types
 
 ```ts
 const Patient = z.object({ email: z.email(), birthDate: z.string() });
@@ -151,7 +152,7 @@ if (current?.user.type === 'staff') current.user.service; // narrowed by type
 
 Each type carries `schema` and, optionally, `password`, `email`, `session`
 and `schemaVersion`, with the defaults above. A login is unique **per type**:
-the same e-mail may hold a patient account and a staff account. A type name is
+the same e-mail may hold a patient user and a staff user. A type name is
 camelCase, and may not be one of `janus()`'s own methods (`authenticate`,
 `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`,
 `collectExpired`, `types`) — a compile error, and a `TypeError` for a
@@ -274,4 +275,4 @@ fields against your schema, not that `password` is a string.
 
 - [Sessions](sessions.md) — `authenticate`, the cookie, signing out
 - [Errors](errors.md) — every code, and the status it deserves
-- [Writing an adapter](adapters.md) — the store port behind `store`
+- [Writing an adapter](adapters.md) — the identity stores behind `store`

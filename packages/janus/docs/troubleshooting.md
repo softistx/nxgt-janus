@@ -127,14 +127,14 @@ Every entry here is a `TypeError` thrown by `janus(...)` itself, before any
 request. With several user types, the option is prefixed by the type:
 `janus: users.staff: password.login …`.
 
-### `janus: pass either user (one kind of user) or users (several kinds), and exactly one of them`
+### `janus: pass either user (one user type) or users (several user types), and exactly one of them`
 
 **When:** `janus({...})`, with both `user` and `users`, or neither.
-**Why:** `user` is the shorthand for one kind of user; `users` declares several, each with its own schema and options. The two cannot be mixed.
+**Why:** `user` is the shorthand for one user type; `users` declares several, each with its own schema and options. The two cannot be mixed.
 **Fix:**
 
 ```ts
-// One kind of user
+// One user type
 janus({ user: User, password: { login: 'email' }, store, hasher });
 
 // Several
@@ -294,7 +294,7 @@ Also `janus: cookie.name must be a cookie-name token — letters, digits and !#$
 
 **When:** any call that reaches the store — `authenticate`, `signIn`, `get`, `can` — while the database is down, times out, or the adapter throws.
 **Why:** a store that cannot answer throws; it never answers `null`. The driver's own error is on `error.cause` — not in the message, because a driver message can hold a connection string, and a connection string holds a password.
-**Fix:** answer **503**, and log `cause`. Never map it to 401, 404, `null` or `false`: that turns an outage into a silent lockout, where everybody with an account is told they do not have one.
+**Fix:** answer **503**, and log `cause`. Never map it to 401, 404, `null` or `false`: that turns an outage into a silent lockout, where every user is told they do not exist.
 
 ```ts
 import { JanusError } from '@nxgt/janus';
@@ -333,7 +333,7 @@ const user = await auth.find(id); // null when there is nobody
 `StoreConflict` with `on: 'login'`, carrying `login` and `userType`.
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
-**Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient account and a staff account.
+**Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.
 **Fix:** answer 409. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
 
 ### `VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`
@@ -378,7 +378,7 @@ Also `changePassword: the current password does not match`.
 **Fix:** answer 401 with the same body whatever the reason:
 
 ```ts
-// Never: { reason: error.reason } — `unknownLogin` tells an attacker which accounts exist.
+// Never: { reason: error.reason } — `unknownLogin` tells an attacker which users exist.
 return new Response('Wrong e-mail or password', { status: 401 });
 ```
 
@@ -401,7 +401,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
 **When:** `signIn`, with the **right** password, for a user set inactive.
-**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the account is inactive.
+**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive.
 **Fix:** answer 403, or reactivate: `await auth.setActive(user, true)`.
 
 ### `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`
@@ -469,7 +469,7 @@ do {
 Also `list: listing <type>#<permission> crossed more than <n> relations without an answer`. `PermissionDepthError`, carrying `permission` and `maxDepth`.
 
 **When:** `access.can(...)` or `access.list(...)`.
-**Why:** the walk crossed more than `maxDepth` relations (25 by default) and found no grant. It is not a denial: a check that stopped half-way decided nothing. A cycle in the data — a team member of itself — is cut silently and never causes this.
+**Why:** the walk crossed more than `maxDepth` relations (25 by default) and reached no decision. It is not a denial: a check that stopped half-way decided nothing. A cycle in the data — a team member of itself — is cut silently and never causes this.
 **Fix:** answer 500 and look at the model or the data: a very deep hierarchy, or a chain of subject sets. If the depth is genuine, raise it:
 
 ```ts
@@ -579,7 +579,7 @@ most common:
 
 | Message | Fix |
 | --- | --- |
-| `defineModel: subjects must be an array of user types — pass auth.types from janus()` | `defineModel({ subjects: auth.types, types })`. |
+| `defineModel: subjects must be an array of subject type names — auth.types from janus(), or your own` | `defineModel({ subjects: auth.types, types })` with `janus()`, or your own names alone: `subjects: ['user']`. |
 | `defineModel: types declares no object type` | Declare at least one type under `types`. |
 | `defineModel: the object type "<name>" must be a camelCase name — letters and digits, starting with a lowercase letter` | Also for relation and permission names. |
 | `defineModel: "<name>" names a user type and an object type; a subject of type "<name>" would be ambiguous` | Rename the object type. |

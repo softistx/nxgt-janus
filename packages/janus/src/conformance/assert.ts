@@ -56,7 +56,7 @@ export function rejects(
  * The `instanceof` probe: a class that is named like this package's but is not
  * this package's class means **two copies of `@nxgt/janus`** are installed —
  * the adapter depends on it instead of peering it. Then `StoreConflict` stops
- * passing through the core, and an identifier that is taken is answered as an
+ * passing through the core, and a login that is taken is answered as an
  * outage.
  *
  * The probe says what breaks; `verify:artifacts` says whether a duplicate is

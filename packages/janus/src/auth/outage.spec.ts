@@ -19,11 +19,27 @@ function failing(
 	};
 }
 
-describe('the scan: no catch around a store call, in auth or permissions, anywhere but here', () => {
+/** The two files allowed a `catch`: the shared guard, and outage.ts. */
+const GUARD = join(import.meta.dir, '..', 'stores', 'guard.ts');
+const OUTAGE = join(import.meta.dir, 'outage.ts');
+const ALLOWED = new Set([GUARD, OUTAGE]);
+
+/** The body of every `catch` in a file, comments out, whitespace collapsed. */
+async function catchBodies(path: string): Promise<string[]> {
+	const source = await Bun.file(path).text();
+	return [...source.matchAll(/catch \((\w+)\) \{([^}]*)\}/g)].map((match) =>
+		(match[2] ?? '')
+			.replace(/\/\/.*$/gm, '')
+			.replace(/\s+/g, ' ')
+			.trim(),
+	);
+}
+
+describe('the scan: no catch around a store call, in auth, permissions or stores, anywhere but the guard and outage.ts', () => {
 	// The failure this whole design exists to prevent is a single careless
 	// `catch { return null }`. So this spec reads the source and refuses any
 	// `catch` — and any two-argument `.then`, the same thing spelled
-	// differently — in the core outside `outage.ts`.
+	// differently — in the core outside the guard and `outage.ts`.
 	it('finds none', async () => {
 		const offenders: string[] = [];
 
@@ -35,7 +51,7 @@ describe('the scan: no catch around a store call, in auth or permissions, anywhe
 				} else if (
 					entry.name.endsWith('.ts') &&
 					!entry.name.endsWith('.spec.ts') &&
-					entry.name !== 'outage.ts'
+					!ALLOWED.has(path)
 				) {
 					offenders.push(
 						...forbiddenIn(await Bun.file(path).text()).map(
@@ -49,6 +65,7 @@ describe('the scan: no catch around a store call, in auth or permissions, anywhe
 		// The permission engine keeps the same invariant: a denial is false,
 		// and a failure throws — so no catch there either.
 		await walk(join(import.meta.dir, '..', 'permissions'));
+		await walk(join(import.meta.dir, '..', 'stores'));
 
 		expect(offenders).toEqual([]);
 	});
@@ -73,24 +90,23 @@ describe('the scan: no catch around a store call, in auth or permissions, anywhe
 		).toEqual([]);
 	});
 
-	it('and of the two in outage.ts, one always rethrows and the other absorbs one named conflict', async () => {
-		const source = await Bun.file(join(import.meta.dir, 'outage.ts')).text();
-		const bodies = [...source.matchAll(/catch \((\w+)\) \{([^}]*)\}/g)].map(
-			(match) =>
-				(match[2] ?? '')
-					.replace(/\/\/.*$/gm, '')
-					.replace(/\s+/g, ' ')
-					.trim(),
-		);
+	it("and of the two allowed, the guard's always rethrows and outage.ts's absorbs one named conflict", async () => {
+		// Every catch and two-argument then, bound or not: one each, no more.
+		for (const path of ALLOWED) {
+			expect(forbiddenIn(await Bun.file(path).text())).toHaveLength(1);
+		}
 
-		expect(bodies).toHaveLength(2);
-		// The guard's.
-		expect(bodies[0]).toContain('throw');
-		expect(bodies[0]).not.toContain('return');
+		const guard = await catchBodies(GUARD);
+		expect(guard).toHaveLength(1);
+		expect(guard[0]).toContain('throw');
+		expect(guard[0]).not.toContain('return');
+
 		// unlessVersionConflict's: `null` for a version conflict, and nothing
 		// else — every other rejection rethrown. Held to the letter, so a
 		// widened condition is a failing spec and a reviewed change.
-		expect(bodies[1]).toBe(
+		const outage = await catchBodies(OUTAGE);
+		expect(outage).toHaveLength(1);
+		expect(outage[0]).toBe(
 			"if (error instanceof StoreConflict && error.on === 'version') return null; throw error;",
 		);
 	});

@@ -53,8 +53,8 @@ instead of answering `undefined`.
 answers `null`, `false` or an empty page. A store that cannot answer — a
 refused connection, a timeout, a primary stepping down, a bug in the adapter —
 rejects with `STORE_FAILED`. Answer 503. Mapping it to a 404, to `null` or to
-`false` turns an outage into a silent lockout: everybody who has an account is
-told they do not.
+`false` turns an outage into a silent lockout: every user is
+told they do not exist.
 
 ## Two kinds of refusal
 
@@ -109,7 +109,7 @@ async function signIn(email: string, password: string): Promise<Response> {
 ```
 
 - **Never put `reason` in a response body.** `unknownLogin` tells an attacker
-  which accounts exist.
+  which users exist.
 - **`STORE_FAILED` is never a 401 or a 404.** Test for it before anything that
   would read as "no".
 - **`VERSION_CONFLICT` is a retry**: read the user again, reapply, write with

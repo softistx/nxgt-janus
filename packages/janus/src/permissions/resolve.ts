@@ -80,7 +80,7 @@ export function resolveModel(
 	if (!isRecord(config)) throw refuse('pass { subjects, types }');
 	if (!Array.isArray(config.subjects)) {
 		throw refuse(
-			'subjects must be an array of user types — pass auth.types from janus()',
+			'subjects must be an array of subject type names — auth.types from janus(), or your own',
 		);
 	}
 	for (const subject of config.subjects) {

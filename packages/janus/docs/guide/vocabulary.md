@@ -1,7 +1,7 @@
 # The shared vocabulary
 
-This page is for the small pieces `@nxgt/janus` exports beside `janus()` and
-the permissions, because both use them: subjects and the tuple notation, ids,
+This page defines the words the documentation uses, then the small pieces
+`@nxgt/janus` exports for both sides: subjects and the tuple notation, ids,
 pagination, durations and clocks. All of it is imported from `@nxgt/janus`.
 
 ```ts
@@ -18,6 +18,73 @@ formatTuple({
 parseDuration('8h', 'session.lifespan'); // 28800000
 ```
 
+## Words
+
+One word per idea, the same in the README, these guides, the error messages
+and the code. The **Not** column lists the words it replaces, so a search for
+either finds this row.
+
+### The two sides
+
+| Word | Means | Not |
+| --- | --- | --- |
+| **side** | One of the two things Janus does, each usable alone: identities or permissions | "half", "module" |
+| **identities** | The side that answers *who is this?* — users, logins, passwords, sessions, one-time tokens. `janus()`, from `@nxgt/janus` | "auth", "authentication", in prose; `auth` is only the variable name in examples |
+| **permissions** | The side that answers *may they?* — a model, the tuples stored against it, `can`, `list`, `grant`, `revoke`. `@nxgt/janus/permissions` | "authorization", "access control", "ACL" |
+
+### Identities
+
+| Word | Means | Not |
+| --- | --- | --- |
+| **user** | One stored person or machine, of one user type | "account" — kept only in *account takeover* and *account enumeration*, the names of those attacks |
+| **user type** | A kind of user with its own schema and login: `staff`, `patient`. Wired to permissions, its name is a subject type | "role": a role is a relation in the model |
+| **schema** | A user type's Standard Schema: the fields a user carries | the model |
+| **login** | The value a user signs in with: an e-mail, a username. **sign in** is the verb, **sign-in** the noun | "identifier" |
+| **credential** | What a caller presents to prove who they are: a login and a password at sign-in (`CredentialError`, `CREDENTIALS_INVALID`), or a token on a request — always written *session credential* | |
+| **password policy** | The rules a new password must meet: `minLength`, `normalize` | the model |
+| **session** | A signed-in period, carried by a **session token** | |
+| **one-time token** | A single-use token sent by e-mail, for verification or a password reset | "code" — `code` is an error's code |
+| **token** | Never alone in prose: a *session token* or a *one-time token*. The `tokens` store and the `TOKEN_*` codes are one-time tokens only | |
+| **e-mail flow** | `verifyEmail` or `resetPassword`: send a one-time token, then confirm it | |
+
+### Permissions
+
+| Word | Means | Not |
+| --- | --- | --- |
+| **model** | What `defineModel()` answers: the subject types, the object types, their relations and permissions | "schema", "policy" |
+| **subject type** | A name listed in `subjects`: `auth.types` when wired to `janus()`, your own names otherwise | |
+| **object** | What a permission is about: `{ type: 'document', id }` | "resource" |
+| **subject** | Who a permission is about: a user, an object, or a subject set | "principal", "actor" |
+| **entity** | `{ type, id }`: a user or an object — a subject that is not a set (`Entity`, `deleteEntity`) | |
+| **subject set** | Everyone holding one relation on one object: `team:t1#member` | "group" — a group is an object with a `member` relation |
+| **relation** | A named link, stored as tuples or read from a field (`fromField`) | |
+| **holder** | What a relation admits: `'staff'`, or the subject set `'team#member'` | |
+| **permission** | A name computed from relations and other permissions by its rules | |
+| **rule** | One entry of a permission: a relation, another permission, an arrow, or one of them under a condition | |
+| **arrow** | A rule that follows a relation to another object's permission: `'team->view'` | |
+| **condition** | A predicate on a rule, written with `when`, run on the `ctx` passed to `can()` and `list()` | |
+| **tuple** | One stored fact — object, relation, subject: `document:d1#viewer@user:u1` | "grant", "ACL entry" |
+
+### Stores
+
+| Word | Means | Not |
+| --- | --- | --- |
+| **store** | Where a side keeps its data, behind a port. The **identity stores** are `users`, `sessions` and `tokens`; the **relation store** holds the tuples | "database", "repository" |
+| **port** | The interface a store implements: `JanusStores` for the identity stores — named after the package, not the side — and `RelationStore` | "driver" |
+| **adapter** | A package implementing the ports for one database: `@nxgt/janus-mongo` | "plugin", "connector" |
+
+### Answers
+
+The words of [the one rule](../../README.md#the-one-rule): each is a different
+answer, and none stands in for another.
+
+| Word | Means |
+| --- | --- |
+| **absence** | Nothing there: `null`, `[]`, an empty page, `0` |
+| **denial** | A permission not held: `false` |
+| **failure** | A store that could not answer — an **outage**. It throws `STORE_FAILED`: never an absence, never a denial |
+| **refusal** | Anything thrown: a `JanusError` at call time — a taken login, a wrong password, a failure — or a `TypeError` at wiring time, from how the library was called. See [Two kinds of refusal](errors.md#two-kinds-of-refusal) |
+
 ## Subjects and the tuple notation
 
 ```ts
@@ -30,7 +97,7 @@ interface RelationTuple { readonly object: Entity; readonly relation: string; re
 **Subjects are typed**: `{ type, id }` for one entity, `{ type, id, relation }`
 for a subject set — every `member` of `team:t1`. `type` is the same word as a
 user's own, so a user id and a subject id are the same thing, and
-`subjectOf(user)` is the one-line join between the two halves of the package.
+`subjectOf(user)` is the one-line join between the two sides of the package.
 It copies `type` and `id` only, so none of the user's own fields ever reaches
 a tuple.
 

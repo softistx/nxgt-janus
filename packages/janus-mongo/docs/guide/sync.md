@@ -36,8 +36,8 @@ nothing.**
 
 - It is a **deployment step**, never a request-time one: `collMod` needs the
   `dbAdmin` role, and neither it nor an index build may run in a transaction.
-- The relation store is a separate step because an application that only
-  authenticates keeps no tuples.
+- The relation store is a separate step because an application that uses
+  identities alone keeps no tuples.
 
 ```ts
 for (const report of await syncMongoStores(db)) {

@@ -6,6 +6,11 @@ Zanzibar's model — relations between objects and subjects, permissions
 computed from them — **without its infrastructure**: the tuples live in your
 database, so a read follows a write and there is nothing to cache.
 
+It is the **permissions** side, and it is usable alone: the example below wires
+it to `janus()` so the user types become the subjects, but `subjects` takes
+any list of names — `defineModel({ subjects: ['user'], … })` — when your users
+live elsewhere. Importing `@nxgt/janus/permissions` loads no identity code.
+
 ```ts
 import { z } from 'zod';
 import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
@@ -257,8 +262,8 @@ own for that.
 ### `grant` and `revoke`
 
 ```ts
-grant(object, relation, holder): Promise<void>;
-revoke(object, relation, holder): Promise<void>;
+grant(object, relation, subject): Promise<void>;
+revoke(object, relation, subject): Promise<void>;
 ```
 
 Both are typed from the model: only a stored relation (never a `fromField`),

@@ -358,7 +358,7 @@ describe('several user types', () => {
 			birthDate: '1906-12-09',
 			password,
 		});
-		// The same person, as staff, is another account.
+		// The same person, as staff, is another user.
 		const staff = await auth.staff.signUp({
 			username: 'grace@example.test',
 			service: 'navy',

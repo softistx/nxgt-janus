@@ -1,4 +1,4 @@
-# Writing an adapter — the store port and `@nxgt/janus/conformance`
+# Writing an adapter — the ports and `@nxgt/janus/conformance`
 
 This page is for putting `janus()` or `permissions()` on a database of your
 choice: the two ports you implement, the rules they carry, and the conformance
@@ -100,7 +100,7 @@ interface TokenStore {
 and answers it **as it was before the call**, in **one conditional write**.
 Twenty concurrent calls must produce exactly one answer with `spentAt: null`;
 in MongoDB that is one `findOneAndUpdate` returning the document before the
-update. A read followed by a write lets two requests redeem one reset code.
+update. A read followed by a write lets two requests redeem one reset token.
 
 Expiry is the core's decision: a read answers a stored session verbatim,
 lapsed or revoked, and never a record it has changed.
@@ -278,10 +278,10 @@ for (const conformanceCase of allCases) {
 
 | Export | What it is |
 | --- | --- |
-| `allCases`, `userStoreCases`, `sessionStoreCases`, `tokenStoreCases`, `outageCases` | The user-port cases, as `ConformanceCase` objects with a stable `id` |
+| `allCases`, `userStoreCases`, `sessionStoreCases`, `tokenStoreCases`, `outageCases` | The identity stores' cases, as `ConformanceCase` objects with a stable `id` |
 | `runCase(case, harness)` | Runs one; throws on failure, answers `{ passed: true }` or `{ skipped }` |
 | `SKIP_REASONS` | The reasons the suite gives itself |
-| `allRelationCases`, `relationStoreCases`, `relationOutageCases`, `runRelationCase` | The same for the relation port |
+| `allRelationCases`, `relationStoreCases`, `relationOutageCases`, `runRelationCase` | The same for the relation store |
 | `referenceHarness()`, `referenceRelationHarness()` | The suites against the reference stores: the examples to copy |
 
 Types: `ConformanceHarness`, `OpenedStores`, `StoreFaults`, `ConformanceCase`,

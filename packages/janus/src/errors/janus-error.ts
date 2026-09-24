@@ -21,7 +21,7 @@ export type JanusErrorCode =
 	 *
 	 * **Never a negative answer.** A handler answers 503 and lets the visitor
 	 * retry. Mapping this to a 404, to `null` or to `false` turns an outage
-	 * into a silent lockout: everybody who has an account is told they do not.
+	 * into a silent lockout: every user is told they do not exist.
 	 * That failure has been measured twice in this organisation, two days
 	 * apart, and it is the reason this package's port is specified rather than
 	 * merely documented.

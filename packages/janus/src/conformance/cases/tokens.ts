@@ -54,7 +54,7 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 				answers.filter((answer) => answer !== null && answer.spentAt === null)
 					.length,
 				1,
-				'consumeToken: of twenty concurrent calls, exactly one should see spentAt null — a reset code redeemed twice is an account takeover',
+				'consumeToken: of twenty concurrent calls, exactly one should see spentAt null — a reset token redeemed twice is an account takeover',
 			);
 		},
 	},

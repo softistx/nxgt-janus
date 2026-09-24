@@ -2,7 +2,7 @@
  * `janus()`, wired the way an application wires it — Zod schemas, scrypt, the
  * reference store, a clock the spec drives — for the specs under `src/auth/`.
  *
- * Two applications: `setup()` has one kind of user, `clinic()` has patients
+ * Two applications: `setup()` has one user type, `clinic()` has patients
  * and staff, where staff sign in with a username and have no e-mail.
  *
  * scrypt at cost 10 rather than 17: the specs exercise every line of the

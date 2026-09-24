@@ -13,7 +13,7 @@ Nothing yet.
 
 ## Later
 
-- **More official adapters** — the store port is cut where atomicity is not
+- **More official adapters** — the ports are cut where atomicity is not
   required, so users, sessions and permission tuples can each live in the
   database that suits them. MongoDB is the first adapter
   ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo)).
@@ -28,8 +28,8 @@ Nothing yet.
   bundler do. Rewriting the declarations for `nodenext` was tried and reverted:
   it breaks the same contract one step later. Use `"moduleResolution":
   "bundler"`.
-- **A Kratos-shaped surface** — no `identity.traits`, no identifier derived
-  from a schema annotation. A user is your schema's fields at the top level,
+- **A Kratos-shaped surface** — no `identity.traits`, no login derived from a
+  schema annotation (Kratos's `identifier`). A user is your schema's fields at the top level,
   and the flows are calls (`signUp`, `signIn`, `authenticate`).
 - **`snake_case` keys** — every key, option and record field is `camelCase`,
   and a lint rule holds it. Error codes are `SCREAMING_SNAKE` because they are
@@ -88,6 +88,6 @@ The first public release, v0.1.
   — v0.1
 - **The conformance suite** — `@nxgt/janus/conformance`, the suite an adapter
   runs, outages included. — v0.1
-- **The store port and its in-memory reference** — `JanusStores` and
+- **The identity stores' port and its in-memory reference** — `JanusStores` and
   `createMemoryStores()`, for your tests and as the model for an adapter.
   — v0.1

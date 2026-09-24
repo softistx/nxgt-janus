@@ -403,7 +403,7 @@ describe('sessions', () => {
 
 describe('tokens', () => {
 	it('lets exactly one of twenty concurrent redemptions spend a token', async () => {
-		// A reset code two requests both redeem is an account takeover.
+		// A reset token two requests both redeem is an account takeover.
 		const { tokens } = createMemoryStores();
 		const record = token();
 		await tokens.insertToken(record);

@@ -195,14 +195,29 @@ consumer should call.
 
 | Entry point | State |
 | --- | --- |
-| `.` | `janus()`, its store port, the reference store and the hashers — and the vocabulary shared with permissions: errors, subjects, pagination, time, ids |
-| `./permissions` | `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the `RelationStore` port and `createMemoryRelations()` |
+| `.` | **Identities**: `janus()`, the identity stores' port, their reference and the hashers — and the vocabulary shared with permissions: errors, subjects, pagination, time, ids |
+| `./permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the `RelationStore` port and `createMemoryRelations()` |
 | `./conformance` | The suites an adapter runs — `describeJanusStores`, `describeRelationStores` — and their reference harnesses. Shipped as product surface, not as a test helper |
 
 The permission *vocabulary* — subjects, the notation, `PermissionDepthError` —
 lives at `.`, not `./permissions`, because both modules import it — and because
 the equality between a user id and a subject id is the only reason users and
 permissions are one package.
+
+**Two sides, each usable alone.** Identities (`.`) and permissions
+(`./permissions`) share the vocabulary and the store guard
+(`src/stores/guard.ts`), and **neither loads the other's code**:
+`src/entries.spec.ts` walks the runtime import graph of each entry point and
+fails if `./permissions` reaches `src/auth/`, or `.` reaches
+`src/permissions/`. A type-only import loads nothing and is allowed. Something
+both sides need goes in a shared directory, never in one side imported by the
+other — that is how `guardRelations` left `src/auth/outage.ts`.
+
+**One word per idea.** The documentation, the error messages and the doc
+comments use the words defined in `packages/janus/docs/guide/vocabulary.md`
+(`## Words`): *side*, *identities*, *permissions*, *user*, *user type*,
+*login*, *subject*, *tuple*, *identity stores*, *relation store*, *adapter*.
+A new idea gets a row there before it gets a second name.
 
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied

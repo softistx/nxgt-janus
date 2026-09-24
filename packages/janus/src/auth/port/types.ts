@@ -18,8 +18,8 @@
  *    down, a bug in the adapter — **throws**, preferably `StoreFailure` with
  *    the driver error as `cause`. Never write `try { … } catch { return null }`
  *    in an implementation of this port: that one line turns an outage into
- *    "no such account", and every caller above it answers 404 to somebody
- *    whose account exists.
+ *    "no such user", and every caller above it answers 404 to a user who
+ *    exists.
  * 2. **`null`, not `undefined`.** `undefined` is what a missing property and a
  *    function with no `return` both produce, so a store that forgot to answer
  *    would report "not found" by accident. `null` has to be written on purpose.
@@ -41,7 +41,7 @@
  *
  * The seam is **where atomicity is not required**. A user and their password
  * are written together — a sign-up that stores the user and loses the hash is
- * an account nobody can enter — so they are one record. A session is derived
+ * a user nobody can sign in as — so they are one record. A session is derived
  * state: losing them all signs everybody out, which recovers. A one-time token
  * is ephemeral by construction. So `sessions` and `tokens` may live in Redis
  * while `users` lives in MongoDB, with no distributed transaction anywhere.
@@ -123,7 +123,7 @@ export interface UserRecord {
 	/**
 	 * What the user signs in with, **already normalised** by the core. Unique
 	 * per `type`, and that uniqueness is a constraint the store enforces
-	 * (rule 3): the same e-mail may hold a patient account and a staff account,
+	 * (rule 3): the same e-mail may hold a patient user and a staff user,
 	 * and never two of either.
 	 */
 	readonly logins: readonly string[];
@@ -148,7 +148,7 @@ export interface UserRecord {
  *
  * **A field the patch does not name is left as it is.** There is no full
  * replacement of a record anywhere on this port: in Kratos, an update that
- * omits `state` deactivates the account, and an edit form that omits a trait
+ * omits `state` deactivates the identity, and an edit form that omits a trait
  * deletes it. A conformance case carries that trap's name.
  *
  * A field the patch *does* name is replaced whole — `fields` and `logins`
@@ -386,7 +386,7 @@ export interface TokenStore {
 	 * - `null` means no token of this `kind` has this hash — including one the
 	 *   store has already dropped. A token of the other kind is not touched.
 	 *
-	 * **One conditional write, never a read followed by a write.** A reset code
+	 * **One conditional write, never a read followed by a write.** A reset token
 	 * two concurrent requests both redeem is an account takeover: twenty
 	 * concurrent calls must produce exactly one answer with `spentAt: null`, and
 	 * the conformance suite runs exactly that. In MongoDB this is one

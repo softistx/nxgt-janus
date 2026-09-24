@@ -1,7 +1,7 @@
 {
 	"name": "@nxgt/janus",
 	"version": "0.1.0",
-	"description": "Embeddable, type-safe authentication and permissions: bring your own database",
+	"description": "Embeddable, type-safe identities and permissions: bring your own database",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",

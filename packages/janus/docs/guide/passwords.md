@@ -127,7 +127,7 @@ per prefix the old system wrote (`$2a$`, `$2b$`, `$2y$` for bcrypt).
 - The plain password is never stored, and never appears in an error message.
 - The hash never reaches a `User` — `hasPassword` says whether there is one.
 - `signIn` compares against a dummy hash when nobody holds the login, so the
-  time taken does not reveal which accounts exist. The store's own latency
+  time taken does not reveal which users exist. The store's own latency
   still can, and that limit is stated rather than denied.
 
 ## See also
