@@ -31,6 +31,11 @@ export type RelationMethod = keyof RelationStore & string;
 
 /** How the suite makes one relation store method fail, for the outage cases. */
 export interface RelationFaults {
+	/**
+	 * Fails `method`, and only it: the other methods keep answering, because
+	 * `outage.write` reads the store back to prove the rejected write changed
+	 * nothing.
+	 */
 	fail(method: RelationMethod): Promise<void>;
 }
 
@@ -138,6 +143,34 @@ export const relationStoreCases: readonly RelationCase[] = [
 				await store.findSubjectSets(record, 'viewer'),
 				[],
 				'findSubjectSets: relation: undefined is no set',
+			);
+			equal(
+				await store.findObjects({
+					type: 'record',
+					relation: 'viewer',
+					subject: spread,
+					after: null,
+					limit: 10,
+				}),
+				{ items: [record.id], nextCursor: null },
+				'findObjects for the subject written with relation: undefined',
+			);
+			equal(
+				await store.findObjects({
+					type: 'record',
+					relation: 'viewer',
+					subject: set('staff', staff.id, 'x'),
+					after: null,
+					limit: 10,
+				}),
+				{ items: [], nextCursor: null },
+				'findObjects for a set of that entity: the entity is not a set',
+			);
+			await store.write({ remove: [tuple(record, 'viewer', spread)] });
+			equal(
+				await store.has(tuple(record, 'viewer', staff)),
+				false,
+				'has after removing it with relation: undefined',
 			);
 		},
 	},

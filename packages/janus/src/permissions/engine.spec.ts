@@ -153,6 +153,29 @@ describe('the Keto behaviours', () => {
 		expect((await access.list(ada, 'viewer', 'record')).items).toEqual([]);
 	});
 
+	it('follows only the arrow targets the model admits', async () => {
+		const store = createMemoryRelations();
+		const access = setup(store);
+		const ada = staff();
+		const t = team();
+		const doc = record();
+		await access.grant(t, 'member', ada);
+		// record.folder admits folder, not team: written past grant().
+		await store.write({
+			add: [
+				{
+					object: { type: doc.type, id: doc.id },
+					relation: 'folder',
+					subject: { type: 'team', id: t.id },
+				},
+			],
+		});
+
+		// list() cannot reverse record.view here (its fromFields have no
+		// lookup); Reverse.arrow keeps only the declared holder types already.
+		expect(await access.can(ada, 'view', doc, offShift)).toBe(false);
+	});
+
 	it('answers anonymous false before the store is called', async () => {
 		const untouchable = new Proxy(createMemoryRelations(), {
 			get: (target, method) =>

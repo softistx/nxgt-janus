@@ -335,12 +335,17 @@ class Walk {
 				? []
 				: [{ entity: { type: through.subject, id }, data: null }];
 		}
-		return (await this.store.findEntities(node.entity, relation)).map(
-			(entity) => ({
+		// An entity of a type the model does not admit here is no target — as for list().
+		return (await this.store.findEntities(node.entity, relation))
+			.filter((entity) =>
+				through.holders.some(
+					(holder) => holder.kind === 'type' && holder.type === entity.type,
+				),
+			)
+			.map((entity) => ({
 				entity: { type: entity.type, id: entity.id },
 				data: null,
-			}),
-		);
+			}));
 	}
 }
 

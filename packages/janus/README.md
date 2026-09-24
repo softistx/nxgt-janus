@@ -360,6 +360,8 @@ Without it, the outage cases are skipped under the reason *"the outage
 invariant is not proven for this adapter"*. Make your database fail the way it
 really fails — for MongoDB, the `failCommand` failpoint with code 91. A wrapper
 that throws in front of your adapter proves the wrapper, not the adapter.
+Fail **only the method named**: `outage.write` reads the store back afterwards,
+to prove the rejected write changed nothing.
 
 `referenceHarness()` runs the suite against the reference store, and is the
 example to copy.
