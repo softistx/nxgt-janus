@@ -12,10 +12,6 @@ Nothing in progress.
 - **The first public release (v0.1)** — `@nxgt/janus` on the public npm
   registry. Until then the package is not published, and everything under
   **Shipped** lands in that release.
-- **A stored direct tuple whose subject type the model does not admit** — an
-  open question. `grant()` already refuses to write one; whether `can()` and
-  `list()` should also ignore one found in the store, as they ignore a subject
-  set or an arrow target the model does not admit, is not settled yet.
 
 ## Later
 
@@ -66,6 +62,9 @@ Nothing in progress.
 
 Nothing is published yet. These are in the first release, v0.1.
 
+- **The model decides what a stored tuple grants** — `can()` and `list()` follow
+  only the holders a relation admits, as `grant()` writes only those: a tuple
+  stored past `grant()`, by an older model or by hand, grants nothing. — v0.1
 - **Guides and troubleshooting pages** — a `docs/` folder shipped in the
   package: detailed guides with examples, and the errors you can meet, each
   with its cause and fix. — v0.1

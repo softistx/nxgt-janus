@@ -153,6 +153,43 @@ describe('the Keto behaviours', () => {
 		expect((await access.list(ada, 'viewer', 'record')).items).toEqual([]);
 	});
 
+	it('grants no direct tuple whose subject the model does not admit, as grant() refuses to write it', async () => {
+		const store = createMemoryRelations();
+		const access = setup(store);
+		const t = team();
+		const doc = record();
+		// viewer admits staff and team#member, not a team itself.
+		const tuple = {
+			object: { type: doc.type, id: doc.id },
+			relation: 'viewer',
+			subject: { type: 'team', id: t.id },
+		};
+		await store.write({ add: [tuple] });
+
+		expect(await access.can(t, 'viewer', doc)).toBe(false);
+		expect((await access.list(t, 'viewer', 'record')).items).toEqual([]);
+		const refused = (await rejection(
+			// @ts-expect-error record.viewer admits no team itself
+			access.grant(doc, 'viewer', t),
+		)) as Error;
+		expect(refused.message).toContain('record.viewer is not held by team');
+
+		// record.team admits a team, not the set of its members.
+		const ada = staff();
+		await access.grant(t, 'member', ada);
+		await store.write({
+			add: [
+				{
+					object: { type: doc.type, id: doc.id },
+					relation: 'team',
+					subject: { type: 'team', id: t.id, relation: 'member' },
+				},
+			],
+		});
+		expect(await access.can(ada, 'team', doc)).toBe(false);
+		expect((await access.list(ada, 'team', 'record')).items).toEqual([]);
+	});
+
 	it('follows only the arrow targets the model admits', async () => {
 		const store = createMemoryRelations();
 		const access = setup(store);

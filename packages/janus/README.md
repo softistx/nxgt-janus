@@ -434,6 +434,11 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 
 ## Traps
 
+**Narrowing a model hides stored tuples; it does not delete them.** A tuple
+the model no longer admits grants nothing, and `revoke()` refuses it — remove
+it with `relations.write({ remove: [tuple] })`, or widening the model again
+brings it back.
+
 **The first session credential present wins, not the first valid one.**
 `Authorization: Bearer`, then `X-Session-Token`, then the cookie. A client that
 sends a lapsed bearer beside a live cookie is anonymous, and it should fix its

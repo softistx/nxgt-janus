@@ -4,10 +4,11 @@ import { PermissionDepthError } from '../errors/janus-error';
 import { formatEntity } from '../subjects/notation';
 import type { Entity, Subject } from '../subjects/subject';
 import type { RelationStore } from './port/types';
-import type {
-	ResolvedModel,
-	ResolvedObjectType,
-	ResolvedRule,
+import {
+	admits,
+	type ResolvedModel,
+	type ResolvedObjectType,
+	type ResolvedRule,
 } from './resolve';
 
 /** An object on the walk: its entity, and its data when the caller passed it. */
@@ -81,23 +82,15 @@ export class Walk {
 			);
 		}
 
+		// What the model does not admit here grants nothing, however it was stored.
 		if (
-			await this.store.has({ object: node.entity, relation: name, subject })
+			admits(relation.holders, subject) &&
+			(await this.store.has({ object: node.entity, relation: name, subject }))
 		) {
 			return true;
 		}
 		for (const set of await this.store.findSubjectSets(node.entity, name)) {
-			// A set the model does not admit here grants nothing — as for list().
-			if (
-				!relation.holders.some(
-					(holder) =>
-						holder.kind === 'set' &&
-						holder.type === set.type &&
-						holder.relation === set.relation,
-				)
-			) {
-				continue;
-			}
+			if (!admits(relation.holders, set)) continue;
 			const through = { entity: { type: set.type, id: set.id }, data: null };
 			if (await this.holds(subject, through, set.relation, depth + 1)) {
 				return true;
@@ -158,13 +151,9 @@ export class Walk {
 				? []
 				: [{ entity: { type: through.subject, id }, data: null }];
 		}
-		// An entity of a type the model does not admit here is no target — as for list().
+		// An entity of a type the model does not admit here is no target.
 		return (await this.store.findEntities(node.entity, relation))
-			.filter((entity) =>
-				through.holders.some(
-					(holder) => holder.kind === 'type' && holder.type === entity.type,
-				),
-			)
+			.filter((entity) => admits(through.holders, entity))
 			.map((entity) => ({
 				entity: { type: entity.type, id: entity.id },
 				data: null,
