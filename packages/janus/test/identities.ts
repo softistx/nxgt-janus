@@ -17,7 +17,7 @@ import type { IdentitiesOptions } from '../src/identities/types';
 import { fixedClock } from '../src/time/clock';
 
 export const traits = z.strictObject({
-	email: z.string().email(),
+	email: z.email(),
 	name: z.object({ first: z.string().max(256), last: z.string().max(256) }),
 	nickname: z.string().optional(),
 });
