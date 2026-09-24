@@ -130,6 +130,29 @@ describe('the Keto behaviours', () => {
 		expect(await access.can(members, 'viewer', doc)).toBe(true);
 	});
 
+	it('follows only the subject sets the model admits, as list() does', async () => {
+		const store = createMemoryRelations();
+		const access = setup(store);
+		const ada = staff();
+		const t = team();
+		const doc = record();
+		await access.grant(t, 'lead', ada);
+		// viewer admits team#member, not team#lead: written past grant(), as a
+		// store shared with an older model could hold it.
+		await store.write({
+			add: [
+				{
+					object: { type: doc.type, id: doc.id },
+					relation: 'viewer',
+					subject: { type: 'team', id: t.id, relation: 'lead' },
+				},
+			],
+		});
+
+		expect(await access.can(ada, 'viewer', doc)).toBe(false);
+		expect((await access.list(ada, 'viewer', 'record')).items).toEqual([]);
+	});
+
 	it('answers anonymous false before the store is called', async () => {
 		const untouchable = new Proxy(createMemoryRelations(), {
 			get: (target, method) =>
@@ -258,9 +281,11 @@ describe('cycles and depth', () => {
 			setup(store, 5).can(owner, 'view', deepest),
 		)) as {
 			code: string;
+			permission: string;
 			maxDepth: number;
 		};
 		expect(error.code).toBe('PERMISSION_DEPTH');
+		expect(error.permission).toBe('folder#view');
 		expect(error.maxDepth).toBe(5);
 	});
 });

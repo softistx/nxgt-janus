@@ -110,7 +110,7 @@ export function permissions<C extends ModelConfig>(
 			store,
 			maxDepth,
 			options?.ctx,
-			formatEntity(root),
+			`${type.name}#${permission}`,
 		).holds(
 			subjectOf(model, subject, 'can'),
 			{ entity: { type: root.type, id: root.id }, data: root.data },
@@ -264,6 +264,17 @@ class Walk {
 			return true;
 		}
 		for (const set of await this.store.findSubjectSets(node.entity, name)) {
+			// A set the model does not admit here grants nothing — as for list().
+			if (
+				!relation.holders.some(
+					(holder) =>
+						holder.kind === 'set' &&
+						holder.type === set.type &&
+						holder.relation === set.relation,
+				)
+			) {
+				continue;
+			}
 			const through = { entity: { type: set.type, id: set.id }, data: null };
 			if (await this.holds(subject, through, set.relation, depth + 1)) {
 				return true;

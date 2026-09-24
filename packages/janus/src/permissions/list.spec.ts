@@ -340,9 +340,11 @@ describe('list()', () => {
 			setup(store, 5).list(ada, 'view', 'folder'),
 		)) as {
 			code: string;
+			permission: string;
 			maxDepth: number;
 		};
 		expect(error.code).toBe('PERMISSION_DEPTH');
+		expect(error.permission).toBe('folder#view');
 		expect(error.maxDepth).toBe(5);
 	});
 

@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Twenty-four plausible mistakes, twenty-four refused**, each verified to fail for
+ * **Twenty-six plausible mistakes, twenty-six refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -229,6 +229,24 @@ ward.list(staff, 'use', 'bed');
 
 // @ts-expect-error 24. "view" is no permission of bed
 ward.list(staff, 'view', 'bed');
+
+const { findObjects: _dropped, ...withoutFindObjects } =
+	createMemoryRelations();
+
+permissions({
+	model: clinic,
+	// @ts-expect-error 25. a store without findObjects cannot answer list()
+	store: withoutFindObjects,
+});
+
+permissions({
+	model: clinic,
+	store: {
+		...createMemoryRelations(),
+		// @ts-expect-error 26. an absence is false, not null: has answers a boolean
+		has: async () => null,
+	},
+});
 
 // ─── What is allowed ──────────────────────────────────────────────────────
 
