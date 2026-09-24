@@ -164,6 +164,11 @@ What this commits us to in the code:
   adding a code breaks the compilation of callers that exhaust it.
 - **No `any` in the public surface** — `noExplicitAny` is *not* disabled in
   `biome.json`, unlike nxgt-data — and `noUncheckedIndexedAccess` is on.
+- **`exactOptionalPropertyTypes` is on** in `packages/janus`. Without it,
+  `{ state: undefined }` is a valid `IdentityPatch`, and a naive adapter writes
+  it as an erasure — the Kratos `PUT` trap, arriving through the type system.
+  The reference store still treats a key present as `undefined` as absent, for
+  JavaScript callers.
 
 ---
 

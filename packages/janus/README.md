@@ -142,11 +142,15 @@ unlike Ory — a Biome naming-convention rule holds it.
 
 ## Type safety, counted
 
-**Fourteen plausible mistakes, fourteen refused at compile time — and one gap,
-named.**
+**Twenty-nine plausible mistakes, twenty-nine refused at compile time — and one
+gap, named.**
 
-The list is `test/types/refusals.ts`: one `@ts-expect-error` per mistake,
-typechecked and never run, alongside the shapes that must keep compiling. The
+The lists are `test/types/refusals.ts` (fourteen, on this entry point) and
+`test/types/port.ts` (fifteen, on the identity store port, from the side of the
+person implementing it): one `@ts-expect-error` per mistake, typechecked and
+never run, alongside the shapes that must keep compiling. The port is not
+exported yet — it arrives with `./identities` — and is counted from the day its
+refusals exist. The
 rule comes from `nxgt-data`, and so does the reason to distrust the claim without
 the file — when it was last measured on `@nxgt/mongo`, *seven of twelve plausible
 mistakes still compiled*. A count that goes down is a visible regression.
