@@ -252,6 +252,17 @@ export interface UserStore {
 	 *   user's of the same type.
 	 */
 	updateUser(id: Id, patch: UserPatch, ifVersion: number): Promise<UserRecord>;
+
+	/**
+	 * Deletes the user with this id, whatever their type, and frees their
+	 * logins. `true` when there was one, `false` when there was none.
+	 *
+	 * **Idempotent**, so a deletion interrupted half-way can be replayed: the
+	 * replay answers `false` here and goes on to the sessions and the tokens.
+	 * This deletes the record only — those two are other stores', and the core
+	 * deletes them next.
+	 */
+	deleteUser(id: Id): Promise<boolean>;
 }
 
 /** A session's id: a UUIDv7 minted by the core, as a user's is. */
@@ -322,6 +333,13 @@ export interface SessionStore {
 	revokeUserSessions(userId: Id, at: Date, except?: SessionId): Promise<number>;
 
 	/**
+	 * Deletes every session of one user — standing, revoked or lapsed — and
+	 * answers how many. `0` is an answer, not a failure. What deleting a user
+	 * calls: a revoked session still names who held it.
+	 */
+	deleteUserSessions(userId: Id): Promise<number>;
+
+	/**
 	 * **Optional capability.** Deletes every session whose `expiresAt` is at or
 	 * before `before`, and answers how many.
 	 *
@@ -382,6 +400,13 @@ export interface TokenStore {
 		kind: TokenKind,
 		at: Date,
 	): Promise<TokenRecord | null>;
+
+	/**
+	 * Deletes every token of one user, spent or not, and answers how many.
+	 * What deleting a user calls: a token holds the e-mail it was sent to, which
+	 * must not outlive the user until its expiry.
+	 */
+	deleteUserTokens(userId: Id): Promise<number>;
 }
 
 /**

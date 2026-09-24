@@ -173,6 +173,12 @@ function userStore(db: Db): UserStore {
 					},
 				);
 			}),
+
+		deleteUser: (id) =>
+			run$('deleteUser', async () => {
+				const result = await collection.raw.deleteOne({ _id: id });
+				return result.deletedCount === 1;
+			}),
 	};
 }
 
@@ -236,6 +242,12 @@ function sessionStore(db: Db): SessionStore {
 				);
 				return result.modifiedCount;
 			}),
+
+		deleteUserSessions: (userId) =>
+			run$('deleteUserSessions', async () => {
+				const result = await collection.raw.deleteMany({ userId });
+				return result.deletedCount;
+			}),
 	};
 }
 
@@ -262,6 +274,12 @@ function tokenStore(db: Db): TokenStore {
 					{ returnDocument: 'before' },
 				);
 				return before === null ? null : toToken(before);
+			}),
+
+		deleteUserTokens: (userId) =>
+			run$('deleteUserTokens', async () => {
+				const result = await collection.raw.deleteMany({ userId });
+				return result.deletedCount;
 			}),
 	};
 }

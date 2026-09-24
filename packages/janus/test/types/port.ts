@@ -168,6 +168,9 @@ class ClassStore implements TokenStore {
 	async consumeToken(): Promise<null> {
 		return null;
 	}
+	async deleteUserTokens(): Promise<number> {
+		return 0;
+	}
 }
 
 export const checked = {

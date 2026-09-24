@@ -191,6 +191,45 @@ export const sessionStoreCases: readonly ConformanceCase[] = [
 		},
 	},
 	{
+		id: 'sessions.deleteUser',
+		group,
+		name: 'deletes every session of one user — standing, revoked or lapsed — and counts them',
+		async run({ stores }) {
+			const userId = mintId();
+			const records = [
+				sessionRecord({ userId }),
+				sessionRecord({ userId, revokedAt: at('2026-01-02T00:00:00.000Z') }),
+				sessionRecord({ userId, expiresAt: at('2026-01-02T00:00:00.000Z') }),
+			];
+			const stranger = sessionRecord();
+			for (const record of [...records, stranger]) {
+				await stores.sessions.insertSession(record);
+			}
+
+			equal(
+				await stores.sessions.deleteUserSessions(userId),
+				3,
+				'deleteUserSessions: how many it deleted, revoked and lapsed ones included',
+			);
+			for (const record of records) {
+				isNull(
+					await stores.sessions.findSessionByTokenHash(record.tokenHash),
+					'findSessionByTokenHash after deleteUserSessions',
+				);
+			}
+			equal(
+				await stores.sessions.findSessionByTokenHash(stranger.tokenHash),
+				stranger,
+				'deleteUserSessions should not touch another user',
+			);
+			equal(
+				await stores.sessions.deleteUserSessions(userId),
+				0,
+				'deleteUserSessions for a user with none answers 0, not a failure',
+			);
+		},
+	},
+	{
 		id: 'sessions.deleteExpired',
 		group,
 		name: 'deletes sessions whose expiry is at or before the instant, and only those',
