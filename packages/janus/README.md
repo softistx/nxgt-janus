@@ -4,10 +4,10 @@ Identities and permissions as an **embeddable** TypeScript library: your process
 your database, behind a port you can implement.
 
 > **Pre-v0.1.** `.` ships the vocabulary the two modules share — errors,
-> subjects, pagination, time, ids — and `./identities` the identity core and
-> its port. `./conformance` arrives next. A subpath appears in `exports` only
-> once it exports something you should call, because a published entry point
-> is a promise.
+> subjects, pagination, time, ids. `./identities` is the identity core and its
+> port, and `./conformance` is the suite an adapter runs. A subpath appears in
+> `exports` only once it exports something you should call, because a
+> published entry point is a promise.
 
 ## Install
 
@@ -180,6 +180,55 @@ implementation. It is shipped for your own tests, and it is what to compare
 against when writing an adapter. The six rules an adapter keeps are written on
 the port's types.
 
+### Conformance — `@nxgt/janus/conformance`
+
+If you write an adapter, you run this suite against it:
+
+```ts
+import { describe, it } from 'bun:test';
+import { describeIdentityStores } from '@nxgt/janus/conformance';
+
+describeIdentityStores({
+	name: 'my adapter',
+	runner: { describe, it },
+	harness: {
+		async open() {
+			const db = await freshDatabase(); // one per case, never shared
+			return {
+				stores: myStores(db),
+				faults: { fail: (slot, method) => db.failNext(method) },
+				close: () => db.drop(),
+			};
+		},
+	},
+});
+```
+
+There are 31 cases. They cover:
+- round-trip, byte for byte;
+- uniqueness, as a constraint: of twenty concurrent inserts of one identifier,
+  exactly one is accepted;
+- versions: a refused update writes nothing;
+- **omission**, named after the Kratos `PUT` trap;
+- pagination;
+- sessions;
+- one-time tokens: of twenty concurrent redemptions, exactly one succeeds;
+- **outages**, one case for each of the eight methods whose honest answer can
+  be "nothing".
+
+The suite imports no test framework and no assertion library. It runs under
+`bun test`, vitest and jest. Its cases are also exported as data
+(`allCases`), with `runCase` to run one without any runner.
+
+**`faults` is optional, and its absence is reported, never passed over.**
+Without it, the outage cases are skipped under the reason *"the outage
+invariant is not proven for this adapter"*. Make your database fail the way it
+really fails — for MongoDB, the `failCommand` failpoint with code 91. A wrapper
+that throws in front of your adapter proves the wrapper, not the adapter.
+
+`referenceHarness()` runs the suite against the reference store, and is the
+example to copy.
+
 ## Traps
 
 **The first session credential present wins, not the first valid one.**
@@ -202,6 +251,10 @@ tidy; it is not the expiry mechanism.
 **`updateTraits` takes the whole traits.** It does not take a partial: the core
 validates the full object, so there is never a merge to get wrong. Read,
 change, write — and pass `ifVersion` to make the write conditional.
+
+**Under `bun test`, pass `runner: { describe, it }`.** Measured: Bun gives a
+test file `describe` and `it` as bare identifiers, not as properties of
+`globalThis`. jest, and vitest with `globals: true`, are found without it.
 
 **`undefined` is not an absence here.** Every method that can find nothing
 answers `null`. `undefined` is what a missing property *and* a function with no

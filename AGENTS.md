@@ -182,7 +182,7 @@ consumer should call.
 | --- | --- |
 | `.` | The shared vocabulary: errors, subjects, pagination, time, ids |
 | `./identities` | The identity core, its store port, the reference store, and the hashers |
-| `./conformance` | Arrives with the suite. Shipped as product surface, not as a test helper |
+| `./conformance` | The suite an adapter runs, and `referenceHarness()`. Shipped as product surface, not as a test helper |
 
 `./permissions` is **not** published, and will not be until a real traversal is
 written against the tuple port. The permission *vocabulary* lives at `.` today
