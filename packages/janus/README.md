@@ -206,6 +206,16 @@ password and no `hasher` is refused at wiring. Hashes describe themselves
 written with as `verifiers`, and every one of them can verify while exactly one
 hashes.
 
+**Rehash on sign-in.** When a password matches a stale hash, `signIn` rewrites
+it with `hasher`. A hash is stale when a `verifiers` hasher wrote it, or when
+`hasher` wrote it with other parameters than it uses now: a raised scrypt
+`cost`, or argon2id parameters other than the pinned `m=65536,t=2,p=1`. Moving
+off a hasher, or raising its cost, therefore reaches every active user with no
+migration to run. The password's `updatedAt` is kept, since the password did not
+change; the user's `version` moves. The write happens only at the version just
+read. If a concurrent update wins, the sign-in still succeeds and the next
+sign-in tries again. An outage on that write still fails the sign-in.
+
 **The port.** `JanusStores` is three stores — `users`, `sessions`, `tokens` —
 cut where atomicity is not required, so sessions can live in Redis while users
 live in MongoDB. `createMemoryStores()` is the reference implementation. It is
@@ -282,6 +292,10 @@ same reason: answer the visitor the same page either way.
 **`resetPassword.confirm` signs the user out everywhere, and opens no session.**
 Whoever had the old password loses their sessions; what the visitor does next is
 your policy. A password refused for its length does not spend the token.
+
+**A sign-in can move a user's `version`.** Rewriting a stale hash is a write. A
+user object read before that sign-in, and then passed as `ifVersion`, gets
+`VERSION_CONFLICT`. That is the conflict doing its job: read the user again.
 
 **Expiry is decided by the core, not by the store.** A store may still hold a
 lapsed session, and `authenticate` answers it as anonymous. A TTL index keeps

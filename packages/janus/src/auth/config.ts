@@ -64,6 +64,13 @@ export interface PasswordHasher {
 	readonly prefix: string;
 	hash(plain: string): Promise<string>;
 	verify(plain: string, hash: string): Promise<boolean>;
+	/**
+	 * Whether a hash **this hasher** wrote should be written again: its
+	 * parameters are not the ones `hash` uses now — a raised `cost`, say.
+	 * Optional; without it only a hash from another hasher (a `verifiers` one)
+	 * is rewritten. Called with hashes carrying this hasher's prefix only.
+	 */
+	needsRehash?(hash: string): boolean;
 }
 
 /** Signing in with a password. */

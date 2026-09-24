@@ -17,6 +17,10 @@ import type { PasswordHasher } from './config';
  *
  * `cost` is log2(N). Lower it only in tests: 10 is fast and still exercises
  * every line.
+ *
+ * A hash written with other parameters than these is rewritten with these the
+ * next time its owner signs in (`needsRehash`), so raising `cost` reaches every
+ * active user without a migration.
  */
 export function scryptHasher(options?: {
 	readonly cost?: number;
@@ -63,6 +67,13 @@ export function scryptHasher(options?: {
 				expected.length,
 			);
 			return timingSafeEqual(actual, expected);
+		},
+		needsRehash(hash) {
+			const parsed = SCRYPT_HASH.exec(hash);
+			// Unparseable is verify's refusal to make, not a reason to rewrite.
+			if (parsed === null) return false;
+			const [, ln, r, p] = parsed;
+			return Number(ln) !== cost || r !== '8' || p !== '1';
 		},
 	};
 }
@@ -118,12 +129,26 @@ export function bunHasher(): PasswordHasher {
 
 	return {
 		prefix: '$argon2id$',
-		hash: (plain) => password.hash(plain, { algorithm: 'argon2id' }),
+		hash: (plain) => password.hash(plain, ARGON2ID),
 		verify: (plain, hash) => password.verify(plain, hash),
+		needsRehash: (hash) => !hash.startsWith(ARGON2ID_PARAMETERS),
 	};
 }
 
+/**
+ * Pinned rather than left to `Bun.password`'s defaults — which they equal
+ * today, measured: `$argon2id$v=19$m=65536,t=2,p=1$` — so that a change of
+ * default in a Bun release is a rehash this package decided, not one it
+ * inherited.
+ */
+const ARGON2ID = {
+	algorithm: 'argon2id',
+	memoryCost: 65_536,
+	timeCost: 2,
+} as const;
+const ARGON2ID_PARAMETERS = '$argon2id$v=19$m=65536,t=2,p=1$';
+
 interface BunPassword {
-	hash(plain: string, options: { algorithm: 'argon2id' }): Promise<string>;
+	hash(plain: string, options: typeof ARGON2ID): Promise<string>;
 	verify(plain: string, hash: string): Promise<boolean>;
 }

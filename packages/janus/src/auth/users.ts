@@ -17,6 +17,7 @@ import {
 	idOf,
 	loginsOf,
 	passwordMatches,
+	rehashed,
 	requireHasher,
 	toUser,
 	validateFields,
@@ -301,7 +302,11 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				});
 			}
 
-			return openSession(context, type, record);
+			return openSession(
+				context,
+				type,
+				await rehashed(context, record, String(password)),
+			);
 		},
 
 		async findByLogin(login) {

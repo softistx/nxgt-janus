@@ -23,7 +23,7 @@ import {
 	type ResolvedConfig,
 	type ResolvedType,
 } from './config';
-import { required } from './outage';
+import { required, unlessVersionConflict } from './outage';
 import type {
 	JanusStores,
 	Json,
@@ -248,6 +248,46 @@ export async function passwordMatches(
 	}
 
 	return verifier.verify(password, stored.hash);
+}
+
+/**
+ * The record, with its password hash rewritten by the current hasher when the
+ * stored one is stale: written by another hasher — a `verifiers` one — or by
+ * this one with other parameters. Called only once `password` has matched.
+ *
+ * The rewrite is conditioned on the version just read. Losing that race to a
+ * concurrent update is not the sign-in's failure: the record is answered as
+ * read, and the next sign-in tries again. A store failure still throws.
+ */
+export async function rehashed(
+	context: Context,
+	record: UserRecord,
+	password: string,
+): Promise<UserRecord> {
+	const { hasher } = context;
+	const stored = record.password;
+	if (hasher === null || stored === null) return record;
+
+	const stale =
+		!stored.hash.startsWith(hasher.prefix) ||
+		hasher.needsRehash?.(stored.hash) === true;
+	if (!stale) return record;
+
+	const written = await unlessVersionConflict(
+		context.store.users.updateUser(
+			record.id,
+			{
+				updatedAt: context.clock.now(),
+				// The same password, so the same `updatedAt`: when it was *set*.
+				password: {
+					hash: await hasher.hash(password),
+					updatedAt: stored.updatedAt,
+				},
+			},
+			record.version,
+		),
+	);
+	return written ?? record;
 }
 
 const notFound = (where: string, id: string, type: string | null) =>
