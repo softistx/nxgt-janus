@@ -9,9 +9,7 @@ Nothing in progress.
 
 ## Next
 
-- **The first public release (v0.1)** — `@nxgt/janus-mongo` on the public npm
-  registry, alongside `@nxgt/janus`. Until then the package is not published,
-  and everything under **Shipped** lands in that release.
+Nothing yet.
 
 ## Later
 
@@ -40,7 +38,7 @@ Nothing yet.
 
 ## Shipped
 
-Nothing is published yet. These are in the first release, v0.1.
+The first public release, v0.1.
 
 - **Guides and troubleshooting pages** — a `docs/` folder shipped in the
   package, with the errors and traps you can meet running the adapter, each

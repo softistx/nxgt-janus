@@ -9,9 +9,7 @@ Nothing in progress.
 
 ## Next
 
-- **The first public release (v0.1)** — `@nxgt/janus` on the public npm
-  registry. Until then the package is not published, and everything under
-  **Shipped** lands in that release.
+Nothing yet.
 
 ## Later
 
@@ -60,7 +58,7 @@ Nothing in progress.
 
 ## Shipped
 
-Nothing is published yet. These are in the first release, v0.1.
+The first public release, v0.1.
 
 - **The model decides what a stored tuple grants** — `can()` and `list()` follow
   only the holders a relation admits, as `grant()` writes only those: a tuple

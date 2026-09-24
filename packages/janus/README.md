@@ -18,7 +18,7 @@ const { user, token } = await auth.signUp({ email, name, password });
 const current = await auth.authenticate(request); // { user, session, token, renewed } | null
 ```
 
-> **Pre-v0.1.** `.` is `janus()` and the vocabulary it shares with the
+> **0.x.** A minor version may still change the surface. `.` is `janus()` and the vocabulary it shares with the
 > permissions — errors, subjects, pagination, time, ids. `./permissions` is the
 > ReBAC engine. `./conformance` is the suite an adapter runs. A subpath appears in `exports`
 > only once it exports something you should call, because a published entry

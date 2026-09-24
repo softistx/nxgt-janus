@@ -220,13 +220,13 @@ tried once and reverted: it is the same rule, broken one step later.
 `bunfig.toml` carries the npm token, **never `.npmrc`** — an undefined variable
 in an `.npmrc` sends an **empty** token, and the registry calls that a 401.
 
-### Nothing publishes until v0.1, and the flag is how
+### A new package starts private, and the flag is how
 
-Every package here carries **`"private": true`**. The `Release` workflow fires on
-every push to `develop` and `changeset publish` will publish anything whose
-version is not on the registry — `0.0.0` is not — so the very first push tried to
-publish `@nxgt/janus@0.0.0` and failed on the token. The token was not the
-problem; the missing guard was.
+Until v0.1 every package here carried **`"private": true`**, and a new package
+still starts with it. The `Release` workflow fires on every push to `develop`
+and publishes anything whose version is not on the registry — `0.0.0` is not —
+so the very first push tried to publish `@nxgt/janus@0.0.0` and failed on the
+token. The token was not the problem; the missing guard was.
 
 `scripts/publish.ts` skips a private package. **`scripts/verify-artifacts.ts` does
 not** — it globs `packages/*/package.json` regardless of the flag, so the
@@ -234,8 +234,9 @@ subpath-loading and one-class-per-entry checks keep running on every push, which
 is the whole point of having them from commit 1.
 
 Removing `"private"` is what makes a package publishable. It is a deliberate
-commit of its own, taken together with going public, and not something to do while
-fixing something else.
+commit of its own, with the changeset that versions it, and not something to do
+while fixing something else. `@nxgt/janus` and `@nxgt/janus-mongo` lost it
+together, for v0.1, when the repository went public.
 
 ---
 
