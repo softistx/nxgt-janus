@@ -3,11 +3,11 @@
 Identities and permissions as an **embeddable** TypeScript library: your process,
 your database, behind a port you can implement.
 
-> **Pre-v0.1.** This entry point currently ships the vocabulary the two modules
-> share — errors, subjects, pagination, time, ids. `./identities` and
-> `./conformance` arrive next. A subpath appears in `exports` only once it
-> exports something you should call, because a published entry point is a
-> promise.
+> **Pre-v0.1.** `.` ships the vocabulary the two modules share — errors,
+> subjects, pagination, time, ids — and `./identities` the identity core and
+> its port. `./conformance` arrives next. A subpath appears in `exports` only
+> once it exports something you should call, because a published entry point
+> is a promise.
 
 ## Install
 
@@ -108,7 +108,100 @@ is the loop.
 `fixedClock` is **shipped, not test-only** — testing session expiry needs it, and
 so do your own tests.
 
+### Identities — `@nxgt/janus/identities`
+
+```ts
+import { z } from 'zod';
+import {
+	createIdentities,
+	createMemoryStores,
+	defineIdentities,
+	scryptHasher,
+} from '@nxgt/janus/identities';
+
+const definition = defineIdentities({
+	traits: z.strictObject({
+		email: z.email(),
+		name: z.object({ first: z.string(), last: z.string() }),
+	}),
+	identifiers: {
+		password: { from: 'email', normalize: 'lowercaseTrim' },
+	},
+	verification: { from: 'email' },
+	recovery: { from: 'email' },
+	session: { lifespan: '720h', earliestRefresh: '24h' },
+});
+
+const identities = createIdentities(definition, createMemoryStores(), {
+	hasher: scryptHasher(),
+});
+```
+
+`defineIdentities` describes and touches nothing. `createIdentities` assembles,
+**synchronously and with no I/O**: it checks that every store answers every
+method of the port, and connects to nothing. Everything else reaches a store and
+is asynchronous.
+
+- **Traits** are any [Standard Schema](https://standardschema.dev) — Zod 4,
+  Valibot, ArkType. There is no validation peer. The schema's output must be
+  JSON, and a schema producing a `Date` is refused at compile time.
+- **`identifiers.*.from`** names a *required string* trait, as a dotted path. A
+  typo is a compile error on `from`, and the message lists the paths you could
+  have meant.
+- **`normalize` has no default.** `'none' | 'lowercase' | 'lowercaseTrim' |
+  'nfkcLowercaseTrim'`, or a function. The core applies it before any store sees
+  the value, so uniqueness is uniqueness of bytes.
+- **Identities**: `create`, `find` (or `null`), `get` (or `NOT_FOUND`),
+  `findByIdentifier`, `list`, `updateTraits` (the whole traits, validated),
+  `setState`, `updateMetadata`, `setAddressVerified` (by value), `setPassword`,
+  `removePassword`, `verifyPassword`. Every write takes an optional
+  `ifVersion`: with it, one round trip; without it, the core reads first.
+- **Sessions**: `sessions.create`, `resolve(headers)`, `extend`, `revoke`,
+  `revokeAll(id, { except })`, `collectExpired`. The token is handed back
+  **once**, and the store only ever holds its `sha256`.
+- **One-time tokens**: `tokens.issue(kind, identityId, address)`,
+  `consumeVerification`, `consumeRecovery`.
+- `cookie.serialize(token, session)` and `cookie.clear()` produce `Set-Cookie`
+  values — `HttpOnly; SameSite=Lax; Secure` unless you say otherwise.
+  `requireAal(session, 'aal2')` refuses a session below that level.
+
+**Hashers.** `scryptHasher()` runs on Node and on Bun, with no dependency and
+OWASP's parameters (N = 2^17, r = 8, p = 1). `bunHasher()` is argon2id through
+`Bun.password`, on Bun only. There is no silent fallback: a definition with a
+password identifier and no `hasher` is refused at wiring. Hashes describe
+themselves (`$scrypt$ln=17,r=8,p=1$…`, `$argon2id$…`). Wire the hashers a
+database was written with as `verifiers`, and every one of them can verify while
+exactly one hashes.
+
+**The port.** `IdentityStores` is three stores — `identities`, `sessions`,
+`tokens` — cut where atomicity is not required, so sessions can live in Redis
+while identities live in MongoDB. `createMemoryStores()` is the reference
+implementation. It is shipped for your own tests, and it is what to compare
+against when writing an adapter. The six rules an adapter keeps are written on
+the port's types.
+
 ## Traps
+
+**The first session credential present wins, not the first valid one.**
+`Authorization: Bearer`, then `X-Session-Token`, then the cookie. A client that
+sends a lapsed bearer beside a live cookie is anonymous, and it should fix its
+header rather than be rescued in silence.
+
+**Never put `verifyPassword`'s `reason` in a response body.** `noSuchIdentity`
+is an account-enumeration oracle. The core compares against a dummy hash when no
+identity holds the identifier, so the hashing time does not tell. **The store's
+own latency still does**, and that limit is stated rather than denied.
+
+**`consumeRecovery` opens no session.** What a recovered account may do next is
+your policy.
+
+**Expiry is decided by the core, not by the store.** A store may still hold a
+lapsed session, and `resolve` answers it as anonymous. A TTL index keeps storage
+tidy; it is not the expiry mechanism.
+
+**`updateTraits` takes the whole traits.** It does not take a partial: the core
+validates the full object, so there is never a merge to get wrong. Read,
+change, write — and pass `ifVersion` to make the write conditional.
 
 **`undefined` is not an absence here.** Every method that can find nothing
 answers `null`. `undefined` is what a missing property *and* a function with no
@@ -142,18 +235,18 @@ unlike Ory — a Biome naming-convention rule holds it.
 
 ## Type safety, counted
 
-**Twenty-nine plausible mistakes, twenty-nine refused at compile time — and one
+**Forty-nine plausible mistakes, forty-nine refused at compile time — and one
 gap, named.**
 
-The lists are `test/types/refusals.ts` (fourteen, on this entry point) and
-`test/types/port.ts` (fifteen, on the identity store port, from the side of the
-person implementing it): one `@ts-expect-error` per mistake, typechecked and
-never run, alongside the shapes that must keep compiling. The port is not
-exported yet — it arrives with `./identities` — and is counted from the day its
-refusals exist. The
-rule comes from `nxgt-data`, and so does the reason to distrust the claim without
-the file — when it was last measured on `@nxgt/mongo`, *seven of twelve plausible
-mistakes still compiled*. A count that goes down is a visible regression.
+The lists are typechecked and never run, with one `@ts-expect-error` per
+mistake beside the shapes that must keep compiling:
+`test/types/refusals.ts` (fourteen, on `.`), `test/types/port.ts` (fifteen, on
+the store port, from the side of the person implementing it) and
+`test/types/identities.ts` (twenty, on the identity core, from the side of the
+application). The rule comes from `nxgt-data`, and so does the reason to
+distrust the claim without the files: when it was last measured on
+`@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
+that goes down is a visible regression.
 
 The gap, since a measurement that only reports wins is not a measurement:
 `'30 m'` **satisfies `Duration`**, because TypeScript's `${number}` placeholder
