@@ -57,13 +57,26 @@ describe('the scan: no catch around a store call, anywhere but here', () => {
 		expect(offenders).toEqual([]);
 	});
 
-	it('and the one catch in outage.ts always rethrows', async () => {
+	it('and of the two in outage.ts, one always rethrows and the other absorbs one named conflict', async () => {
 		const source = await Bun.file(join(import.meta.dir, 'outage.ts')).text();
-		const catches = [...source.matchAll(/catch \((\w+)\) \{([^}]*)\}/g)];
+		const bodies = [...source.matchAll(/catch \((\w+)\) \{([^}]*)\}/g)].map(
+			(match) =>
+				(match[2] ?? '')
+					.replace(/\/\/.*$/gm, '')
+					.replace(/\s+/g, ' ')
+					.trim(),
+		);
 
-		expect(catches).toHaveLength(1);
-		expect(catches[0]?.[2]).toContain('throw');
-		expect(catches[0]?.[2]).not.toContain('return');
+		expect(bodies).toHaveLength(2);
+		// The guard's.
+		expect(bodies[0]).toContain('throw');
+		expect(bodies[0]).not.toContain('return');
+		// unlessVersionConflict's: `null` for a version conflict, and nothing
+		// else — every other rejection rethrown. Held to the letter, so a
+		// widened condition is a failing spec and a reviewed change.
+		expect(bodies[1]).toBe(
+			"if (error instanceof StoreConflict && error.on === 'version') return null; throw error;",
+		);
 	});
 });
 

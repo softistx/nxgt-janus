@@ -10,12 +10,15 @@
  *
  * `outage.spec.ts` reads every other file of `src/auth/` and fails if a
  * `catch` appears in one, because the failure this design exists to prevent is
- * a single careless `catch { return null }`. The `catch` below always rethrows.
+ * a single careless `catch { return null }`. There are two `catch`es below: the
+ * guard's always rethrows, and {@link unlessVersionConflict}'s absorbs one
+ * named conflict and rethrows everything else. The spec holds both to that.
  */
 
 import {
 	type JanusError,
 	JanusError as JanusErrorClass,
+	StoreConflict,
 	StoreFailure,
 } from '../errors/janus-error';
 import type { JanusStores } from './port/types';
@@ -124,4 +127,25 @@ function asFailure(error: unknown, slot: Slot, method: string): JanusError {
 export function required<T>(value: T | null, absent: () => JanusError): T {
 	if (value === null) throw absent();
 	return value;
+}
+
+/**
+ * A write that may lose a race, and is allowed to: its answer, or `null` when
+ * the record's version moved under it.
+ *
+ * **Only `StoreConflict('version')` is absorbed.** A failure still throws, a
+ * taken login still throws, `NOT_FOUND` still throws: an outage never reads as
+ * "somebody else wrote first". It exists for writes the caller did not ask for
+ * — rewriting a password hash on sign-in — where losing to a concurrent update
+ * means only that the next sign-in tries again.
+ */
+export async function unlessVersionConflict<T>(
+	write: Promise<T>,
+): Promise<T | null> {
+	try {
+		return await write;
+	} catch (error) {
+		if (error instanceof StoreConflict && error.on === 'version') return null;
+		throw error;
+	}
 }
