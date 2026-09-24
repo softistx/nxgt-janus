@@ -1,7 +1,7 @@
 /** Reading what a caller passed to `can()`, `list()`, `grant()` and `revoke()`. */
 
 import type { Subject } from '../subjects/subject';
-import type { ResolvedModel, ResolvedObjectType } from './resolve';
+import type { Holder, ResolvedModel, ResolvedObjectType } from './resolve';
 
 /** What no part of an id may hold: the notation would read it two ways. */
 const RESERVED = /[@#()]/;
@@ -108,14 +108,7 @@ export function tupleOf(
 	}
 
 	const who = subjectOf(model, subject, where);
-	const admitted = def.holders.some((holder) =>
-		holder.kind === 'type'
-			? !('relation' in who) && holder.type === who.type
-			: 'relation' in who &&
-				holder.type === who.type &&
-				holder.relation === who.relation,
-	);
-	if (!admitted) {
+	if (!admits(def.holders, who)) {
 		throw new TypeError(
 			`${where}: ${type.name}.${relation} is not held by ${'relation' in who ? `${who.type}#${who.relation}` : who.type}`,
 		);
@@ -126,4 +119,20 @@ export function tupleOf(
 		relation,
 		subject: who,
 	};
+}
+
+/**
+ * Whether a stored relation admits `subject` as a holder: an entity of a
+ * declared type, or a set of a declared `type#relation`. One rule for what
+ * `grant()` writes and what `can()` and `list()` follow — a tuple the model
+ * does not admit grants nothing, however it was stored.
+ */
+export function admits(holders: readonly Holder[], subject: Subject): boolean {
+	return holders.some((holder) =>
+		holder.kind === 'type'
+			? !('relation' in subject) && holder.type === subject.type
+			: 'relation' in subject &&
+				holder.type === subject.type &&
+				holder.relation === subject.relation,
+	);
 }

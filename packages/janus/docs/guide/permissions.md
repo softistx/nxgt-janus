@@ -264,6 +264,10 @@ revoke(object, relation, holder): Promise<void>;
 Both are typed from the model: only a stored relation (never a `fromField`),
 and only a holder the relation admits.
 
+The same rule holds when reading: `can()` and `list()` follow only the holders
+a relation admits. A tuple stored past `grant()` — by an older model, or by
+hand — that the model does not admit grants nothing; remove it with the store.
+
 ```ts
 await access.grant({ type: 'team', id: 't1' }, 'member', grace);
 await access.grant({ type: 'team', id: 't1' }, 'member', { type: 'team', id: 't2', relation: 'member' }); // a subject set

@@ -2,6 +2,7 @@ import { PermissionDepthError } from '../errors/janus-error';
 import type { CursorPage } from '../pagination/cursor-page';
 import { MAX_PAGE_SIZE } from '../pagination/cursor-page';
 import type { Subject } from '../subjects/subject';
+import { admits } from './input';
 import type { RelationStore } from './port/types';
 import type {
 	ResolvedModel,
@@ -109,7 +110,12 @@ export class Reverse {
 				: new Set(await this.lookup(type, name, subject.id));
 		}
 
-		const found = new Set(await this.holding(type.name, name, this.subject));
+		// A direct tuple counts only when the model admits the subject here.
+		const found = new Set(
+			admits(relation.holders, this.subject)
+				? await this.holding(type.name, name, this.subject)
+				: [],
+		);
 		for (const holder of relation.holders) {
 			if (holder.kind !== 'set') continue;
 			for (const id of await this.reach(holder.type, holder.relation)) {
