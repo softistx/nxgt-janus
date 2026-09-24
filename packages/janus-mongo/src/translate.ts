@@ -24,7 +24,7 @@ import { JanusError, StoreConflict, StoreFailure } from '@nxgt/janus';
 
 /** Runs one port method, and makes every rejection one the port allows. */
 export async function run<T>(
-	slot: 'users' | 'sessions' | 'tokens',
+	slot: 'users' | 'sessions' | 'tokens' | 'relations',
 	operation: string,
 	body: () => Promise<T>,
 ): Promise<T> {

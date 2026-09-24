@@ -1,15 +1,22 @@
 # @nxgt/janus-mongo
 
 The MongoDB adapter for [`@nxgt/janus`](../janus/README.md): its three stores —
-users, sessions and one-time tokens — over one database, on
+users, sessions and one-time tokens — and the relation store of
+`@nxgt/janus/permissions`, over one database, on
 [`@nxgt/mongo`](https://www.npmjs.com/package/@nxgt/mongo).
 
-It passes the whole `@nxgt/janus/conformance` suite against a real mongod,
-outages included.
+It passes both `@nxgt/janus/conformance` suites against a real mongod, outages
+included.
 
 ```ts
 import { janus, scryptHasher } from '@nxgt/janus';
-import { createMongoStores, syncMongoStores } from '@nxgt/janus-mongo';
+import { permissions } from '@nxgt/janus/permissions';
+import {
+  createMongoRelations,
+  createMongoStores,
+  syncMongoRelations,
+  syncMongoStores,
+} from '@nxgt/janus-mongo';
 
 await syncMongoStores(db); // a deployment step: creates the collections and indexes
 
@@ -18,7 +25,11 @@ export const auth = janus({
   password: { login: 'email' },
   store: createMongoStores(db),
   hasher: scryptHasher(),
+  relations: createMongoRelations(db), // deleting a user deletes their tuples
 });
+
+await syncMongoRelations(db);
+export const access = permissions({ model, store: createMongoRelations(db) });
 ```
 
 ## Install
@@ -39,6 +50,9 @@ your code.
 | `syncMongoStores(db, options?)` | Creates the three collections, their validators and indexes, and answers what it changed. Needs `dbAdmin`; run it when you deploy, never per request. |
 | `users`, `sessions`, `tokens` | The `@nxgt/mongo` definitions. Defining them registers them, so `syncAll(db)` syncs them with your own collections. |
 | `janusCollections` | The three definitions, in sync order. |
+| `createMongoRelations(db)` | The `RelationStore` that `permissions()` takes as `store`, and `janus()` as `relations`. Connects to nothing. |
+| `syncMongoRelations(db, options?)` | Creates the `relations` collection and its indexes. A separate step: an application that only authenticates keeps no tuples. |
+| `relations` | Its `@nxgt/mongo` definition. |
 
 ## What the database holds
 
@@ -50,6 +64,7 @@ encoded. A document read in a shell reads like the record in the code.
 | `users` | `loginUnique` on `{ type, logins }`, unique — a login is unique **per user type** · `typeId` on `{ type, _id }` for listing |
 | `sessions` | `tokenHashUnique` · `userId` · `expiry`, a TTL index |
 | `tokens` | `_id` is the token's hash · `userId` · `expiry`, a TTL index |
+| `relations` | `_id` **is the tuple**, `{ object: { type, id }, relation, subject: { type, id, relation? } }` — unique by construction · `objectRelation` for one hop forwards · `subjectObjects` for `findObjects`, which it serves with no in-memory sort (measured: 11 keys examined for a page of 10) |
 
 No secret is stored: sessions and tokens hold `sha256` of the secret, and
 passwords a self-describing hash.
@@ -70,3 +85,13 @@ passwords a self-describing hash.
   `StoreFailure`, not `LOGIN_TAKEN`.** Such a duplicate is an adapter bug, and
   reporting it as a taken login would tell somebody their e-mail is in use when
   it is not.
+- **A relation write of more than one tuple is a transaction**, and MongoDB runs
+  transactions on a replica set only. `grant` and `revoke` write one tuple and
+  run anywhere; on a standalone mongod a multi-tuple write fails with
+  `STORE_FAILED`. The transaction is not retried: the driver's `withTransaction`
+  would retry an outage for two minutes before answering, and a write is
+  idempotent, so retry it yourself.
+- **`findObjects` orders ids as MongoDB does, by UTF-8 bytes.** `list()` sorts
+  what it gathers itself, so its pages do not depend on it; a caller of the
+  store directly sees bytes order, which differs from JavaScript's `<` only past
+  U+FFFF.
