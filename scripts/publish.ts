@@ -55,12 +55,12 @@ export type Pkg = {
 	deps: Set<string>;
 };
 
-async function readPackages(): Promise<Pkg[]> {
+export async function readPackages(root: string = ROOT): Promise<Pkg[]> {
 	const pkgs: Pkg[] = [];
 	for (const rel of [
-		...new Bun.Glob('packages/*/package.json').scanSync(ROOT),
+		...new Bun.Glob('packages/*/package.json').scanSync(root),
 	].sort()) {
-		const m = await Bun.file(join(ROOT, rel)).json();
+		const m = await Bun.file(join(root, rel)).json();
 		if (m.private) continue;
 		const deps = new Set<string>();
 		for (const field of ['dependencies', 'peerDependencies']) {
@@ -71,7 +71,7 @@ async function readPackages(): Promise<Pkg[]> {
 		pkgs.push({
 			name: m.name,
 			version: m.version,
-			dir: join(ROOT, rel.replace(/\/package\.json$/, '')),
+			dir: join(root, rel.replace(/\/package\.json$/, '')),
 			deps,
 		});
 	}
