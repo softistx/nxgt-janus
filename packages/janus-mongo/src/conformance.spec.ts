@@ -1,7 +1,11 @@
-import { afterAll, beforeAll, describe, it } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import type { StoreFaults } from '@nxgt/janus/conformance';
-import { describeJanusStores } from '@nxgt/janus/conformance';
+import {
+	describeJanusStores,
+	describeRelationStores,
+} from '@nxgt/janus/conformance';
 import { startMongo, type TestServer } from '../test/server';
+import { createMongoRelations, syncMongoRelations } from './relations';
 import { createMongoStores, syncMongoStores } from './stores';
 
 /**
@@ -71,4 +75,81 @@ describeJanusStores({
 			};
 		},
 	},
+});
+
+/** The commands each relation store method sends, failed by the same fail point. */
+const RELATION_COMMAND_OF: Record<string, readonly string[]> = {
+	// The outage case writes a removal and an addition: a transaction, whose
+	// first statement is the delete.
+	write: ['delete', 'update'],
+	has: ['find'],
+	findSubjectSets: ['find'],
+	findEntities: ['find'],
+	findObjects: ['find'],
+	deleteEntity: ['delete'],
+};
+
+describeRelationStores({
+	name: '@nxgt/janus-mongo',
+	runner: { describe, it },
+	harness: {
+		async open() {
+			opened += 1;
+			const db = server.client.db(`janusRelations${opened}`);
+			await syncMongoRelations(db);
+
+			return {
+				store: createMongoRelations(db),
+				faults: {
+					async fail(method) {
+						const commands = RELATION_COMMAND_OF[method];
+						if (commands === undefined) {
+							throw new TypeError(`no command is failed for ${method}`);
+						}
+						await server.failAlways(commands, 91);
+					},
+				},
+				close: async () => {
+					await server.clearFailures();
+					await db.dropDatabase();
+				},
+			};
+		},
+	},
+});
+
+describe('@nxgt/janus-mongo relations, beyond the port suite', () => {
+	it('writes all or nothing: a failed addition rolls its removal back', async () => {
+		opened += 1;
+		const db = server.client.db(`janusRelations${opened}`);
+		await syncMongoRelations(db);
+		const store = createMongoRelations(db);
+		const object = { type: 'record', id: 'r1' };
+		const before = {
+			object,
+			relation: 'owner',
+			subject: { type: 'staff', id: 'a' },
+		};
+		const after = { ...before, subject: { type: 'staff', id: 'b' } };
+		await store.write({ add: [before] });
+
+		try {
+			// Only the addition fails: the removal ran, inside the transaction.
+			await server.failAlways(['update'], 91);
+			const outcome = await store
+				.write({ remove: [before], add: [after] })
+				.then(
+					() => 'resolved',
+					(error: { code?: string }) => error.code,
+				);
+			await server.clearFailures();
+
+			expect(outcome).toBe('STORE_FAILED');
+			expect(await store.has(before)).toBe(true);
+			expect(await store.has(after)).toBe(false);
+		} finally {
+			await server.clearFailures();
+			await db.dropDatabase();
+		}
+	});
 });

@@ -2,7 +2,7 @@
 	"name": "@nxgt/janus-mongo",
 	"version": "0.0.0",
 	"private": true,
-	"description": "The MongoDB adapter for @nxgt/janus: users, sessions and one-time tokens",
+	"description": "The MongoDB adapter for @nxgt/janus: users, sessions, one-time tokens and permission tuples",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",
