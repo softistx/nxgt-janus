@@ -358,7 +358,9 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the store port, from the side of the person
 implementing it) and `test/types/auth.ts` (twenty, on `janus()`, from the side
-of the application). The rule comes from `nxgt-data`, and so does the reason to
+of the application). `test/types/permissions.ts` holds sixteen more for the
+permission model, which is not published yet and is not counted above. The rule
+comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on
 `@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
 that goes down is a visible regression.
