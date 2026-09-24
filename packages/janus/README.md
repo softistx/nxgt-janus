@@ -51,9 +51,10 @@ they?* — a model, the tuples stored against it, and `can`. Each side is usable
 alone, and neither loads the other's code: a spec reads the import graph of
 each entry point and fails if one reaches into the other.
 
-**Identities only** — sign-up, sign-in, sessions, e-mail flows:
+**Identities only** — users, logins, passwords, sessions, one-time tokens:
 
 ```ts
+import { z } from 'zod';
 import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
 
 const auth = janus({
@@ -95,6 +96,14 @@ await access.can({ type: 'user', id: 'u1' }, 'view', { type: 'document', id: 'd1
 every tuple naming them:
 
 ```ts
+import { z } from 'zod';
+import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
+import {
+	createMemoryRelations,
+	defineModel,
+	permissions,
+} from '@nxgt/janus/permissions';
+
 const relations = createMemoryRelations();
 
 const auth = janus({
@@ -212,7 +221,7 @@ types are `Entity`, `SubjectSet`, `Subject` (either) and `RelationTuple`.
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
 Here it is a type and a one-line function — and that shared vocabulary is the
-reason users and permissions are one package rather than two.
+reason identities and permissions are one package rather than two.
 
 **Subjects are typed**, unlike Keto's: `{ type, id }` for one entity, and
 `{ type, id, relation }` for a subject set. One application has patients and
@@ -269,7 +278,7 @@ so do your own tests.
 import { z } from 'zod';
 import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
 
-// One kind of user
+// One user type
 const auth = janus({
 	user: z.object({ email: z.email(), name: z.string() }),
 	password: { login: 'email' },
@@ -286,7 +295,7 @@ await auth.verifyEmail.confirm(token);
 await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
 
-// Several kinds of user
+// Several user types
 const clinic = janus({
 	users: {
 		patient: { schema: Patient, password: { login: 'email' } },
@@ -487,14 +496,14 @@ There are 37 cases. They cover:
 
 The suite imports no test framework and no assertion library. It runs under
 `bun test`, vitest and jest. Its cases are also exported as data
-(`allCases`, or by group: `userStoreCases`, `sessionStoreCases`,
+(`allCases`, or by store: `userStoreCases`, `sessionStoreCases`,
 `tokenStoreCases`, `outageCases`), with `runCase` to run one without any
 runner. `skip: { [caseId]: reason }` skips a case and reports why;
 `SKIP_REASONS` holds the reasons the suite gives itself.
 
 **`faults` is optional, and its absence is reported, never passed over.**
-Without it, the outage cases are skipped under the reason *"the outage
-invariant is not proven for this adapter"*. Make your database fail the way it
+Without it, the outage cases are skipped under the reason *"faults not
+provided: the outage invariant is not proven for this adapter"*. Make your database fail the way it
 really fails — for MongoDB, the `failCommand` failpoint with code 91. A wrapper
 that throws in front of your adapter proves the wrapper, not the adapter.
 Fail **only the method named**: `outage.write` reads the store back afterwards,
@@ -615,9 +624,9 @@ one gap, named.**
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
-`test/types/port.ts` (fifteen, on the identity stores' port, from the side of the person
-implementing it), `test/types/auth.ts` (twenty, on `janus()`, from the side
-of the application) and `test/types/permissions.ts` (twenty-six, on the
+`test/types/port.ts` (fifteen, on the identity stores' port, from the point
+of view of the person implementing it), `test/types/auth.ts` (twenty, on
+`janus()`, from the point of view of the application) and `test/types/permissions.ts` (twenty-six, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

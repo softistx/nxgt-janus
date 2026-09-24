@@ -71,8 +71,8 @@ export function isSubjectSet(subject: Subject): subject is SubjectSet {
 /**
  * The subject a user is: their `type` and `id`, and nothing else.
  *
- * One line, and the entire join between the two halves of the package. It
- * takes the narrowest shape it reads, so the permissions half never has to
+ * One line, and the entire join between the two sides of the package. It
+ * takes the narrowest shape it reads, so the permissions side never has to
  * know what a user is, and it copies those two fields so none of the user's
  * own fields ever reaches a tuple.
  */

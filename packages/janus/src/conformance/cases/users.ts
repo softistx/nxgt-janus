@@ -87,7 +87,7 @@ export const userStoreCases: readonly ConformanceCase[] = [
 			equal(
 				(await stores.users.findUserByLogin('staff', 'ada@example.test'))?.id,
 				staff.id,
-				'uniqueness is of (type, login): the same login under another type is another account',
+				'uniqueness is of (type, login): the same login under another type is another user',
 			);
 		},
 	},

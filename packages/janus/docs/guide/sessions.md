@@ -53,11 +53,11 @@ await auth.authenticate({ headers: { cookie: `janus-session=${token}` } });
 ```
 
 It reads `Authorization: Bearer`, then `X-Session-Token`, then the cookie.
-**The first credential present wins, not the first valid one**: a client that
+**The first session credential present wins, not the first valid one**: a client that
 sends a lapsed bearer beside a live cookie is anonymous. An `Authorization`
 header of another scheme (`Basic`) is not a session credential.
 
-It answers `null` — anonymous — for no credential, an unknown token, a lapsed
+It answers `null` — anonymous — for no session credential, an unknown token, a lapsed
 or revoked session, a user deleted or inactive, or a user of another type than
 `options.type`:
 

@@ -1,6 +1,6 @@
 # @nxgt/janus-mongo
 
-The MongoDB adapter for [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus): its three stores —
+The MongoDB adapter for [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus): its identity stores —
 users, sessions and one-time tokens — and the relation store of
 `@nxgt/janus/permissions`, over one database, on
 [`@nxgt/mongo`](https://www.npmjs.com/package/@nxgt/mongo).
@@ -55,7 +55,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | `users`, `sessions`, `tokens` | The `@nxgt/mongo` definitions. Defining them registers them, so `syncAll(db)` syncs them with your own collections. |
 | `janusCollections` | The three definitions, in sync order. |
 | `createMongoRelations(db)` | The `RelationStore` that `permissions()` takes as `store`, and `janus()` as `relations`. Connects to nothing. |
-| `syncMongoRelations(db, options?)` | Creates the `relations` collection and its indexes. A separate step: an application that only authenticates keeps no tuples. |
+| `syncMongoRelations(db, options?)` | Creates the `relations` collection and its indexes. A separate step: an application that uses identities alone keeps no tuples. |
 | `relations` | Its `@nxgt/mongo` definition. |
 
 ## What the database holds

@@ -262,8 +262,8 @@ own for that.
 ### `grant` and `revoke`
 
 ```ts
-grant(object, relation, holder): Promise<void>;
-revoke(object, relation, holder): Promise<void>;
+grant(object, relation, subject): Promise<void>;
+revoke(object, relation, subject): Promise<void>;
 ```
 
 Both are typed from the model: only a stored relation (never a `fromField`),

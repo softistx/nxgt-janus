@@ -91,6 +91,11 @@ describe('the scan: no catch around a store call, in auth, permissions or stores
 	});
 
 	it("and of the two allowed, the guard's always rethrows and outage.ts's absorbs one named conflict", async () => {
+		// Every catch and two-argument then, bound or not: one each, no more.
+		for (const path of ALLOWED) {
+			expect(forbiddenIn(await Bun.file(path).text())).toHaveLength(1);
+		}
+
 		const guard = await catchBodies(GUARD);
 		expect(guard).toHaveLength(1);
 		expect(guard[0]).toContain('throw');

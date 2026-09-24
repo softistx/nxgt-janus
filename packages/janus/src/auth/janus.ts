@@ -9,11 +9,11 @@ import type { Checked, Janus } from './types';
 import { typeApi } from './users';
 
 /**
- * Wires authentication over the store the application opened. **Synchronous,
+ * Wires the identities side over the stores the application opened. **Synchronous,
  * and does no I/O**: it connects to nothing.
  *
  * ```ts
- * // One kind of user
+ * // One user type
  * const auth = janus({
  *   user: z.object({ email: z.email(), name: z.string() }),
  *   password: { login: 'email' },

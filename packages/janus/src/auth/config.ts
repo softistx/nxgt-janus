@@ -99,7 +99,7 @@ export interface SessionConfig {
 	readonly renewAfter?: Duration | false;
 }
 
-/** One kind of user: its schema, and how it signs in. */
+/** One user type: its schema, and how it signs in. */
 export interface UserTypeConfig {
 	readonly schema: UserSchema;
 	readonly password?: PasswordConfig;
@@ -159,7 +159,7 @@ interface SharedConfig {
 	};
 }
 
-/** An application with one kind of user: `user` is its schema. */
+/** An application with one user type: `user` is its schema. */
 export interface SingleTypeConfig
 	extends SharedConfig,
 		Omit<UserTypeConfig, 'schema'> {
@@ -167,7 +167,7 @@ export interface SingleTypeConfig
 	readonly users?: never;
 }
 
-/** An application with several kinds of user — patients and staff. */
+/** An application with several user types — patients and staff. */
 export interface MultiTypeConfig extends SharedConfig {
 	readonly users: { readonly [type: string]: UserTypeConfig };
 	readonly user?: never;
@@ -271,7 +271,7 @@ export function resolveConfig(
 	const hasUsers = config.users !== undefined;
 	if (hasUser === hasUsers) {
 		throw new TypeError(
-			`${where}: pass either user (one kind of user) or users (several kinds), and exactly one of them`,
+			`${where}: pass either user (one user type) or users (several user types), and exactly one of them`,
 		);
 	}
 

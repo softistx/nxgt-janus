@@ -139,7 +139,7 @@ const auth = janus({ ..., store: createMongoStores(client.db('janus')) });
 
 `StoreFailure`, for example `users.findUserByLogin: the store could not answer`, with `slot`, `operation` and the driver's error as `cause`.
 
-**When:** any call that reaches MongoDB while it cannot answer: the server is unreachable, server selection timed out, the credentials were refused, a primary stepped down.
+**When:** any call that reaches MongoDB while it cannot answer: the server is unreachable, server selection timed out, MongoDB refused the connection's user and password, a primary stepped down.
 **Why:** a store that cannot answer throws — it never answers `null`. The driver's message stays out of the error's message, because it can hold the connection string, and a connection string holds a password.
 **Fix:** answer **503** and log `cause`; never map it to 401, 404, `null` or `false`.
 

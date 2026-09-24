@@ -72,8 +72,8 @@ before the store sees it.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `user` | Standard Schema | — | One kind of user, named `'user'`. Exactly one of `user` and `users` |
-| `users` | `{ [type]: UserTypeConfig }` | — | Several kinds of user. See [Several kinds of user](#several-kinds-of-user) |
+| `user` | Standard Schema | — | One user type, named `'user'`. Exactly one of `user` and `users` |
+| `users` | `{ [type]: UserTypeConfig }` | — | Several user types. See [Several user types](#several-user-types) |
 | `password.login` | a field name | — | The field users sign in with: a **top-level, required string** field. A typo is a compile error |
 | `password.normalize` | `'none' \| 'lowercase' \| 'lowercaseTrim' \| 'nfkcLowercaseTrim' \| (value) => string` | `'lowercaseTrim'` | Applied to the login before any store sees it, at sign-up and at sign-in alike |
 | `password.minLength` | integer ≥ 1 | `8` | Below it: `PASSWORD_TOO_SHORT` |
@@ -123,7 +123,7 @@ A function is accepted, and must be deterministic: the same rule normalises
 at sign-up and at sign-in. An e-mail used by the e-mail flows is always
 compared lower-cased and trimmed, whatever the login's rule.
 
-## Several kinds of user
+## Several user types
 
 ```ts
 const Patient = z.object({ email: z.email(), birthDate: z.string() });

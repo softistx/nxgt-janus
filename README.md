@@ -7,8 +7,9 @@ behind a port you may implement yourself.
 Not a service. No container, no migration runner, no second Postgres, no port to
 expose. You wire a store, you get a typed API.
 
-Two **sides**, each usable alone: **identities** — users, sign-in, sessions,
-e-mail flows — and **permissions** — a relation model, and `can`. Use one, the
+Two **sides**, each usable alone: **identities** — users, logins, passwords,
+sessions, one-time tokens — and **permissions** — a model, the tuples stored
+against it, and `can`. Use one, the
 other, or both.
 
 ```

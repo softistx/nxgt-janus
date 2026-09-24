@@ -28,8 +28,8 @@ Nothing yet.
   bundler do. Rewriting the declarations for `nodenext` was tried and reverted:
   it breaks the same contract one step later. Use `"moduleResolution":
   "bundler"`.
-- **A Kratos-shaped surface** — no `identity.traits`, no identifier derived
-  from a schema annotation. A user is your schema's fields at the top level,
+- **A Kratos-shaped surface** — no `identity.traits`, no login derived from a
+  schema annotation (Kratos's `identifier`). A user is your schema's fields at the top level,
   and the flows are calls (`signUp`, `signIn`, `authenticate`).
 - **`snake_case` keys** — every key, option and record field is `camelCase`,
   and a lint rule holds it. Error codes are `SCREAMING_SNAKE` because they are

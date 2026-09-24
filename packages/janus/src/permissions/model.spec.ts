@@ -90,7 +90,11 @@ describe('defineModel', () => {
 describe('refuses, with a TypeError, what only running it can see', () => {
 	const team = { relations: { lead: ['staff'] } };
 	const cases: [string, () => unknown, string][] = [
-		['no subjects array', define({ types: { team } }), 'pass auth.types'],
+		[
+			'no subjects array',
+			define({ types: { team } }),
+			'an array of subject type names — auth.types from janus(), or your own',
+		],
 		['no object type', define({ subjects, types: {} }), 'no object type'],
 		[
 			'an object type that is not camelCase',
