@@ -40,7 +40,7 @@ bun add @nxgt/janus-mongo @nxgt/janus @nxgt/mongo mongodb zod
 
 `@nxgt/janus` is a **required peer**, never a dependency: this package defines
 no error class and throws the peer's own, so `instanceof StoreFailure` holds in
-your code.
+your code. Like it, this package expects `"moduleResolution": "bundler"`.
 
 ## API
 

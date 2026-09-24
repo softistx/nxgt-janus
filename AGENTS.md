@@ -208,12 +208,14 @@ The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied
 from nxgt-data, never shared**. That is the fourth copy, beside nxgt-http and
 nxgt-core, and `nxgt-data/AGENTS.md:460` says to change both when the reason
-holds for both. **One divergence, not yet upstreamed:** `build.ts` gives every
-relative import of every declaration its extension, because a consumer on
-`moduleResolution: nodenext` refuses them without one (TS2834, measured on
-this package's tarball) — and `verify:artifacts` typechecks each subpath that
-way. The reason holds for the other copies; carrying it there is a separate
-change.
+holds for both.
+
+**Imports carry no extension**: `from './engine'`, not `'./engine.js'` — in
+the sources, and in what the build emits. Every tsconfig here resolves as a
+bundler does, and Bun runs the specs the same way; a consumer does too, which
+the READMEs' Install sections say. A consumer on `moduleResolution: nodenext`
+is not supported, and "fixing" that by rewriting the emitted declarations was
+tried once and reverted: it is the same rule, broken one step later.
 
 `bunfig.toml` carries the npm token, **never `.npmrc`** — an undefined variable
 in an `.npmrc` sends an **empty** token, and the registry calls that a 401.
@@ -301,9 +303,7 @@ bun run verify:artifacts   # on the tarball actually packed
 ```
 
 `verify:artifacts` is the one that matters most here: it loads **every**
-declared subpath, typechecks each one as a consumer does — under `nodenext` and
-`bundler`, without `skipLibCheck`, which would hide a broken declaration — and
-proves `JanusError` is defined once. That is the check that
+declared subpath and proves `JanusError` is defined once. That is the check that
 catches `splitting: false`, and it runs from the first commit.
 
 The scripts have specs of their own, run by the root `test`:
