@@ -284,7 +284,10 @@ bun run verify:artifacts   # on the tarball actually packed
 declared subpath and proves `JanusError` is defined once. That is the check that
 catches `splitting: false`, and it runs from the first commit.
 
-**Owed:** `scripts/verify-artifacts.ts` was copied from nxgt-data **without its
-own specs**, so the root `test` script runs the packages only. Write them and add
-`bun test scripts` back — the checks that guard the build have no test of their
-own until then, which is the worst place for that to be true.
+The scripts have specs of their own, run by the root `test`:
+`scripts/verify-artifacts.spec.ts` covers the pure checks. Among them is the
+one-class-per-entry scan, proven against a real `Bun.build` both with and
+without `splitting`. `scripts/publish.spec.ts` covers the publish order and the
+skipping of a `private` package. Their first run found that `newestMtime`
+threw `ENOENT` on a missing `dist/`, where it should have reported the
+package as unbuilt.
