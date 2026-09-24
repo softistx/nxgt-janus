@@ -127,6 +127,7 @@ describe('guarded stores', () => {
 		const reference = createMemoryStores().tokens;
 		class Tokens {
 			insertToken = reference.insertToken;
+			deleteUserTokens = reference.deleteUserTokens;
 			async consumeToken(): Promise<null> {
 				throw new Error('socket hang up');
 			}

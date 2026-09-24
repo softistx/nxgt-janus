@@ -252,6 +252,25 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			);
 		},
 
+		async delete(user) {
+			const id = idOf(user);
+			if (!isId(id)) return false;
+
+			// Read first, so a staff API never deletes a patient: another type's
+			// id is answered as nobody, and nothing of theirs is touched.
+			const record = await store.users.findUser(id);
+			if (record !== null && record.type !== type.name) return false;
+
+			// The user first: from then on nobody can sign in as them, and what
+			// is left — sessions, tokens — is refused for a user who is gone. An
+			// outage between the steps leaves only that inert remainder, and a
+			// replay, finding no user, still deletes it.
+			const deleted = record !== null && (await store.users.deleteUser(id));
+			await store.sessions.deleteUserSessions(id);
+			await store.tokens.deleteUserTokens(id);
+			return deleted;
+		},
+
 		async signUp(input) {
 			const where = at('signUp');
 			passwordRule(where);

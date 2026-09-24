@@ -106,6 +106,8 @@ export const tokens = defineCollection({
 		// The same hygiene as sessions'. A token the monitor dropped is answered
 		// `null`, which the port allows: a lapsed token is refused either way.
 		{ key: { expiresAt: 1 }, name: 'expiry', expireAfterSeconds: 0 },
+		/** `deleteUserTokens` reads one user's tokens. */
+		{ key: { userId: 1 }, name: 'userId' },
 	],
 });
 

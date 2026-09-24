@@ -14,6 +14,7 @@ const REQUIRED = {
 		'findUserByLogin',
 		'listUsers',
 		'updateUser',
+		'deleteUser',
 	],
 	sessions: [
 		'insertSession',
@@ -21,8 +22,9 @@ const REQUIRED = {
 		'extendSession',
 		'revokeSession',
 		'revokeUserSessions',
+		'deleteUserSessions',
 	],
-	tokens: ['insertToken', 'consumeToken'],
+	tokens: ['insertToken', 'consumeToken', 'deleteUserTokens'],
 } as const satisfies Record<keyof JanusStores, readonly string[]>;
 
 /**

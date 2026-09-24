@@ -20,6 +20,7 @@ import { scryptHasher } from './hashers';
 import { janus } from './janus';
 import { createMemoryStores } from './port/memory';
 import type { JanusStores } from './port/types';
+import { hashSecret } from './secrets';
 
 describe('signUp', () => {
 	it('creates the user, signs them in, and hands the token over once', async () => {
@@ -519,5 +520,85 @@ describe('rehash on sign-in', () => {
 
 		expect(error.code).toBe('STORE_FAILED');
 		expect(sessions).toBe(0);
+	});
+});
+
+describe('delete', () => {
+	it('deletes the user with their sessions and tokens, and frees the login', async () => {
+		const { auth, store } = setup();
+		const { user, token } = await auth.signUp({ ...ada, password });
+		const sent = await auth.verifyEmail.send(user);
+
+		expect(await auth.delete(user)).toBe(true);
+
+		// Read in the store itself: the core would refuse a leftover token all
+		// the same, so only the store can tell whether the e-mail it holds went.
+		expect(
+			await store.tokens.consumeToken(
+				hashSecret(sent.token),
+				'verifyEmail',
+				new Date(),
+			),
+		).toBeNull();
+		expect(await auth.find(user.id)).toBeNull();
+		expect(await auth.authenticate(bearer(token))).toBeNull();
+		expect(
+			await store.sessions.findSessionByTokenHash(hashSecret(token)),
+		).toBeNull();
+		expect(
+			((await rejection(auth.verifyEmail.confirm(sent.token))) as JanusError)
+				.code,
+		).toBe('TOKEN_UNKNOWN');
+		expect(await auth.delete(user)).toBe(false);
+		// The e-mail is free for a new account.
+		await auth.signUp({ ...ada, password });
+	});
+
+	it('answers false for a malformed id, and for another type’s user, whom it leaves whole', async () => {
+		const { auth } = clinic();
+		const patient = await auth.patient.signUp({
+			email: 'ada@example.test',
+			birthDate: '1815-12-10',
+			password,
+		});
+
+		expect(await auth.staff.delete(patient.user)).toBe(false);
+		expect(await auth.patient.delete('not-an-id')).toBe(false);
+		expect(await auth.patient.find(patient.user.id)).not.toBeNull();
+		expect(await auth.authenticate(bearer(patient.token))).not.toBeNull();
+	});
+
+	it('leaves only inert leftovers when interrupted, and a replay deletes them', async () => {
+		let down = true;
+		const inner = createMemoryStores();
+		const { auth } = setup({
+			store: {
+				...inner,
+				sessions: {
+					...inner.sessions,
+					deleteUserSessions: async (userId) => {
+						if (down) throw new Error('primary stepped down');
+						return inner.sessions.deleteUserSessions(userId);
+					},
+				},
+			},
+		});
+		const { user, token } = await auth.signUp({ ...ada, password });
+
+		const error = (await rejection(auth.delete(user))) as JanusError;
+
+		expect(error.code).toBe('STORE_FAILED');
+		// Gone, and the session left behind authenticates nobody.
+		expect(await auth.find(user.id)).toBeNull();
+		expect(await auth.authenticate(bearer(token))).toBeNull();
+		expect(
+			await inner.sessions.findSessionByTokenHash(hashSecret(token)),
+		).not.toBeNull();
+
+		down = false;
+		expect(await auth.delete(user)).toBe(false);
+		expect(
+			await inner.sessions.findSessionByTokenHash(hashSecret(token)),
+		).toBeNull();
 	});
 });

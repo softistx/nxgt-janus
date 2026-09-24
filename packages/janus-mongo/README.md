@@ -49,7 +49,7 @@ encoded. A document read in a shell reads like the record in the code.
 | --- | --- |
 | `users` | `loginUnique` on `{ type, logins }`, unique — a login is unique **per user type** · `typeId` on `{ type, _id }` for listing |
 | `sessions` | `tokenHashUnique` · `userId` · `expiry`, a TTL index |
-| `tokens` | `_id` is the token's hash · `expiry`, a TTL index |
+| `tokens` | `_id` is the token's hash · `userId` · `expiry`, a TTL index |
 
 No secret is stored: sessions and tokens hold `sha256` of the secret, and
 passwords a self-describing hash.

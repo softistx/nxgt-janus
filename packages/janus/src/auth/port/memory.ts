@@ -161,6 +161,17 @@ function memoryUserStore(): UserStore {
 
 			return copy(written);
 		},
+
+		async deleteUser(id) {
+			const stored = byId.get(id);
+			if (stored === undefined) return false;
+
+			byId.delete(id);
+			for (const login of stored.logins) {
+				byLogin.delete(keyOf(stored.type, login));
+			}
+			return true;
+		},
 	};
 }
 
@@ -250,6 +261,20 @@ function memorySessionStore(): SessionStore {
 			return revoked;
 		},
 
+		async deleteUserSessions(userId) {
+			let deleted = 0;
+
+			for (const [id, stored] of byId) {
+				if (stored.userId === userId) {
+					byId.delete(id);
+					byTokenHash.delete(stored.tokenHash);
+					deleted += 1;
+				}
+			}
+
+			return deleted;
+		},
+
 		async deleteExpiredSessions(before) {
 			let deleted = 0;
 
@@ -287,6 +312,19 @@ function memoryTokenStore(): TokenStore {
 			}
 
 			return before;
+		},
+
+		async deleteUserTokens(userId) {
+			let deleted = 0;
+
+			for (const [tokenHash, stored] of byTokenHash) {
+				if (stored.userId === userId) {
+					byTokenHash.delete(tokenHash);
+					deleted += 1;
+				}
+			}
+
+			return deleted;
 		},
 	};
 }

@@ -217,6 +217,17 @@ export interface UserTypeApi<U, In> {
 
 	/** Activates or deactivates. An inactive user's sessions stop authenticating. */
 	setActive(user: UserRef, active: boolean, options?: WriteOptions): Promise<U>;
+
+	/**
+	 * Deletes the user, **with every session and one-time token they had** —
+	 * nothing of theirs is kept, the e-mail a token was sent to included.
+	 * `true` when this call deleted them; `false` for a malformed id, an
+	 * unknown one, or one of another type, which is left untouched.
+	 *
+	 * Idempotent: an outage half-way leaves sessions and tokens that already
+	 * authenticate nobody, and calling it again deletes them.
+	 */
+	delete(user: UserRef): Promise<boolean>;
 }
 
 /** What a user type that signs in with a password answers besides. */

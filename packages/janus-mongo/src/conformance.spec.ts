@@ -24,6 +24,9 @@ const COMMAND_OF: Record<string, readonly string[]> = {
 	revokeSession: ['update'],
 	revokeUserSessions: ['update'],
 	consumeToken: ['findAndModify'],
+	deleteUser: ['delete'],
+	deleteUserSessions: ['delete'],
+	deleteUserTokens: ['delete'],
 };
 
 let server: TestServer;

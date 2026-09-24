@@ -187,9 +187,15 @@ else reaches the store and is asynchronous.
   failing at run time. Changing the e-mail sets `emailVerified` back to `false`.
 - **Per type**: `create`, `find` (or `null`), `get` (or `NOT_FOUND`), `list`,
   `update(user, patch)` — merged over the stored fields, then validated whole —
-  and `setActive`; with a password, `signUp`, `signIn`, `findByLogin`,
-  `setPassword` and `changePassword`. Every write takes an optional
-  `ifVersion`.
+  `setActive` and `delete`; with a password, `signUp`, `signIn`, `findByLogin`,
+  `setPassword` and `changePassword`. Every write but `delete` takes an
+  optional `ifVersion`.
+- **`delete(user)`** deletes the user together with every session and one-time
+  token they had, so nothing of theirs is kept: a token holds the e-mail it was
+  sent to. The user goes first, so an outage half-way leaves only sessions and
+  tokens that authenticate nobody. It is idempotent, and calling it again
+  finishes the job. It answers `false` for an unknown id, or for one of another
+  type, and leaves that user untouched.
 - **Shared**: `authenticate`, `signOut`, `signOutEverywhere(user, { except })`,
   `findUser` and `getUser` across types, `cookie.serialize(token, session)` and
   `cookie.clear()` — `HttpOnly; SameSite=Lax; Secure` unless you say otherwise
@@ -246,7 +252,7 @@ describeJanusStores({
 });
 ```
 
-There are 31 cases. They cover:
+There are 37 cases. They cover:
 - round-trip, byte for byte;
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
   exactly one is accepted — and a login is unique per user type;
@@ -255,7 +261,9 @@ There are 31 cases. They cover:
 - pagination;
 - sessions;
 - one-time tokens: of twenty concurrent redemptions, exactly one succeeds;
-- **outages**, one case for each of the eight methods whose honest answer can
+- deletion: a user's logins are freed, and every session and token of theirs
+  goes, with a replay answering `false` or `0` rather than failing;
+- **outages**, one case for each of the eleven methods whose honest answer can
   be "nothing".
 
 The suite imports no test framework and no assertion library. It runs under
