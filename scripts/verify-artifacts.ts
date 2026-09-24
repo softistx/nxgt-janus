@@ -364,7 +364,23 @@ try {
 	// with `skipLibCheck`. So the check runs without it, once per resolution a
 	// consumer uses, and fails only on what this workspace wrote: a dependency's
 	// declarations are not ours to fix.
+	//
+	// The consumer runs on Bun, with the `@types/bun` this workspace pins: these
+	// packages are built for it, and some declarations name `bun` or Node's
+	// `Buffer`, which only a runtime's types provide.
 	console.log('\nTypechecking every subpath as a consumer…\n');
+	const bunTypes =
+		(await Bun.file(join(ROOT, 'package.json')).json()).devDependencies?.[
+			'@types/bun'
+		] ?? 'latest';
+	const addTypes = await $`bun add -d ${`@types/bun@${bunTypes}`}`
+		.cwd(workdir)
+		.quiet()
+		.nothrow();
+	if (addTypes.exitCode !== 0) {
+		console.error(addTypes.stderr.toString());
+		process.exit(1);
+	}
 	await Bun.write(
 		join(workdir, 'types.ts'),
 		`${subpaths.map((s, n) => `import * as m${n} from ${JSON.stringify(s)};`).join('\n')}\n` +
@@ -382,9 +398,9 @@ try {
 					skipLibCheck: false,
 					module: resolution === 'nodenext' ? 'nodenext' : 'preserve',
 					moduleResolution: resolution,
-					target: 'es2023',
-					lib: ['es2023', 'dom'],
-					types: [],
+					target: 'esnext',
+					lib: ['esnext', 'dom'],
+					types: ['bun'],
 				},
 				files: ['types.ts'],
 			}),
