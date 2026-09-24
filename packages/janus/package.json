@@ -20,6 +20,11 @@
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
 		},
+		"./identities": {
+			"types": "./dist/identities/index.d.ts",
+			"import": "./dist/identities/index.js",
+			"default": "./dist/identities/index.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"keywords": [
@@ -46,11 +51,13 @@
 	},
 	"nxgt": {
 		"entrypoints": [
-			"src/index.ts"
+			"src/index.ts",
+			"src/identities/index.ts"
 		]
 	},
 	"devDependencies": {
-		"@types/bun": "^1.4.2"
+		"@types/bun": "^1.4.2",
+		"zod": "^4"
 	},
 	"peerDependencies": {
 		"typescript": "^6.0.3"

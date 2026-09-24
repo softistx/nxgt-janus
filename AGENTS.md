@@ -181,7 +181,7 @@ consumer should call.
 | Entry point | State |
 | --- | --- |
 | `.` | The shared vocabulary: errors, subjects, pagination, time, ids |
-| `./identities` | Arrives with the identity core |
+| `./identities` | The identity core, its store port, the reference store, and the hashers |
 | `./conformance` | Arrives with the suite. Shipped as product surface, not as a test helper |
 
 `./permissions` is **not** published, and will not be until a real traversal is
