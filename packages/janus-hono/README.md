@@ -2,8 +2,9 @@
 
 [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) in a
 [Hono](https://hono.dev) app: the signed-in user on every request, the session
-cookie set and cleared, and every error answered with the status it deserves —
-an outage as 503, never as 401.
+cookie set and cleared, a route guarded by a permission, the instances on the
+context to grant and revoke through, and every error answered with the status
+it deserves — an outage as 503, never as 401 or 403.
 
 ```ts
 import { janusErrors, sendSession, session, signOut } from '@nxgt/janus-hono';
@@ -55,27 +56,56 @@ declarations import without extensions, so `nodenext` is not supported.
 | `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
+| `permission(access, permission, type, load, options?)` | Middleware. Loads the object with `load(c)`, checks `access.can(c.var.user, permission, object)` with `type` added, and sets `c.var.object` to what `load` answered. Anonymous: 401, before loading. `load` answers `null`: 404. A denial: 403. `{ ctx: (c, object) => … }` is required exactly when the permission reaches a condition; `{ subject: (c) => … }` replaces `c.var.user`. One per route |
+| `provide({ auth?, access? })` | Middleware. Sets `c.var.auth` and `c.var.access` to the instances given — only those — for a route that writes users or tuples |
+| `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
 
 The whole status table is in [`@nxgt/janus`'s errors guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md).
 
-## Either side
+## Permissions
 
-The permissions side needs no middleware: call `can()` in the route, where the
-object is loaded, and answer a denial yourself. `janusErrors()` answers the
-failures of both sides alike — `can()`'s `STORE_FAILED` is a 503, never a 403:
+`permission()` guards a route: the object is loaded once, checked, and handed
+to the route. `provide()` puts the instances on the context, so the route that
+creates a record grants its owner through `c.var.access`:
 
 ```ts
-app.get('/records/:id', session(auth, { required: true }), async (c) => {
-	const record = await records.find(c.req.param('id'));
-	if (record === null) return c.body(null, 404);
-	if (!(await access.can(c.var.user, 'view', { type: 'record', ...record }))) {
-		return c.body(null, 403); // a denial is false, and yours to answer
-	}
-	return c.json(record);
-});
+import { permission, provide, session } from '@nxgt/janus-hono';
+import { Hono } from 'hono';
+import { access, recordOf } from './access'; // the guide's model, and a loader
+import { auth } from './auth';
+import { records } from './records'; // your own store
+
+const app = new Hono()
+	.use(session(auth), provide({ auth, access }))
+	.get(
+		'/records/:id',
+		permission(access, 'view', 'record', recordOf),
+		(c) => c.json(c.var.object), // your record type, loaded once
+	)
+	.put(
+		'/records/:id',
+		permission(access, 'edit', 'record', recordOf, {
+			ctx: (c, record) => ({ locked: record.locked }), // `edit` reaches a when()
+		}),
+		async (c) => c.json(await records.update(c.var.object.id, await c.req.json())),
+	)
+	.post('/records', session(auth, { type: 'patient', required: true }), async (c) => {
+		const record = await records.create(await c.req.json());
+		await c.var.access.grant({ type: 'record', id: record.id }, 'owner', c.var.user);
+		return c.json(record, 201);
+	});
 ```
 
-An application that signs users in some other way uses `janusErrors()` alone.
+The model — `owner`, a `doctor` read from the record, `edit` under a condition
+— and `recordOf` are those of the [guarded routes guide](docs/guide/permissions.md). The
+permission, the object type, the fields a `fromField` reads and the `ctx`
+of a condition are typed from the model, as they are for `can()`.
+`janusErrors()` answers the failures of both sides alike — `can()`'s
+`STORE_FAILED` is a 503, never a 403.
+
+Each side is usable alone. An application that signs users in some other way
+passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
+`session()` and `janusErrors()` only.
 
 ## Traps
 
@@ -106,20 +136,41 @@ An application that signs users in some other way uses `janusErrors()` alone.
   response cannot tell which users exist. Log the error before you answer it
   if you need the reason: `janusErrors` is a function of `(error, c)` you can
   wrap.
+- **`load` does not know the route's path.** It takes a plain `Context`:
+  `permission()` is built before Hono attaches it to a route, so
+  `c.req.param('id')` is `string | undefined` there. Answer `null` for a
+  missing id — that is a 404.
+- **One `permission()` per route.** Both would claim `c.var.object`, so a
+  second throws a `TypeError`. Check a parent object through an arrow in the
+  model.
+- **`permission()` needs `session()` before it**, or `{ subject }`. Without
+  either, it throws a `TypeError` at the first request — a wiring error, not
+  an anonymous 401.
+- **A denial is 403, so it tells that the object exists.** Where that is a
+  leak, load only what the user may see and let `load` answer `null` — a 404.
 
 ## Documentation
 
-- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in
+- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in, guarded routes
 - [Troubleshooting](docs/troubleshooting.md) — by the symptom or message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
-Six plausible mistakes are refused by the compiler, each with a
-`@ts-expect-error` case in `test/types/session.ts`: reading `c.var.user` where
-it may be `null` (twice, directly and through `SessionEnv`), a field of another
-user type, a user type the instance does not know (twice, in `session()` and in
-`SessionEnv`), and a cookie sent without its session.
+Sixteen plausible mistakes are refused by the compiler, each with a
+`@ts-expect-error` case in `test/types/`:
+
+- six in `session.ts`: reading `c.var.user` where it may be `null` (twice,
+  directly and through `SessionEnv`), a field of another user type, a user type
+  the instance does not know (twice, in `session()` and in `SessionEnv`), and a
+  cookie sent without its session;
+- ten in `permission.ts`: a permission the object type does not declare, an
+  object type the model does not (twice: in a model of one object type and of
+  several, each reported on the misspelled argument), an object loaded without
+  a field a `fromField` reads, a condition reached with no `ctx`, a `ctx` of the
+  wrong shape, a `ctx` where no condition is reachable, a field the loaded
+  object does not have, granting a relation read from a field, and an instance
+  `provide()` was not given.
 
 ## Licence
 

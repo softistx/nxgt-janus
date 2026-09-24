@@ -10,6 +10,13 @@ import {
 	janus,
 	scryptHasher,
 } from '@nxgt/janus';
+import {
+	createMemoryRelations,
+	defineModel,
+	fromField,
+	permissions,
+	when,
+} from '@nxgt/janus/permissions';
 import { z } from 'zod';
 
 export const ada = { email: 'ada@example.test', name: 'Ada Lovelace' };
@@ -49,7 +56,44 @@ export function setup() {
 		clock,
 	});
 
-	return { auth, clock, outage };
+	// A patient owns their records; the doctor named on one reads it too, and
+	// an owner edits one only while it is not locked.
+	const model = defineModel({
+		subjects: auth.types,
+		types: {
+			record: {
+				relations: {
+					owner: ['patient'],
+					doctor: fromField('doctorId', 'staff'),
+				},
+				permissions: {
+					view: ['owner', 'doctor'],
+					edit: [when('owner', (ctx: { locked: boolean }) => !ctx.locked)],
+				},
+			},
+		},
+	});
+	const relations = createMemoryRelations();
+	const has = relations.has.bind(relations);
+	const access = permissions({
+		model,
+		store: {
+			...relations,
+			has: (tuple) => {
+				if (outage.on) throw new Error('connection refused');
+				return has(tuple);
+			},
+		},
+	});
+
+	return { auth, access, clock, outage };
+}
+
+/** The records the application keeps, outside Janus. */
+export interface MedicalRecord {
+	readonly id: string;
+	readonly doctorId: string | null;
+	readonly title: string;
 }
 
 export const bearer = (token: string) => ({

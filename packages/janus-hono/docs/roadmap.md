@@ -6,7 +6,8 @@ no dates here, and the version something shipped in is the only number.
 ## Now
 
 - **The first release** — `@nxgt/janus-hono` 0.1 on npm: `session()`,
-  `sendSession`, `signOut`, `janusErrors`. Built, not yet published.
+  `sendSession`, `signOut`, `permission()`, `provide()`, `janusErrors`. Built,
+  not yet published.
 
 ## Next
 
@@ -18,9 +19,9 @@ Nothing yet.
 
 ## Not planned
 
-- **A permission middleware** — `can()` needs the object, and the object is
-  loaded in the route. A middleware would either load it twice or check
-  something else than what the route answers. Call `can()` in the route.
+- **A middleware that guesses the object** — `permission()` takes a `load`
+  and never reads a path parameter or a table for you: the application knows
+  where its objects live.
 - **Routes of its own** — no `/sign-in` mounted for you. Every application
   names, validates and answers its routes its own way; the flows are one call
   each.

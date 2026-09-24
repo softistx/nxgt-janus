@@ -67,6 +67,7 @@ either finds this row.
 | **arrow** | A rule that follows a relation to another object's permission: `'team->view'` | |
 | **condition** | A predicate on a rule, written with `when`, run on the `ctx` passed to `can()` and `list()` | |
 | **tuple** | One stored fact — object, relation, subject: `document:d1#viewer@user:u1` | "grant", "ACL entry" |
+| **guarded route** | A route that runs only when its subject holds a permission on the object it serves — `permission()` in `@nxgt/janus-hono` | |
 
 ### Stores
 
