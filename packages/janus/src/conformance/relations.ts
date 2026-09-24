@@ -31,6 +31,11 @@ export type RelationMethod = keyof RelationStore & string;
 
 /** How the suite makes one relation store method fail, for the outage cases. */
 export interface RelationFaults {
+	/**
+	 * Fails `method`, and only it: the other methods keep answering, because
+	 * `outage.write` reads the store back to prove the rejected write changed
+	 * nothing.
+	 */
 	fail(method: RelationMethod): Promise<void>;
 }
 
@@ -110,6 +115,62 @@ export const relationStoreCases: readonly RelationCase[] = [
 				),
 				false,
 				'has for an id differing in one character: ids are compared as written',
+			);
+		},
+	},
+	{
+		id: 'relations.undefinedRelation',
+		group,
+		name: 'reads a subject whose relation is undefined as its entity, not as a set',
+		async run({ store }) {
+			const record = entity('record');
+			const staff = entity('staff');
+			// A caller that spreads an optional field hands the port this shape.
+			const spread = { ...staff, relation: undefined } as unknown as Subject;
+			await store.write({ add: [tuple(record, 'viewer', spread)] });
+
+			equal(
+				await store.has(tuple(record, 'viewer', staff)),
+				true,
+				'has for the entity, after writing it with relation: undefined',
+			);
+			equal(
+				await store.findEntities(record, 'viewer'),
+				[staff],
+				'findEntities: the tuple names an entity',
+			);
+			equal(
+				await store.findSubjectSets(record, 'viewer'),
+				[],
+				'findSubjectSets: relation: undefined is no set',
+			);
+			equal(
+				await store.findObjects({
+					type: 'record',
+					relation: 'viewer',
+					subject: spread,
+					after: null,
+					limit: 10,
+				}),
+				{ items: [record.id], nextCursor: null },
+				'findObjects for the subject written with relation: undefined',
+			);
+			equal(
+				await store.findObjects({
+					type: 'record',
+					relation: 'viewer',
+					subject: set('staff', staff.id, 'x'),
+					after: null,
+					limit: 10,
+				}),
+				{ items: [], nextCursor: null },
+				'findObjects for a set of that entity: the entity is not a set',
+			);
+			await store.write({ remove: [tuple(record, 'viewer', spread)] });
+			equal(
+				await store.has(tuple(record, 'viewer', staff)),
+				false,
+				'has after removing it with relation: undefined',
 			);
 		},
 	},
@@ -341,6 +402,7 @@ export const relationStoreCases: readonly RelationCase[] = [
 function outage(
 	method: RelationMethod,
 	call: (store: RelationStore) => Promise<unknown>,
+	after?: (store: RelationStore) => Promise<void>,
 ): RelationCase {
 	return {
 		id: `outage.${method}`,
@@ -365,6 +427,7 @@ function outage(
 				(error as { code?: unknown } | null)?.code !== 'NOT_FOUND',
 				`relations.${method} under an outage rejected with NOT_FOUND: an outage is never an absence`,
 			);
+			await after?.(store);
 		},
 	};
 }
@@ -374,11 +437,26 @@ const seededSubject: Entity = { type: 'staff', id: 'seeded' };
 const seeded = tuple(seededObject, 'viewer', seededSubject);
 
 export const relationOutageCases: readonly RelationCase[] = [
-	outage('write', (store) =>
-		store.write({
-			remove: [seeded],
-			add: [tuple(seededObject, 'owner', seededSubject)],
-		}),
+	outage(
+		'write',
+		(store) =>
+			store.write({
+				remove: [seeded],
+				add: [tuple(seededObject, 'owner', seededSubject)],
+			}),
+		// A rejected write is one that did nothing: all of it, or none of it.
+		async (store) => {
+			equal(
+				await store.has(seeded),
+				true,
+				'relations.write rejected, and still removed a tuple: a write is all or nothing',
+			);
+			equal(
+				await store.has(tuple(seededObject, 'owner', seededSubject)),
+				false,
+				'relations.write rejected, and still added a tuple: a write is all or nothing',
+			);
+		},
 	),
 	outage('has', (store) => store.has(seeded)),
 	outage('findSubjectSets', (store) =>

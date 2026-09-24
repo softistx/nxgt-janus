@@ -1,4 +1,10 @@
-import type { Entity, RelationTuple, Subject, SubjectSet } from '@nxgt/janus';
+import {
+	type Entity,
+	isSubjectSet,
+	type RelationTuple,
+	type Subject,
+	type SubjectSet,
+} from '@nxgt/janus';
 import type { RelationStore } from '@nxgt/janus/permissions';
 import {
 	type DocumentOf,
@@ -176,8 +182,9 @@ export function createMongoRelations(db: Db): RelationStore {
 					'_id.subject.type': subject.type,
 					'_id.subject.id': subject.id,
 					// `null` matches the missing field: an entity, not a set.
-					'_id.subject.relation':
-						'relation' in subject ? subject.relation : null,
+					'_id.subject.relation': isSubjectSet(subject)
+						? subject.relation
+						: null,
 					'_id.relation': relation,
 					'_id.object.type': type,
 					...(after === null ? {} : { '_id.object.id': { $gt: after } }),
@@ -232,7 +239,7 @@ function keyOf(tuple: RelationTuple): Key {
 }
 
 function subjectKey(subject: Subject): Key['subject'] {
-	return 'relation' in subject
+	return isSubjectSet(subject)
 		? { type: subject.type, id: subject.id, relation: subject.relation }
 		: { type: subject.type, id: subject.id };
 }

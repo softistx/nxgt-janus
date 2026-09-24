@@ -360,14 +360,18 @@ Without it, the outage cases are skipped under the reason *"the outage
 invariant is not proven for this adapter"*. Make your database fail the way it
 really fails — for MongoDB, the `failCommand` failpoint with code 91. A wrapper
 that throws in front of your adapter proves the wrapper, not the adapter.
+Fail **only the method named**: `outage.write` reads the store back afterwards,
+to prove the rejected write changed nothing.
 
 `referenceHarness()` runs the suite against the reference store, and is the
 example to copy.
 
 A relation store has its own suite, `describeRelationStores({ name, harness })`
-— 14 cases: round-trip, absence, idempotent writes, a tuple stored once, the
-one-hop reads, the reverse index in pages, `deleteEntity`, and an outage for
-each of the six methods. `referenceRelationHarness()` is its example.
+— 15 cases: round-trip, a subject whose `relation` is `undefined` read as its
+entity, absence, idempotent writes, a tuple stored once, the one-hop reads, the
+reverse index in pages, `deleteEntity`, and an outage for each of the six
+methods — a write that rejects must have changed nothing.
+`referenceRelationHarness()` is its example.
 
 ## Traps
 
@@ -455,7 +459,7 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Seventy-three plausible mistakes, seventy-three refused at compile time — and
+**Seventy-five plausible mistakes, seventy-five refused at compile time — and
 one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -463,7 +467,7 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the store port, from the side of the person
 implementing it), `test/types/auth.ts` (twenty, on `janus()`, from the side
-of the application) and `test/types/permissions.ts` (twenty-four, on the
+of the application) and `test/types/permissions.ts` (twenty-six, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

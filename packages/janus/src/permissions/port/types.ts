@@ -18,6 +18,10 @@
  * tuple is a constraint, not a read; bytes round-trip — a type, an id and a
  * relation come back exactly as written, and `staff:u1` is not `patient:u1`;
  * every method is atomic on its own; schema management is the adapter's own.
+ *
+ * A subject is a set when its `relation` is a string — `isSubjectSet` — so
+ * one spread with `relation: undefined` is its entity, as the reference store
+ * reads it.
  */
 
 import type { CursorPage } from '../../pagination/cursor-page';
