@@ -121,10 +121,17 @@ describe('list() is can() over every object', () => {
 						[id, { teamId: random() < 0.7 ? pick(teamIds) : null }] as const,
 				),
 			]);
-			const access = permissions({
+			const store = createMemoryRelations();
+			const access = permissions({ model: modelOver(rows), store });
+			// The same grants, without the tuples the model does not admit.
+			const clean = permissions({
 				model: modelOver(rows),
 				store: createMemoryRelations(),
 			});
+			const grant = (async (object: never, relation: never, subject: never) => {
+				await clean.grant(object, relation, subject);
+				await access.grant(object, relation, subject);
+			}) as typeof access.grant;
 
 			const staff = (id: string) => ({ type: 'staff' as const, id });
 			const team = (id: string) => ({ type: 'team' as const, id });
@@ -139,62 +146,78 @@ describe('list() is can() over every object', () => {
 			for (let n = 0; n < 30; n += 1) {
 				switch (Math.floor(random() * 8)) {
 					case 0:
-						await access.grant(
-							team(pick(teamIds)),
-							'member',
-							staff(pick(staffIds)),
-						);
+						await grant(team(pick(teamIds)), 'member', staff(pick(staffIds)));
 						break;
 					case 1:
 						// Cycles included: a team may end up a member of itself.
-						await access.grant(
-							team(pick(teamIds)),
-							'member',
-							members(pick(teamIds)),
-						);
+						await grant(team(pick(teamIds)), 'member', members(pick(teamIds)));
 						break;
 					case 2:
-						await access.grant(
-							team(pick(teamIds)),
-							'lead',
-							staff(pick(staffIds)),
-						);
+						await grant(team(pick(teamIds)), 'lead', staff(pick(staffIds)));
 						break;
 					case 3:
-						await access.grant(
+						await grant(
 							folder(pick(folderIds)),
 							'parent',
 							folder(pick(folderIds)),
 						);
 						break;
 					case 4:
-						await access.grant(
+						await grant(
 							folder(pick(folderIds)),
 							'owner',
 							staff(pick(staffIds)),
 						);
 						break;
 					case 5:
-						await access.grant(
-							record(pick(recordIds)),
-							'team',
-							team(pick(teamIds)),
-						);
+						await grant(record(pick(recordIds)), 'team', team(pick(teamIds)));
 						break;
 					case 6:
-						await access.grant(
+						await grant(
 							record(pick(recordIds)),
 							'folder',
 							folder(pick(folderIds)),
 						);
 						break;
 					default:
-						await access.grant(
+						await grant(
 							record(pick(recordIds)),
 							'viewer',
 							random() < 0.5 ? staff(pick(staffIds)) : members(pick(teamIds)),
 						);
 				}
+			}
+
+			// Stored past grant(), and admitted nowhere: each grants nothing.
+			const stale = (
+				object: { type: string; id: string },
+				relation: string,
+				subject: { type: string; id: string; relation?: string },
+			) => store.write({ add: [{ object, relation, subject }] });
+			for (let n = 0; n < 12; n += 1) {
+				const kind = Math.floor(random() * 6);
+				if (kind === 0)
+					await stale(record(pick(recordIds)), 'viewer', team(pick(teamIds)));
+				if (kind === 1)
+					await stale(record(pick(recordIds)), 'team', members(pick(teamIds)));
+				if (kind === 2)
+					await stale(record(pick(recordIds)), 'folder', team(pick(teamIds)));
+				if (kind === 3)
+					await stale(team(pick(teamIds)), 'member', {
+						...members(pick(teamIds)),
+						relation: 'lead',
+					});
+				if (kind === 4)
+					await stale(folder(pick(folderIds)), 'owner', {
+						type: 'patient',
+						id: pick(patientIds),
+					});
+				if (kind === 5)
+					await stale(record(pick(recordIds)), 'viewer', {
+						type: 'folder',
+						id: pick(folderIds),
+						relation: 'owner',
+					});
 			}
 
 			const subjects = [
@@ -223,16 +246,21 @@ describe('list() is can() over every object', () => {
 							const expected: string[] = [];
 							for (const id of objects) {
 								const object = { type, id, ...rows.get(id) };
-								if (
-									await access.can(
+								const granted = await access.can(
+									subject,
+									name as never,
+									object as never,
+									{ ctx } as never,
+								);
+								expect(granted).toBe(
+									await clean.can(
 										subject,
 										name as never,
 										object as never,
 										{ ctx } as never,
-									)
-								) {
-									expected.push(id);
-								}
+									),
+								);
+								if (granted) expected.push(id);
 							}
 							const listed = await everyPage((after) =>
 								access.list(subject, name as never, type, {

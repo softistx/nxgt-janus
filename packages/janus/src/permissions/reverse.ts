@@ -2,12 +2,12 @@ import { PermissionDepthError } from '../errors/janus-error';
 import type { CursorPage } from '../pagination/cursor-page';
 import { MAX_PAGE_SIZE } from '../pagination/cursor-page';
 import type { Subject } from '../subjects/subject';
-import { admits } from './input';
 import type { RelationStore } from './port/types';
-import type {
-	ResolvedModel,
-	ResolvedObjectType,
-	ResolvedRule,
+import {
+	admits,
+	type ResolvedModel,
+	type ResolvedObjectType,
+	type ResolvedRule,
 } from './resolve';
 
 /**

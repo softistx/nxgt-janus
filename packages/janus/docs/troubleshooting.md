@@ -554,6 +554,7 @@ Also with `revoke:`.
 **When:** `access.grant(object, relation, subject)`.
 **Why:** the model's relation does not admit that kind of subject: `member: ['staff']` refuses a `patient`, and refuses the subject set `team#member` unless it is listed.
 **Fix:** grant a subject the relation admits, or add the holder to the model: `member: ['staff', 'team#member']`.
+With `revoke:` on a tuple stored before the model stopped admitting it, the tuple already grants nothing; remove it through the store: `relations.write({ remove: [tuple] })`.
 
 ### Other `can:`, `list:`, `grant:` and `revoke:` messages
 

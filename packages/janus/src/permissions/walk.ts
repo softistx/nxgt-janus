@@ -3,12 +3,12 @@
 import { PermissionDepthError } from '../errors/janus-error';
 import { formatEntity } from '../subjects/notation';
 import type { Entity, Subject } from '../subjects/subject';
-import { admits } from './input';
 import type { RelationStore } from './port/types';
-import type {
-	ResolvedModel,
-	ResolvedObjectType,
-	ResolvedRule,
+import {
+	admits,
+	type ResolvedModel,
+	type ResolvedObjectType,
+	type ResolvedRule,
 } from './resolve';
 
 /** An object on the walk: its entity, and its data when the caller passed it. */

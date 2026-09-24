@@ -266,7 +266,23 @@ and only a holder the relation admits.
 
 The same rule holds when reading: `can()` and `list()` follow only the holders
 a relation admits. A tuple stored past `grant()` — by an older model, or by
-hand — that the model does not admit grants nothing; remove it with the store.
+hand — that the model does not admit grants nothing. `revoke()` refuses it as
+it refuses to `grant()` it, so remove it with the store:
+
+```ts
+await relations.write({
+	remove: [
+		{
+			object: { type: 'record', id: 'r1' },
+			relation: 'viewer',
+			subject: { type: 'team', id: 't1' },
+		},
+	],
+});
+```
+
+Narrowing a model therefore hides the tuples it no longer admits; it does not
+delete them, and widening it again brings them back.
 
 ```ts
 await access.grant({ type: 'team', id: 't1' }, 'member', grace);

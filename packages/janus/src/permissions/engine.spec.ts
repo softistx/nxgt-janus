@@ -187,6 +187,7 @@ describe('the Keto behaviours', () => {
 			],
 		});
 		expect(await access.can(ada, 'team', doc)).toBe(false);
+		expect((await access.list(ada, 'team', 'record')).items).toEqual([]);
 	});
 
 	it('follows only the arrow targets the model admits', async () => {
