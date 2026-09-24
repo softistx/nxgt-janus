@@ -3,6 +3,7 @@
 	"compilerOptions": {
 		"rootDirs": ["src"],
 		"outDir": "dist",
-		"noImplicitAny": true
+		"noImplicitAny": true,
+		"exactOptionalPropertyTypes": true
 	}
 }
