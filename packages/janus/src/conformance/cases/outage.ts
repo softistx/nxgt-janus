@@ -1,7 +1,7 @@
+import type { JanusStores } from '../../auth/port/types';
 import { JanusError, StoreFailure } from '../../errors/janus-error';
-import type { IdentityStores } from '../../identities/port/types';
 import { isOurs, ok, rejects } from '../assert';
-import { at, identityRecord, sessionRecord, tokenRecord } from '../fixtures';
+import { at, sessionRecord, tokenRecord, userRecord } from '../fixtures';
 import type { CaseContext, ConformanceCase, PortMethod } from '../types';
 
 /**
@@ -16,7 +16,7 @@ import type { CaseContext, ConformanceCase, PortMethod } from '../types';
  * probe, which fails on a second copy of the package — or an error that is no
  * `JanusError` at all, which the core wraps into `STORE_FAILED` itself.
  */
-function outage<S extends keyof IdentityStores>(
+function outage<S extends keyof JanusStores>(
 	slot: S,
 	method: PortMethod<S>,
 	call: (context: CaseContext) => Promise<unknown>,
@@ -50,40 +50,37 @@ function outage<S extends keyof IdentityStores>(
 	};
 }
 
-const identity = identityRecord();
-const session = sessionRecord({ identityId: identity.id });
-const token = tokenRecord({ identityId: identity.id });
+const user = userRecord();
+const session = sessionRecord({ userId: user.id });
+const token = tokenRecord({ userId: user.id });
 const now = at('2026-02-01T00:00:00.000Z');
 
 /** Each case writes the same three records, fresh stores every time. */
 const seed = async ({ stores }: CaseContext) => {
-	await stores.identities.insertIdentity(identity);
+	await stores.users.insertUser(user);
 	await stores.sessions.insertSession(session);
 	await stores.tokens.insertToken(token);
 };
 
 export const outageCases: readonly ConformanceCase[] = [
 	outage(
-		'identities',
-		'findIdentity',
-		({ stores }) => stores.identities.findIdentity(identity.id),
+		'users',
+		'findUser',
+		({ stores }) => stores.users.findUser(user.id),
 		seed,
 	),
 	outage(
-		'identities',
-		'findIdentityByIdentifier',
+		'users',
+		'findUserByLogin',
 		({ stores }) =>
-			stores.identities.findIdentityByIdentifier(
-				'password',
-				identity.identifiers[0]?.value ?? '',
-			),
+			stores.users.findUserByLogin(user.type, user.logins[0] ?? ''),
 		seed,
 	),
 	outage(
-		'identities',
-		'listIdentities',
+		'users',
+		'listUsers',
 		({ stores }) =>
-			stores.identities.listIdentities({ after: null, limit: 10 }),
+			stores.users.listUsers({ type: user.type, after: null, limit: 10 }),
 		seed,
 	),
 	outage(
@@ -107,15 +104,15 @@ export const outageCases: readonly ConformanceCase[] = [
 	),
 	outage(
 		'sessions',
-		'revokeIdentitySessions',
-		({ stores }) => stores.sessions.revokeIdentitySessions(identity.id, now),
+		'revokeUserSessions',
+		({ stores }) => stores.sessions.revokeUserSessions(user.id, now),
 		seed,
 	),
 	outage(
 		'tokens',
 		'consumeToken',
 		({ stores }) =>
-			stores.tokens.consumeToken(token.tokenHash, 'recovery', now),
+			stores.tokens.consumeToken(token.tokenHash, 'resetPassword', now),
 		seed,
 	),
 ];

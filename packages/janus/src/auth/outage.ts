@@ -8,7 +8,7 @@
  *
  * > An absence is `null`. A failure throws.
  *
- * `outage.spec.ts` reads every other file of `src/identities/` and fails if a
+ * `outage.spec.ts` reads every other file of `src/auth/` and fails if a
  * `catch` appears in one, because the failure this design exists to prevent is
  * a single careless `catch { return null }`. The `catch` below always rethrows.
  */
@@ -18,9 +18,9 @@ import {
 	JanusError as JanusErrorClass,
 	StoreFailure,
 } from '../errors/janus-error';
-import type { IdentityStores } from './port/types';
+import type { JanusStores } from './port/types';
 
-type Slot = keyof IdentityStores;
+type Slot = keyof JanusStores;
 
 /**
  * The methods whose answer is legitimately nothing: `undefined` from them is
@@ -45,9 +45,9 @@ const ANSWERS_NOTHING = new Set(['insertSession', 'insertToken']);
  * The optional `deleteExpiredSessions` is guarded when present and left absent
  * when absent, so capability detection still reads the truth.
  */
-export function guardStores(stores: IdentityStores): IdentityStores {
+export function guardStores(stores: JanusStores): JanusStores {
 	return {
-		identities: guardSlot('identities', stores.identities),
+		users: guardSlot('users', stores.users),
 		sessions: guardSlot('sessions', stores.sessions),
 		tokens: guardSlot('tokens', stores.tokens),
 	};

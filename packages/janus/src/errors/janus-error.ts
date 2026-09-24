@@ -4,7 +4,7 @@
  * Every code is a **refusal at call time, on a value that could have come from
  * a request** — which is the rule that decides whether something belongs here
  * or stays a bare `TypeError`. A refusal that can only come from how the
- * application was wired (`defineIdentities` with no traits, a lifespan that is
+ * application was wired (`janus()` with no schema, a lifespan that is
  * not a duration, a store missing a method) throws a plain `TypeError`
  * instead: no request handler should ever answer one, so no handler needs to
  * tell it apart from the others.
@@ -35,14 +35,14 @@ export type JanusErrorCode =
 	 */
 	| 'NOT_FOUND'
 	/**
-	 * The credential identifier is already held by another identity.
+	 * The login — an e-mail, a username — is already held by another user of
+	 * the same type.
 	 *
 	 * Raised by the **store's own unique constraint** and surfaced here, never
 	 * decided by reading first: two concurrent sign-ups both pass a read, and
-	 * only a constraint refuses one of them. Carries `identifier` and
-	 * `credentialType`.
+	 * only a constraint refuses one of them. Carries `login` and `userType`.
 	 */
-	| 'IDENTIFIER_TAKEN'
+	| 'LOGIN_TAKEN'
 	/**
 	 * The record changed since it was read: the version it was expected to
 	 * hold is no longer the version it holds, and **nothing was written**.
@@ -50,34 +50,33 @@ export type JanusErrorCode =
 	 */
 	| 'VERSION_CONFLICT'
 	/**
-	 * The traits failed the definition's schema. Carries `issues`, whose paths
-	 * are the traits' own, so a handler can answer 400 with a body field by
-	 * field.
+	 * The fields failed the user type's schema. Carries `issues`, whose paths
+	 * are the fields' own, so a handler can answer 400 field by field.
 	 */
-	| 'TRAITS_INVALID'
+	| 'USER_INVALID'
 	/**
 	 * The password is shorter than the policy's minimum. Reports the policy,
 	 * never the password.
 	 */
 	| 'PASSWORD_TOO_SHORT'
 	/**
+	 * The login and the password do not match: no such login, no password set,
+	 * or the wrong one — **one code for the three**, so a response cannot tell
+	 * which accounts exist. `reason` tells them apart for your logs and your
+	 * rate limiter, and never belongs in a response body.
+	 */
+	| 'CREDENTIALS_INVALID'
+	/**
 	 * A stored hash whose prefix names no wired verifier — typically an import
 	 * from a system whose format this core cannot read. Reports the prefix,
 	 * never the hash.
 	 */
 	| 'HASH_UNSUPPORTED'
-	/** There is no password credential to verify against, or to remove. */
-	| 'CREDENTIAL_MISSING'
-	/** The identity is inactive: the record and its credentials are kept, and
-	 * every sign-in is refused. */
-	| 'IDENTITY_INACTIVE'
 	/**
-	 * The session is below the assurance level the call required.
-	 *
-	 * The level and the concept exist; there is no step-up flow in this
-	 * package, and building one is the application's.
+	 * The user is inactive: the record and its password are kept, and every
+	 * sign-in is refused. Only told to somebody who gave the right password.
 	 */
-	| 'AAL_REQUIRED'
+	| 'USER_INACTIVE'
 	/** No token holds that secret. */
 	| 'TOKEN_UNKNOWN'
 	/**
@@ -90,6 +89,11 @@ export type JanusErrorCode =
 	 * so it cannot be retried.
 	 */
 	| 'TOKEN_EXPIRED'
+	/**
+	 * The token was sent to an e-mail the user no longer has. Confirming it
+	 * would verify an address nobody holds any more, so it is spent and refused.
+	 */
+	| 'TOKEN_STALE'
 	/** A cursor this store did not mint, or one written for another ordering.
 	 * Never a silent first page: a caller paging a list would loop for ever. */
 	| 'INVALID_CURSOR'
@@ -100,12 +104,20 @@ export type JanusErrorCode =
 	 */
 	| 'UNSUPPORTED';
 
-/** One thing that was wrong with a set of traits, at one path. */
-export interface TraitIssue {
-	/** The path inside `traits`, as the schema reported it: `['name', 'first']`. */
+/** One thing that was wrong with a user's fields, at one path. */
+export interface Issue {
+	/** The path inside the fields, as the schema reported it: `['address', 'city']`. */
 	readonly path: readonly (string | number)[];
 	readonly message: string;
 }
+
+/**
+ * Why a sign-in was refused, for your logs and rate limiter.
+ *
+ * **Never put it in a response body.** `unknownLogin` is an account
+ * enumeration oracle.
+ */
+export type CredentialRefusal = 'unknownLogin' | 'noPassword' | 'wrongPassword';
 
 /**
  * What an error may carry beside its code.
@@ -113,27 +125,25 @@ export interface TraitIssue {
  * **No field here ever holds a secret.** Not a password, not a hash, not a
  * session token, not a token secret, not a token's hash, and not a connection
  * URI — a connection string holds a password, and the specs assert its absence
- * from every message. An `identifier` may appear, because the caller just sent
- * it.
+ * from every message. A `login` may appear, because the caller just sent it.
  */
 export interface JanusErrorOptions {
-	readonly identityId?: string;
-	readonly credentialType?: string;
-	/** The identifier a conflict names: an address, never a secret. */
-	readonly identifier?: string;
+	readonly userId?: string;
+	readonly userType?: string;
+	/** The login a conflict names: an address, never a secret. */
+	readonly login?: string;
+	readonly reason?: CredentialRefusal;
 	/** The prefix of a hash whose format is unknown. Never the hash. */
 	readonly hashPrefix?: string;
 	readonly expectedVersion?: number;
 	readonly actualVersion?: number;
-	readonly issues?: readonly TraitIssue[];
+	readonly issues?: readonly Issue[];
 	/** The minimum the policy requires. Never the password that failed it. */
 	readonly minLength?: number;
-	/** The assurance level the call required. */
-	readonly requiredAal?: string;
-	/** The port method being called: `insertIdentity`, `consumeToken`. */
+	/** The port method being called: `insertUser`, `consumeToken`. */
 	readonly operation?: string;
 	/** Which store slot: the sentence should say which store to change. */
-	readonly slot?: 'identities' | 'sessions' | 'tokens';
+	readonly slot?: 'users' | 'sessions' | 'tokens';
 	readonly cause?: unknown;
 }
 
@@ -156,29 +166,29 @@ export interface JanusErrorOptions {
 export class JanusError extends Error {
 	override name = 'JanusError';
 	readonly code: JanusErrorCode = 'STORE_FAILED';
-	readonly identityId: string | undefined;
-	readonly credentialType: string | undefined;
-	readonly identifier: string | undefined;
+	readonly userId: string | undefined;
+	readonly userType: string | undefined;
+	readonly login: string | undefined;
+	readonly reason: CredentialRefusal | undefined;
 	readonly hashPrefix: string | undefined;
 	readonly expectedVersion: number | undefined;
 	readonly actualVersion: number | undefined;
-	readonly issues: readonly TraitIssue[] | undefined;
+	readonly issues: readonly Issue[] | undefined;
 	readonly minLength: number | undefined;
-	readonly requiredAal: string | undefined;
 	readonly operation: string | undefined;
-	readonly slot: 'identities' | 'sessions' | 'tokens' | undefined;
+	readonly slot: 'users' | 'sessions' | 'tokens' | undefined;
 
 	constructor(message: string, options?: JanusErrorOptions) {
 		super(message, { cause: options?.cause });
-		this.identityId = options?.identityId;
-		this.credentialType = options?.credentialType;
-		this.identifier = options?.identifier;
+		this.userId = options?.userId;
+		this.userType = options?.userType;
+		this.login = options?.login;
+		this.reason = options?.reason;
 		this.hashPrefix = options?.hashPrefix;
 		this.expectedVersion = options?.expectedVersion;
 		this.actualVersion = options?.actualVersion;
 		this.issues = options?.issues;
 		this.minLength = options?.minLength;
-		this.requiredAal = options?.requiredAal;
 		this.operation = options?.operation;
 		this.slot = options?.slot;
 	}
@@ -201,22 +211,22 @@ export class StoreFailure extends JanusError {
  * A uniqueness or a version constraint the store refused.
  *
  * Also thrown by an adapter, and also for the `instanceof` reason. `on` says
- * which constraint, because the two are answered differently: an identifier
+ * which constraint, because the two are answered differently: a login
  * collision is the caller's to fix, a version conflict is a retry.
  */
 export class StoreConflict extends JanusError {
 	override name = 'StoreConflict';
 	override readonly code: JanusErrorCode;
-	readonly on: 'identifier' | 'version';
+	readonly on: 'login' | 'version';
 
 	constructor(
-		on: 'identifier' | 'version',
+		on: 'login' | 'version',
 		message: string,
 		options?: JanusErrorOptions,
 	) {
 		super(message, options);
 		this.on = on;
-		this.code = on === 'identifier' ? 'IDENTIFIER_TAKEN' : 'VERSION_CONFLICT';
+		this.code = on === 'login' ? 'LOGIN_TAKEN' : 'VERSION_CONFLICT';
 	}
 }
 
@@ -226,13 +236,13 @@ export class NotFoundError extends JanusError {
 	override readonly code = 'NOT_FOUND' as const;
 }
 
-/** The traits failed the definition's schema. */
-export class TraitsInvalidError extends JanusError {
-	override name = 'TraitsInvalidError';
-	override readonly code = 'TRAITS_INVALID' as const;
+/** The fields failed the user type's schema. */
+export class UserInvalidError extends JanusError {
+	override name = 'UserInvalidError';
+	override readonly code = 'USER_INVALID' as const;
 }
 
-/** A password, a hash format, or a missing credential. */
+/** A password too short, credentials that do not match, or a hash format nobody reads. */
 export class CredentialError extends JanusError {
 	override name = 'CredentialError';
 	override readonly code: JanusErrorCode;
@@ -240,7 +250,7 @@ export class CredentialError extends JanusError {
 	constructor(
 		code: Extract<
 			JanusErrorCode,
-			'PASSWORD_TOO_SHORT' | 'HASH_UNSUPPORTED' | 'CREDENTIAL_MISSING'
+			'PASSWORD_TOO_SHORT' | 'CREDENTIALS_INVALID' | 'HASH_UNSUPPORTED'
 		>,
 		message: string,
 		options?: JanusErrorOptions,
@@ -250,22 +260,13 @@ export class CredentialError extends JanusError {
 	}
 }
 
-/** The session is inactive, or below the assurance level required. */
-export class SessionError extends JanusError {
-	override name = 'SessionError';
-	override readonly code: JanusErrorCode;
-
-	constructor(
-		code: Extract<JanusErrorCode, 'AAL_REQUIRED' | 'IDENTITY_INACTIVE'>,
-		message: string,
-		options?: JanusErrorOptions,
-	) {
-		super(message, options);
-		this.code = code;
-	}
+/** The user is inactive, and the password given was the right one. */
+export class UserInactiveError extends JanusError {
+	override name = 'UserInactiveError';
+	override readonly code = 'USER_INACTIVE' as const;
 }
 
-/** A one-time token that is unknown, already spent, or lapsed. */
+/** A one-time token that is unknown, already spent, lapsed, or sent to an e-mail the user no longer has. */
 export class TokenError extends JanusError {
 	override name = 'TokenError';
 	override readonly code: JanusErrorCode;
@@ -273,7 +274,7 @@ export class TokenError extends JanusError {
 	constructor(
 		code: Extract<
 			JanusErrorCode,
-			'TOKEN_UNKNOWN' | 'TOKEN_SPENT' | 'TOKEN_EXPIRED'
+			'TOKEN_UNKNOWN' | 'TOKEN_SPENT' | 'TOKEN_EXPIRED' | 'TOKEN_STALE'
 		>,
 		message: string,
 		options?: JanusErrorOptions,

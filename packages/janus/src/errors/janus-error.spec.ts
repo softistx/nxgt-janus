@@ -5,12 +5,12 @@ import {
 	JanusError,
 	type JanusErrorCode,
 	NotFoundError,
-	SessionError,
 	StoreConflict,
 	StoreFailure,
 	TokenError,
-	TraitsInvalidError,
 	UnsupportedError,
+	UserInactiveError,
+	UserInvalidError,
 } from './janus-error';
 
 describe('JanusError', () => {
@@ -35,18 +35,17 @@ describe('JanusError', () => {
 		expect(new NotFoundError('x').name).toBe('NotFoundError');
 		expect(new InvalidCursorError('x').name).toBe('InvalidCursorError');
 		expect(new UnsupportedError('x').name).toBe('UnsupportedError');
-		expect(new TraitsInvalidError('x').name).toBe('TraitsInvalidError');
+		expect(new UserInvalidError('x').name).toBe('UserInvalidError');
+		expect(new UserInactiveError('x').name).toBe('UserInactiveError');
 	});
 });
 
 describe('StoreConflict', () => {
 	it('maps the constraint it names onto the code a handler switches on', () => {
-		// The two are answered differently: an identifier collision is the
-		// caller's to fix, a version conflict is a retry. A single code would
-		// make a handler read the message to tell them apart.
-		expect(new StoreConflict('identifier', 'taken').code).toBe(
-			'IDENTIFIER_TAKEN',
-		);
+		// The two are answered differently: a login collision is the caller's
+		// to fix, a version conflict is a retry. A single code would make a
+		// handler read the message to tell them apart.
+		expect(new StoreConflict('login', 'taken').code).toBe('LOGIN_TAKEN');
 		expect(new StoreConflict('version', 'stale').code).toBe('VERSION_CONFLICT');
 	});
 
@@ -72,21 +71,21 @@ describe('the codes a caller switches on', () => {
 					return 503;
 				case 'NOT_FOUND':
 					return 404;
-				case 'IDENTIFIER_TAKEN':
+				case 'LOGIN_TAKEN':
 				case 'VERSION_CONFLICT':
 					return 409;
-				case 'TRAITS_INVALID':
+				case 'USER_INVALID':
 				case 'PASSWORD_TOO_SHORT':
 				case 'HASH_UNSUPPORTED':
 				case 'INVALID_CURSOR':
-					return 400;
-				case 'CREDENTIAL_MISSING':
-				case 'IDENTITY_INACTIVE':
 				case 'TOKEN_UNKNOWN':
 				case 'TOKEN_SPENT':
 				case 'TOKEN_EXPIRED':
+				case 'TOKEN_STALE':
+					return 400;
+				case 'CREDENTIALS_INVALID':
 					return 401;
-				case 'AAL_REQUIRED':
+				case 'USER_INACTIVE':
 					return 403;
 				case 'UNSUPPORTED':
 					return 501;
@@ -94,7 +93,7 @@ describe('the codes a caller switches on', () => {
 		};
 
 		expect(answer('STORE_FAILED')).toBe(503);
-		expect(answer('AAL_REQUIRED')).toBe(403);
+		expect(answer('USER_INACTIVE')).toBe(403);
 		expect(answer('UNSUPPORTED')).toBe(501);
 	});
 
@@ -146,39 +145,38 @@ describe('no message holds a secret', () => {
 			'TOKEN_UNKNOWN',
 			'TOKEN_SPENT',
 			'TOKEN_EXPIRED',
+			'TOKEN_STALE',
 		] as const) {
-			const error = new TokenError(code, `consumeRecovery: ${code}`);
+			const error = new TokenError(code, `resetPassword.confirm: ${code}`);
 			expect(error.message).not.toContain(Secret);
 		}
 	});
 
-	it('a session refusal reports the level required', () => {
-		const error = new SessionError(
-			'AAL_REQUIRED',
-			'requireAal: aal2 required',
-			{
-				requiredAal: 'aal2',
-			},
+	it('a refused sign-in says why for the logs, and names no password', () => {
+		const error = new CredentialError(
+			'CREDENTIALS_INVALID',
+			'signIn: the login and the password do not match',
+			{ reason: 'wrongPassword' },
 		);
 
-		expect(error.requiredAal).toBe('aal2');
+		expect(error.reason).toBe('wrongPassword');
 		expect(error.message).not.toContain(Secret);
 	});
 
-	it('an identifier MAY appear, because the caller just sent it', () => {
+	it('a login MAY appear, because the caller just sent it', () => {
 		// The one exception, and it is not a leak: the address is what the
-		// caller typed, and a conflict that does not say which identifier
-		// collided is a conflict nobody can act on.
+		// caller typed, and a conflict that does not say which login collided
+		// is a conflict nobody can act on.
 		const error = new StoreConflict(
-			'identifier',
-			'insertIdentity: "a@b.test" is taken',
+			'login',
+			'insertUser: "a@b.test" is taken',
 			{
-				identifier: 'a@b.test',
-				credentialType: 'password',
+				login: 'a@b.test',
+				userType: 'patient',
 			},
 		);
 
 		expect(error.message).toContain('a@b.test');
-		expect(error.identifier).toBe('a@b.test');
+		expect(error.login).toBe('a@b.test');
 	});
 });

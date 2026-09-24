@@ -28,13 +28,13 @@ import {
 	isSubjectSet,
 	type JanusErrorCode,
 	type RelationTuple,
-	SessionError,
 	StoreConflict,
 	StoreFailure,
 	type Subject,
 	type SubjectSet,
 	subjectOf,
 	TokenError,
+	UserInactiveError,
 } from '../../src/index';
 
 // ── 1. A code the union does not declare ─────────────────────────────────────
@@ -75,9 +75,10 @@ const wrongConstraint = new StoreConflict('unique', 'taken');
 // @ts-expect-error TOKEN_SPENT is not a CredentialError's code
 const wrongFamily = new CredentialError('TOKEN_SPENT', 'x');
 
-// ── 5. A session code on the wrong class ─────────────────────────────────────
-// @ts-expect-error NOT_FOUND is not a SessionError's code
-const wrongSession = new SessionError('NOT_FOUND', 'x');
+// ── 5. A code on a class that has only one ─────────────────────────────────
+// `UserInactiveError` is always USER_INACTIVE; its constructor takes no code.
+// @ts-expect-error a UserInactiveError's code is fixed: the second argument is options
+const wrongSession = new UserInactiveError('x', 'NOT_FOUND');
 
 // ── 6. A token code on the wrong class ──────────────────────────────────────
 // @ts-expect-error STORE_FAILED is not a TokenError's code
@@ -169,8 +170,8 @@ const numericDuration: Duration = 30_000;
 // A refusal that also refuses the correct call is not type safety, it is a bug.
 
 const goodCode: JanusErrorCode = 'STORE_FAILED';
-const goodConstraint = new StoreConflict('identifier', 'taken', {
-	identifier: 'a@b.test',
+const goodConstraint = new StoreConflict('login', 'taken', {
+	login: 'a@b.test',
 });
 const goodCredential = new CredentialError('PASSWORD_TOO_SHORT', 'x', {
 	minLength: 8,
@@ -185,8 +186,8 @@ const goodTuple: RelationTuple = {
 	subject: 'alice',
 };
 const goodPage: CursorPage<string> = { items: ['a'], nextCursor: null };
-// Deliberately `{ id }` and not an Identity: the join takes the narrowest shape
-// it reads, so a session's `identityId` works without a conversion.
+// Deliberately `{ id }` and not a User: the join takes the narrowest shape it
+// reads, so a session's `userId` works without a conversion.
 const subject = subjectOf({ id: '018f-abc' });
 
 // `noUnusedLocals` is off in this repository, as it is in nxgt-data, so these

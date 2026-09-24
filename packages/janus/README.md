@@ -1,13 +1,25 @@
 # @nxgt/janus
 
-Identities and permissions as an **embeddable** TypeScript library: your process,
-your database, behind a port you can implement.
+Authentication and permissions as an **embeddable** TypeScript library: your
+process, your database, behind a port you can implement.
 
-> **Pre-v0.1.** `.` ships the vocabulary the two modules share — errors,
-> subjects, pagination, time, ids. `./identities` is the identity core and its
-> port, and `./conformance` is the suite an adapter runs. A subpath appears in
-> `exports` only once it exports something you should call, because a
-> published entry point is a promise.
+```ts
+const auth = janus({
+	user: z.object({ email: z.email(), name: z.string() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
+	hasher: scryptHasher(),
+});
+
+const { user, token } = await auth.signUp({ email, name, password });
+const current = await auth.authenticate(request); // { user, session } | null
+```
+
+> **Pre-v0.1.** `.` is `janus()` and the vocabulary it shares with the
+> permissions module to come — errors, subjects, pagination, time, ids.
+> `./conformance` is the suite an adapter runs. A subpath appears in `exports`
+> only once it exports something you should call, because a published entry
+> point is a promise.
 
 ## Install
 
@@ -46,11 +58,12 @@ compilation of callers that exhaust it:
 | --- | --- |
 | `STORE_FAILED` | **503.** Never a negative answer |
 | `NOT_FOUND` | 404 |
-| `IDENTIFIER_TAKEN`, `VERSION_CONFLICT` | 409 |
-| `TRAITS_INVALID` | 400, field by field from `issues` |
-| `PASSWORD_TOO_SHORT`, `HASH_UNSUPPORTED`, `CREDENTIAL_MISSING` | 400 or 401 — your policy |
-| `IDENTITY_INACTIVE`, `AAL_REQUIRED` | 403 |
-| `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED` | 400 |
+| `LOGIN_TAKEN`, `VERSION_CONFLICT` | 409 |
+| `USER_INVALID` | 400, field by field from `issues` |
+| `PASSWORD_TOO_SHORT`, `HASH_UNSUPPORTED` | 400 |
+| `CREDENTIALS_INVALID` | 401 — one code for an unknown login, no password and a wrong one |
+| `USER_INACTIVE` | 403 |
+| `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
 | `UNSUPPORTED` | 500 — a wiring mistake, and the message names the store to change |
 
@@ -72,7 +85,7 @@ request handler should ever answer one, so no handler needs to tell it apart.
 ```ts
 import { type Subject, subjectOf, formatTuple, parseTuple } from '@nxgt/janus';
 
-subjectOf(identity);                    // the identity IS the subject
+subjectOf(user);                        // the user IS the subject
 formatTuple({ namespace: 'Note', object: '1', relation: 'viewers', subject: 'alice' });
 // 'Note:1#viewers@alice'
 ```
@@ -80,17 +93,17 @@ formatTuple({ namespace: 'Note', object: '1', relation: 'viewers', subject: 'ali
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
 Here it is a type and a one-line function — and that shared vocabulary is the
-reason identities and permissions are one package rather than two.
+reason users and permissions are one package rather than two.
 
 ### Ids
 
 ```ts
-import { mintIdentityId, isIdentityId, mintedAt } from '@nxgt/janus';
+import { mintId, isId, mintedAt } from '@nxgt/janus';
 ```
 
 UUIDv7, **minted by the core and not by the store**. Ids sort in creation order
 as strings, so the pagination cursor *is* the last id: one index, and the
-ordering is already total. `insertIdentity` becomes idempotent under retry, and
+ordering is already total. `insertUser` becomes idempotent under retry, and
 every adapter reports the same shape. The price, stated plainly: an adapter
 cannot reuse an existing numeric primary key.
 
@@ -108,77 +121,96 @@ is the loop.
 `fixedClock` is **shipped, not test-only** — testing session expiry needs it, and
 so do your own tests.
 
-### Identities — `@nxgt/janus/identities`
+### Users — `janus()`
 
 ```ts
 import { z } from 'zod';
-import {
-	createIdentities,
-	createMemoryStores,
-	defineIdentities,
-	scryptHasher,
-} from '@nxgt/janus/identities';
+import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
 
-const definition = defineIdentities({
-	traits: z.strictObject({
-		email: z.email(),
-		name: z.object({ first: z.string(), last: z.string() }),
-	}),
-	identifiers: {
-		password: { from: 'email', normalize: 'lowercaseTrim' },
-	},
-	verification: { from: 'email' },
-	recovery: { from: 'email' },
-	session: { lifespan: '720h', earliestRefresh: '24h' },
-});
-
-const identities = createIdentities(definition, createMemoryStores(), {
+// One kind of user
+const auth = janus({
+	user: z.object({ email: z.email(), name: z.string() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
 	hasher: scryptHasher(),
 });
+
+await auth.signUp({ email, name, password });      // { user, session, token }
+await auth.signIn({ email, password });            // { user, session, token }
+await auth.authenticate(request);                  // { user, session, token, renewed } | null
+await auth.signOut(request);
+await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
+await auth.verifyEmail.confirm(token);
+await auth.resetPassword.request(email);           // … | null
+await auth.resetPassword.confirm(token, newPassword);
+
+// Several kinds of user
+const clinic = janus({
+	users: {
+		patient: { schema: Patient, password: { login: 'email' } },
+		staff: {
+			schema: Staff,
+			password: { login: 'username' },
+			session: { lifespan: '8h', renewAfter: false },
+		},
+	},
+	store,
+	hasher,
+});
+
+await clinic.staff.signIn({ username, password });
+const current = await clinic.authenticate(request);
+if (current?.user.type === 'staff') current.user.service; // narrowed by type
+await clinic.authenticate(request, { type: 'staff' });  // a patient's session → null
 ```
 
-`defineIdentities` describes and touches nothing. `createIdentities` assembles,
-**synchronously and with no I/O**: it checks that every store answers every
-method of the port, and connects to nothing. Everything else reaches a store and
-is asynchronous.
+`janus()` assembles **synchronously and with no I/O**: it checks that every
+store answers every method of the port, and connects to nothing. Everything
+else reaches the store and is asynchronous.
 
-- **Traits** are any [Standard Schema](https://standardschema.dev) — Zod 4,
-  Valibot, ArkType. There is no validation peer. The schema's output must be
-  JSON, and a schema producing a `Date` is refused at compile time.
-- **`identifiers.*.from`** names a *required string* trait, as a dotted path. A
-  typo is a compile error on `from`, and the message lists the paths you could
-  have meant.
-- **`normalize` has no default.** `'none' | 'lowercase' | 'lowercaseTrim' |
-  'nfkcLowercaseTrim'`, or a function. The core applies it before any store sees
-  the value, so uniqueness is uniqueness of bytes.
-- **Identities**: `create`, `find` (or `null`), `get` (or `NOT_FOUND`),
-  `findByIdentifier`, `list`, `updateTraits` (the whole traits, validated),
-  `setState`, `updateMetadata`, `setAddressVerified` (by value), `setPassword`,
-  `removePassword`, `verifyPassword`. Every write takes an optional
-  `ifVersion`: with it, one round trip; without it, the core reads first.
-- **Sessions**: `sessions.create`, `resolve(headers)`, `extend`, `revoke`,
-  `revokeAll(id, { except })`, `collectExpired`. The token is handed back
-  **once**, and the store only ever holds its `sha256`.
-- **One-time tokens**: `tokens.issue(kind, identityId, address)`,
-  `consumeVerification`, `consumeRecovery`.
-- `cookie.serialize(token, session)` and `cookie.clear()` produce `Set-Cookie`
-  values — `HttpOnly; SameSite=Lax; Secure` unless you say otherwise.
-  `requireAal(session, 'aal2')` refuses a session below that level.
+- **A user is your schema's fields, at the top level**, plus what `janus` sets:
+  `id`, `type`, `emailVerified`, `active`, `hasPassword`, `version`,
+  `createdAt`, `updatedAt`. A schema declaring one of those, or a `password`, is
+  refused at compile time. The password hash never reaches a user.
+- **Schemas** are any [Standard Schema](https://standardschema.dev) — Zod 4,
+  Valibot, ArkType. There is no validation peer. The output must be JSON, and a
+  schema producing a `Date` is refused at compile time.
+- **Several user types** live in one instance: `auth.patient.*`, `auth.staff.*`,
+  and one `authenticate` whose answer is a union narrowed by `user.type`. A
+  login is unique **per type**: the same e-mail may hold a patient account and
+  a staff account.
+- **`password.login`** names a top-level, required string field. A typo is a
+  compile error on `login`, and the message lists the fields you could have
+  meant. It is normalised with `'lowercaseTrim'` unless you say otherwise.
+- **`email`** defaults to the field named `email`. A type without one has no
+  `verifyEmail` and no `resetPassword` — they are absent from its type, not
+  failing at run time. Changing the e-mail sets `emailVerified` back to `false`.
+- **Per type**: `create`, `find` (or `null`), `get` (or `NOT_FOUND`), `list`,
+  `update(user, patch)` — merged over the stored fields, then validated whole —
+  and `setActive`; with a password, `signUp`, `signIn`, `findByLogin`,
+  `setPassword` and `changePassword`. Every write takes an optional
+  `ifVersion`.
+- **Shared**: `authenticate`, `signOut`, `signOutEverywhere(user, { except })`,
+  `findUser` and `getUser` across types, `cookie.serialize(token, session)` and
+  `cookie.clear()` — `HttpOnly; SameSite=Lax; Secure` unless you say otherwise
+  — and `collectExpired`.
+- **Sessions** last `'7d'` and slide: `authenticate` renews one once `renewAfter`
+  (`'1d'`) has passed, writing at most once per period, and says so with
+  `renewed`. The token is handed back once; the store only holds its `sha256`.
 
 **Hashers.** `scryptHasher()` runs on Node and on Bun, with no dependency and
 OWASP's parameters (N = 2^17, r = 8, p = 1). `bunHasher()` is argon2id through
-`Bun.password`, on Bun only. There is no silent fallback: a definition with a
-password identifier and no `hasher` is refused at wiring. Hashes describe
-themselves (`$scrypt$ln=17,r=8,p=1$…`, `$argon2id$…`). Wire the hashers a
-database was written with as `verifiers`, and every one of them can verify while
-exactly one hashes.
+`Bun.password`, on Bun only. There is no silent fallback: a user type with a
+password and no `hasher` is refused at wiring. Hashes describe themselves
+(`$scrypt$ln=17,r=8,p=1$…`, `$argon2id$…`). Wire the hashers a database was
+written with as `verifiers`, and every one of them can verify while exactly one
+hashes.
 
-**The port.** `IdentityStores` is three stores — `identities`, `sessions`,
-`tokens` — cut where atomicity is not required, so sessions can live in Redis
-while identities live in MongoDB. `createMemoryStores()` is the reference
-implementation. It is shipped for your own tests, and it is what to compare
-against when writing an adapter. The six rules an adapter keeps are written on
-the port's types.
+**The port.** `JanusStores` is three stores — `users`, `sessions`, `tokens` —
+cut where atomicity is not required, so sessions can live in Redis while users
+live in MongoDB. `createMemoryStores()` is the reference implementation. It is
+shipped for your own tests, and it is what to compare against when writing an
+adapter. The six rules an adapter keeps are written on the port's types.
 
 ### Conformance — `@nxgt/janus/conformance`
 
@@ -186,9 +218,9 @@ If you write an adapter, you run this suite against it:
 
 ```ts
 import { describe, it } from 'bun:test';
-import { describeIdentityStores } from '@nxgt/janus/conformance';
+import { describeJanusStores } from '@nxgt/janus/conformance';
 
-describeIdentityStores({
+describeJanusStores({
 	name: 'my adapter',
 	runner: { describe, it },
 	harness: {
@@ -206,8 +238,8 @@ describeIdentityStores({
 
 There are 31 cases. They cover:
 - round-trip, byte for byte;
-- uniqueness, as a constraint: of twenty concurrent inserts of one identifier,
-  exactly one is accepted;
+- uniqueness, as a constraint: of twenty concurrent inserts of one login,
+  exactly one is accepted — and a login is unique per user type;
 - versions: a refused update writes nothing;
 - **omission**, named after the Kratos `PUT` trap;
 - pagination;
@@ -236,21 +268,29 @@ example to copy.
 sends a lapsed bearer beside a live cookie is anonymous, and it should fix its
 header rather than be rescued in silence.
 
-**Never put `verifyPassword`'s `reason` in a response body.** `noSuchIdentity`
-is an account-enumeration oracle. The core compares against a dummy hash when no
-identity holds the identifier, so the hashing time does not tell. **The store's
-own latency still does**, and that limit is stated rather than denied.
+**An outage is not anonymous.** `authenticate` rejects with `STORE_FAILED` when
+the store cannot answer. Answer 503: a 401 would sign everybody out during an
+outage, and send them to a sign-in page that cannot work either.
 
-**`consumeRecovery` opens no session.** What a recovered account may do next is
-your policy.
+**Never put a `CREDENTIALS_INVALID`'s `reason` in a response body.**
+`unknownLogin` is an account-enumeration oracle. `signIn` compares against a
+dummy hash when nobody holds the login, so the hashing time does not tell.
+**The store's own latency still does**, and that limit is stated rather than
+denied. `resetPassword.request` answers `null` for an unknown e-mail for the
+same reason: answer the visitor the same page either way.
+
+**`resetPassword.confirm` signs the user out everywhere, and opens no session.**
+Whoever had the old password loses their sessions; what the visitor does next is
+your policy. A password refused for its length does not spend the token.
 
 **Expiry is decided by the core, not by the store.** A store may still hold a
-lapsed session, and `resolve` answers it as anonymous. A TTL index keeps storage
-tidy; it is not the expiry mechanism.
+lapsed session, and `authenticate` answers it as anonymous. A TTL index keeps
+storage tidy; it is not the expiry mechanism.
 
-**`updateTraits` takes the whole traits.** It does not take a partial: the core
-validates the full object, so there is never a merge to get wrong. Read,
-change, write — and pass `ifVersion` to make the write conditional.
+**`update` merges, then validates the whole.** The patch is spread over the
+stored fields and the result is checked against the schema, so a patch can
+never leave a user that the schema would refuse. Pass `ifVersion` to make the
+write conditional on what you read.
 
 **Under `bun test`, pass `runner: { describe, it }`.** Measured: Bun gives a
 test file `describe` and `it` as bare identifiers, not as properties of
@@ -275,7 +315,7 @@ code — a wiring mistake, and no handler should answer one.
 and a clock that stepped backwards is held rather than followed, so it is
 accurate to the millisecond and no further.
 
-**`mintIdentityId(now)` steers ids forward, never back.** The last millisecond is
+**`mintId(now)` steers ids forward, never back.** The last millisecond is
 module state, so passing a `now` earlier than an id already minted in this
 process does not produce an earlier id — it holds the last one and keeps counting,
 because a decreasing id would break the pagination cursor, which is the whole
@@ -293,10 +333,10 @@ gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
-`test/types/refusals.ts` (fourteen, on `.`), `test/types/port.ts` (fifteen, on
-the store port, from the side of the person implementing it) and
-`test/types/identities.ts` (twenty, on the identity core, from the side of the
-application). The rule comes from `nxgt-data`, and so does the reason to
+`test/types/refusals.ts` (fourteen, on the shared vocabulary),
+`test/types/port.ts` (fifteen, on the store port, from the side of the person
+implementing it) and `test/types/auth.ts` (twenty, on `janus()`, from the side
+of the application). The rule comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on
 `@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
 that goes down is a visible regression.

@@ -1,5 +1,5 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import type { PasswordHasher } from './types';
+import type { PasswordHasher } from './config';
 
 /**
  * scrypt through `node:crypto` — the hasher that runs **everywhere**: Node and

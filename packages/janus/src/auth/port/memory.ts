@@ -1,20 +1,19 @@
 import { NotFoundError, StoreConflict } from '../../errors/janus-error';
-import type { IdentityId } from '../../ids/identity-id';
+import type { Id } from '../../ids/id';
 import type {
-	IdentityIdentifier,
-	IdentityPatch,
-	IdentityRecord,
-	IdentityStore,
-	IdentityStores,
+	JanusStores,
 	SessionId,
 	SessionRecord,
 	SessionStore,
 	TokenRecord,
 	TokenStore,
+	UserPatch,
+	UserRecord,
+	UserStore,
 } from './types';
 
 /**
- * The reference implementation of the identity store port, in memory.
+ * The reference implementation of the store port, in memory.
  *
  * **Shipped and documented, not a test helper.** It is what a consumer uses in
  * their own unit tests, and what an adapter author compares against when a
@@ -35,9 +34,9 @@ import type {
  * Every method is `async` even though none waits on anything: a caller that
  * forgot an `await` must fail here the way it would against a real database.
  */
-export function createMemoryStores(): IdentityStores {
+export function createMemoryStores(): JanusStores {
 	return {
-		identities: memoryIdentityStore(),
+		users: memoryUserStore(),
 		sessions: memorySessionStore(),
 		tokens: memoryTokenStore(),
 	};
@@ -45,116 +44,118 @@ export function createMemoryStores(): IdentityStores {
 
 const copy = <T>(value: T): T => structuredClone(value);
 
-/** The unique key of one identifier. `\u0000` cannot occur in a credential type. */
-const keyOf = (identifier: IdentityIdentifier): string =>
-	`${identifier.type}\u0000${identifier.value}`;
+/** The unique key of one login. `\u0000` cannot occur in a type name the core accepts. */
+const keyOf = (type: string, login: string): string => `${type}\u0000${login}`;
 
-function memoryIdentityStore(): IdentityStore {
-	const byId = new Map<IdentityId, IdentityRecord>();
-	// The unique index: identifier key → the id holding it.
-	const byIdentifier = new Map<string, IdentityId>();
+function memoryUserStore(): UserStore {
+	const byId = new Map<Id, UserRecord>();
+	// The unique index: (type, login) key → the id holding it.
+	const byLogin = new Map<string, Id>();
 
-	/** The first identifier in `identifiers` held by an identity other than `id`. */
+	/** The first of `logins` held by a user of `type` other than `id`. */
 	const takenBy = (
-		identifiers: readonly IdentityIdentifier[],
-		id: IdentityId,
-	): IdentityIdentifier | undefined =>
-		identifiers.find((identifier) => {
-			const holder = byIdentifier.get(keyOf(identifier));
+		type: string,
+		logins: readonly string[],
+		id: Id,
+	): string | undefined =>
+		logins.find((login) => {
+			const holder = byLogin.get(keyOf(type, login));
 			return holder !== undefined && holder !== id;
 		});
 
-	const taken = (operation: string, identifier: IdentityIdentifier) =>
+	const taken = (operation: string, type: string, login: string) =>
 		new StoreConflict(
-			'identifier',
-			`${operation}: the ${identifier.type} identifier "${identifier.value}" is taken`,
-			{
-				identifier: identifier.value,
-				credentialType: identifier.type,
-				operation,
-			},
+			'login',
+			`${operation}: the login "${login}" is taken by another ${type}`,
+			{ login, userType: type, operation },
 		);
 
 	return {
-		async insertIdentity(record) {
+		async insertUser(record) {
 			const stored = byId.get(record.id);
 			if (stored !== undefined) return copy(stored);
 
-			const collision = takenBy(record.identifiers, record.id);
-			if (collision !== undefined) throw taken('insertIdentity', collision);
+			const collision = takenBy(record.type, record.logins, record.id);
+			if (collision !== undefined) {
+				throw taken('insertUser', record.type, collision);
+			}
 
 			const written = copy(record);
 			byId.set(written.id, written);
-			for (const identifier of written.identifiers) {
-				byIdentifier.set(keyOf(identifier), written.id);
+			for (const login of written.logins) {
+				byLogin.set(keyOf(written.type, login), written.id);
 			}
 
 			return copy(written);
 		},
 
-		async findIdentity(id) {
+		async findUser(id) {
 			const stored = byId.get(id);
 			return stored === undefined ? null : copy(stored);
 		},
 
-		async findIdentityByIdentifier(type, value) {
-			const id = byIdentifier.get(keyOf({ type, value }));
+		async findUserByLogin(type, login) {
+			const id = byLogin.get(keyOf(type, login));
 			const stored = id === undefined ? undefined : byId.get(id);
 			return stored === undefined ? null : copy(stored);
 		},
 
-		async listIdentities({ after, limit }) {
+		async listUsers({ type, after, limit }) {
 			// A Map keeps insertion order, not id order: a retried insert or an
 			// id minted on another machine can land out of sequence.
-			const ids = [...byId.keys()]
+			const ids = [...byId.values()]
+				.filter((user) => user.type === type)
+				.map((user) => user.id)
 				.filter((id) => after === null || id > after)
 				.sort();
 			const pageIds = ids.slice(0, limit);
 			const last = pageIds.at(-1);
 
 			return {
-				items: pageIds.map((id) => copy(byId.get(id) as IdentityRecord)),
+				items: pageIds.map((id) => copy(byId.get(id) as UserRecord)),
 				nextCursor: ids.length > limit && last !== undefined ? last : null,
 			};
 		},
 
-		async updateIdentity(id, patch, ifVersion) {
+		async updateUser(id, patch, ifVersion) {
 			const stored = byId.get(id);
 
 			if (stored === undefined) {
-				throw new NotFoundError('updateIdentity: no identity has this id', {
-					identityId: id,
-					operation: 'updateIdentity',
+				throw new NotFoundError('updateUser: no user has this id', {
+					userId: id,
+					operation: 'updateUser',
 				});
 			}
 
 			if (stored.version !== ifVersion) {
 				throw new StoreConflict(
 					'version',
-					`updateIdentity: expected version ${ifVersion}, found ${stored.version}`,
+					`updateUser: expected version ${ifVersion}, found ${stored.version}`,
 					{
-						identityId: id,
+						userId: id,
 						expectedVersion: ifVersion,
 						actualVersion: stored.version,
-						operation: 'updateIdentity',
+						operation: 'updateUser',
 					},
 				);
 			}
 
-			if (patch.identifiers !== undefined) {
-				const collision = takenBy(patch.identifiers, id);
-				if (collision !== undefined) throw taken('updateIdentity', collision);
+			if (patch.logins !== undefined) {
+				const collision = takenBy(stored.type, patch.logins, id);
+				if (collision !== undefined) {
+					throw taken('updateUser', stored.type, collision);
+				}
 			}
 
 			const written = applyPatch(stored, copy(patch));
 
 			byId.set(id, written);
-			if (patch.identifiers !== undefined) {
-				for (const identifier of stored.identifiers) {
-					byIdentifier.delete(keyOf(identifier));
+			if (patch.logins !== undefined) {
+				for (const login of stored.logins) {
+					byLogin.delete(keyOf(stored.type, login));
 				}
-				for (const identifier of written.identifiers) {
-					byIdentifier.set(keyOf(identifier), id);
+				for (const login of written.logins) {
+					byLogin.set(keyOf(written.type, login), id);
 				}
 			}
 
@@ -165,31 +166,25 @@ function memoryIdentityStore(): IdentityStore {
 
 /**
  * The record a patch produces: the fields it names, replaced whole; the fields
- * it does not name, untouched; `credentials` slot by slot.
+ * it does not name, untouched.
  *
  * Reads each field by name rather than spreading the patch, so a key the port
- * does not declare — `version`, `id`, `createdAt`, or a `snake_case` typo from
- * JavaScript — never reaches the record. A key present as `undefined` is
- * absent, never an erasure.
+ * does not declare — `version`, `id`, `type`, `createdAt`, or a `snake_case`
+ * typo from JavaScript — never reaches the record. A key present as
+ * `undefined` is absent, never an erasure.
  */
-function applyPatch(
-	stored: IdentityRecord,
-	patch: IdentityPatch,
-): IdentityRecord {
-	const password = patch.credentials?.password;
-
+function applyPatch(stored: UserRecord, patch: UserPatch): UserRecord {
 	return {
 		...stored,
 		schemaVersion: patch.schemaVersion ?? stored.schemaVersion,
-		state: patch.state ?? stored.state,
-		traits: patch.traits ?? stored.traits,
-		identifiers: patch.identifiers ?? stored.identifiers,
-		credentials: {
-			password: password === undefined ? stored.credentials.password : password,
-		},
-		addresses: patch.addresses ?? stored.addresses,
-		metadataPublic: patch.metadataPublic ?? stored.metadataPublic,
-		metadataAdmin: patch.metadataAdmin ?? stored.metadataAdmin,
+		active: patch.active ?? stored.active,
+		fields: patch.fields ?? stored.fields,
+		logins: patch.logins ?? stored.logins,
+		password: patch.password === undefined ? stored.password : patch.password,
+		emailVerifiedAt:
+			patch.emailVerifiedAt === undefined
+				? stored.emailVerifiedAt
+				: patch.emailVerifiedAt,
 		version: stored.version + 1,
 		updatedAt: patch.updatedAt,
 	};
@@ -238,12 +233,12 @@ function memorySessionStore(): SessionStore {
 			return true;
 		},
 
-		async revokeIdentitySessions(identityId, at, except) {
+		async revokeUserSessions(userId, at, except) {
 			let revoked = 0;
 
 			for (const [id, stored] of byId) {
 				if (
-					stored.identityId === identityId &&
+					stored.userId === userId &&
 					stored.revokedAt === null &&
 					id !== except
 				) {
