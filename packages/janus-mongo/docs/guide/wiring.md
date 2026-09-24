@@ -13,7 +13,7 @@ import { MongoClient } from 'mongodb';
 import { z } from 'zod';
 
 const client = new MongoClient(process.env.MONGO_URL ?? 'mongodb://localhost:27017');
-const db = client.db('app');
+const db = client.db('janus');
 
 const relations = createMongoRelations(db);
 

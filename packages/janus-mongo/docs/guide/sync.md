@@ -10,7 +10,7 @@ import { syncMongoRelations, syncMongoStores } from '@nxgt/janus-mongo';
 import { MongoClient } from 'mongodb';
 
 const client = await MongoClient.connect(process.env.MONGO_URL ?? 'mongodb://localhost:27017');
-const db = client.db('app');
+const db = client.db('janus');
 
 await syncMongoStores(db);    // users, sessions, tokens
 await syncMongoRelations(db); // relations — only if you use @nxgt/janus/permissions
@@ -105,8 +105,8 @@ encoded: a document read in a shell reads like the record in the code.
 - `findObjects` is served by `subjectObjects` with no in-memory sort —
   measured, 11 keys examined for a page of 10.
 - The collection names are fixed: `users`, `sessions`, `tokens`, `relations`.
-  Give the adapter a database of its own when your application already has a
-  collection of one of those names.
+  Give the adapter a database of its own — `client.db('janus')` — so they
+  never meet a collection of your application's.
 
 ## The TTL indexes are not the expiry
 

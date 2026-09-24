@@ -125,10 +125,10 @@ idempotent, so retry it yourself.
 
 **When:** a write — `insertUser`, `updateUser`, `insertSession`, … — rejected by the collection's `$jsonSchema` validator (MongoDB error code 121).
 **Why:** the core validates every record before it reaches the store, so a validator refusing one means the collection and the adapter disagree: the collection's validator was set by another version of this adapter, or a collection of the same name (`users`, `sessions`, `tokens`, `relations`) already belonged to your application, with its own validator. It is never the caller's fault, and never a 400.
-**Fix:** after upgrading this package, run `syncMongoStores(db)` again. If your application already has a `users` collection, give the adapter a database of its own:
+**Fix:** after upgrading this package, run `syncMongoStores(db)` again. If your application already has a `users` collection, the adapter is sharing its database: give it one of its own, `janus`:
 
 ```ts
-const auth = janus({ ..., store: createMongoStores(client.db('auth')) });
+const auth = janus({ ..., store: createMongoStores(client.db('janus')) });
 ```
 
 ---
