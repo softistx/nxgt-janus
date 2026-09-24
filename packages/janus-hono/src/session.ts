@@ -36,11 +36,12 @@ export type SessionEnv<
 };
 
 export interface SessionOptions<T extends string> {
-	/** Only a user of this type is signed in here; any other is anonymous. */
+	/** Only a user of this type is authenticated here; any other is anonymous. */
 	readonly type?: T;
 	/**
 	 * `true`: an anonymous request is answered 401, with no body, and the
-	 * route never runs — so `c.var.user` is never `null` in it.
+	 * route never runs — so `c.var.user` is never `null` in it. Only a literal
+	 * `true` types it so: a computed `boolean` leaves `c.var.user` nullable.
 	 */
 	readonly required?: boolean;
 }
@@ -55,7 +56,9 @@ export interface SessionOptions<T extends string> {
  *
  * A session renewed in passing is sent again as a cookie, after the route
  * ran — but only to a request that presented it as one: a client that sends
- * `Authorization: Bearer` is not handed a cookie it never asked for.
+ * `Authorization: Bearer` is not handed a cookie it never asked for. And
+ * never over a session cookie the route set itself — `sendSession` after a
+ * sign-in, `signOut`'s clearing — which a browser would otherwise overwrite.
  */
 export function session<
 	A extends Auth<{ readonly type: string }>,
@@ -71,6 +74,10 @@ export function session<
 	auth: A,
 	options?: SessionOptions<T> & { readonly required?: false },
 ): MiddlewareHandler<SessionEnv<A, T>>;
+export function session<
+	A extends Auth<{ readonly type: string }>,
+	const T extends UserOfAuth<A>['type'] = UserOfAuth<A>['type'],
+>(auth: A, options: SessionOptions<T>): MiddlewareHandler<SessionEnv<A, T>>;
 export function session(
 	auth: Auth<{ readonly type: string }>,
 	options: SessionOptions<string> = {},
@@ -89,9 +96,13 @@ export function session(
 
 		await next();
 
+		// The route's own cookie wins: a sign-in or a sign-out behind this
+		// middleware must not be undone by the session it replaced.
+		const name = `${auth.cookie.name}=`;
 		if (
 			current?.renewed === true &&
-			getCookie(c, auth.cookie.name) === current.token
+			getCookie(c, auth.cookie.name) === current.token &&
+			!c.res.headers.getSetCookie().some((value) => value.startsWith(name))
 		) {
 			sendSession(c, auth, current);
 		}
@@ -100,16 +111,20 @@ export function session(
 
 /**
  * Sends the session cookie — after `signUp`, `signIn`, or anything else that
- * answered a token and its session. Appends: a cookie set before stays.
+ * answered a session token and its session. Appends: a cookie set before stays.
  */
 export function sendSession(
 	c: Context,
 	auth: Pick<Auth<{ readonly type: string }>, 'cookie'>,
-	opened: { readonly token: string; readonly session: Session },
+	signedIn: { readonly token: string; readonly session: Session },
 ): void {
-	c.header('Set-Cookie', auth.cookie.serialize(opened.token, opened.session), {
-		append: true,
-	});
+	c.header(
+		'Set-Cookie',
+		auth.cookie.serialize(signedIn.token, signedIn.session),
+		{
+			append: true,
+		},
+	);
 }
 
 /**

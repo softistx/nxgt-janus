@@ -22,7 +22,8 @@ them. To log before answering, wrap it:
 ```ts
 const answer = janusErrors();
 app.onError((error, c) => {
-	logger.error(error); // `reason`, `login` and `cause` are here, not in the body
+	// `reason`, `login`, `slot`, `operation` and `cause` are here, never in the body
+	logger.error(error);
 	return answer(error, c);
 });
 ```
@@ -43,7 +44,7 @@ app.get('/account', session(auth, { required: true }), (c) =>
 );
 ```
 
-`session()` reads the token the way `auth.authenticate` does —
+`session()` reads the session token the way `auth.authenticate` does —
 `Authorization: Bearer`, then `X-Session-Token`, then the cookie, **the first
 present wins** — and sets `c.var.user` and `c.var.session`.
 
@@ -53,7 +54,7 @@ present wins** — and sets `c.var.user` and `c.var.session`.
 | A lapsed, revoked or unknown session | `null` | 401 |
 | A session of an inactive user, or of another type than `type` | `null` | 401 |
 | A live session | the user | the user |
-| Anything, while the store cannot answer | — `STORE_FAILED` is thrown | — 503 through `janusErrors()` |
+| A session credential, while the store cannot answer | — `STORE_FAILED` is thrown | — 503 through `janusErrors()` |
 
 ### For a whole app
 
@@ -68,13 +69,24 @@ app.use(session(auth));
 app.get('/', (c) => c.json({ signedIn: c.var.user !== null }));
 ```
 
+An app whose every route requires a user of one type says so in both places,
+and `c.var.user` is never `null` in it:
+
+```ts
+const rota = new Hono<SessionEnv<typeof auth, 'staff', true>>();
+rota.use(session(auth, { type: 'staff', required: true }));
+rota.get('/', (c) => c.json(rotaOf(c.var.user.username)));
+```
+
 ### Renewal
 
-A session with `renewAfter` is renewed by `authenticate` in passing, and its
-expiry moves. `session()` sends the cookie again after the route ran, with the
+Every session is renewed by `authenticate` in passing once `renewAfter` has
+passed — `'1d'` by default, `false` for a fixed lifespan — and its expiry
+moves. `session()` sends the cookie again after the route ran, with the
 new `Expires` — to a request that presented the session as a cookie. A client
-using `Authorization: Bearer` is renewed too, keeps its token, and is never
-handed a cookie.
+using `Authorization: Bearer` is renewed too, keeps its session token, and is never
+handed a cookie. A route that sets the session cookie itself — `sendSession`
+after a sign-in, `signOut` — keeps its own: the renewal is not sent over it.
 
 ## Sign-up and sign-in
 
@@ -106,9 +118,17 @@ The refusals need no `try`: `janusErrors()` answers them.
 | `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password |
 | `USER_INACTIVE` | 403 `{ code }` — only told to somebody who gave the right password |
 
-A client that keeps its token itself — a mobile app — reads `signedIn.token`
-from the body instead, and sends it as `Authorization: Bearer`. Answer it the
-token, not a cookie.
+A bearer client — a mobile app — keeps its session token itself and sends it
+as `Authorization: Bearer`. Answer it the session token in the body, not a
+cookie:
+
+```ts
+return c.json({
+	id: signedIn.user.id,
+	token: signedIn.token,
+	expiresAt: signedIn.session.expiresAt,
+});
+```
 
 ## Sign-out
 
@@ -131,7 +151,7 @@ cookie drops it too.
 
 ## E-mail verification and password reset
 
-Sending the e-mail is yours; the token goes in a link.
+Sending the e-mail is yours; the one-time token goes in a link.
 
 ```ts
 app.post('/verify-email', session(auth, { required: true }), async (c) => {
@@ -181,7 +201,7 @@ app.get('/staff/rota', session(auth, { type: 'staff', required: true }), (c) =>
 ```
 
 A patient's session on `/staff/rota` is anonymous there, and answered 401. The
-session stands, and still signs the patient in on the routes that admit them.
+session stands, and still authenticates the patient on the routes that admit them.
 One cookie holds one session: a browser signed in as a patient that signs in
 as staff replaces the patient's cookie.
 

@@ -15,7 +15,7 @@ other, or both.
 ```
 packages/janus         @nxgt/janus — both sides, and the vocabulary they share
 packages/janus-mongo   @nxgt/janus-mongo — the MongoDB adapter, for either side
-packages/janus-hono    @nxgt/janus-hono — the Hono integration: session middleware, cookie, statuses
+packages/janus-hono    @nxgt/janus-hono — the Hono integration, not yet published
 ```
 
 Adapters still to come, in this order: `@nxgt/janus-drizzle`,

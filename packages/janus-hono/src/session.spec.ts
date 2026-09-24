@@ -170,3 +170,48 @@ describe('sendSession() and signOut()', () => {
 		});
 	});
 });
+
+describe('a route that sets the session cookie itself', () => {
+	/** `session()` over the whole app, as the guide wires it. */
+	function wholeApp() {
+		const context = setup();
+		const { auth } = context;
+		const routes = new Hono()
+			.use(session(auth))
+			.post('/staff/sign-in', async (c) => {
+				sendSession(
+					c,
+					auth,
+					await auth.staff.signIn({ username: 'grace', password }),
+				);
+				return c.body(null, 204);
+			})
+			.post('/sign-out', async (c) =>
+				c.json({ revoked: await signOut(c, auth) }),
+			);
+		return { ...context, routes };
+	}
+
+	it('is not undone by the renewal of the session it replaces', async () => {
+		const { auth, clock, routes } = wholeApp();
+		const patient = await auth.patient.signUp({ ...ada, password });
+		await auth.staff.signUp({ username: 'grace', password });
+		clock.advance(25 * HOUR); // the patient's session is due for renewal
+
+		const signedIn = await routes.request('/staff/sign-in', {
+			method: 'POST',
+			...cookie(patient.token),
+		});
+		const sent = signedIn.headers.getSetCookie();
+		expect(sent).toHaveLength(1);
+		expect(sent[0]).not.toContain(patient.token);
+
+		const signedOut = await routes.request('/sign-out', {
+			method: 'POST',
+			...cookie(patient.token),
+		});
+		expect(signedOut.headers.getSetCookie()).toEqual([
+			expect.stringMatching(/^janus-session=; Expires=Thu, 01 Jan 1970/),
+		]);
+	});
+});

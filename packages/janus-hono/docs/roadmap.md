@@ -5,7 +5,8 @@ no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing in progress.
+- **The first release** — `@nxgt/janus-hono` 0.1 on npm: `session()`,
+  `sendSession`, `signOut`, `janusErrors`. Built, not yet published.
 
 ## Next
 

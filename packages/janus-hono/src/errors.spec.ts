@@ -66,6 +66,16 @@ describe('janusErrors()', () => {
 		);
 		expect(exception.status).toBe(418);
 
+		// What the route set before throwing stays, as with Hono's own handler.
+		const app = new Hono().get('/', (c) => {
+			c.header('Set-Cookie', 'janus-session=kept');
+			throw new HTTPException(403);
+		});
+		app.onError(janusErrors());
+		const kept = await app.request('/');
+		expect(kept.status).toBe(403);
+		expect(kept.headers.getSetCookie()).toEqual(['janus-session=kept']);
+
 		const original = console.error;
 		console.error = () => {};
 		try {

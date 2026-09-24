@@ -46,12 +46,13 @@ declarations import without extensions, so `nodenext` is not supported.
 
 | Export | What it is |
 | --- | --- |
-| `session(auth, options?)` | Middleware. Reads who the request belongs to — `auth.authenticate(c.req.raw)` — and sets `c.var.user` and `c.var.session`, `null` for an anonymous request. `{ required: true }` answers an anonymous request 401 and types `c.var.user` as never `null`. `{ type: 'staff' }` signs in only a user of that type. Sends a renewed session's cookie again |
+| `session(auth, options?)` | Middleware. Reads who the request belongs to — `auth.authenticate(c.req.raw)` — and sets `c.var.user` and `c.var.session`, `null` for an anonymous request. `{ required: true }` answers an anonymous request 401 and types `c.var.user` as never `null`. `{ type: 'staff' }` treats a user of any other type as anonymous. Sends a renewed session's cookie again |
 | `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, or anything that answered `{ token, session }` |
 | `signOut(c, auth)` | Revokes the session the request presents and clears the cookie, whatever the answer. `false` when the request presented no session, or an unknown one |
 | `janusErrors(fallback?)` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)`; anything else to `fallback`, or to Hono's own handling |
 | `statusOf(code)` | The status a code deserves: `STORE_FAILED` 503, `CREDENTIALS_INVALID` 401, `USER_INACTIVE` 403, `LOGIN_TAKEN` 409, … Exhaustive over `JanusErrorCode` |
 | `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID` and `minLength` for `PASSWORD_TOO_SHORT` — what the client can act on, and nothing else |
+| `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
 
@@ -86,8 +87,10 @@ An application that signs users in some other way uses `janusErrors()` alone.
   as `new Hono<SessionEnv<typeof auth>>()`.
 - **A renewed session is sent again only as a cookie, and only to a request
   that presented one.** A client that sends `Authorization: Bearer` is renewed
-  too — its token does not change — but it is never handed a cookie it did not
+  too — its session token does not change — but it is never handed a cookie it did not
   ask for. It reads `session.expiresAt` if it needs to.
+- **`required` is typed only for a literal `true`.** A computed `boolean`
+  compiles, and leaves `c.var.user` nullable.
 - **`required` answers 401 with no body and no `WWW-Authenticate`.** Wrap the
   route yourself for another answer: `session(auth)`, then check
   `c.var.user === null`.
@@ -95,6 +98,9 @@ An application that signs users in some other way uses `janusErrors()` alone.
   `http://`, `localhost` aside in most browsers. Set `cookie: { secure: false }`
   in `janus()` for a development server that is not on `localhost`, never in
   production.
+- **`janusErrors()` logs nothing.** A `STORE_FAILED` is answered 503 without a
+  line in your logs; wrap the handler to see which store failed — the
+  [guide](docs/guide/routes.md#wiring) shows how.
 - **`bodyOf` never carries `reason`, `login` or a cause.** `CREDENTIALS_INVALID`
   says one thing for an unknown login, a missing password and a wrong one, so a
   response cannot tell which users exist. Log the error before you answer it

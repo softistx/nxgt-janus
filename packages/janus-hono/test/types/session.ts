@@ -40,6 +40,13 @@ new Hono()
 		return c.body(null);
 	});
 
+// A computed `required` matches, and leaves the user nullable.
+declare const strict: boolean;
+new Hono().get('/maybe', session(auth, { required: strict }), (c) => {
+	const user: { readonly id: string } | null = c.var.user;
+	return c.json({ signedIn: user !== null });
+});
+
 // Typed once for an app that wires `app.use(session(auth))`.
 new Hono<SessionEnv<typeof auth>>().use(session(auth)).get('/', (c) => {
 	const type: 'patient' | 'staff' | undefined = c.var.user?.type;
@@ -48,6 +55,11 @@ new Hono<SessionEnv<typeof auth>>().use(session(auth)).get('/', (c) => {
 	c.var.session.id;
 	return c.json({ type });
 });
+
+// An app whose every route requires one user type, as the guide shows it.
+new Hono<SessionEnv<typeof auth, 'staff', true>>()
+	.use(session(auth, { type: 'staff', required: true }))
+	.get('/', (c) => c.json({ username: c.var.user.username }));
 
 // 6. `SessionEnv` narrowed to a type the instance does not know.
 // @ts-expect-error — 'doctor' is not a user type of `auth`.

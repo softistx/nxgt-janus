@@ -1,6 +1,6 @@
 import { JanusError, type JanusErrorCode } from '@nxgt/janus';
 import type { Context, ErrorHandler } from 'hono';
-import { HTTPException } from 'hono/http-exception';
+import type { HTTPException } from 'hono/http-exception';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
 /**
@@ -62,11 +62,15 @@ export function bodyOf(error: JanusError): {
 }
 
 /**
- * Hono's own answer to an error it was not told about: the response of an
- * `HTTPException`, and a logged 500 for anything else.
+ * Hono's own answer to an error it was not told about, copied from its
+ * default handler: the response of an `HTTPException` — merged with the
+ * headers the route set before throwing — and a logged 500 for anything else.
  */
-function honoDefault(error: Error, c: Context): Response {
-	if (error instanceof HTTPException) return error.getResponse();
+function honoDefault(error: Error | HTTPException, c: Context): Response {
+	if ('getResponse' in error) {
+		const response = error.getResponse();
+		return c.newResponse(response.body, response);
+	}
 	console.error(error);
 	return c.text('Internal Server Error', 500);
 }

@@ -216,7 +216,7 @@ other — that is how `guardRelations` left `src/auth/outage.ts`.
 **One word per idea.** The documentation, the error messages and the doc
 comments use the words defined in `packages/janus/docs/guide/vocabulary.md`
 (`## Words`): *side*, *identities*, *permissions*, *user*, *user type*,
-*login*, *subject*, *tuple*, *identity stores*, *relation store*, *adapter*.
+*login*, *subject*, *tuple*, *identity stores*, *relation store*, *adapter*, *integration*.
 A new idea gets a row there before it gets a second name.
 
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
