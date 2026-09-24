@@ -28,8 +28,7 @@ on:
 jobs:
   ci:
     name: CI
-    # GitHub-hosted. This repository is private until v0.1, so these minutes
-    # are billed against the organisation's allowance until it goes public.
+    # GitHub-hosted. The repository is public, so these minutes are free.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

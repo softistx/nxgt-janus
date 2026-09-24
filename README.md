@@ -41,7 +41,8 @@ point is a promise.
 
 ## Status
 
-Pre-v0.1, and private until then. The public surface is still moving.
+v0.1, the first public release. Until 1.0 a minor version may still change
+the public surface; the changelog says how.
 
 ## Licence
 
