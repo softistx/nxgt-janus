@@ -2,23 +2,19 @@ import { describe, expect, it } from 'bun:test';
 import { isSubjectSet, type Subject, subjectOf } from './subject';
 
 describe('isSubjectSet', () => {
-	it('tells one person from everyone who holds a relation', () => {
-		expect(isSubjectSet('alice')).toBe(false);
-		expect(
-			isSubjectSet({
-				subjectSet: { namespace: 'Group', object: 'eng', relation: 'members' },
-			}),
-		).toBe(true);
+	it('tells one entity from everyone who holds a relation on one', () => {
+		expect(isSubjectSet({ type: 'staff', id: 'u1' })).toBe(false);
+		expect(isSubjectSet({ type: 'team', id: 't1', relation: 'member' })).toBe(
+			true,
+		);
 	});
 
-	it('narrows, so reading the set needs no cast', () => {
-		const subject: Subject = {
-			subjectSet: { namespace: 'Group', object: 'eng', relation: 'members' },
-		};
+	it('narrows, so reading the relation needs no cast', () => {
+		const subject: Subject = { type: 'team', id: 't1', relation: 'member' };
 
 		if (isSubjectSet(subject)) {
 			// Would not compile without the narrowing.
-			expect(subject.subjectSet.relation).toBe('members');
+			expect(subject.relation).toBe('member');
 		} else {
 			throw new Error('expected a subject set');
 		}
@@ -26,18 +22,21 @@ describe('isSubjectSet', () => {
 });
 
 describe('subjectOf', () => {
-	it('is the join between identities and permissions, and it is a function', () => {
-		// In Ory this equality is a comment repeated in three repositories. The
-		// point of writing it as a function is that there is one place to read,
-		// and one place that would have to change.
-		expect(subjectOf({ id: '018f-abc' })).toBe('018f-abc');
+	it('is the join between users and permissions: a user is a subject by its type and id', () => {
+		expect(subjectOf({ type: 'staff', id: '018f-abc' })).toEqual({
+			type: 'staff',
+			id: '018f-abc',
+		});
 	});
 
-	it('takes the narrowest shape it reads, so a session works too', () => {
-		// Deliberately `{ id }` and not `Identity`: the permissions module never
-		// has to know what an identity is.
-		const session = { id: 'sess-1', identityId: '018f-abc' };
+	it('keeps none of the user’s own fields, so none reaches a tuple', () => {
+		// A user's fields are flat on it; one named `relation` would make the
+		// user itself read as a subject set.
+		const user = { type: 'staff', id: 'u1', relation: 'cousin', name: 'Ada' };
 
-		expect(subjectOf({ id: session.identityId })).toBe('018f-abc');
+		const subject = subjectOf(user);
+
+		expect(subject).toEqual({ type: 'staff', id: 'u1' });
+		expect(isSubjectSet(subject)).toBe(false);
 	});
 });

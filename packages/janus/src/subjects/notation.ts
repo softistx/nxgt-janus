@@ -1,16 +1,16 @@
 import {
+	type Entity,
 	isSubjectSet,
 	type RelationTuple,
 	type Subject,
-	type SubjectSet,
 } from './subject';
 
 /**
- * Zanzibar's own notation, which Keto also uses:
+ * Zanzibar's notation, with typed subjects:
  *
  * ```
- * Note:1#viewers@alice
- * Note:1#viewers@(Group:eng#members)
+ * record:r1#viewer@staff:u1
+ * record:r1#viewer@team:t1#member
  * ```
  *
  * It exists for **messages, logs and documentation**, not as a wire format:
@@ -19,54 +19,50 @@ import {
  * because every piece of Zanzibar writing uses it, so an error message in it is
  * an error message a reader has already learned to read.
  *
- * The parentheses around a subject set are this package's, not Keto's — Keto
- * writes `@Group:eng#members` bare. Without them, `Note:1#viewers@Group:eng`
- * and a subject id that happens to contain a colon are ambiguous, and a
- * notation that cannot round-trip is a notation that lies in a log.
+ * A type holds no `:`, and no part holds `@`, `#` or a parenthesis, so a
+ * subject set needs no parentheses: after the `@`, a `#` can only begin its
+ * relation. {@link parseTuple} refuses a string where that would not hold,
+ * rather than reading it two ways.
  */
+export function formatEntity(entity: Entity): string {
+	return `${entity.type}:${entity.id}`;
+}
+
+/** One subject: `staff:u1`, or `team:t1#member`. */
 export function formatSubject(subject: Subject): string {
-	if (!isSubjectSet(subject)) return subject;
-	const { namespace, object, relation } = subject.subjectSet;
-	return `(${namespace}:${object}#${relation})`;
+	return isSubjectSet(subject)
+		? `${formatEntity(subject)}#${subject.relation}`
+		: formatEntity(subject);
 }
 
 /** One relation tuple, in the notation above. */
 export function formatTuple(tuple: RelationTuple): string {
-	return `${tuple.namespace}:${tuple.object}#${tuple.relation}@${formatSubject(
-		tuple.subject,
-	)}`;
+	return `${formatEntity(tuple.object)}#${tuple.relation}@${formatSubject(tuple.subject)}`;
 }
 
-/** A subject set, without its parentheses: `Group:eng#members`. */
-export function formatSubjectSet(set: SubjectSet): string {
-	return `${set.namespace}:${set.object}#${set.relation}`;
-}
+const TYPE = '([^:@#()]+)';
+const ID = '([^@#()]+)';
+const RELATION = '([^:@#()]+)';
 
-const TUPLE = /^([^:@#()]+):([^@#()]+)#([^@#()]+)@(.+)$/;
-const SUBJECT_SET = /^\(([^:@#()]+):([^@#()]+)#([^@#()]+)\)$/;
+const TUPLE = new RegExp(`^${TYPE}:${ID}#${RELATION}@(.+)$`);
+const SUBJECT = new RegExp(`^${TYPE}:${ID}(?:#${RELATION})?$`);
 
 /**
- * Reads back what {@link formatTuple} wrote.
- *
- * Refuses anything else with a `TypeError` naming what it was given, rather than
- * returning a half-parsed tuple: a permission question built from a malformed
- * string is a question whose answer means nothing.
- *
- * It is a bare `TypeError` and not a `JanusError` because there is no request
- * behind it. Nothing in this package reads a tuple off the network, so a string
- * reaching here came from a developer's own code, a test fixture or a script —
- * which is a wiring mistake, and no handler should answer one.
+ * Reads a tuple back. Refuses, with a `TypeError`, a string that is not one —
+ * a permission question built from a malformed string is a question whose
+ * answer means nothing, and no request is behind it: the string came from a
+ * developer's own code.
  */
 export function parseTuple(text: string): RelationTuple {
 	const match = TUPLE.exec(text);
 
 	if (!match) {
 		throw new TypeError(
-			`parseTuple: "${text}" is not a relation tuple; expected namespace:object#relation@subject`,
+			`parseTuple: "${text}" is not a relation tuple; expected type:id#relation@subject`,
 		);
 	}
 
-	const [, namespace, object, relation, subject] = match as unknown as [
+	const [, type, id, relation, subject] = match as unknown as [
 		string,
 		string,
 		string,
@@ -74,31 +70,25 @@ export function parseTuple(text: string): RelationTuple {
 		string,
 	];
 
-	return { namespace, object, relation, subject: parseSubject(subject) };
+	return { object: { type, id }, relation, subject: parseSubject(subject) };
 }
 
-/** A subject id, or a parenthesised subject set. */
+/** Reads one subject back: `staff:u1`, or `team:t1#member`. */
 export function parseSubject(text: string): Subject {
-	const set = SUBJECT_SET.exec(text);
-	if (!set) {
-		if (text.includes('#')) {
-			// Keto's own bare form. Refused rather than accepted, because
-			// accepting it would make the notation ambiguous with a subject id
-			// containing a `#`, and a tuple that parses two ways is worse than one
-			// that refuses.
-			throw new TypeError(
-				`parseSubject: "${text}" looks like a subject set; write it in parentheses, as (namespace:object#relation)`,
-			);
-		}
-		return text;
+	const match = SUBJECT.exec(text);
+
+	if (!match) {
+		throw new TypeError(
+			`parseSubject: "${text}" is not a subject; expected type:id, or type:id#relation for a subject set`,
+		);
 	}
 
-	const [, namespace, object, relation] = set as unknown as [
+	const [, type, id, relation] = match as unknown as [
 		string,
 		string,
 		string,
-		string,
+		string | undefined,
 	];
 
-	return { subjectSet: { namespace, object, relation } };
+	return relation === undefined ? { type, id } : { type, id, relation };
 }

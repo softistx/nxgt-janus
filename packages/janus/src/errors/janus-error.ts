@@ -143,7 +143,7 @@ export interface JanusErrorOptions {
 	/** The port method being called: `insertUser`, `consumeToken`. */
 	readonly operation?: string;
 	/** Which store slot: the sentence should say which store to change. */
-	readonly slot?: 'users' | 'sessions' | 'tokens';
+	readonly slot?: 'users' | 'sessions' | 'tokens' | 'relations';
 	readonly cause?: unknown;
 }
 
@@ -176,7 +176,7 @@ export class JanusError extends Error {
 	readonly issues: readonly Issue[] | undefined;
 	readonly minLength: number | undefined;
 	readonly operation: string | undefined;
-	readonly slot: 'users' | 'sessions' | 'tokens' | undefined;
+	readonly slot: 'users' | 'sessions' | 'tokens' | 'relations' | undefined;
 
 	constructor(message: string, options?: JanusErrorOptions) {
 		super(message, { cause: options?.cause });

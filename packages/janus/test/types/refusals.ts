@@ -94,38 +94,39 @@ outage.code = 'NOT_FOUND';
 // ── 8. snake_case on a public shape ─────────────────────────────────────────
 // The repository's casing rule, held by the compiler and not only by review.
 // The refusal lands on the offending KEY, not on the declaration — which is the
-// whole point of the naming rule: the compiler says `subject_set`, and suggests
-// `subjectSet`.
-const snakeSubject: Subject = {
-	// @ts-expect-error subject_set is not a key of Subject; it is subjectSet
-	subject_set: { namespace: 'Group', object: 'eng', relation: 'members' },
+// whole point of the naming rule: the compiler says `next_cursor`, and suggests
+// `nextCursor`.
+const snakePage: CursorPage<string> = {
+	items: [],
+	// @ts-expect-error next_cursor is not a key of CursorPage; it is nextCursor
+	next_cursor: null,
 };
 
-// ── 9. A subject set missing a field ────────────────────────────────────────
-// All three are required: a set with no relation names everyone, which is the
-// one answer a permission system must never give by accident.
+// ── 9. A subject set missing its relation ───────────────────────────────────
+// Without it, it is one entity — the team itself, not its members — which is
+// a grant nobody meant.
 // @ts-expect-error relation is missing
-const partialSet: SubjectSet = { namespace: 'Group', object: 'eng' };
+const partialSet: SubjectSet = { type: 'team', id: 't1' };
 
 // ── 10. Reading a subject set without narrowing ─────────────────────────────
-// `isSubjectSet` is the discriminant; reaching past it is how a subject id gets
+// `isSubjectSet` is the discriminant; reaching past it is how one entity gets
 // treated as a set.
 function readWithoutNarrowing(subject: Subject): string {
-	// @ts-expect-error a Subject may be a string, which has no subjectSet
-	return subject.subjectSet.relation;
+	// @ts-expect-error a Subject may be an Entity, which has no relation
+	return subject.relation;
 }
 
 function readWithNarrowing(subject: Subject): string {
-	return isSubjectSet(subject) ? subject.subjectSet.relation : subject;
+	return isSubjectSet(subject) ? subject.relation : subject.id;
 }
 
-// ── 11. A tuple whose subject is neither shape ──────────────────────────────
+// ── 11. A tuple whose subject is Keto's untyped id ──────────────────────────
+// A bare id cannot say whether it is a patient or a member of staff.
 const wrongSubject: RelationTuple = {
-	namespace: 'Note',
-	object: '1',
-	relation: 'viewers',
-	// @ts-expect-error a number is neither a subject id nor a subject set
-	subject: 42,
+	object: { type: 'record', id: 'r1' },
+	relation: 'viewer',
+	// @ts-expect-error a subject has a type: { type: 'staff', id: 'alice' }
+	subject: 'alice',
 };
 
 // ── 12. Editing what a store answered ──────────────────────────────────────
@@ -176,19 +177,16 @@ const goodConstraint = new StoreConflict('login', 'taken', {
 const goodCredential = new CredentialError('PASSWORD_TOO_SHORT', 'x', {
 	minLength: 8,
 });
-const goodSubject: Subject = {
-	subjectSet: { namespace: 'Group', object: 'eng', relation: 'members' },
-};
+const goodSubject: Subject = { type: 'team', id: 't1', relation: 'member' };
 const goodTuple: RelationTuple = {
-	namespace: 'Note',
-	object: '1',
-	relation: 'viewers',
-	subject: 'alice',
+	object: { type: 'record', id: 'r1' },
+	relation: 'viewer',
+	subject: { type: 'staff', id: 'alice' },
 };
 const goodPage: CursorPage<string> = { items: ['a'], nextCursor: null };
-// Deliberately `{ id }` and not a User: the join takes the narrowest shape it
-// reads, so a session's `userId` works without a conversion.
-const subject = subjectOf({ id: '018f-abc' });
+// Deliberately `{ type, id }` and not a User: the join takes the narrowest
+// shape it reads.
+const subject = subjectOf({ type: 'staff', id: '018f-abc' });
 
 // `noUnusedLocals` is off in this repository, as it is in nxgt-data, so these
 // bindings exist only to be typechecked. Referenced here so a reader does not
@@ -204,7 +202,7 @@ export const checked = {
 		wrongFamily,
 		wrongSession,
 		wrongToken,
-		snakeSubject,
+		snakePage,
 		partialSet,
 		wrongSubject,
 		missingCursor,

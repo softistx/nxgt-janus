@@ -1,73 +1,84 @@
 /**
- * The string every decision in this package hangs on.
+ * The id every decision in this package hangs on: a user's `id`, as `janus()`
+ * mints it.
  *
- * It **is** the identity id the identities module mints, so an ownership tuple
- * written from a session and checked from a machine token agree about who the
- * holder is. In Ory that equality — between a Kratos identity id and Keto's
- * `subject_id` — is a comment and a convention, restated in three repositories
- * and enforced nowhere. Here it is a type and a function: see {@link subjectOf}.
- *
- * That shared vocabulary is the whole reason identities and permissions are one
- * package rather than two. Two packages would make this contract implicit, and
- * an implicit contract between two independently versioned packages is one that
- * breaks silently.
+ * In Ory, the equality between a Kratos identity id and Keto's `subject_id` is
+ * a comment and a convention, restated in three repositories and enforced
+ * nowhere. Here a user **is** a subject — see {@link subjectOf} — and that
+ * shared vocabulary is the whole reason users and permissions are one package
+ * rather than two: two packages would make this contract implicit, and an
+ * implicit contract between independently versioned packages breaks silently.
  *
  * Opaque: compared with `===`, carried in a URL, logged, never parsed.
  */
 export type SubjectId = string;
 
 /**
- * Everyone who holds `relation` on `object` — how a permission is inherited
- * rather than granted.
+ * Something a permission is about or held by — a user, a record, a team — by
+ * its type and its id.
  *
- * A tuple whose *subject* is a subject set is what lets a whole group be given
- * access with one write: granting `Note:1#viewers` to `Group:eng#members` means
- * every member of that group can view the note, and no member holds a tuple on
- * the note at all.
+ * **Typed, unlike Keto's subjects.** One application has patients and staff,
+ * and an object can hold a relation too (a record's team), so an id alone does
+ * not say who. `type` is a user type of `janus()` or an object type of the
+ * permission model, and the same word as a user's own `type`.
  */
-export interface SubjectSet {
-	readonly namespace: string;
-	readonly object: string;
+export interface Entity {
+	readonly type: string;
+	readonly id: string;
+}
+
+/**
+ * Everyone who holds `relation` on an entity — `team:t1#member` — which is how
+ * a permission is inherited rather than granted.
+ *
+ * A tuple whose subject is a subject set lets a whole group be given access
+ * with one write: granting a record's `viewer` to `team:t1#member` means every
+ * member of that team can view it, and no member holds a tuple on the record.
+ */
+export interface SubjectSet extends Entity {
 	readonly relation: string;
 }
 
 /**
- * Who a tuple is about: one person, or everyone who holds a relation.
- *
- * A plain string is a subject id; anything else is a subject set. That is the
- * discriminant, and {@link isSubjectSet} is how to narrow it.
+ * Who a tuple is about: one entity, or everyone who holds a relation on one.
+ * {@link isSubjectSet} tells them apart.
  */
-export type Subject = SubjectId | { readonly subjectSet: SubjectSet };
+export type Subject = Entity | SubjectSet;
 
 /**
- * A relation tuple: `subject` holds `relation` on `namespace:object`.
+ * A relation tuple: `subject` holds `relation` on `object`.
  *
- * The field names are Zanzibar's, and Keto's, because they are the terms of the
- * domain and each one is a single word. What is **not** carried over is the
- * casing: Keto writes `subject_set`, and nothing in this package does.
+ * `relation` is Zanzibar's word, and a tuple is Zanzibar's unit. What is not
+ * carried over is Keto's `namespace`/`object` pair: here the object is an
+ * {@link Entity}, with the `type` and `id` a user already has.
  */
 export interface RelationTuple {
-	readonly namespace: string;
-	readonly object: string;
+	readonly object: Entity;
 	readonly relation: string;
 	readonly subject: Subject;
 }
 
-/** Whether this subject is a set rather than one person. Narrows. */
-export function isSubjectSet(
-	subject: Subject,
-): subject is { readonly subjectSet: SubjectSet } {
-	return typeof subject !== 'string';
+/**
+ * Whether this subject is a set rather than one entity. Narrows.
+ *
+ * It reads the shape, so pass a user through {@link subjectOf} first: a user
+ * whose fields include a string `relation` would otherwise read as a set.
+ */
+export function isSubjectSet(subject: Subject): subject is SubjectSet {
+	return typeof (subject as { relation?: unknown }).relation === 'string';
 }
 
 /**
- * The subject an identity is.
+ * The subject a user is: their `type` and `id`, and nothing else.
  *
- * One line, and the entire join between the two modules. It takes the narrowest
- * shape it reads rather than an `Identity`, so the permissions module never has
- * to know what an identity is — and so a caller can pass anything that carries
- * an id, including a session's `identityId`.
+ * One line, and the entire join between the two halves of the package. It
+ * takes the narrowest shape it reads, so the permissions half never has to
+ * know what a user is, and it copies those two fields so none of the user's
+ * own fields ever reaches a tuple.
  */
-export function subjectOf(identity: { readonly id: SubjectId }): SubjectId {
-	return identity.id;
+export function subjectOf(user: {
+	readonly type: string;
+	readonly id: SubjectId;
+}): Entity {
+	return { type: user.type, id: user.id };
 }

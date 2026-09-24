@@ -85,15 +85,24 @@ request handler should ever answer one, so no handler needs to tell it apart.
 ```ts
 import { type Subject, subjectOf, formatTuple, parseTuple } from '@nxgt/janus';
 
-subjectOf(user);                        // the user IS the subject
-formatTuple({ namespace: 'Note', object: '1', relation: 'viewers', subject: 'alice' });
-// 'Note:1#viewers@alice'
+subjectOf(user);                        // { type: 'staff', id: '…' }: the user IS the subject
+formatTuple({
+  object: { type: 'record', id: 'r1' },
+  relation: 'viewer',
+  subject: { type: 'team', id: 't1', relation: 'member' },
+});
+// 'record:r1#viewer@team:t1#member'
 ```
 
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
 Here it is a type and a one-line function — and that shared vocabulary is the
 reason users and permissions are one package rather than two.
+
+**Subjects are typed**, unlike Keto's: `{ type, id }` for one entity, and
+`{ type, id, relation }` for a subject set. One application has patients and
+staff, and an object can hold a relation too, so a bare id does not say who.
+`type` is the same word as a user's own.
 
 ### Ids
 
@@ -323,11 +332,11 @@ answers `null`. `undefined` is what a missing property *and* a function with no
 `return` both produce, so a store that forgot to answer would report "not found"
 by accident. `null` has to be written on purpose.
 
-**A subject set is parenthesised.** `Note:1#viewers@(Group:eng#members)`, where
-Keto writes it bare. Without the parentheses a subject id containing a `:` or a
-`#` is ambiguous, and a notation that cannot round-trip is a notation that lies
-in a log. `parseSubject` refuses Keto's bare form with a message saying how to
-write it.
+**The notation is typed, and refuses Keto's untyped subject.**
+`record:r1#viewer@staff:u1`, and `record:r1#viewer@team:t1#member` for a subject
+set. No part may hold `@`, `#` or a parenthesis, and a type may not hold a `:`,
+so every string reads one way. `parseTuple` refuses `record:r1#viewer@alice`,
+and its message says what a subject is.
 
 **`parseTuple` throws a bare `TypeError`, not a `JanusError`.** Nothing in this
 package reads a tuple off the network, so a malformed string came from your own

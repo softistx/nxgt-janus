@@ -123,11 +123,13 @@ does TypeScript's `@ts-expect-error`, and the two cannot both be last.
 
 Two places where the temptation will be strong:
 
-- **Permission tuples.** Keto's *names* stay — `namespace`, `object`,
-  `relation`, `subject` — because each is a single word and they are the terms
-  of the domain. But `subject_set` becomes `subjectSet`. The textual notation
-  (`Note:1#viewers@(Group:eng#members)`) is Zanzibar's, and is not
-  `snake_case`.
+- **Permission tuples.** Zanzibar's words stay — `object`, `relation`,
+  `subject` — because each is a single word and they are the terms of the
+  domain. Subjects are **typed** (`{ type, id }`, and `{ type, id, relation }`
+  for a subject set; decided 2026-09-24), so Keto's `namespace` became `type`,
+  the word a user already carries, and `subject_set` has no equivalent to
+  misspell. The notation (`record:r1#viewer@team:t1#member`) is Zanzibar's, and
+  is not `snake_case`.
 - **Emitting a Kratos document** would have required `ory.sh/kratos`'s
   `snake_case` vocabulary. It is not in v1, and if it ever returns it lives in a
   separate package whose job is to speak somebody else's language.
