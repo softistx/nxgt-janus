@@ -8,12 +8,13 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Sixteen plausible mistakes, sixteen refused**, each verified to fail for
+ * **Twenty plausible mistakes, twenty refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
  */
 
+import { permissions } from '../../src/permissions/engine';
 import {
 	type Can,
 	type ConfigOf,
@@ -21,6 +22,7 @@ import {
 	fromField,
 	when,
 } from '../../src/permissions/model';
+import { createMemoryRelations } from '../../src/permissions/port/memory';
 
 /** What `auth.types` answers for a clinic with two user types. */
 const subjects = ['patient', 'staff'] as const;
@@ -171,6 +173,32 @@ can({ type: 'visitor', id: 'v' }, 'view', { type: 'team', id: 't' });
 // @ts-expect-error 16. "ward" is not an object type of the model
 can(staff, 'view', { type: 'ward', id: 'w' });
 
+// ─── Writing tuples ───────────────────────────────────────────────────────
+
+const access = permissions({ model: clinic, store: createMemoryRelations() });
+
+// @ts-expect-error 17. doctor is read from doctorId: there is no tuple to write
+access.grant(record, 'doctor', staff);
+
+// @ts-expect-error 18. team.lead is held by staff, not by patients
+access.grant({ type: 'team', id: 't' }, 'lead', { type: 'patient', id: 'p' });
+
+access.grant(record, 'viewer', {
+	type: 'team',
+	id: 't',
+	// @ts-expect-error 19. record.viewer admits team#member, not team#lead
+	relation: 'lead',
+});
+
+defineModel({
+	subjects,
+	types: {
+		team: { relations: { lead: fromField('leadId', 'staff') } },
+		// @ts-expect-error 20. a subject set on a relation read from a field: no data to read it from
+		record: { relations: { viewer: ['team#lead'] } },
+	},
+});
+
 // ─── What is allowed ──────────────────────────────────────────────────────
 
 async function allowed() {
@@ -184,6 +212,14 @@ async function allowed() {
 		await can(staff, 'doctor', record),
 		// An object can be a subject: a team, member of another team.
 		await can({ type: 'team', id: 't' }, 'member', { type: 'team', id: 't2' }),
+		// A user is a subject as it is; a subject set is granted by its relation.
+		await access.grant({ type: 'team', id: 't' }, 'member', staff),
+		await access.grant(record, 'viewer', {
+			type: 'team',
+			id: 't',
+			relation: 'member',
+		}),
+		await access.can(staff, 'view', record, { ctx: { onShift: true } }),
 	];
 }
 

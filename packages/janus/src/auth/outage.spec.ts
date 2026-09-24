@@ -19,7 +19,7 @@ function failing(
 	};
 }
 
-describe('the scan: no catch around a store call, anywhere but here', () => {
+describe('the scan: no catch around a store call, in auth or permissions, anywhere but here', () => {
 	// The failure this whole design exists to prevent is a single careless
 	// `catch { return null }`. So this spec reads the source and refuses any
 	// `catch` — and any two-argument `.then`, the same thing spelled
@@ -37,24 +37,40 @@ describe('the scan: no catch around a store call, anywhere but here', () => {
 					!entry.name.endsWith('.spec.ts') &&
 					entry.name !== 'outage.ts'
 				) {
-					// Block comments blanked, line numbers kept: the port's own doc
-					// quotes the forbidden line in order to forbid it.
-					const source = (await Bun.file(path).text()).replace(
-						/\/\*[\s\S]*?\*\//g,
-						(comment) => comment.replace(/[^\n]/g, ' '),
+					offenders.push(
+						...forbiddenIn(await Bun.file(path).text()).map(
+							(line) => `${path}:${line}`,
+						),
 					);
-					source.split('\n').forEach((line, index) => {
-						const code = line.replace(/\/\/.*$/, '');
-						if (/\bcatch\b|\.then\([^)]*,/.test(code)) {
-							offenders.push(`${path}:${index + 1}: ${line.trim()}`);
-						}
-					});
 				}
 			}
 		};
 		await walk(import.meta.dir);
+		// The permission engine keeps the same invariant: a denial is false,
+		// and a failure throws — so no catch there either.
+		await walk(join(import.meta.dir, '..', 'permissions'));
 
 		expect(offenders).toEqual([]);
+	});
+
+	it('sees a two-argument then however it is spelled — measured: the first regex missed two', () => {
+		// A mutation of the permission engine, `.then((x) => x, () => false)`
+		// around a store call, passed the line-by-line regex: it stopped at the
+		// first `)`, and a call split over lines never matched at all.
+		expect(forbiddenIn('store.has(t).then((x) => x, () => false);')).toEqual([
+			1,
+		]);
+		expect(
+			forbiddenIn('store.has(t).then(\n\t(x) => x,\n\t() => false,\n);'),
+		).toEqual([1]);
+		expect(forbiddenIn('try { a() } catch { return null }')).toEqual([1]);
+		// One argument, even with the trailing comma a formatter writes.
+		expect(forbiddenIn('p.then((x) => f(x, y));')).toEqual([]);
+		expect(forbiddenIn('p.then(\n\t(x) => f(x, y),\n);')).toEqual([]);
+		// Comments quote the forbidden line in order to forbid it.
+		expect(
+			forbiddenIn('// never catch { return null }\n/* .then(a, b) */'),
+		).toEqual([]);
 	});
 
 	it('and of the two in outage.ts, one always rethrows and the other absorbs one named conflict', async () => {
@@ -210,3 +226,45 @@ describe('an outage is never a negative answer', () => {
 		}
 	});
 });
+
+/**
+ * The lines, 1-based, holding a `catch` or a two-argument `.then` — the same
+ * thing spelled differently. Comments are blanked first, line breaks kept, and
+ * each `.then(` is read to its closing parenthesis, so neither a parameter in
+ * parentheses nor a call split over lines hides its second argument.
+ */
+function forbiddenIn(text: string): number[] {
+	const source = text
+		.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
+		.replace(/\/\/[^\n]*/g, (comment) => ' '.repeat(comment.length));
+	const lineAt = (index: number) => source.slice(0, index).split('\n').length;
+	const lines = new Set<number>();
+
+	for (const match of source.matchAll(/\bcatch\b/g))
+		lines.add(lineAt(match.index));
+
+	for (const match of source.matchAll(/\.then\(/g)) {
+		let depth = 0;
+		const commas: number[] = [];
+		for (let i = match.index + match[0].length; i < source.length; i += 1) {
+			const char = source[i];
+			if (char === '(' || char === '[' || char === '{') depth += 1;
+			else if (char === ')' || char === ']' || char === '}') {
+				if (depth === 0) {
+					// An argument after a comma is a second argument; a comma
+					// followed only by whitespace is a formatter's trailing one.
+					const ends = [...commas.slice(1), i];
+					if (
+						commas.some((at, k) => source.slice(at + 1, ends[k]).trim() !== '')
+					) {
+						lines.add(lineAt(match.index));
+					}
+					break;
+				}
+				depth -= 1;
+			} else if (char === ',' && depth === 0) commas.push(i);
+		}
+	}
+
+	return [...lines].sort((a, b) => a - b);
+}
