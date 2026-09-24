@@ -86,21 +86,51 @@ export function describeJanusStores(options: {
 	/** Declared up front, so the report can say so before the first case runs. */
 	readonly faults?: boolean;
 }): void {
-	const runner = options.runner ?? fromGlobals();
-	const skip = options.skip ?? {};
-	const groups = [...new Set(allCases.map((c) => c.group))];
+	describeSuite({
+		title: `${options.name} — @nxgt/janus conformance`,
+		cases: allCases,
+		run: (conformanceCase) => runCase(conformanceCase, options.harness),
+		runner: options.runner ?? fromGlobals('describeJanusStores'),
+		skip: options.skip ?? {},
+		faults: options.faults,
+	});
+}
+
+/** What any suite's case declares, as far as describing it goes. */
+interface DescribedCase {
+	readonly id: string;
+	readonly group: string;
+	readonly name: string;
+	readonly needs?: string;
+}
+
+/**
+ * Describes one suite's cases, grouped, under a runner. Shared by every suite
+ * this module exports, so a skip, an unproven outage and a missing runner read
+ * the same in each.
+ */
+export function describeSuite<C extends DescribedCase>(options: {
+	readonly title: string;
+	readonly cases: readonly C[];
+	readonly run: (
+		conformanceCase: C,
+	) => Promise<{ readonly skipped: string } | { readonly passed: true }>;
+	readonly runner: ConformanceRunner;
+	readonly skip: Readonly<Record<string, string>>;
+	readonly faults: boolean | undefined;
+}): void {
+	const { runner, skip, cases } = options;
+	const groups = [...new Set(cases.map((c) => c.group))];
 
 	const title =
 		options.faults === false
-			? `${options.name} — @nxgt/janus conformance (WITHOUT faults: ${SKIP_REASONS.faults})`
-			: `${options.name} — @nxgt/janus conformance`;
+			? `${options.title} (WITHOUT faults: ${SKIP_REASONS.faults})`
+			: options.title;
 
 	runner.describe(title, () => {
 		for (const group of groups) {
 			runner.describe(group, () => {
-				for (const conformanceCase of allCases.filter(
-					(c) => c.group === group,
-				)) {
+				for (const conformanceCase of cases.filter((c) => c.group === group)) {
 					const reason = skip[conformanceCase.id];
 					if (reason !== undefined) {
 						runner.it.skip(
@@ -118,7 +148,7 @@ export function describeJanusStores(options: {
 					}
 
 					runner.it(conformanceCase.name, async () => {
-						const outcome = await runCase(conformanceCase, options.harness);
+						const outcome = await options.run(conformanceCase);
 						if ('skipped' in outcome) {
 							process.emitWarning(
 								`${conformanceCase.id} skipped: ${outcome.skipped}`,
@@ -132,7 +162,7 @@ export function describeJanusStores(options: {
 	});
 }
 
-function fromGlobals(): ConformanceRunner {
+export function fromGlobals(where: string): ConformanceRunner {
 	const globals = globalThis as {
 		describe?: ConformanceRunner['describe'];
 		it?: ConformanceRunner['it'];
@@ -143,7 +173,7 @@ function fromGlobals(): ConformanceRunner {
 		typeof globals.it !== 'function'
 	) {
 		throw new TypeError(
-			"describeJanusStores: no test runner on globalThis — pass runner: { describe, it } (under bun test: import them from 'bun:test')",
+			`${where}: no test runner on globalThis — pass runner: { describe, it } (under bun test: import them from 'bun:test')`,
 		);
 	}
 

@@ -52,13 +52,14 @@ export {
 	pageLimit,
 } from './pagination/cursor-page';
 export {
+	formatEntity,
 	formatSubject,
-	formatSubjectSet,
 	formatTuple,
 	parseSubject,
 	parseTuple,
 } from './subjects/notation';
 export {
+	type Entity,
 	isSubjectSet,
 	type RelationTuple,
 	type Subject,
