@@ -72,6 +72,7 @@ either finds this row.
 | **store** | Where a side keeps its data, behind a port. The **identity stores** are `users`, `sessions` and `tokens`; the **relation store** holds the tuples | "database", "repository" |
 | **port** | The interface a store implements: `JanusStores` for the identity stores — named after the package, not the side — and `RelationStore` | "driver" |
 | **adapter** | A package implementing the ports for one database: `@nxgt/janus-mongo` | "plugin", "connector" |
+| **integration** | A package fitting Janus into one web framework: `@nxgt/janus-hono`. It implements no port | "plugin", "adapter" |
 
 ### Answers
 

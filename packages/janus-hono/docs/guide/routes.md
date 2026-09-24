@@ -1,0 +1,192 @@
+# The routes of an application
+
+Every flow of `@nxgt/janus` as a Hono route. What this package adds is small on
+purpose — who the request belongs to, the cookie, the statuses — so each route
+below is `janus()`'s own call with Hono around it.
+
+## Wiring
+
+```ts
+import { janusErrors, session } from '@nxgt/janus-hono';
+import { Hono } from 'hono';
+import { auth } from './auth';
+
+export const app = new Hono();
+app.onError(janusErrors());
+```
+
+`janusErrors()` is what turns a `JanusError` thrown anywhere — in a route, or
+in `session()` — into its status. Without it, Hono answers 500 for all of
+them. To log before answering, wrap it:
+
+```ts
+const answer = janusErrors();
+app.onError((error, c) => {
+	logger.error(error); // `reason`, `login` and `cause` are here, not in the body
+	return answer(error, c);
+});
+```
+
+`janusErrors(fallback)` hands every other error to `fallback`; without one,
+an `HTTPException` answers its own response and anything else is a logged
+500, as Hono does by default.
+
+## Who the request belongs to
+
+```ts
+app.get('/', session(auth), (c) =>
+	c.text(c.var.user === null ? 'Hello' : `Hello ${c.var.user.name}`),
+);
+
+app.get('/account', session(auth, { required: true }), (c) =>
+	c.json(c.var.user), // typed: never null
+);
+```
+
+`session()` reads the token the way `auth.authenticate` does —
+`Authorization: Bearer`, then `X-Session-Token`, then the cookie, **the first
+present wins** — and sets `c.var.user` and `c.var.session`.
+
+| The request presents | `c.var.user` | With `required: true` |
+| --- | --- | --- |
+| Nothing | `null` | 401, no body; the route never runs |
+| A lapsed, revoked or unknown session | `null` | 401 |
+| A session of an inactive user, or of another type than `type` | `null` | 401 |
+| A live session | the user | the user |
+| Anything, while the store cannot answer | — `STORE_FAILED` is thrown | — 503 through `janusErrors()` |
+
+### For a whole app
+
+Hono types a chain, so `app.use(session(auth))` on its own line leaves the
+routes after it untyped. Declare the app with the `Env` instead:
+
+```ts
+import { type SessionEnv, session } from '@nxgt/janus-hono';
+
+const app = new Hono<SessionEnv<typeof auth>>();
+app.use(session(auth));
+app.get('/', (c) => c.json({ signedIn: c.var.user !== null }));
+```
+
+### Renewal
+
+A session with `renewAfter` is renewed by `authenticate` in passing, and its
+expiry moves. `session()` sends the cookie again after the route ran, with the
+new `Expires` — to a request that presented the session as a cookie. A client
+using `Authorization: Bearer` is renewed too, keeps its token, and is never
+handed a cookie.
+
+## Sign-up and sign-in
+
+```ts
+import { sendSession } from '@nxgt/janus-hono';
+
+app.post('/sign-up', async (c) => {
+	const { email, name, password } = await c.req.json(); // validate the shape yourself
+	const signedIn = await auth.signUp({ email, name, password });
+	sendSession(c, auth, signedIn);
+	return c.json({ id: signedIn.user.id }, 201);
+});
+
+app.post('/sign-in', async (c) => {
+	const { email, password } = await c.req.json();
+	const signedIn = await auth.signIn({ email, password });
+	sendSession(c, auth, signedIn);
+	return c.json({ id: signedIn.user.id });
+});
+```
+
+The refusals need no `try`: `janusErrors()` answers them.
+
+| Thrown | Answered |
+| --- | --- |
+| `USER_INVALID` | 400 `{ code, issues }`, the fields that failed |
+| `PASSWORD_TOO_SHORT` | 400 `{ code, minLength }` |
+| `LOGIN_TAKEN` | 409 `{ code }` |
+| `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password |
+| `USER_INACTIVE` | 403 `{ code }` — only told to somebody who gave the right password |
+
+A client that keeps its token itself — a mobile app — reads `signedIn.token`
+from the body instead, and sends it as `Authorization: Bearer`. Answer it the
+token, not a cookie.
+
+## Sign-out
+
+```ts
+import { signOut } from '@nxgt/janus-hono';
+
+app.post('/sign-out', async (c) => {
+	await signOut(c, auth);
+	return c.body(null, 204);
+});
+
+app.post('/sign-out-everywhere', session(auth, { required: true }), async (c) => {
+	await auth.signOutEverywhere(c.var.user, { except: c.var.session.id });
+	return c.body(null, 204);
+});
+```
+
+`signOut` clears the cookie whatever it revoked, so a browser holding a stale
+cookie drops it too.
+
+## E-mail verification and password reset
+
+Sending the e-mail is yours; the token goes in a link.
+
+```ts
+app.post('/verify-email', session(auth, { required: true }), async (c) => {
+	const { token, email } = await auth.verifyEmail.send(c.var.user);
+	await mailer.send(email, `https://app.test/verify?token=${token}`);
+	return c.body(null, 202);
+});
+
+app.post('/verify-email/confirm', async (c) => {
+	const { token } = await c.req.json();
+	await auth.verifyEmail.confirm(token); // TOKEN_* → 400
+	return c.body(null, 204);
+});
+
+app.post('/reset-password', async (c) => {
+	const { email } = await c.req.json();
+	const issued = await auth.resetPassword.request(email);
+	if (issued !== null) {
+		await mailer.send(issued.email, `https://app.test/reset?token=${issued.token}`);
+	}
+	return c.body(null, 202); // the same answer either way: never say which e-mails exist
+});
+
+app.post('/reset-password/confirm', async (c) => {
+	const { token, password } = await c.req.json();
+	await auth.resetPassword.confirm(token, password); // signs the user out everywhere
+	return c.body(null, 204);
+});
+```
+
+## Several user types
+
+With `janus({ users: { patient, staff } })`, each type's flows are under its
+name, and `session()` takes the type a route admits:
+
+```ts
+app.post('/staff/sign-in', async (c) => {
+	const { username, password } = await c.req.json();
+	const signedIn = await auth.staff.signIn({ username, password });
+	sendSession(c, auth, signedIn);
+	return c.body(null, 204);
+});
+
+app.get('/staff/rota', session(auth, { type: 'staff', required: true }), (c) =>
+	c.json(rotaOf(c.var.user.username)), // a staff user: the compiler knows
+);
+```
+
+A patient's session on `/staff/rota` is anonymous there, and answered 401. The
+session stands, and still signs the patient in on the routes that admit them.
+One cookie holds one session: a browser signed in as a patient that signs in
+as staff replaces the patient's cookie.
+
+## See also
+
+- [`@nxgt/janus` — sessions](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sessions.md) — lifespans, renewal, the cookie's attributes
+- [`@nxgt/janus` — errors](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) — every code
+- [Troubleshooting](../troubleshooting.md)
