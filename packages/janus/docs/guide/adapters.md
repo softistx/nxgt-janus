@@ -67,7 +67,8 @@ interface UserStore {
 - `insertUser` is **idempotent under retry**: a user with this `id` already
   stored is answered as stored. A login held by another user of the same type
   rejects with `StoreConflict('login', …)`, from the database's own unique
-  constraint.
+  constraint, carrying `login` and `userType` — never the login in its
+  message, which the conformance suite checks.
 - `updateUser` writes **only if the stored version is exactly `ifVersion`**,
   and never replaces a record whole: a field the patch does not name is left
   as it is. It rejects with `NotFoundError` for an unknown id — the one

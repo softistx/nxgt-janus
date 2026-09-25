@@ -14,7 +14,7 @@ How the driver's errors become the port's:
 
 | What MongoDB answers | What you get |
 | --- | --- |
-| A duplicate key on the login index | `LOGIN_TAKEN`, naming the login and the user type |
+| A duplicate key on the login index | `LOGIN_TAKEN`, carrying `login` and `userType` |
 | A duplicate key on `_id` | Nothing: the insert was a retry, and what is stored is answered |
 | A duplicate key on any other index | `STORE_FAILED` |
 | A `$jsonSchema` validation failure (code 121) | `STORE_FAILED` |
@@ -33,7 +33,7 @@ How the driver's errors become the port's:
 
 **Runtime**
 - [`STORE_FAILED` — `<slot>.<operation>: the store could not answer`](#store_failed--slotoperation-the-store-could-not-answer)
-- [`LOGIN_TAKEN` — `<operation>: the login "<login>" is taken by another <type>`](#login_taken--operation-the-login-login-is-taken-by-another-type)
+- [`LOGIN_TAKEN` — `<operation>: the login is taken by another <type>`](#login_taken--operation-the-login-is-taken-by-another-type)
 - [`STORE_FAILED` — `<slot>.<operation>: a duplicate key on <fields>, which this adapter never writes on purpose`](#store_failed--slotoperation-a-duplicate-key-on-fields-which-this-adapter-never-writes-on-purpose)
 - [`NOT_FOUND` / `VERSION_CONFLICT` — `updateUser: …`](#not_found--version_conflict--updateuser-)
 - [`UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions …`](#unsupported--collectexpired-storesessions-does-not-implement-deleteexpiredsessions--)
@@ -152,9 +152,9 @@ if (error instanceof JanusError && error.code === 'STORE_FAILED') {
 }
 ```
 
-### `LOGIN_TAKEN` — `<operation>: the login "<login>" is taken by another <type>`
+### `LOGIN_TAKEN` — `<operation>: the login is taken by another <type>`
 
-`StoreConflict` with `on: 'login'`, for example `insertUser: the login "ada@example.com" is taken by another patient`. It carries `login` and `userType`.
+`StoreConflict` with `on: 'login'`, for example `insertUser: the login is taken by another patient`. It carries `login` and `userType`. The login is not in the message, which never carries a value: an e-mail in a log line is personal data. Read it from `error.login`.
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user **of the same type** already holds it. The message names the port method (`insertUser`, `updateUser`), not your call.
 **Why:** the `loginUnique` index on `{ type, logins }` refused the write. The same e-mail may hold one user per user type.

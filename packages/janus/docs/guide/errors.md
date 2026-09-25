@@ -120,8 +120,9 @@ async function signIn(email: string, password: string): Promise<Response> {
 ## No message holds a secret
 
 Not a password, not a hash, not a session token, not a token's hash, and not a
-connection URI — a connection string holds a password. A `login` may appear in
-a `LOGIN_TAKEN` message, because the caller just sent it. A message names the
+connection URI — a connection string holds a password. Nor a login: a message
+reports a shape, never a value, so `LOGIN_TAKEN` carries the login in
+`error.login` and not in its message. A message names the
 call you wrote (`signIn`, `users.findUser`) so you know where to look.
 
 ## For adapter authors

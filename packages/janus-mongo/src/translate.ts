@@ -5,7 +5,7 @@ import { JanusError, StoreConflict, StoreFailure } from '@nxgt/janus';
  *
  * | What happens | Becomes |
  * | --- | --- |
- * | A duplicate key on `(type, logins)` | `StoreConflict('login')`, naming the login and the type |
+ * | A duplicate key on `(type, logins)` | `StoreConflict('login')`, carrying `login` and `userType` |
  * | A duplicate key on `_id` | nothing — the insert is a retry, and answers what is stored |
  * | A duplicate key on **any other index** | **`StoreFailure`** |
  * | A `$jsonSchema` validation failure (121) | **`StoreFailure`** |
@@ -103,7 +103,7 @@ export function loginTaken(
 ): StoreConflict {
 	return new StoreConflict(
 		'login',
-		`${operation}: the login "${login}" is taken by another ${type}`,
+		`${operation}: the login is taken by another ${type}`,
 		{ login, userType: type, operation, cause },
 	);
 }

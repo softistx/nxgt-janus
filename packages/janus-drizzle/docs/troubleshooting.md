@@ -14,7 +14,7 @@ How PostgreSQL's errors become the port's:
 
 | What PostgreSQL reports | What you get |
 | --- | --- |
-| A login another user of the type holds | `LOGIN_TAKEN`, naming the login and the user type |
+| A login another user of the type holds | `LOGIN_TAKEN`, carrying `login` and `userType` |
 | A row with this id already there | Nothing: the insert was a retry, and returns what is stored — or `NOT_FOUND` if the user was deleted between the two |
 | A unique violation on any other constraint | `STORE_FAILED` |
 | A check or foreign key refusing a row | `STORE_FAILED` |
@@ -40,7 +40,7 @@ How PostgreSQL's errors become the port's:
 
 **Runtime**
 - [`STORE_FAILED`: `<slot>.<operation>: the store could not answer`](#store_failed-slotoperation-the-store-could-not-answer)
-- [`LOGIN_TAKEN`: `<operation>: the login "<login>" is taken by another <type>`](#login_taken-operation-the-login-login-is-taken-by-another-type)
+- [`LOGIN_TAKEN`: `<operation>: the login is taken by another <type>`](#login_taken-operation-the-login-is-taken-by-another-type)
 - [`NOT_FOUND` / `VERSION_CONFLICT`: `updateUser: …`](#not_found--version_conflict-updateuser-)
 - [The `sessions` table keeps growing](#the-sessions-table-keeps-growing)
 - [`NOT_FOUND`: `insertUser: the user was deleted meanwhile`](#not_found-insertuser-the-user-was-deleted-meanwhile)
@@ -279,7 +279,7 @@ the code is `error.cause.cause.errno`.
 `slot` is `users`, `sessions`, `tokens` or `relations`; `operation` is the port
 method.
 
-### `LOGIN_TAKEN`: `<operation>: the login "<login>" is taken by another <type>`
+### `LOGIN_TAKEN`: `<operation>: the login is taken by another <type>`
 
 **When:** a sign-up, or an update that changes a login, with a login another
 user of the same type holds.
@@ -288,7 +288,8 @@ user of the same type holds.
 same e-mail may hold a patient and a staff user.
 
 **Fix:** tell the user the login is taken. `error.login` and `error.userType`
-name it. `@nxgt/janus-hono` answers it 409.
+name it; the message does not, since it never carries a value.
+`@nxgt/janus-hono` answers it 409.
 
 ### `NOT_FOUND` / `VERSION_CONFLICT`: `updateUser: …`
 
