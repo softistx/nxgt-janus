@@ -28,8 +28,10 @@ export type Kit<A extends object, P extends object> = KitOf<A, P, Db, 'mongo'>;
  * ```
  *
  * **It fails here, not at the first sign-in**: a MongoDB that does not
- * answer, or collections `syncMongoAdapter` has not brought in line, reject
- * with an `Error` naming what to do, after closing whatever it had opened.
+ * answer, or a collection or index `syncMongoAdapter` has not created,
+ * rejects with an `Error` naming what to do — a URL the driver cannot read,
+ * with a `TypeError` — after closing whatever it had opened. Collections that
+ * only differ from these definitions start, with a process warning.
  */
 export async function connectKit<A extends object, P extends object = never>(
 	config: KitConfig<A, P>,

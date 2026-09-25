@@ -125,7 +125,7 @@ what `db` is.
 | Export | What it is |
 | --- | --- |
 | `defineConfig(config)` | Checks the configuration and answers it, frozen. It connects to nothing and reads no environment variable. What is wrong throws a `TypeError` here, where the application starts. |
-| `connectKit(config)` | Checks the configuration again, opens the database and Redis, checks Janus's tables or collections, builds `auth` and `access`, and answers the kit. Fails with an `Error` naming what to do, after closing what it opened. |
+| `connectKit(config)` | Checks the configuration again, opens the database and Redis, checks Janus's tables or collections, builds `auth` and `access`, and answers the kit. Fails with an `Error` naming what to do — a `TypeError` for a URL it cannot read — after closing what it opened. |
 | `Kit` | What `connectKit` answers: `auth`; `access` when configured; `db`, the Drizzle instance or the MongoDB `Db`; `redis`, the connection or `undefined`; `ping(options?)`; `close()`; and `[Symbol.asyncDispose]`. |
 | `KitConfig`, `RedisConfig`, and `PostgresConfig` from `/drizzle` or `MongoConfig` from `/mongo` | The configuration's types. |
 | `Adapters`, `AccessWiring` | What `auth` and `access` are given: `{ store, relations }`, and `{ relations, auth }`. |
@@ -162,7 +162,7 @@ has each key in detail.
   `connectKit` compares them with `@nxgt/janus-mongo`'s definitions, writing
   nothing. A missing collection or index refuses to start: MongoDB would
   create a missing collection on the first write **without the unique index
-  on logins**. A validator or index options that differ only warn
+  on logins**. A validator, an option or an index's options that differ only warn
   (`JANUS_KIT_COLLECTIONS_DRIFTED`), so a rollback still starts.
 - **`kit.auth.collectExpired()` answers `UNSUPPORTED` on `/mongo`**: a TTL
   index removes lapsed sessions and tokens there. Schedule it on PostgreSQL
