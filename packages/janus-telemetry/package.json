@@ -1,0 +1,63 @@
+{
+	"name": "@nxgt/janus-telemetry",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Observability for @nxgt/janus on @nxgt/telemetry: a span per flow and per permission check, and the security events worth an audit trail — never a login, a password or a token",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"docs",
+		"README.md",
+		"package.json",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"keywords": [
+		"identity",
+		"authentication",
+		"observability",
+		"telemetry",
+		"janus",
+		"typescript"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/softistx/nxgt-janus.git",
+		"directory": "packages/janus-telemetry"
+	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org",
+		"access": "public"
+	},
+	"scripts": {
+		"build": "bun run ../../build.ts",
+		"test": "bun test src",
+		"typecheck": "tsc --noEmit"
+	},
+	"nxgt": {
+		"entrypoints": [
+			"src/index.ts"
+		]
+	},
+	"devDependencies": {
+		"@nxgt/janus": "workspace:^",
+		"@nxgt/telemetry": "0.2.1",
+		"@types/bun": "^1.4.2",
+		"zod": "^4.6.5"
+	},
+	"peerDependencies": {
+		"@nxgt/janus": "workspace:^",
+		"@nxgt/telemetry": "^0.2.1",
+		"typescript": "^6.0.3"
+	}
+}

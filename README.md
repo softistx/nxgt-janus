@@ -16,10 +16,11 @@ other, or both.
 packages/janus         @nxgt/janus — both sides, and the vocabulary they share
 packages/janus-mongo   @nxgt/janus-mongo — the MongoDB adapter, for either side
 packages/janus-hono    @nxgt/janus-hono — the Hono integration
+packages/janus-telemetry @nxgt/janus-telemetry — spans and security events on @nxgt/telemetry, not yet published
 ```
 
-Adapters still to come, in this order: `@nxgt/janus-drizzle`,
-`@nxgt/janus-redis`.
+Adapters still to come, in this order: `@nxgt/janus-drizzle`, on
+`@nxgt/drizzle`, and `@nxgt/janus-redis`, on `@nxgt/redis`.
 
 ## Two things it is trying to be
 
