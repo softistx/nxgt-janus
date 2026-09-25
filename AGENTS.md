@@ -167,6 +167,13 @@ What this commits us to in the code:
   into the parameter (`config: C & Checked<C>`), because `janus` infers its
   argument and excess-property checks therefore do not fire. Measured pattern:
   `nxgt-data/packages/mongo-kit/src/config/types.ts:46`.
+- **A name the user picks from a list goes in a constraint, not only in a
+  check.** An editor completes from a type parameter's constraint; a check
+  intersected into the parameter refuses the same mistakes and completes
+  nothing, since the literal being typed meets it first. `defineModel` types
+  `types` as `Ts extends ModelTypesOf<Subjects[number], Ts>`, and
+  `src/permissions/completions.spec.ts` asks the language service what it
+  offers — measured, like the refusals.
 - A login must name a **top-level, required string field** of the schema,
   refused at compile time: `password: { login: 'emial' }` is a type error on
   `login`. So is a schema declaring a field `janus` sets, and a user type named

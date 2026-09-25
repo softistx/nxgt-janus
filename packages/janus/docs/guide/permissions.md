@@ -51,7 +51,11 @@ await access.can(grace, 'view', team);   // false
 ## The model
 
 ```ts
-function defineModel<const C extends ModelConfig>(config: C & CheckedModel<C>): PermissionModel<C>;
+function defineModel<
+	const Subjects extends readonly string[], // auth.types
+	const Ts extends ModelConfig['types'] & ModelTypesOf<Subjects[number], Ts>, // what your editor completes
+>(config: { readonly subjects: Subjects; readonly types: Ts }): PermissionModel<{ readonly subjects: Subjects; readonly types: Ts }>;
+// ModelTypesOf<S, Ts>: the names each relation and rule of each type may take
 
 interface ModelConfig {
 	readonly subjects: readonly string[]; // pass auth.types
@@ -89,15 +93,23 @@ like a permission.
 
 A relation naming a type that does not exist, a rule naming nothing, an arrow
 to a permission its target lacks, a name that is both a relation and a
-permission: each is a compile error **on the offending key**, and the error
-lists what you could have written.
+permission: each is a compile error **on the offending name** — on the whole
+`fromField(…)` or `when(…)` call for those two. Except for that last one,
+which says to rename one, the error lists what you could have written, with
+"Did you mean" when one is close.
+
+Your editor offers those names as you type — subject types and subject sets
+in a relation, subject types in `fromField`, relations, permissions and arrows
+in a rule and in `when` — because `defineModel` types its `types` with a
+constraint an editor reads, not only with a check. A spec asks the TypeScript
+language service what it completes, so a change that loses it fails.
 
 ```ts
 defineModel({
 	subjects: ['staff'],
 	types: {
 		team: {
-			// @ts-expect-error — '"staf" is not a subject type or a subject set; name one of' …
+			// @ts-expect-error — Type '"staf"' is not assignable to type '"staff" | "team" | "team#member"'. Did you mean '"staff"'?
 			relations: { member: ['staf'] },
 		},
 	},
