@@ -138,6 +138,14 @@ Two places where the temptation will be strong:
 data values, not API identifiers — the same shape `code` has in `@nxgt/mongo`
 and `@nxgt/redis`. Every *key* is `camelCase`.
 
+**SQL identifiers are `snake_case`, and that is the one exception** (decided
+2026-09-25, `@nxgt/janus-drizzle`). A table or column name is PostgreSQL's
+vocabulary, not Janus's: its catalog and `@nxgt/drizzle`'s `timestamps()` are
+`snake_case`, and a camelCase column must be quoted in every query written by
+hand — `"createdAt"` — or PostgreSQL folds it to `createdat`. The names live
+only in the `pgTable` definitions' string arguments; the Drizzle keys, and
+every record a store answers, are camelCase.
+
 ---
 
 ## Type safety is measured, not claimed

@@ -30,6 +30,22 @@ jobs:
     name: CI
     # GitHub-hosted. The repository is public, so these minutes are free.
     runs-on: ubuntu-latest
+    # @nxgt/janus-drizzle's specs run on a real PostgreSQL here, and on PGlite
+    # everywhere else. PGlite runs one connection, so the concurrency cases —
+    # twenty redemptions of one token — are serialised there and pass without
+    # the lock that makes them pass here: measured, a `consumeToken` without
+    # `for update` passes on PGlite and fails on this server every time.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: janus
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,6 +78,8 @@ jobs:
       # Per package, then the scripts' own specs.
       - name: Run tests
         run: bun run test
+        env:
+          JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
       # The build exits 0 on packages that throw the instant they are imported —
       # it happened three times in nxgt-core. This packs them, installs them as a consumer
       # does and imports every declared subpath.
