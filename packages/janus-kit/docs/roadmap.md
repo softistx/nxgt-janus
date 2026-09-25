@@ -13,8 +13,7 @@ in.
 
 ## Next
 
-- **MongoDB in place of PostgreSQL**, through `@nxgt/janus-mongo`: `mongo`
-  beside `postgres`, one of the two.
+Nothing yet.
 
 ## Later
 
@@ -26,6 +25,9 @@ Nothing yet.
 
 ## Not planned
 
+- **MongoDB.** With `@nxgt/janus-mongo`, the wiring is already one spread,
+  `janus({ …, ...createMongoAdapter(db) })`, and a kit per database would be
+  one package more for little. The kit stays PostgreSQL and Redis.
 - **Running migrations.** Janus's tables are created by your drizzle-kit
   migrations, as your own are. The kit checks they are there, and creates
   nothing.
