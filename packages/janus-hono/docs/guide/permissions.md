@@ -42,7 +42,9 @@ export const recordOf = byParam('id', (id) => records.find(id)); // records: you
 `find(id)`. Written by hand, it is
 
 ```ts
-export const recordOf = (c: Context) => {
+import type { Context } from 'hono';
+
+const recordOfByHand = (c: Context) => {
 	const id = c.req.param('id');
 	return id === undefined ? null : records.find(id);
 };

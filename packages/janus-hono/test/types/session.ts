@@ -33,7 +33,9 @@ new Hono()
 	.get('/doctor', session(auth, { type: 'doctor' }), (c) => c.body(null))
 	.post('/sign-in', async (c) => {
 		const signedIn = await auth.patient.signIn({ email: '', password: '' });
-		sendSession(c, auth, signedIn);
+		// The user it answers keeps the type signed in: a patient has an email.
+		const email: string = sendSession(c, auth, signedIn).email;
+		void email;
 		// 4. A cookie without the session that dates it.
 		// @ts-expect-error — `session` is missing.
 		sendSession(c, auth, { token: signedIn.token });

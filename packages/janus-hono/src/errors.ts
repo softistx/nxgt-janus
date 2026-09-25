@@ -82,8 +82,11 @@ export interface JanusErrorsOptions {
 	 * `UNSUPPORTED`, `PERMISSION_DEPTH`: the ones the server must fix, not the
 	 * client — before it is answered. Its `slot`, `operation`, `reason` and
 	 * `cause` are for your logs; the body never carries them.
+	 *
+	 * **It cannot stop the answer**: one that throws, or rejects, is a
+	 * `process.emitWarning`, and the 503 is sent all the same.
 	 */
-	readonly report?: (error: JanusError, c: Context) => void;
+	readonly report?: (error: JanusError, c: Context) => unknown;
 	/** Every error that is not a `JanusError`. Hono's own handling when absent. */
 	readonly fallback?: ErrorHandler;
 }
@@ -105,7 +108,25 @@ export function janusErrors(options: JanusErrorsOptions = {}): ErrorHandler {
 	return (error, c) => {
 		if (!(error instanceof JanusError)) return fallback(error, c);
 		const status = statusOf(error.code);
-		if (status >= 500) report?.(error, c);
+		if (status >= 500 && report !== undefined) reportSafely(report, error, c);
 		return c.json(bodyOf(error), status);
 	};
+}
+
+/** `report`, whose own failure is a warning — never a lost answer. */
+function reportSafely(
+	report: NonNullable<JanusErrorsOptions['report']>,
+	error: JanusError,
+	c: Context,
+): void {
+	const warn = (failure: unknown) =>
+		process.emitWarning(
+			`janusErrors: report failed on ${error.code}: ${failure instanceof Error ? failure.name : typeof failure}`,
+		);
+	try {
+		const reported = report(error, c);
+		if (reported instanceof Promise) reported.then(undefined, warn);
+	} catch (failure) {
+		warn(failure);
+	}
 }

@@ -119,6 +119,34 @@ describe('janusErrors()', () => {
 		expect(outage.status).toBe(503);
 		expect(reported).toEqual(['STORE_FAILED']);
 	});
+
+	it('answers the outage even when report fails: a warning, never a lost 503', async () => {
+		const warnings: string[] = [];
+		const warn = (warning: string | Error) => {
+			warnings.push(String(warning));
+		};
+		process.on('warning', warn);
+		try {
+			const outage = () =>
+				new StoreFailure('down', { slot: 'users', operation: 'findUser' });
+			const thrown = await throwing(outage(), {
+				report: () => {
+					throw new Error('logger down');
+				},
+			});
+			const rejected = await throwing(outage(), {
+				report: async () => {
+					throw new Error('logger down');
+				},
+			});
+			expect(thrown.status).toBe(503);
+			expect(rejected.status).toBe(503);
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		} finally {
+			process.off('warning', warn);
+		}
+		expect(warnings.filter((w) => w.includes('report failed'))).toHaveLength(2);
+	});
 });
 
 describe('statusOf()', () => {
