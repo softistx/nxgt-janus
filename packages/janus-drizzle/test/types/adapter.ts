@@ -18,8 +18,16 @@ import {
 const client = new PGlite();
 export const adapter = createDrizzleAdapter(drizzle({ client }));
 const janus = pgSchema('janus');
-export const inSchema = createDrizzleAdapter(drizzle({ client }), {
-	schema: janus,
+const tables = defineJanusTables({ schema: janus });
+// Must keep compiling: the tables a schema file exports, whole or in part.
+export const inSchema = createDrizzleAdapter(drizzle({ client }), { tables });
+export const authOnly = createDrizzleStores(drizzle({ client }), {
+	tables: {
+		users: tables.users,
+		logins: tables.logins,
+		sessions: tables.sessions,
+		tokens: tables.tokens,
+	},
 });
 
 // @ts-expect-error 1. a connection string: the adapter connects to nothing
@@ -30,3 +38,7 @@ createDrizzleStores(client);
 createDrizzleRelations(overSqlite({ client: new Database(':memory:') }));
 // @ts-expect-error 4. a schema's name: pass the `pgSchema` your schema file exports
 defineJanusTables({ schema: 'janus' });
+// @ts-expect-error 5. the schema given to the factory: pass the tables built in it
+createDrizzleAdapter(drizzle({ client }), { schema: janus });
+// @ts-expect-error 6. the tables bare, not as `{ tables }`
+createDrizzleAdapter(drizzle({ client }), tables);

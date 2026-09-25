@@ -12,6 +12,7 @@ with no prefix. Where they live is the one choice you make:
 | --- | --- | --- |
 | The tables | `users`, … in `public` | `janus.users`, … |
 | `defineJanusTables(…)` | `defineJanusTables()` | `defineJanusTables({ schema: janus })` |
+| The adapter | `createDrizzleAdapter(janusDb)` | `createDrizzleAdapter(db, { tables: janusTables })` |
 | Migrations | a drizzle-kit config of its own | your application's drizzle-kit config |
 | Back up and restore Janus alone | `pg_dump` / `pg_restore` of the database | `pg_dump -n janus` / `pg_restore -n janus` |
 | A foreign key from your tables to `users`, one transaction over both | no | yes |
@@ -93,22 +94,37 @@ export const { users, logins, sessions, tokens, relations } = defineJanusTables(
 creates `"janus"."users"` in a schema that does not exist, and fails with
 `schema "janus" does not exist`.
 
-Pass the same schema to the adapter, so the stores query `janus.users`:
+**Pass the adapter the tables you exported**, so the stores query exactly
+what your migration created:
 
 ```ts
-import { janus } from './db/schema';
-
-const postgres = createDrizzleAdapter(db, { schema: janus });
+// src/db/schema.ts
+export const janus = pgSchema('janus');
+export const janusTables = defineJanusTables({ schema: janus });
+export const { users, logins, sessions, tokens, relations } = janusTables;
 ```
 
-`createDrizzleStores(db, { schema: janus })` and
-`createDrizzleRelations(db, { schema: janus })` take it the same way. The
-names in your schema file are yours to choose. If `users` is taken by a table
-of your own, rename on export:
+```ts
+import { janusTables } from './db/schema';
+
+const postgres = createDrizzleAdapter(db, { tables: janusTables });
+```
+
+drizzle-kit ignores `janusTables`, an object and not a table, and creates the
+five from the exports below it. `createDrizzleStores(db, { tables })` and
+`createDrizzleRelations(db, { tables })` take them the same way.
+
+**Without `{ tables }`, the stores query `users`, `sessions`, … in the
+connection's `search_path`: `public`.** If your application has a `users`
+table of its own there, deleting a user through the store would delete from
+it. Always pass the tables with a schema of its own.
+
+The names in your schema file are yours to choose. If `users` is taken by a
+table of your own, rename on export:
 
 ```ts
-const tables = defineJanusTables({ schema: janus });
-export const janusUsers = tables.users;
+export const janusTables = defineJanusTables({ schema: janus });
+export const janusUsers = janusTables.users;
 // …and the four others
 ```
 
@@ -147,7 +163,8 @@ since it is your application's.
 A restore brings back the users, logins and relations as they were, and the
 sessions and one-time tokens too:
 - a session revoked since the dump stands again until it lapses. If that
-  matters, `delete from sessions` after the restore signs everybody out;
+  matters, `delete from sessions` (or `delete from janus.sessions`) after the
+  restore signs everybody out;
 - a user created since the dump is gone, with their sign-in;
 - a reset link sent since the dump answers `TOKEN_UNKNOWN`.
 

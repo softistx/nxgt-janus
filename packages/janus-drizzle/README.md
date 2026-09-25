@@ -77,12 +77,13 @@ declarations import without extensions, so `nodenext` is not supported.
 
 | Export | What it is |
 | --- | --- |
-| `createDrizzleAdapter(db, options?)` | Returns `{ store, relations }`, both of the entries below, keyed as `janus()` takes them, so `janus({ …, ...postgres })` wires both. It connects to nothing and creates nothing. |
+| `createDrizzleAdapter(db, options?)` | Returns `{ store, relations }`, both of the entries below, keyed as `janus()` takes them, so `janus({ …, ...postgres })` wires both. It connects to nothing and creates nothing. `options.tables` is what your schema file's `defineJanusTables(…)` returned. |
 | `DrizzleAdapter` | The type of what `createDrizzleAdapter` returns. |
 | `createDrizzleStores(db, options?)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. |
 | `createDrizzleRelations(db, options?)` | The `RelationStore` that `permissions()` takes as `store`, and `janus()` takes as `relations`. |
 | `defineJanusTables(options?)` | The five tables, `{ users, logins, sessions, tokens, relations }`, as Drizzle tables. Export each from a schema file so your migrations create them. |
-| `JanusTablesOptions` | `{ schema? }`: a `pgSchema(…)` to put the tables in. Pass the same to `defineJanusTables` and to the factory. Absent, the tables are in the connection's `search_path`, `public` by default. |
+| `JanusTablesOptions` | `{ schema? }`: a `pgSchema(…)` to put the tables in. Absent, they are in the connection's `search_path`, `public` by default. |
+| `DrizzleAdapterOptions` | `{ tables? }`: the tables the stores query. Absent, `defineJanusTables()`. Pass it whenever the tables are in a schema of their own. |
 | `JanusTables` | The type of what `defineJanusTables` returns. |
 
 `db` is any Drizzle PostgreSQL instance: `node-postgres`, `postgres.js`,
@@ -120,9 +121,12 @@ and passwords a self-describing hash.
   caused by `relation "users" does not exist`.
 - **Keep all five exports in the schema file.** drizzle-kit writes a
   `DROP TABLE` for a table the schema no longer names.
-- **With a PostgreSQL schema, export it and pass it everywhere.** drizzle-kit
-  writes `CREATE SCHEMA` only for an exported `pgSchema`, and a factory not
-  given `{ schema }` queries `public.users`, which does not exist.
+- **With a PostgreSQL schema, export it, and pass the adapter its tables.**
+  drizzle-kit writes `CREATE SCHEMA` only for an exported `pgSchema`. A
+  factory not given `{ tables }` queries `public`: if your application has a
+  `users` table there, deleting a user through the store deletes from yours.
+  `createDrizzleAdapter(db, { tables: janusTables })`, with the object your
+  schema file exports.
 - **Call `auth.collectExpired()` on a schedule.** PostgreSQL has no TTL, so
   lapsed sessions stay in `sessions` until something deletes them. The
   core still refuses them on every read.
@@ -149,13 +153,15 @@ and passwords a self-describing hash.
 
 ## Type safety, counted
 
-Four plausible mistakes are refused by the compiler, each with a
+Six plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/adapter.ts`:
 - a connection string instead of a Drizzle instance;
 - the driver's client instead of the Drizzle instance over it;
 - a Drizzle instance over SQLite;
 - a schema's name, `'janus'`, instead of the `pgSchema` the schema file
-  exports.
+  exports;
+- `{ schema }` given to a factory, instead of the tables built in it;
+- the tables given bare, instead of as `{ tables }`.
 
 ## Licence
 

@@ -3,7 +3,7 @@ import type { JanusStores } from '@nxgt/janus';
 import type { RelationStore } from '@nxgt/janus/permissions';
 import { createDrizzleRelations } from './relations';
 import { createDrizzleStores } from './stores';
-import type { JanusTablesOptions } from './tables';
+import type { DrizzleAdapterOptions } from './tables';
 
 /** The whole adapter over one database, keyed as `janus()` takes it. */
 export interface DrizzleAdapter {
@@ -25,13 +25,13 @@ export interface DrizzleAdapter {
  * ```
  *
  * It connects to nothing and creates nothing: `db` is your Drizzle instance,
- * and the tables are your migrations'. `{ schema }` names the PostgreSQL
- * schema they are in, as `defineJanusTables` was given it. An application that only
- * authenticates can take `createDrizzleStores(db)` alone.
+ * and the tables are your migrations'. `{ tables }` is what your schema file
+ * exports, needed when they are in a PostgreSQL schema of their own. An
+ * application that only authenticates can take `createDrizzleStores(db)` alone.
  */
 export function createDrizzleAdapter(
 	db: PgDatabase,
-	options: JanusTablesOptions = {},
+	options: DrizzleAdapterOptions = {},
 ): DrizzleAdapter {
 	return {
 		store: createDrizzleStores(db, options),

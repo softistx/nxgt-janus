@@ -12,15 +12,19 @@ import type {
 import { NotFoundError, StoreConflict } from '@nxgt/janus';
 import { and, asc, eq, gt, isNull, lte, ne, type SQL, sql } from 'drizzle-orm';
 import {
+	type DrizzleAdapterOptions,
 	defineJanusTables,
 	type JanusTables,
-	type JanusTablesOptions,
 } from './tables';
 import { loginTaken, run } from './translate';
 
 type UserRow = JanusTables['users']['$inferSelect'];
 type UserInsert = JanusTables['users']['$inferInsert'];
 type SessionRow = JanusTables['sessions']['$inferSelect'];
+
+/** The four tables the identity stores query. */
+type IdentityTable = 'users' | 'logins' | 'sessions' | 'tokens';
+type IdentityTables = Pick<JanusTables, IdentityTable>;
 
 /**
  * The three stores `janus()` takes, over one PostgreSQL database through
@@ -40,13 +44,16 @@ type SessionRow = JanusTables['sessions']['$inferSelect'];
  * as rule 5 allows. Every other write is one statement.
  *
  * `sessions.deleteExpiredSessions` is implemented: PostgreSQL has no TTL, so
- * `auth.sessions.collectExpired()` is how lapsed sessions leave the table.
+ * `auth.collectExpired()` is how lapsed sessions leave the table.
+ *
+ * `{ tables }` is what your schema file exports; absent, the tables in the
+ * connection's `search_path`.
  */
 export function createDrizzleStores(
 	db: PgDatabase,
-	options: JanusTablesOptions = {},
+	options: DrizzleAdapterOptions<IdentityTable> = {},
 ): JanusStores {
-	const tables = defineJanusTables(options);
+	const tables = options.tables ?? defineJanusTables();
 	return {
 		users: userStore(db, tables),
 		sessions: sessionStore(db, tables),
@@ -54,7 +61,7 @@ export function createDrizzleStores(
 	};
 }
 
-function userStore(db: PgDatabase, tables: JanusTables): UserStore {
+function userStore(db: PgDatabase, tables: IdentityTables): UserStore {
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('users', operation, body);
 
@@ -216,7 +223,7 @@ function userStore(db: PgDatabase, tables: JanusTables): UserStore {
 	};
 }
 
-function sessionStore(db: PgDatabase, tables: JanusTables): SessionStore {
+function sessionStore(db: PgDatabase, tables: IdentityTables): SessionStore {
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('sessions', operation, body);
 
@@ -306,7 +313,7 @@ function sessionStore(db: PgDatabase, tables: JanusTables): SessionStore {
 	};
 }
 
-function tokenStore(db: PgDatabase, tables: JanusTables): TokenStore {
+function tokenStore(db: PgDatabase, tables: IdentityTables): TokenStore {
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('tokens', operation, body);
 

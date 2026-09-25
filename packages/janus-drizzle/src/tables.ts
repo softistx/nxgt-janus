@@ -75,8 +75,8 @@ const at = (name: string) =>
  * export const { users, logins, sessions, tokens, relations } = defineJanusTables({ schema: janus });
  * ```
  *
- * Pass the same options to `createDrizzleAdapter`, so the stores read the
- * tables your migration created.
+ * Pass what the schema file exports to `createDrizzleAdapter` as `{ tables }`,
+ * so the stores query the very tables your migration created.
  */
 export function defineJanusTables(options: JanusTablesOptions = {}) {
 	const { schema } = options;
@@ -228,3 +228,19 @@ export function defineJanusTables(options: JanusTablesOptions = {}) {
 
 /** The five tables `defineJanusTables` answers. */
 export type JanusTables = ReturnType<typeof defineJanusTables>;
+
+/**
+ * Which tables the stores query: **the ones your schema file exports**, so
+ * the migration and the stores cannot disagree. Absent, `defineJanusTables()`:
+ * the tables in the connection's `search_path`.
+ *
+ * ```ts
+ * import * as janusTables from './janus/schema';
+ * const postgres = createDrizzleAdapter(db, { tables: janusTables });
+ * ```
+ */
+export interface DrizzleAdapterOptions<
+	K extends keyof JanusTables = keyof JanusTables,
+> {
+	readonly tables?: Pick<JanusTables, K>;
+}

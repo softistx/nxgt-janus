@@ -13,6 +13,7 @@ export { createDrizzleAdapter, type DrizzleAdapter } from './adapter';
 export { createDrizzleRelations } from './relations';
 export { createDrizzleStores } from './stores';
 export {
+	type DrizzleAdapterOptions,
 	defineJanusTables,
 	type JanusTables,
 	type JanusTablesOptions,

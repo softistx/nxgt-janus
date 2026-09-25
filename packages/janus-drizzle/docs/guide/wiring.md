@@ -47,7 +47,7 @@ import type { PgDatabase } from '@nxgt/drizzle/pg'; // any Drizzle PostgreSQL in
 
 function createDrizzleAdapter(
 	db: PgDatabase,
-	options?: { schema?: PgSchema }, // JanusTablesOptions
+	options?: { tables?: JanusTables }, // DrizzleAdapterOptions
 ): DrizzleAdapter; // { store, relations }
 ```
 
@@ -56,10 +56,12 @@ It returns `createDrizzleStores(db, options)` as `store` and
 both. `permissions()` takes the same relation store as `postgres.relations`.
 It connects to nothing and creates nothing.
 
-`options.schema` is the `pgSchema(…)` your tables live in, the same one your
-schema file passes to `defineJanusTables`; leave it out for tables in
-`public`. A factory given another schema than the migration's queries tables
-that do not exist, and every call fails with `STORE_FAILED`.
+`options.tables` is what your schema file's `defineJanusTables(…)` returned,
+so the stores query the tables your migration created. Leave it out for
+tables in the connection's `search_path`, `public` by default. **Pass it
+whenever the tables are in a PostgreSQL schema of their own**: without it, the
+stores query `public`, where your application may have a `users` of its own
+([Where the tables live](database.md#a-schema-of-its-own)).
 
 **Pass the relation store to both.** If only `permissions()` gets it, tuples
 are still written, but deleting a user leaves behind every tuple naming them.
@@ -81,7 +83,7 @@ of the other three, on every CI run.
 ## `createDrizzleStores(db, options?)`
 
 ```ts
-function createDrizzleStores(db: PgDatabase, options?: JanusTablesOptions): JanusStores; // { users, sessions, tokens }
+function createDrizzleStores(db: PgDatabase, options?: { tables?: Pick<JanusTables, 'users' | 'logins' | 'sessions' | 'tokens'> }): JanusStores; // { users, sessions, tokens }
 ```
 
 This is what `janus({ store })` takes. It uses `users`, `logins`, `sessions`
@@ -106,7 +108,7 @@ The [migrations page](migrations.md#collecting-lapsed-sessions) shows how.
 ## `createDrizzleRelations(db, options?)`
 
 ```ts
-function createDrizzleRelations(db: PgDatabase, options?: JanusTablesOptions): RelationStore;
+function createDrizzleRelations(db: PgDatabase, options?: { tables?: Pick<JanusTables, 'relations'> }): RelationStore;
 ```
 
 This is what `permissions({ store })` takes, and `janus({ relations })`. It

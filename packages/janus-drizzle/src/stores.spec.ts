@@ -2,7 +2,9 @@ import { describe, expect, it } from 'bun:test';
 import type { PgDatabase } from '@nxgt/drizzle/pg';
 import { mintId, type UserRecord } from '@nxgt/janus';
 import { eq } from 'drizzle-orm';
+import { pgSchema } from 'drizzle-orm/pg-core';
 import { openTestDb } from '../test/db';
+import { createDrizzleAdapter } from './adapter';
 import { createDrizzleStores } from './stores';
 import { defineJanusTables } from './tables';
 
@@ -89,6 +91,54 @@ describe('createDrizzleStores(), beyond the port suite', () => {
 					(error: { code?: string }) => error.code,
 				);
 			expect(outcome).toBe('NOT_FOUND');
+		} finally {
+			await test.close();
+		}
+	});
+});
+
+describe('createDrizzleAdapter(db, { tables }), in a schema of their own', () => {
+	it("never touches the application's own tables of the same names", async () => {
+		const janus = pgSchema('janus');
+		const test = await openTestDb({ schema: janus });
+		try {
+			// The application's own `users`, `sessions`, `tokens` and
+			// `relations` in `public`, refusing every write — even of no row.
+			await test.exec(`
+				create function decoy() returns trigger language plpgsql as
+					$$ begin raise exception 'decoy touched'; end $$;
+			`);
+			for (const table of [
+				'users',
+				'logins',
+				'sessions',
+				'tokens',
+				'relations',
+			]) {
+				await test.exec(`
+					create table public.${table} (id text primary key);
+					create trigger decoy before insert or update or delete
+						on public.${table} for each statement execute function decoy();
+				`);
+			}
+
+			const { store, relations } = createDrizzleAdapter(test.db, {
+				tables: defineJanusTables({ schema: janus }),
+			});
+			const record = user(['ada@x.test']);
+			await store.users.insertUser(record);
+			expect(await store.users.findUser(record.id)).toEqual(record);
+			const tuple = {
+				object: { type: 'record', id: 'r1' },
+				relation: 'owner',
+				subject: { type: 'user', id: record.id },
+			};
+			await relations.write({ add: [tuple] });
+			expect(await relations.has(tuple)).toBe(true);
+			expect(await store.sessions.deleteUserSessions(record.id)).toBe(0);
+			expect(await store.tokens.deleteUserTokens(record.id)).toBe(0);
+			await relations.deleteEntity({ type: 'user', id: record.id });
+			expect(await store.users.deleteUser(record.id)).toBe(true);
 		} finally {
 			await test.close();
 		}

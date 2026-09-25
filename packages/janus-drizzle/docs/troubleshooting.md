@@ -26,10 +26,13 @@ How PostgreSQL's errors become the port's:
 **Install and types**
 - [`TS2834: Relative import paths need explicit file extensions …`](#ts2834-relative-import-paths-need-explicit-file-extensions-in-ecmascript-imports-when---moduleresolution-is-node16-or-nodenext)
 - [`TS2345: Argument of type '…' is not assignable to parameter of type 'PgDatabase'.`](#ts2345-argument-of-type--is-not-assignable-to-parameter-of-type-pgdatabase)
+- [`TS2322: Type 'string' is not assignable to type 'PgSchema<string>'.`](#ts2322-type-string-is-not-assignable-to-type-pgschemastring)
+- [`TS2353: Object literal may only specify known properties, and 'schema' does not exist in type 'DrizzleAdapterOptions<…>'.`](#ts2353-object-literal-may-only-specify-known-properties-and-schema-does-not-exist-in-type-drizzleadapteroptions)
 - [`error instanceof StoreFailure` is `false` for an outage](#error-instanceof-storefailure-is-false-for-an-outage)
 
 **Setup**
 - [`STORE_FAILED` caused by `relation "users" does not exist`](#store_failed-caused-by-relation-users-does-not-exist)
+- [`STORE_FAILED` caused by `column "type" does not exist`](#store_failed-caused-by-column-type-does-not-exist)
 - [`schema "janus" does not exist` while migrating](#schema-janus-does-not-exist-while-migrating)
 - [`syntax error at or near "NULLS"` while migrating](#syntax-error-at-or-near-nulls-while-migrating)
 - [The migration drops Janus's tables](#the-migration-drops-januss-tables)
@@ -39,8 +42,8 @@ How PostgreSQL's errors become the port's:
 - [`LOGIN_TAKEN`: `<operation>: the login "<login>" is taken by another <type>`](#login_taken-operation-the-login-login-is-taken-by-another-type)
 - [`NOT_FOUND` / `VERSION_CONFLICT`: `updateUser: …`](#not_found--version_conflict-updateuser-)
 - [The `sessions` table keeps growing](#the-sessions-table-keeps-growing)
-- [`STORE_FAILED` for a sign-up whose fields hold `\u0000`](#store_failed-for-a-sign-up-whose-fields-hold-u0000)
 - [`NOT_FOUND`: `insertUser: the user was deleted meanwhile`](#not_found-insertuser-the-user-was-deleted-meanwhile)
+- [`STORE_FAILED` for a sign-up whose fields hold `\u0000`](#store_failed-for-a-sign-up-whose-fields-hold-u0000)
 
 ---
 
@@ -83,6 +86,34 @@ const postgres = createDrizzleAdapter(
 );
 ```
 
+### `TS2322: Type 'string' is not assignable to type 'PgSchema<string>'.`
+
+**When:** `defineJanusTables({ schema: 'janus' })`.
+
+**Why:** `schema` is the `pgSchema(…)` itself, which your schema file must
+export anyway: drizzle-kit writes `CREATE SCHEMA` only for an exported one.
+
+**Fix:**
+
+```ts
+export const janus = pgSchema('janus');
+export const janusTables = defineJanusTables({ schema: janus });
+```
+
+### `TS2353: Object literal may only specify known properties, and 'schema' does not exist in type 'DrizzleAdapterOptions<…>'.`
+
+**When:** `createDrizzleAdapter(db, { schema: janus })`, or the same given to
+`createDrizzleStores` or `createDrizzleRelations`.
+
+**Why:** the factories take the tables themselves, not how to build them, so
+the stores query exactly the tables your migration created.
+
+**Fix:** pass the object your schema file exports.
+
+```ts
+createDrizzleAdapter(db, { tables: janusTables });
+```
+
 ### `error instanceof StoreFailure` is `false` for an outage
 
 **When:** an outage rejects with an error whose `code` is `'STORE_FAILED'`,
@@ -110,8 +141,9 @@ under it over Bun's `SQL`. It can name `logins`, `sessions`, `tokens` or
 **Why:** one of two things.
 - Your migrations never created the tables. The core never manages a schema,
   and neither do the stores.
-- They did, in a PostgreSQL schema, and the factory was not told: it queries
-  `users` in the connection's `search_path`, not `janus.users`. Or the reverse.
+- They did, in a PostgreSQL schema, and the factory was not given
+  `{ tables }`: it queries `users` in the connection's `search_path`, not
+  `janus.users`.
   Or the Drizzle instance is connected to your application's database while
   the tables are in Janus's own.
 
@@ -126,16 +158,37 @@ export const { users, logins, sessions, tokens, relations } = defineJanusTables(
 ```
 
 ```sh
-bunx drizzle-kit generate && bunx drizzle-kit migrate
+# With a database of its own, name its config; with a schema of its own, it is your application's.
+bunx drizzle-kit generate --config drizzle.janus.config.ts
+bunx drizzle-kit migrate --config drizzle.janus.config.ts
 ```
 
 drizzle-kit reads top-level table exports only: exporting the object
 `defineJanusTables()` returns, whole, creates nothing.
 
-With a PostgreSQL schema, pass the same one to the factory:
+With a PostgreSQL schema, pass the adapter the tables built in it:
 
 ```ts
-createDrizzleAdapter(db, { schema: janus }); // janus = pgSchema('janus'), from the schema file
+createDrizzleAdapter(db, { tables: janusTables }); // from the schema file
+```
+
+### `STORE_FAILED` caused by `column "type" does not exist`
+
+Also `column "type" of relation "users" does not exist`, or another column of
+Janus's tables. The code is `42703`.
+
+**When:** the tables are in a PostgreSQL schema of their own, and your
+application has a `users` (or `sessions`, …) table of its own in `public`.
+
+**Why:** the factory was not given `{ tables }`, so it queries `public.users`:
+your table, not Janus's. Reads fail on its columns. **A delete can succeed**,
+and delete from your table.
+
+**Fix:** pass the tables your schema file exports, and check your own tables
+for rows deleted meanwhile.
+
+```ts
+createDrizzleAdapter(db, { tables: janusTables });
 ```
 
 ### `schema "janus" does not exist` while migrating
@@ -153,7 +206,8 @@ exist.
 
 ```ts
 export const janus = pgSchema('janus');
-export const { users, logins, sessions, tokens, relations } = defineJanusTables({ schema: janus });
+export const janusTables = defineJanusTables({ schema: janus });
+export const { users, logins, sessions, tokens, relations } = janusTables;
 ```
 
 ### `syntax error at or near "NULLS"` while migrating

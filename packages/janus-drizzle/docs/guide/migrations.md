@@ -27,12 +27,15 @@ with a drizzle-kit config of its own (recommended), or a PostgreSQL schema of
 its own, `defineJanusTables({ schema: janus })`, in your application's
 schema file.
 
-Then generate and apply the migration as usual:
+Then generate and apply the migration with that config:
 
 ```sh
-bunx drizzle-kit generate
-bunx drizzle-kit migrate
+bunx drizzle-kit generate --config drizzle.janus.config.ts
+bunx drizzle-kit migrate --config drizzle.janus.config.ts
 ```
+
+With a schema of its own in your application's database, it is your
+application's config, so the plain `bunx drizzle-kit generate` and `migrate`.
 
 drizzle-kit only picks up top-level table exports, so export each table: the
 object `defineJanusTables()` returns is not itself a table, and drizzle-kit
@@ -78,7 +81,7 @@ CREATE TABLE "logins" (
 -- logins to users, on delete cascade.
 ```
 
-With `{ schema: janus }`, it starts with `CREATE SCHEMA "janus"`, and every
+With `defineJanusTables({ schema: janus })`, it starts with `CREATE SCHEMA "janus"`, and every
 name is qualified: `CREATE TABLE "janus"."users"`.
 
 The specs build their database from exactly this: drizzle-kit's own
@@ -137,6 +140,7 @@ of your own: an admin listing, a report, a data export.
 import { count, eq } from 'drizzle-orm';
 import { users } from './janus/schema';
 
+// janusDb: the Drizzle instance over Janus's tables
 const [row] = await janusDb
 	.select({ patients: count() })
 	.from(users)

@@ -9,9 +9,9 @@ import {
 import type { RelationStore } from '@nxgt/janus/permissions';
 import { and, asc, eq, gt, isNotNull, isNull, or, type SQL } from 'drizzle-orm';
 import {
+	type DrizzleAdapterOptions,
 	defineJanusTables,
 	type JanusTables,
-	type JanusTablesOptions,
 } from './tables';
 import { run } from './translate';
 
@@ -30,9 +30,9 @@ import { run } from './translate';
  */
 export function createDrizzleRelations(
 	db: PgDatabase,
-	options: JanusTablesOptions = {},
+	options: DrizzleAdapterOptions<'relations'> = {},
 ): RelationStore {
-	const tables = defineJanusTables(options);
+	const tables = options.tables ?? defineJanusTables();
 	const { rowOf, subjectIs, matching } = tupleSql(tables.relations);
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('relations', operation, body);
@@ -178,9 +178,7 @@ type Relations = JanusTables['relations'];
 /** The SQL of one tuple, over the `relations` table in use. */
 function tupleSql(relations: Relations) {
 	/** A tuple as a row: an entity's `subject_relation` is `null`. */
-	const rowOf = function rowOf(
-		tuple: RelationTuple,
-	): Relations['$inferInsert'] {
+	function rowOf(tuple: RelationTuple): Relations['$inferInsert'] {
 		return {
 			objectType: tuple.object.type,
 			objectId: tuple.object.id,
@@ -191,10 +189,10 @@ function tupleSql(relations: Relations) {
 				? tuple.subject.relation
 				: null,
 		};
-	};
+	}
 
 	/** Exactly this subject: a subject set is not its entity, and the reverse. */
-	const subjectIs = function subjectIs(subject: Subject): SQL | undefined {
+	function subjectIs(subject: Subject): SQL | undefined {
 		return and(
 			eq(relations.subjectType, subject.type),
 			eq(relations.subjectId, subject.id),
@@ -202,17 +200,17 @@ function tupleSql(relations: Relations) {
 				? eq(relations.subjectRelation, subject.relation)
 				: isNull(relations.subjectRelation),
 		);
-	};
+	}
 
 	/** Exactly this tuple. */
-	const matching = function matching(tuple: RelationTuple): SQL | undefined {
+	function matching(tuple: RelationTuple): SQL | undefined {
 		return and(
 			eq(relations.objectType, tuple.object.type),
 			eq(relations.objectId, tuple.object.id),
 			eq(relations.relation, tuple.relation),
 			subjectIs(tuple.subject),
 		);
-	};
+	}
 
 	return { rowOf, subjectIs, matching };
 }

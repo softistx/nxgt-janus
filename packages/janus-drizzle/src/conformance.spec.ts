@@ -7,7 +7,7 @@ import { pgSchema } from 'drizzle-orm/pg-core';
 import { openTestDb, type Table } from '../test/db';
 import { createDrizzleRelations } from './relations';
 import { createDrizzleStores } from './stores';
-import type { JanusTablesOptions } from './tables';
+import { defineJanusTables, type JanusTablesOptions } from './tables';
 
 /**
  * The whole suite against a real PostgreSQL — PGlite, in process — outages
@@ -49,7 +49,9 @@ for (const { name, options } of LAYOUTS) {
 				// A database per case: nothing one case writes is seen by the next.
 				const test = await openTestDb(options);
 				return {
-					stores: createDrizzleStores(test.db, options),
+					stores: createDrizzleStores(test.db, {
+						tables: defineJanusTables(options),
+					}),
 					faults: {
 						fail: (slot) => test.takeAway(TABLE_OF[slot]),
 					},
@@ -66,7 +68,9 @@ for (const { name, options } of LAYOUTS) {
 			async open() {
 				const test = await openTestDb(options);
 				return {
-					store: createDrizzleRelations(test.db, options),
+					store: createDrizzleRelations(test.db, {
+						tables: defineJanusTables(options),
+					}),
 					faults: {
 						// A write is checked by reading afterwards, so only writes fail.
 						fail: (method) =>
