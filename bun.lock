@@ -60,6 +60,38 @@
         "typescript": "^6.0.3",
       },
     },
+    "packages/janus-kit": {
+      "name": "@nxgt/janus-kit",
+      "version": "0.0.0",
+      "dependencies": {
+        "@nxgt/janus-drizzle": "workspace:^",
+        "@nxgt/janus-redis": "workspace:^",
+      },
+      "devDependencies": {
+        "@electric-sql/pglite": "0.5.8",
+        "@nxgt/drizzle": "0.6.1",
+        "@nxgt/janus": "workspace:^",
+        "@nxgt/janus-telemetry": "workspace:^",
+        "@nxgt/redis": "0.3.1",
+        "@nxgt/telemetry": "0.2.1",
+        "@types/bun": "^1.4.2",
+        "drizzle-kit": "1.0.0-rc.4",
+        "drizzle-orm": "1.0.0-rc.4",
+        "redis-memory-server": "0.17.1",
+        "zod": "^4.6.5",
+      },
+      "peerDependencies": {
+        "@nxgt/drizzle": ">=0.6.1 <1",
+        "@nxgt/janus": "workspace:^",
+        "@nxgt/janus-telemetry": "workspace:^",
+        "@nxgt/redis": ">=0.3.1 <1",
+        "drizzle-orm": ">=1.0.0-rc.4 <2",
+        "typescript": "^6.0.3",
+      },
+      "optionalPeers": [
+        "@nxgt/janus-telemetry",
+      ],
+    },
     "packages/janus-mongo": {
       "name": "@nxgt/janus-mongo",
       "version": "0.1.2",
@@ -248,6 +280,8 @@
     "@nxgt/janus-drizzle": ["@nxgt/janus-drizzle@workspace:packages/janus-drizzle"],
 
     "@nxgt/janus-hono": ["@nxgt/janus-hono@workspace:packages/janus-hono"],
+
+    "@nxgt/janus-kit": ["@nxgt/janus-kit@workspace:packages/janus-kit"],
 
     "@nxgt/janus-mongo": ["@nxgt/janus-mongo@workspace:packages/janus-mongo"],
 

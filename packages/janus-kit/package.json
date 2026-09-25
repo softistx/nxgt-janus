@@ -1,0 +1,83 @@
+{
+	"name": "@nxgt/janus-kit",
+	"version": "0.0.0",
+	"private": true,
+	"description": "@nxgt/janus wired in one call: PostgreSQL through Drizzle, sessions in Redis, telemetry, a health check and a close",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"docs",
+		"README.md",
+		"package.json",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"keywords": [
+		"identity",
+		"authentication",
+		"authorization",
+		"postgresql",
+		"redis",
+		"janus",
+		"typescript"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/softistx/nxgt-janus.git",
+		"directory": "packages/janus-kit"
+	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org",
+		"access": "public"
+	},
+	"scripts": {
+		"build": "bun run ../../build.ts",
+		"test": "bun test src",
+		"typecheck": "tsc --noEmit"
+	},
+	"nxgt": {
+		"entrypoints": [
+			"src/index.ts"
+		]
+	},
+	"dependencies": {
+		"@nxgt/janus-drizzle": "workspace:^",
+		"@nxgt/janus-redis": "workspace:^"
+	},
+	"devDependencies": {
+		"@electric-sql/pglite": "0.5.8",
+		"@nxgt/drizzle": "0.6.1",
+		"@nxgt/janus": "workspace:^",
+		"@nxgt/janus-telemetry": "workspace:^",
+		"@nxgt/redis": "0.3.1",
+		"@nxgt/telemetry": "0.2.1",
+		"@types/bun": "^1.4.2",
+		"drizzle-kit": "1.0.0-rc.4",
+		"drizzle-orm": "1.0.0-rc.4",
+		"redis-memory-server": "0.17.1",
+		"zod": "^4.6.5"
+	},
+	"peerDependencies": {
+		"@nxgt/drizzle": ">=0.6.1 <1",
+		"@nxgt/janus": "workspace:^",
+		"@nxgt/janus-telemetry": "workspace:^",
+		"@nxgt/redis": ">=0.3.1 <1",
+		"drizzle-orm": ">=1.0.0-rc.4 <2",
+		"typescript": "^6.0.3"
+	},
+	"peerDependenciesMeta": {
+		"@nxgt/janus-telemetry": {
+			"optional": true
+		}
+	}
+}
