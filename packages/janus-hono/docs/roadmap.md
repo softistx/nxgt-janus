@@ -7,7 +7,8 @@ no dates here, and the version something shipped in is the only number.
 
 - **The first release** — `@nxgt/janus-hono` 0.1 on npm: `session()`,
   `sendSession` (which answers the user), `signOut`, `permission()` and
-  `byParam`, `provide()`, `janusErrors({ report, fallback })`. Built, not yet
+  `byParam`, `provide()`, `janusErrors({ report, fallback })`, and
+  `bindJanus()` binding them to the instances once. Built, not yet
   published.
 
 ## Next

@@ -57,6 +57,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
 | `permission(access, permission, type, load, options?)` | Middleware. Loads the object with `load(c)`, checks `access.can(c.var.user, permission, object)` with `type` added, and sets `c.var.object` to what `load` answered. Anonymous: 401, before loading. `load` answers `null`: 404. A denial: 403. `{ ctx: (c, object) => … }` is required exactly when the permission reaches a condition; `{ subject: (c) => … }` replaces `c.var.user`. One per route |
 | `byParam(name, find)` | A `load` for `permission()`: `find(c.req.param(name))`, or `null` — a 404 — when the route has no such parameter |
+| `bindJanus({ auth?, access? })` | The functions above with the instances bound: `session(options?)`, `sendSession(c, signedIn)` and `signOut(c)` with `auth`; `permission(permission, type, load, options?)` with `access`; `provide()` always |
 | `provide({ auth?, access? })` | Middleware. Sets `c.var.auth` and `c.var.access` to the instances given — only those — for a route that writes users or tuples |
 | `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
 
@@ -102,6 +103,29 @@ permission, the object type, the fields a `fromField` reads and the `ctx`
 of a condition are typed from the model, as they are for `can()`.
 `janusErrors()` answers the failures of both sides alike — `can()`'s
 `STORE_FAILED` is a 503, never a 403.
+
+### Bound once
+
+`bindJanus({ auth, access })` answers the same functions with the instances
+bound, so no route repeats them — typed exactly as the unbound ones:
+
+```ts
+import { bindJanus, byParam } from '@nxgt/janus-hono';
+
+const j = bindJanus({ auth, access });
+
+const app = new Hono()
+	.use(j.session(), j.provide())
+	.get('/records/:id', j.permission('view', 'record', byParam('id', (id) => records.find(id))), (c) =>
+		c.json(c.var.object),
+	)
+	.post('/sign-out', async (c) => {
+		await j.signOut(c);
+		return c.body(null, 204);
+	});
+```
+
+Only what is given is bound: `bindJanus({ auth })` has no `permission`.
 
 Each side is usable alone. An application that signs users in some other way
 passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
@@ -157,7 +181,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Type safety, counted
 
-Sixteen plausible mistakes are refused by the compiler, each with a
+Twenty-two plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - six in `session.ts`: reading `c.var.user` where it may be `null` (twice,
@@ -170,7 +194,10 @@ Sixteen plausible mistakes are refused by the compiler, each with a
   a field a `fromField` reads, a condition reached with no `ctx`, a `ctx` of the
   wrong shape, a `ctx` where no condition is reachable, a field the loaded
   object does not have, granting a relation read from a field, and an instance
-  `provide()` was not given.
+  `provide()` was not given;
+- six in `bind.ts`: the same refusals through `bindJanus()` — a nullable user,
+  an unknown user type, a missing `ctx`, a misspelled permission — and a
+  `permission` or a `session` it was not given the instance for.
 
 ## Licence
 

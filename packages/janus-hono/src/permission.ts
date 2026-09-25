@@ -18,7 +18,7 @@ export type ObjectData<C extends ModelConfig, T extends ObjectTypeOf<C>> = {
 	readonly id: string;
 } & { readonly [F in FieldsOf<C, T>]: string | null };
 
-type Awaitable<V> = V | Promise<V>;
+export type Awaitable<V> = V | Promise<V>;
 
 /**
  * The options of `permission()`: `ctx` required exactly when a condition of
@@ -48,7 +48,7 @@ export type PermissionOptions<
  * type or the permission was wrong — so the error names that argument, not a
  * missing one; the rule `can()` follows.
  */
-type OptionsArgs<
+export type OptionsArgs<
 	C extends ModelConfig,
 	T extends ObjectTypeOf<C>,
 	P extends string,
