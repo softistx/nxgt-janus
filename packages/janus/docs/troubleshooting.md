@@ -42,7 +42,7 @@ How the messages are shaped:
 - [`STORE_FAILED` — `<slot>.<method>: the store could not answer`](#store_failed--slotmethod-the-store-could-not-answer)
 - [`STORE_FAILED` — `<slot>.<method> answered undefined …`](#store_failed--slotmethod-answered-undefined-an-absence-is-null-so-this-store-forgot-to-answer)
 - [`NOT_FOUND` — `<call>: no <type> has this id`](#not_found--call-no-type-has-this-id)
-- [`LOGIN_TAKEN` — `<call>: the login "<login>" is taken by another <type>`](#login_taken--call-the-login-login-is-taken-by-another-type)
+- [`LOGIN_TAKEN` — `<call>: the login is taken by another <type>`](#login_taken--call-the-login-is-taken-by-another-type)
 - [`VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`](#version_conflict--call-expected-version-n-found-m)
 - [`USER_INVALID` — `<call>: the fields do not match the <type> schema …`](#user_invalid--call-the-fields-do-not-match-the-type-schema-n-issues-at-paths)
 - [`PASSWORD_TOO_SHORT` — `<call>: the password is shorter than the policy's <n> characters`](#password_too_short--call-the-password-is-shorter-than-the-policys-n-characters)
@@ -328,9 +328,9 @@ try {
 const user = await auth.find(id); // null when there is nobody
 ```
 
-### `LOGIN_TAKEN` — `<call>: the login "<login>" is taken by another <type>`
+### `LOGIN_TAKEN` — `<call>: the login is taken by another <type>`
 
-`StoreConflict` with `on: 'login'`, carrying `login` and `userType`.
+`StoreConflict` with `on: 'login'`, carrying `login` and `userType`. The login is not in the message, which never carries a value: an e-mail in a log line is personal data. Read it from `error.login`.
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
 **Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.

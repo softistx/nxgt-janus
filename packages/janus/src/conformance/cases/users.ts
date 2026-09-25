@@ -150,6 +150,10 @@ export const userStoreCases: readonly ConformanceCase[] = [
 					'contested@example.test',
 					'insertUser: the conflict should name the login',
 				);
+				ok(
+					!error.message.includes('contested@example.test'),
+					`insertUser: the conflict's message should not quote the login — a message never carries a value; got ${JSON.stringify(error.message)}`,
+				);
 			}
 			let stored = 0;
 			for (const record of records) {

@@ -66,7 +66,7 @@ function memoryUserStore(): UserStore {
 	const taken = (operation: string, type: string, login: string) =>
 		new StoreConflict(
 			'login',
-			`${operation}: the login "${login}" is taken by another ${type}`,
+			`${operation}: the login is taken by another ${type}`,
 			{ login, userType: type, operation },
 		);
 
