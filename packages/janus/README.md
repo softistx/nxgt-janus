@@ -618,7 +618,7 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Eighty-six plausible mistakes, eighty-six refused at compile time — and
+**Eighty-seven plausible mistakes, eighty-seven refused at compile time — and
 one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -626,7 +626,7 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
-`janus()`, from the point of view of the application) and `test/types/permissions.ts` (thirty-seven, on the
+`janus()`, from the point of view of the application) and `test/types/permissions.ts` (thirty-eight, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on
