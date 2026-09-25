@@ -13,10 +13,7 @@ export { createDrizzleAdapter, type DrizzleAdapter } from './adapter';
 export { createDrizzleRelations } from './relations';
 export { createDrizzleStores } from './stores';
 export {
-	janusLogins,
-	janusRelations,
-	janusSessions,
-	janusTables,
-	janusTokens,
-	janusUsers,
+	defineJanusTables,
+	type JanusTables,
+	type JanusTablesOptions,
 } from './tables';

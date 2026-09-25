@@ -11,26 +11,37 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { drizzle as overPostgresJs } from 'drizzle-orm/postgres-js';
 import { Pool } from 'pg';
 import postgres from 'postgres';
-import { janusTables } from '../src/tables';
+import { defineJanusTables, type JanusTablesOptions } from '../src/tables';
 
 /**
  * The DDL drizzle-kit writes for the exported tables — what an application's
  * migration will hold — so the specs never run on a schema of their own.
  */
-async function migration(): Promise<string> {
+async function migration(options: JanusTablesOptions): Promise<string> {
 	const empty = await generateDrizzleJson({});
-	const current = await generateDrizzleJson({ ...janusTables });
+	// The schema is exported beside the tables, as the application's file does.
+	const current = await generateDrizzleJson({
+		...(options.schema === undefined ? {} : { janus: options.schema }),
+		...defineJanusTables(options),
+	});
 	return (await generateMigration(empty, current)).join(';\n');
 }
 
-let ddl: Promise<string> | undefined;
+/** The DDL of each layout, generated once: `''` is the unprefixed one. */
+const ddls = new Map<string, Promise<string>>();
 
-/** Every table a fault can take away, and what it is renamed to. */
-export type Table =
-	| 'janus_users'
-	| 'janus_sessions'
-	| 'janus_tokens'
-	| 'janus_relations';
+function ddlOf(options: JanusTablesOptions): Promise<string> {
+	const key = options.schema?.schemaName ?? '';
+	let ddl = ddls.get(key);
+	if (ddl === undefined) {
+		ddl = migration(options);
+		ddls.set(key, ddl);
+	}
+	return ddl;
+}
+
+/** Every table a fault can take away. */
+export type Table = 'users' | 'sessions' | 'tokens' | 'relations';
 
 /**
  * A real PostgreSQL, in memory, in process: PGlite, as `@nxgt/drizzle`'s own
@@ -42,9 +53,13 @@ export type Table =
  * is proven either way is what the adapter does with a real driver error, not
  * with a wrapper that throws.
  */
-export async function openTestDb(): Promise<TestDatabase> {
+export async function openTestDb(
+	options: JanusTablesOptions = {},
+): Promise<TestDatabase> {
 	const server = process.env.JANUS_POSTGRES_URL;
-	return server === undefined ? openPglite() : openServer(server);
+	return server === undefined
+		? openPglite(options)
+		: openServer(server, options);
 }
 
 /** What a spec gets: a Drizzle instance, a raw `exec`, and the two faults. */
@@ -56,17 +71,16 @@ export interface TestDatabase {
 	close(): Promise<void>;
 }
 
-async function openPglite(): Promise<TestDatabase> {
-	ddl ??= migration();
+async function openPglite(options: JanusTablesOptions): Promise<TestDatabase> {
 	const client = new PGlite();
-	await client.exec(await ddl);
+	await client.exec(await ddlOf(options));
 	const exec = async (statements: string) => {
 		await client.exec(statements);
 	};
 	return {
 		db: drizzle({ client }),
 		exec,
-		...faultsOver(exec),
+		...faultsOver(exec, options),
 		close: () => client.close(),
 	};
 }
@@ -82,7 +96,10 @@ let opened = 0;
  *
  * `JANUS_POSTGRES_URL=postgres://postgres:janus@localhost:55432/postgres bun test src`
  */
-async function openServer(url: string): Promise<TestDatabase> {
+async function openServer(
+	url: string,
+	options: JanusTablesOptions,
+): Promise<TestDatabase> {
 	opened += 1;
 	const name = `janus_case_${process.pid}_${opened}`;
 	const admin = new SQL(url);
@@ -92,8 +109,7 @@ async function openServer(url: string): Promise<TestDatabase> {
 	const target = new URL(url);
 	target.pathname = `/${name}`;
 	const client = new SQL(target.toString());
-	ddl ??= migration();
-	await client.unsafe(await ddl).simple();
+	await client.unsafe(await ddlOf(options)).simple();
 	const exec = async (statements: string) => {
 		await client.unsafe(statements).simple();
 	};
@@ -101,7 +117,7 @@ async function openServer(url: string): Promise<TestDatabase> {
 	return {
 		db: over.db,
 		exec,
-		...faultsOver(exec),
+		...faultsOver(exec, options),
 		close: async () => {
 			await over.close();
 			await client.close();
@@ -139,16 +155,21 @@ async function driven(
 	}
 }
 
-function faultsOver(exec: (statements: string) => Promise<void>) {
+function faultsOver(
+	exec: (statements: string) => Promise<void>,
+	{ schema }: JanusTablesOptions,
+) {
+	const qualified = (table: Table) =>
+		schema === undefined ? table : `${schema.schemaName}.${table}`;
 	return {
 		takeAway: (table: Table) =>
-			exec(`alter table ${table} rename to ${table}_away`),
+			exec(`alter table ${qualified(table)} rename to ${table}_away`),
 		refuseWrites: (table: Table) =>
 			exec(`
 				create or replace function janus_refuse() returns trigger
 					language plpgsql as $$ begin raise exception 'refused'; end $$;
 				create trigger janus_refuse before insert or update or delete
-					on ${table} for each statement execute function janus_refuse();
+					on ${qualified(table)} for each statement execute function janus_refuse();
 			`),
 	};
 }

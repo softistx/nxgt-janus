@@ -21,7 +21,7 @@ describe('createDrizzleRelations(), beyond the port suite', () => {
 			await test.exec(`
 				create function refuse() returns trigger language plpgsql as
 					$$ begin raise exception 'refused'; end $$;
-				create trigger refuse before insert on janus_relations
+				create trigger refuse before insert on relations
 					for each statement execute function refuse();
 			`);
 			const outcome = await store

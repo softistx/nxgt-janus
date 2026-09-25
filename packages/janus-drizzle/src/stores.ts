@@ -11,11 +11,16 @@ import type {
 } from '@nxgt/janus';
 import { NotFoundError, StoreConflict } from '@nxgt/janus';
 import { and, asc, eq, gt, isNull, lte, ne, type SQL, sql } from 'drizzle-orm';
-import { janusLogins, janusSessions, janusTokens, janusUsers } from './tables';
+import {
+	defineJanusTables,
+	type JanusTables,
+	type JanusTablesOptions,
+} from './tables';
 import { loginTaken, run } from './translate';
 
-type UserRow = typeof janusUsers.$inferSelect;
-type SessionRow = typeof janusSessions.$inferSelect;
+type UserRow = JanusTables['users']['$inferSelect'];
+type UserInsert = JanusTables['users']['$inferInsert'];
+type SessionRow = JanusTables['sessions']['$inferSelect'];
 
 /**
  * The three stores `janus()` takes, over one PostgreSQL database through
@@ -37,23 +42,27 @@ type SessionRow = typeof janusSessions.$inferSelect;
  * `sessions.deleteExpiredSessions` is implemented: PostgreSQL has no TTL, so
  * `auth.sessions.collectExpired()` is how lapsed sessions leave the table.
  */
-export function createDrizzleStores(db: PgDatabase): JanusStores {
+export function createDrizzleStores(
+	db: PgDatabase,
+	options: JanusTablesOptions = {},
+): JanusStores {
+	const tables = defineJanusTables(options);
 	return {
-		users: userStore(db),
-		sessions: sessionStore(db),
-		tokens: tokenStore(db),
+		users: userStore(db, tables),
+		sessions: sessionStore(db, tables),
+		tokens: tokenStore(db, tables),
 	};
 }
 
-function userStore(db: PgDatabase): UserStore {
+function userStore(db: PgDatabase, tables: JanusTables): UserStore {
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('users', operation, body);
 
 	const find = async (id: string) => {
 		const [row] = await db
 			.select()
-			.from(janusUsers)
-			.where(eq(janusUsers.id, id));
+			.from(tables.users)
+			.where(eq(tables.users.id, id));
 		return row === undefined ? null : toUser(row);
 	};
 
@@ -74,12 +83,12 @@ function userStore(db: PgDatabase): UserStore {
 		const distinct = [...new Set(logins)].sort();
 		if (distinct.length === 0) return;
 		const written = await tx
-			.insert(janusLogins)
+			.insert(tables.logins)
 			.values(
 				distinct.map((login) => ({ type: user.type, login, userId: user.id })),
 			)
 			.onConflictDoNothing()
-			.returning({ login: janusLogins.login });
+			.returning({ login: tables.logins.login });
 		if (written.length === distinct.length) return;
 		const claimed = new Set(written.map((row) => row.login));
 		const taken = distinct.find((login) => !claimed.has(login)) ?? '';
@@ -91,9 +100,9 @@ function userStore(db: PgDatabase): UserStore {
 			run$('insertUser', async () => {
 				const inserted = await withTransaction(db, async (tx) => {
 					const [row] = await tx
-						.insert(janusUsers)
+						.insert(tables.users)
 						.values(toUserRow(record))
-						.onConflictDoNothing({ target: janusUsers.id })
+						.onConflictDoNothing({ target: tables.users.id })
 						.returning();
 					if (row === undefined) return null;
 					await claim(tx, 'insertUser', record, record.logins);
@@ -117,10 +126,12 @@ function userStore(db: PgDatabase): UserStore {
 		findUserByLogin: (type, login) =>
 			run$('findUserByLogin', async () => {
 				const [row] = await db
-					.select({ user: janusUsers })
-					.from(janusLogins)
-					.innerJoin(janusUsers, eq(janusUsers.id, janusLogins.userId))
-					.where(and(eq(janusLogins.type, type), eq(janusLogins.login, login)));
+					.select({ user: tables.users })
+					.from(tables.logins)
+					.innerJoin(tables.users, eq(tables.users.id, tables.logins.userId))
+					.where(
+						and(eq(tables.logins.type, type), eq(tables.logins.login, login)),
+					);
 				return row === undefined ? null : toUser(row.user);
 			}),
 
@@ -129,13 +140,13 @@ function userStore(db: PgDatabase): UserStore {
 				// One more than the page, to know whether another follows.
 				const found = await db
 					.select()
-					.from(janusUsers)
+					.from(tables.users)
 					.where(
 						after === null
-							? eq(janusUsers.type, type)
-							: and(eq(janusUsers.type, type), gt(janusUsers.id, after)),
+							? eq(tables.users.type, type)
+							: and(eq(tables.users.type, type), gt(tables.users.id, after)),
 					)
-					.orderBy(asc(janusUsers.id))
+					.orderBy(asc(tables.users.id))
 					.limit(limit + 1);
 				const items = found.slice(0, limit).map(toUser);
 				const last = items.at(-1);
@@ -150,13 +161,13 @@ function userStore(db: PgDatabase): UserStore {
 			run$('updateUser', () =>
 				withTransaction(db, async (tx) => {
 					const [row] = await tx
-						.update(janusUsers)
+						.update(tables.users)
 						.set({
 							...toUserSet(patch),
-							version: sql`${janusUsers.version} + 1`,
+							version: sql`${tables.users.version} + 1`,
 						})
 						.where(
-							and(eq(janusUsers.id, id), eq(janusUsers.version, ifVersion)),
+							and(eq(tables.users.id, id), eq(tables.users.version, ifVersion)),
 						)
 						.returning();
 
@@ -164,9 +175,9 @@ function userStore(db: PgDatabase): UserStore {
 						// The write matched nothing, which alone cannot tell an unknown
 						// id from a moved version: read again, and say which.
 						const [stored] = await tx
-							.select({ version: janusUsers.version })
-							.from(janusUsers)
-							.where(eq(janusUsers.id, id));
+							.select({ version: tables.users.version })
+							.from(tables.users)
+							.where(eq(tables.users.id, id));
 						if (stored === undefined) {
 							throw new NotFoundError('updateUser: no user has this id', {
 								userId: id,
@@ -186,7 +197,7 @@ function userStore(db: PgDatabase): UserStore {
 					}
 
 					if (patch.logins !== undefined) {
-						await tx.delete(janusLogins).where(eq(janusLogins.userId, id));
+						await tx.delete(tables.logins).where(eq(tables.logins.userId, id));
 						await claim(tx, 'updateUser', row, patch.logins);
 					}
 					return toUser(row);
@@ -197,15 +208,15 @@ function userStore(db: PgDatabase): UserStore {
 			run$('deleteUser', async () => {
 				// The logins go with it: their foreign key cascades.
 				const deleted = await db
-					.delete(janusUsers)
-					.where(eq(janusUsers.id, id))
-					.returning({ id: janusUsers.id });
+					.delete(tables.users)
+					.where(eq(tables.users.id, id))
+					.returning({ id: tables.users.id });
 				return deleted.length === 1;
 			}),
 	};
 }
 
-function sessionStore(db: PgDatabase): SessionStore {
+function sessionStore(db: PgDatabase, tables: JanusTables): SessionStore {
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('sessions', operation, body);
 
@@ -215,17 +226,17 @@ function sessionStore(db: PgDatabase): SessionStore {
 				// Idempotent under retry: a session with this id is already there.
 				// A collision on the token hash is not a retry, and fails.
 				await db
-					.insert(janusSessions)
+					.insert(tables.sessions)
 					.values(record)
-					.onConflictDoNothing({ target: janusSessions.id });
+					.onConflictDoNothing({ target: tables.sessions.id });
 			}),
 
 		findSessionByTokenHash: (tokenHash) =>
 			run$('findSessionByTokenHash', async () => {
 				const [row] = await db
 					.select()
-					.from(janusSessions)
-					.where(eq(janusSessions.tokenHash, tokenHash));
+					.from(tables.sessions)
+					.where(eq(tables.sessions.tokenHash, tokenHash));
 				return row === undefined ? null : toSession(row);
 			}),
 
@@ -234,9 +245,11 @@ function sessionStore(db: PgDatabase): SessionStore {
 				// `revoked_at is null` in the condition: an extension racing a
 				// revocation matches nothing, and never brings the session back.
 				const [row] = await db
-					.update(janusSessions)
+					.update(tables.sessions)
 					.set({ expiresAt })
-					.where(and(eq(janusSessions.id, id), isNull(janusSessions.revokedAt)))
+					.where(
+						and(eq(tables.sessions.id, id), isNull(tables.sessions.revokedAt)),
+					)
 					.returning();
 				return row === undefined ? null : toSession(row);
 			}),
@@ -246,54 +259,54 @@ function sessionStore(db: PgDatabase): SessionStore {
 				// `coalesce`, so a session already revoked keeps its first
 				// `revokedAt` and still counts as matched.
 				const matched = await db
-					.update(janusSessions)
+					.update(tables.sessions)
 					.set({
-						revokedAt: sql`coalesce(${janusSessions.revokedAt}, ${stamp(at)})`,
+						revokedAt: sql`coalesce(${tables.sessions.revokedAt}, ${stamp(at)})`,
 					})
-					.where(eq(janusSessions.id, id))
-					.returning({ id: janusSessions.id });
+					.where(eq(tables.sessions.id, id))
+					.returning({ id: tables.sessions.id });
 				return matched.length === 1;
 			}),
 
 		revokeUserSessions: (userId, at, except) =>
 			run$('revokeUserSessions', async () => {
 				const standing = and(
-					eq(janusSessions.userId, userId),
-					isNull(janusSessions.revokedAt),
+					eq(tables.sessions.userId, userId),
+					isNull(tables.sessions.revokedAt),
 				);
 				const revoked = await db
-					.update(janusSessions)
+					.update(tables.sessions)
 					.set({ revokedAt: at })
 					.where(
 						except === undefined
 							? standing
-							: and(standing, ne(janusSessions.id, except)),
+							: and(standing, ne(tables.sessions.id, except)),
 					)
-					.returning({ id: janusSessions.id });
+					.returning({ id: tables.sessions.id });
 				return revoked.length;
 			}),
 
 		deleteUserSessions: (userId) =>
 			run$('deleteUserSessions', async () => {
 				const deleted = await db
-					.delete(janusSessions)
-					.where(eq(janusSessions.userId, userId))
-					.returning({ id: janusSessions.id });
+					.delete(tables.sessions)
+					.where(eq(tables.sessions.userId, userId))
+					.returning({ id: tables.sessions.id });
 				return deleted.length;
 			}),
 
 		deleteExpiredSessions: (before) =>
 			run$('deleteExpiredSessions', async () => {
 				const deleted = await db
-					.delete(janusSessions)
-					.where(lte(janusSessions.expiresAt, before))
-					.returning({ id: janusSessions.id });
+					.delete(tables.sessions)
+					.where(lte(tables.sessions.expiresAt, before))
+					.returning({ id: tables.sessions.id });
 				return deleted.length;
 			}),
 	};
 }
 
-function tokenStore(db: PgDatabase): TokenStore {
+function tokenStore(db: PgDatabase, tables: JanusTables): TokenStore {
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('tokens', operation, body);
 
@@ -301,7 +314,7 @@ function tokenStore(db: PgDatabase): TokenStore {
 		insertToken: (record) =>
 			run$('insertToken', async () => {
 				// The hash is the key: a collision is a retry.
-				await db.insert(janusTokens).values(record).onConflictDoNothing();
+				await db.insert(tables.tokens).values(record).onConflictDoNothing();
 			}),
 
 		consumeToken: (tokenHash, kind, at) =>
@@ -313,21 +326,23 @@ function tokenStore(db: PgDatabase): TokenStore {
 				const before = db.$with('before').as(
 					db
 						.select()
-						.from(janusTokens)
+						.from(tables.tokens)
 						.where(
 							and(
-								eq(janusTokens.tokenHash, tokenHash),
-								eq(janusTokens.kind, kind),
+								eq(tables.tokens.tokenHash, tokenHash),
+								eq(tables.tokens.kind, kind),
 							),
 						)
 						.for('update'),
 				);
 				const [spent] = await db
 					.with(before)
-					.update(janusTokens)
-					.set({ spentAt: sql`coalesce(${janusTokens.spentAt}, ${stamp(at)})` })
+					.update(tables.tokens)
+					.set({
+						spentAt: sql`coalesce(${tables.tokens.spentAt}, ${stamp(at)})`,
+					})
 					.from(before)
-					.where(eq(janusTokens.tokenHash, before.tokenHash))
+					.where(eq(tables.tokens.tokenHash, before.tokenHash))
 					.returning({
 						tokenHash: before.tokenHash,
 						kind: before.kind,
@@ -345,9 +360,9 @@ function tokenStore(db: PgDatabase): TokenStore {
 		deleteUserTokens: (userId) =>
 			run$('deleteUserTokens', async () => {
 				const deleted = await db
-					.delete(janusTokens)
-					.where(eq(janusTokens.userId, userId))
-					.returning({ tokenHash: janusTokens.tokenHash });
+					.delete(tables.tokens)
+					.where(eq(tables.tokens.userId, userId))
+					.returning({ tokenHash: tables.tokens.tokenHash });
 				return deleted.length;
 			}),
 	};
@@ -358,7 +373,7 @@ function tokenStore(db: PgDatabase): TokenStore {
 // Each record is rebuilt field by field: the port's records are exactly what
 // it declares, and a row carries columns the record names differently.
 
-function toUserRow(record: UserRecord): typeof janusUsers.$inferInsert {
+function toUserRow(record: UserRecord): UserInsert {
 	return {
 		id: record.id,
 		type: record.type,
@@ -380,8 +395,8 @@ function toUserRow(record: UserRecord): typeof janusUsers.$inferInsert {
  * port says — never an erasure. `password: null` is named, and removes the
  * password.
  */
-function toUserSet(patch: UserPatch): Partial<typeof janusUsers.$inferInsert> {
-	const set: Partial<typeof janusUsers.$inferInsert> = {
+function toUserSet(patch: UserPatch): Partial<UserInsert> {
+	const set: Partial<UserInsert> = {
 		updatedAt: patch.updatedAt,
 	};
 	if (patch.schemaVersion !== undefined)

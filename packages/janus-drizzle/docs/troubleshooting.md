@@ -29,15 +29,16 @@ How PostgreSQL's errors become the port's:
 - [`error instanceof StoreFailure` is `false` for an outage](#error-instanceof-storefailure-is-false-for-an-outage)
 
 **Setup**
-- [`STORE_FAILED` caused by `relation "janus_users" does not exist`](#store_failed-caused-by-relation-janus_users-does-not-exist)
+- [`STORE_FAILED` caused by `relation "users" does not exist`](#store_failed-caused-by-relation-users-does-not-exist)
+- [`schema "janus" does not exist` while migrating](#schema-janus-does-not-exist-while-migrating)
 - [`syntax error at or near "NULLS"` while migrating](#syntax-error-at-or-near-nulls-while-migrating)
-- [The migration drops `janus_*` tables](#the-migration-drops-janus_-tables)
+- [The migration drops Janus's tables](#the-migration-drops-januss-tables)
 
 **Runtime**
 - [`STORE_FAILED`: `<slot>.<operation>: the store could not answer`](#store_failed-slotoperation-the-store-could-not-answer)
 - [`LOGIN_TAKEN`: `<operation>: the login "<login>" is taken by another <type>`](#login_taken-operation-the-login-login-is-taken-by-another-type)
 - [`NOT_FOUND` / `VERSION_CONFLICT`: `updateUser: …`](#not_found--version_conflict-updateuser-)
-- [`janus_sessions` keeps growing](#janus_sessions-keeps-growing)
+- [The `sessions` table keeps growing](#the-sessions-table-keeps-growing)
 - [`STORE_FAILED` for a sign-up whose fields hold `\u0000`](#store_failed-for-a-sign-up-whose-fields-hold-u0000)
 - [`NOT_FOUND`: `insertUser: the user was deleted meanwhile`](#not_found-insertuser-the-user-was-deleted-meanwhile)
 
@@ -97,44 +98,67 @@ version. Align the version you depend on with the adapter's peer range.
 
 ## Setup
 
-### `STORE_FAILED` caused by `relation "janus_users" does not exist`
+### `STORE_FAILED` caused by `relation "users" does not exist`
 
 The code is `42P01`: `sqlState` on the `DataError` in `cause`, or `errno`
-under it over Bun's `SQL`. It can name
-`janus_logins`, `janus_sessions`, `janus_tokens` or `janus_relations` just as
-well.
+under it over Bun's `SQL`. It can name `logins`, `sessions`, `tokens` or
+`relations` just as well, or `janus.users` and the like.
 
 **When:** the first call that reaches the database: a sign-up, a sign-in, a
 `can()`.
 
-**Why:** your migrations never created the tables. The core never manages a
-schema, and neither do the stores.
+**Why:** one of two things.
+- Your migrations never created the tables. The core never manages a schema,
+  and neither do the stores.
+- They did, in a PostgreSQL schema, and the factory was not told: it queries
+  `users` in the connection's `search_path`, not `janus.users`. Or the reverse.
+  Or the Drizzle instance is connected to your application's database while
+  the tables are in Janus's own.
 
-**Fix:** export the five tables from your drizzle-kit schema, then generate and
-apply a migration.
+**Fix:** export the five tables from a drizzle-kit schema file, then generate
+and apply a migration.
 
 ```ts
-// src/db/schema.ts
-export {
-	janusLogins,
-	janusRelations,
-	janusSessions,
-	janusTokens,
-	janusUsers,
-} from '@nxgt/janus-drizzle';
+// src/janus/schema.ts
+import { defineJanusTables } from '@nxgt/janus-drizzle';
+
+export const { users, logins, sessions, tokens, relations } = defineJanusTables();
 ```
 
 ```sh
 bunx drizzle-kit generate && bunx drizzle-kit migrate
 ```
 
-`export * from '@nxgt/janus-drizzle'` works too. Exporting `janusTables` alone
-does not: drizzle-kit reads top-level table exports only, and finds none in an
-object.
+drizzle-kit reads top-level table exports only: exporting the object
+`defineJanusTables()` returns, whole, creates nothing.
+
+With a PostgreSQL schema, pass the same one to the factory:
+
+```ts
+createDrizzleAdapter(db, { schema: janus }); // janus = pgSchema('janus'), from the schema file
+```
+
+### `schema "janus" does not exist` while migrating
+
+The code is `3F000`. `janus` is the name your `pgSchema(…)` gives.
+
+**When:** applying the migration that creates `"janus"."users"`.
+
+**Why:** the schema file passes `pgSchema('janus')` to `defineJanusTables`
+without exporting it. drizzle-kit writes `CREATE SCHEMA` only for a schema it
+finds exported, so the migration creates tables in a schema that does not
+exist.
+
+**Fix:** export it, and generate the migration again.
+
+```ts
+export const janus = pgSchema('janus');
+export const { users, logins, sessions, tokens, relations } = defineJanusTables({ schema: janus });
+```
 
 ### `syntax error at or near "NULLS"` while migrating
 
-**When:** applying the migration that creates `janus_relations`.
+**When:** applying the migration that creates `relations`.
 
 **Why:** the tuple constraint is `UNIQUE NULLS NOT DISTINCT`, which PostgreSQL
 accepts from version 15. Before that, two rows for one entity (whose
@@ -142,17 +166,17 @@ accepts from version 15. Before that, two rows for one entity (whose
 twice.
 
 **Fix:** run PostgreSQL 15 or later. An application that only authenticates
-can leave `janusRelations` out of its schema, and then never passes
+can leave `relations` out of its schema file, and then never passes
 `createDrizzleRelations`.
 
-### The migration drops `janus_*` tables
+### The migration drops Janus's tables
 
-**When:** `drizzle-kit generate` writes `DROP TABLE "janus_users"` (or another
-`janus_*` table) into a migration.
+**When:** `drizzle-kit generate` writes `DROP TABLE "users"` (or another of
+the five) into a migration.
 
-**Why:** the schema no longer exports that table: an import was removed, or
-the schema file moved out of `drizzle.config.ts`'s `schema`. drizzle-kit drops
-what the schema no longer names.
+**Why:** the schema no longer exports that table: an export was removed, or
+the schema file moved out of the drizzle-kit config's `schema`. drizzle-kit
+drops what the schema no longer names.
 
 **Fix:** delete that migration before applying it, and export all five tables
 again. Applied, it deletes every user.
@@ -193,7 +217,7 @@ method.
 **When:** a sign-up, or an update that changes a login, with a login another
 user of the same type holds.
 
-**Why:** a login is unique per user type, by `janus_logins`' primary key. The
+**Why:** a login is unique per user type, by the `logins` table's primary key. The
 same e-mail may hold a patient and a staff user.
 
 **Fix:** tell the user the login is taken. `error.login` and `error.userType`
@@ -209,7 +233,7 @@ written.
 
 **Fix:** read the user again and retry, or tell the user it changed meanwhile.
 
-### `janus_sessions` keeps growing
+### The `sessions` table keeps growing
 
 **When:** rows whose `expires_at` has passed are never deleted.
 

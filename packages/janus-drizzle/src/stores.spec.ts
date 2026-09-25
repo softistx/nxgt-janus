@@ -4,7 +4,7 @@ import { mintId, type UserRecord } from '@nxgt/janus';
 import { eq } from 'drizzle-orm';
 import { openTestDb } from '../test/db';
 import { createDrizzleStores } from './stores';
-import { janusUsers } from './tables';
+import { defineJanusTables } from './tables';
 
 const at = new Date('2026-01-01T00:00:00.000Z');
 
@@ -75,7 +75,8 @@ describe('createDrizzleStores(), beyond the port suite', () => {
 					}
 					return async (...args: unknown[]) => {
 						const answer: unknown = await value.apply(target, args);
-						await target.delete(janusUsers).where(eq(janusUsers.id, record.id));
+						const { users } = defineJanusTables();
+						await target.delete(users).where(eq(users.id, record.id));
 						return answer;
 					};
 				},

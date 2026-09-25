@@ -15,14 +15,10 @@ Each side also works alone, as in `@nxgt/janus`: `createDrizzleStores` for
 identities, `createDrizzleRelations` for permissions.
 
 ```ts
-// src/db/schema.ts — the file drizzle-kit reads
-export {
-  janusLogins,
-  janusRelations,
-  janusSessions,
-  janusTokens,
-  janusUsers,
-} from '@nxgt/janus-drizzle';
+// src/janus/schema.ts — the file drizzle-kit reads
+import { defineJanusTables } from '@nxgt/janus-drizzle';
+
+export const { users, logins, sessions, tokens, relations } = defineJanusTables();
 ```
 
 ```ts
@@ -32,7 +28,8 @@ import { createDrizzleAdapter } from '@nxgt/janus-drizzle';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { model, User } from './model'; // your user schema and permission model
 
-const db = drizzle(process.env.DATABASE_URL ?? 'postgres://localhost:5432/app');
+// Janus's own database: backed up and restored on its own
+const db = drizzle(process.env.JANUS_DATABASE_URL ?? 'postgres://localhost:5432/janus');
 const postgres = createDrizzleAdapter(db); // { store, relations }
 
 export const auth = janus({
@@ -45,8 +42,12 @@ export const auth = janus({
 export const access = permissions({ model, store: postgres.relations });
 ```
 
-`drizzle-kit generate` then writes the five tables into your next migration,
-the same way it writes your own tables.
+`drizzle-kit generate` then writes the five tables into a migration, the same
+way it writes your own. **Give them a database of their own**, as here, with a
+drizzle-kit config of its own: `pg_dump` and `pg_restore` then back up and
+restore Janus alone. Beside your tables in one database, put them in a
+PostgreSQL schema instead: `defineJanusTables({ schema: pgSchema('janus') })`.
+[Where the tables live](docs/guide/database.md) has both.
 
 > **0.x.** A minor version may still change the surface; the changelog says how.
 
@@ -76,12 +77,13 @@ declarations import without extensions, so `nodenext` is not supported.
 
 | Export | What it is |
 | --- | --- |
-| `createDrizzleAdapter(db)` | Returns `{ store, relations }`, both of the entries below, keyed as `janus()` takes them, so `janus({ …, ...postgres })` wires both. It connects to nothing and creates nothing. |
+| `createDrizzleAdapter(db, options?)` | Returns `{ store, relations }`, both of the entries below, keyed as `janus()` takes them, so `janus({ …, ...postgres })` wires both. It connects to nothing and creates nothing. |
 | `DrizzleAdapter` | The type of what `createDrizzleAdapter` returns. |
-| `createDrizzleStores(db)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. |
-| `createDrizzleRelations(db)` | The `RelationStore` that `permissions()` takes as `store`, and `janus()` takes as `relations`. |
-| `janusUsers`, `janusLogins`, `janusSessions`, `janusTokens`, `janusRelations` | The five tables, as Drizzle `pgTable`s. Export them from your schema so your migrations create them. |
-| `janusTables` | The five tables as one object. Use it with drizzle-kit's API, or to query them yourself. |
+| `createDrizzleStores(db, options?)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. |
+| `createDrizzleRelations(db, options?)` | The `RelationStore` that `permissions()` takes as `store`, and `janus()` takes as `relations`. |
+| `defineJanusTables(options?)` | The five tables, `{ users, logins, sessions, tokens, relations }`, as Drizzle tables. Export each from a schema file so your migrations create them. |
+| `JanusTablesOptions` | `{ schema? }`: a `pgSchema(…)` to put the tables in. Pass the same to `defineJanusTables` and to the factory. Absent, the tables are in the connection's `search_path`, `public` by default. |
+| `JanusTables` | The type of what `defineJanusTables` returns. |
 
 `db` is any Drizzle PostgreSQL instance: `node-postgres`, `postgres.js`,
 `bun-sql` or PGlite. A connection string, a raw driver client or a SQLite
@@ -90,20 +92,21 @@ Drizzle does not compile.
 ## What the database holds
 
 The port's records, one column per field. Nothing is encoded, so a row read in
-`psql` looks like the record in the code. Every table name starts with
-`janus_`, so none collides with your own `users`.
+`psql` looks like the record in the code. No name carries a prefix: the
+database, or the PostgreSQL schema, is what keeps them apart from your own
+tables.
 
 | Table | Keys and indexes |
 | --- | --- |
-| `janus_users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither |
-| `janus_logins` | primary key `(type, login)`: **a login is unique per user type** · `(user_id, type)` references the user, `on delete cascade` |
-| `janus_sessions` | `id` · `token_hash` unique · `user_id` · `expires_at`, for `collectExpired()` |
-| `janus_tokens` | `token_hash` · `user_id` · a check on `kind` |
-| `janus_relations` | one row per tuple, unique `nulls not distinct` over all six columns, subject first: the index `findObjects` pages · `(object_type, object_id, relation)` for one hop forwards |
+| `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither |
+| `logins` | primary key `(type, login)`: **a login is unique per user type** · `(user_id, type)` references the user, `on delete cascade` |
+| `sessions` | `id` · `token_hash` unique · `user_id` · `expires_at`, for `collectExpired()` |
+| `tokens` | `token_hash` · `user_id` · a check on `kind` |
+| `relations` | one row per tuple, unique `nulls not distinct` over all six columns, subject first: the index `findObjects` pages · `(object_type, object_id, relation)` for one hop forwards |
 
-`logins` is also a `text[]` on `janus_users`, which the store reads back in
-order. PostgreSQL has no unique index over the elements of an array, so
-`janus_logins` plays that role, written in the same transaction as the user.
+`logins` is also a `text[]` on `users`, which the store reads back in order.
+PostgreSQL has no unique index over the elements of an array, so the `logins`
+table plays that role, written in the same transaction as the user.
 
 Every key column is `text collate "C"`, compared byte for byte as the port
 requires. No secret is stored: sessions and tokens hold `sha256` of the secret,
@@ -114,11 +117,14 @@ and passwords a self-describing hash.
 - **Your migrations create the tables, not this package.** The core never
   manages a schema, and the stores create nothing per request. Without the
   exports in your schema file, the first sign-up fails with `STORE_FAILED`,
-  caused by `relation "janus_users" does not exist`.
+  caused by `relation "users" does not exist`.
 - **Keep all five exports in the schema file.** drizzle-kit writes a
   `DROP TABLE` for a table the schema no longer names.
+- **With a PostgreSQL schema, export it and pass it everywhere.** drizzle-kit
+  writes `CREATE SCHEMA` only for an exported `pgSchema`, and a factory not
+  given `{ schema }` queries `public.users`, which does not exist.
 - **Call `auth.collectExpired()` on a schedule.** PostgreSQL has no TTL, so
-  lapsed sessions stay in `janus_sessions` until something deletes them. The
+  lapsed sessions stay in `sessions` until something deletes them. The
   core still refuses them on every read.
 - **A unique violation on anything but a login is a `StoreFailure`, not
   `LOGIN_TAKEN`.** Such a violation is an adapter bug. Reporting it as a taken
@@ -137,17 +143,19 @@ and passwords a self-describing hash.
 
 ## Documentation
 
-- [Guides](docs/README.md): wiring the stores, and the tables in your migrations
+- [Guides](docs/README.md): wiring the stores, where the tables live and how to back them up, and the tables in your migrations
 - [Troubleshooting](docs/troubleshooting.md): look up the error message you see
 - [Roadmap](docs/roadmap.md): what is next, and what is not planned
 
 ## Type safety, counted
 
-Three plausible mistakes are refused by the compiler, each with a
+Four plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/adapter.ts`:
 - a connection string instead of a Drizzle instance;
 - the driver's client instead of the Drizzle instance over it;
-- a Drizzle instance over SQLite.
+- a Drizzle instance over SQLite;
+- a schema's name, `'janus'`, instead of the `pgSchema` the schema file
+  exports.
 
 ## Licence
 
