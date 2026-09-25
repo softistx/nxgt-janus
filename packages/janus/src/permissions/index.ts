@@ -36,6 +36,7 @@ export {
 	type Lookup,
 	type LookupGap,
 	type ModelConfig,
+	type ModelTypesOf,
 	type ObjectRef,
 	type ObjectTypeDef,
 	type ObjectTypeOf,

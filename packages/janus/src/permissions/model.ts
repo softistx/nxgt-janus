@@ -530,6 +530,15 @@ type Refusal<Text extends string, Expected> = {
 };
 
 /**
+ * The same names, spelled out: a union the compiler prints as its members —
+ * `"patient" | "staff" | "team#member"` — rather than as the alias that
+ * computed it, so an error lists what the name could have been.
+ */
+type Spelled<U> = [U] extends [infer V extends string]
+	? { [K in V]: K }[V]
+	: never;
+
+/**
  * What `defineModel` offers and accepts for each object type, given the
  * subject types `S` and every object type `Ts`: the constraint of its `types`.
  *
@@ -540,18 +549,10 @@ type Refusal<Text extends string, Expected> = {
  * instead (`C & Checked<C>`) refuses the same mistakes, but meets the literal
  * being typed and completes nothing: measured with the language service.
  *
- * A wrong name is unassignable **on that name**, and the error lists the ones
- * it could have been.
+ * A wrong name is unassignable **on that name** — on the whole `fromField(…)`
+ * or `when(…)` call for those two — and the error lists the ones it could
+ * have been, with "Did you mean" when one is close.
  */
-/**
- * The same names, spelled out: a union the compiler prints as its members —
- * `"patient" | "staff" | "team#member"` — rather than as the alias that
- * computed it, so an error lists what the name could have been.
- */
-type Spelled<U> = [U] extends [infer V extends string]
-	? { [K in V]: K }[V]
-	: never;
-
 export type ModelTypesOf<S extends string, Ts> = {
 	readonly [T in keyof Ts]: {
 		readonly relations?: {

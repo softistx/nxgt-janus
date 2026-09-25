@@ -55,6 +55,7 @@ function defineModel<
 	const S extends string,
 	const Ts extends ModelConfig['types'] & ModelTypesOf<S, Ts>, // what your editor completes
 >(config: { readonly subjects: readonly S[]; readonly types: Ts }): PermissionModel<{ subjects: readonly S[]; types: Ts }>;
+// ModelTypesOf<S, Ts>: the names each relation and rule of each type may take
 
 interface ModelConfig {
 	readonly subjects: readonly string[]; // pass auth.types
@@ -92,8 +93,10 @@ like a permission.
 
 A relation naming a type that does not exist, a rule naming nothing, an arrow
 to a permission its target lacks, a name that is both a relation and a
-permission: each is a compile error **on the offending name**, and the error
-lists what you could have written.
+permission: each is a compile error **on the offending name** — on the whole
+`fromField(…)` or `when(…)` call for those two. Except for that last one,
+which says to rename one, the error lists what you could have written, with
+"Did you mean" when one is close.
 
 Your editor offers those names as you type — subject types and subject sets
 in a relation, subject types in `fromField`, relations, permissions and arrows

@@ -63,6 +63,11 @@ Nothing yet.
 
 The first public release, v0.1.
 
+- **`defineModel` completed by your editor** — subject types and subject sets
+  in a relation, subject types in `fromField`, relations, permissions and
+  arrows in a rule and in `when`; a wrong name's error lists the names it
+  could have been. — v0.1.2
+
 - **The model decides what a stored tuple grants** — `can()` and `list()` follow
   only the holders a relation admits, as `grant()` writes only those: a tuple
   stored past `grant()`, by an older model or by hand, grants nothing. — v0.1
