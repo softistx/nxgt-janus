@@ -27,6 +27,12 @@ const events = {
 	emailVerified: event('janus.email.verified'),
 };
 
+/** What `janus()` answers, as far as it is read: its user types and its flows. */
+export interface JanusLike {
+	readonly types: readonly string[];
+	readonly authenticate: (...args: never[]) => Promise<unknown>;
+}
+
 /** One call of a flow, as the events read it. */
 interface Call {
 	/** `signIn`, `verifyEmail.confirm`: the flow without the user type. */
@@ -149,21 +155,14 @@ const UNTRACED = new Set(['cookie']);
  * Nothing written carries a login, an e-mail, a password, a token or a
  * session id: user types, user ids, codes and reasons only.
  */
-export function instrumentJanus<A extends object>(auth: A): A {
-	const types = typesOf(auth);
+export function instrumentJanus<A extends JanusLike>(auth: A): A {
+	const types = auth.types.filter((type) => typeof type === 'string');
 	const only = types.length === 1 ? types[0] : undefined;
 	return traceObject(auth, [], (path) =>
 		path[0] !== undefined && types.includes(path[0])
 			? { userType: path[0], flow: path.slice(1) }
 			: { userType: only, flow: path },
 	);
-}
-
-function typesOf(auth: object): readonly string[] {
-	const types: unknown = (auth as { readonly types?: unknown }).types;
-	return Array.isArray(types)
-		? types.filter((type): type is string => typeof type === 'string')
-		: [];
 }
 
 type Split = (path: readonly string[]) => {

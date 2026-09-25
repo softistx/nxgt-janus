@@ -27,19 +27,21 @@ the flows' spans nest under.
 
 ```sh
 bun add @nxgt/janus-telemetry @nxgt/janus @nxgt/telemetry
+bun add -d typescript
 ```
 
 Every peer is required: `@nxgt/janus`, `@nxgt/telemetry` (0.2.1 or later) and
-`typescript` (6). Both are **peers**: one copy of `@nxgt/janus`, so
-`instanceof StoreFailure` holds, and one of `@nxgt/telemetry`, so there is one
+`typescript` (6). `@nxgt/janus` and `@nxgt/telemetry` are **peers**: one copy of `@nxgt/janus`, so
+`instanceof JanusError` holds, and one of `@nxgt/telemetry`, so there is one
 current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 ## API
 
 | Export | What it is |
 | --- | --- |
-| `instrumentJanus(auth)` | The same `janus()` instance, frozen, with every flow traced — `janus.signIn`, or `janus.patient.signIn` with several user types — and the security events written as logs. `cookie` stays synchronous and untraced |
+| `instrumentJanus(auth)` | The same `janus()` instance, frozen, with every flow traced under its call path — `auth.signIn` as `janus.signIn`, `auth.patient.signIn` as `janus.patient.signIn` — and the security events written as logs. `cookie` stays synchronous and untraced |
 | `instrumentPermissions(access)` | The same `permissions()` instance, frozen, with `can`, `list`, `grant` and `revoke` traced, and one audit event per tuple written |
+| `JanusLike`, `PermissionsLike` | What each accepts: `instrumentJanus(access)` and `instrumentPermissions(auth)` do not compile |
 
 ## What is written
 
@@ -62,13 +64,13 @@ spent token, a denial: the span is `ok`, and a refusal carries
 ### Events
 
 Logs from the source `@nxgt/janus`, each with `janus.user.type` and `user.id`
-when they are known:
+when the flow knows them — `janus.signOut` carries neither:
 
 | Event | Severity | When |
 | --- | --- | --- |
 | `janus.signUp` | info | a user signed up |
 | `janus.signIn` | info | a user signed in |
-| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` and `janus.refusal.reason` — `unknownLogin`, `noPassword`, `wrongPassword` |
+| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), or `USER_INACTIVE` with the `user.id` of the deactivated user |
 | `janus.signOut` | info | a session was signed out |
 | `janus.signOutEverywhere` | info | every session of a user was revoked |
 | `janus.user.deleted` | info | a user was deleted |
@@ -87,9 +89,14 @@ when they are known:
 - **Nothing is written without a telemetry.** With none installed, the spans
   and events go nowhere, as `@nxgt/telemetry` does everywhere: the flows still
   answer.
-- **A refused sign-in by an unknown login names no user.** `janus.signIn.refused`
-  carries the reason and the user type, never the login that was tried: rate
-  limiting per login is the application's, from the error itself.
+- **A refused sign-in for bad credentials names no user.** `janus.signIn.refused`
+  with `CREDENTIALS_INVALID` carries the reason and the user type, never the
+  login that was tried: rate limiting per login is the application's, from the
+  request. Only `USER_INACTIVE` — the password was right, the user is
+  deactivated — carries `user.id`.
+- **One copy of `@nxgt/janus`.** A refusal is told from a failure by
+  `instanceof JanusError`: with a second copy installed, every wrong password
+  fails its span.
 
 ## Documentation
 

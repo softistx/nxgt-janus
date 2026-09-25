@@ -11,5 +11,5 @@
  * login, an e-mail, a password or a token.
  */
 
-export { instrumentJanus } from './flows';
-export { instrumentPermissions } from './permissions';
+export { instrumentJanus, type JanusLike } from './flows';
+export { instrumentPermissions, type PermissionsLike } from './permissions';

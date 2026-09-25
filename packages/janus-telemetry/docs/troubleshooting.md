@@ -8,9 +8,10 @@ would be without it.
 
 - [No `janus.*` span or event at all](#no-janus-span-or-event-at-all)
 - [Some routes are traced, others not](#some-routes-are-traced-others-not)
-- [`TypeError: Cannot add property …, object is not extensible`](#typeerror-cannot-add-property--object-is-not-extensible)
+- [`TypeError: Cannot add property …, object is not extensible` (Node), `Attempting to define property on object that is not extensible.` (Bun)](#typeerror-cannot-add-property--object-is-not-extensible)
 - [A wrong password does not fail the span](#a-wrong-password-does-not-fail-the-span)
 - [`janus.signIn.refused` has no `user.id`](#janussigninrefused-has-no-userid)
+- [Every wrong password fails its span](#every-wrong-password-fails-its-span)
 
 ### No `janus.*` span or event at all
 
@@ -37,6 +38,9 @@ createTelemetry('clinic', { exporters: [consoleExporter()] }).install();
 
 ### `TypeError: Cannot add property …, object is not extensible`
 
+Under Bun: `TypeError: Attempting to define property on object that is not
+extensible.`
+
 **When:** assigning to the instance `instrumentJanus` or
 `instrumentPermissions` answered.
 
@@ -57,12 +61,26 @@ failure, such as `STORE_FAILED`, fails a span.
 
 ### `janus.signIn.refused` has no `user.id`
 
-**When:** a refused sign-in's event carries the reason and the user type, and
-no user.
+**When:** a sign-in refused with `CREDENTIALS_INVALID` carries the reason and
+the user type, and no user. (`USER_INACTIVE` does carry `user.id`: the
+password was right, so the user is known.)
 
-**Why:** the error `@nxgt/janus` throws for a refused sign-in names no user —
+**Why:** the error `@nxgt/janus` throws for bad credentials names no user —
 `unknownLogin` has none to name, and the others do not say which, so a
 response cannot tell which accounts exist. The login tried is never written.
 
 **Fix:** to count refusals per account, do it where the login is known — in
 your sign-in route, from the request — not from telemetry.
+
+### Every wrong password fails its span
+
+**When:** `janus.signIn` spans fail with `janus.error.code` absent, for
+refusals such as `CREDENTIALS_INVALID`.
+
+**Why:** two copies of `@nxgt/janus` are installed — the application's and
+another one, nested under a dependency. A refusal is recognised with
+`instanceof JanusError`, which fails across copies, so it is taken for a
+failure.
+
+**Fix:** keep one copy: `bun pm ls | grep @nxgt/janus` should print one
+version. Align the versions, or dedupe the lockfile.

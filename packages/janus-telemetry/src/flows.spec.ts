@@ -116,17 +116,50 @@ describe('instrumentJanus()', () => {
 					headers: { authorization: `Bearer ${signedIn.token}` },
 				}),
 			);
-			await auth.patient.changePassword(signedIn.user, {
-				current: password,
+			await auth.patient.findByLogin(email);
+			const verification = await auth.patient.verifyEmail.send(signedIn.user);
+			secrets.push(verification.token);
+			await auth.patient.verifyEmail.confirm(verification.token);
+			const reset = await auth.patient.resetPassword.request(email);
+			if (reset === null) throw new Error('the reset was not issued');
+			secrets.push(reset.token);
+			await auth.patient.resetPassword.confirm(
+				reset.token,
+				'reset horse battery',
+			);
+			const again = await auth.patient.signIn({
+				email,
+				password: 'reset horse battery',
+			});
+			secrets.push(again.token, again.session.id);
+			await auth.signOut(
+				new Request('https://x.test', {
+					headers: { authorization: `Bearer ${again.token}` },
+				}),
+			);
+			const last = await auth.patient.signIn({
+				email,
+				password: 'reset horse battery',
+			});
+			secrets.push(last.token, last.session.id);
+			await auth.patient.changePassword(last.user, {
+				current: 'reset horse battery',
 				next: 'another horse battery',
 			});
-			await auth.patient.delete(signedIn.user);
+			await auth.patient.delete(last.user);
 		});
 
 		const written = JSON.stringify(all);
 		for (const secret of secrets) expect(written).not.toContain(secret);
-		expect(written).toContain('janus.password.changed');
-		expect(written).toContain('janus.user.deleted');
+		for (const name of [
+			'janus.email.verified',
+			'janus.password.reset',
+			'janus.signOut',
+			'janus.password.changed',
+			'janus.user.deleted',
+		]) {
+			expect(written).toContain(name);
+		}
 	});
 
 	it('leaves the cookie synchronous, and the instance otherwise the same', () => {

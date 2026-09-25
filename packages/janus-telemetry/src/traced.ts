@@ -2,20 +2,37 @@ import { JanusError, type JanusErrorCode } from '@nxgt/janus';
 import { type SpanScope, span } from '@nxgt/telemetry';
 
 /**
- * The codes the **server** must fix. Every other `JanusError` is a refusal —
- * a wrong password, a taken login, a spent token — which is an answer, not a
- * failure: its span stays `ok`.
+ * What each code is. A **failure** is the server's to fix, and fails its span;
+ * a **refusal** — a wrong password, a taken login, a spent token — is an
+ * answer, and leaves it `ok`. Exhaustive, so a new code does not compile until
+ * it is classified.
  */
-const FAILURES: ReadonlySet<JanusErrorCode> = new Set<JanusErrorCode>([
-	'STORE_FAILED',
-	'UNSUPPORTED',
-	'PERMISSION_DEPTH',
-	'HASH_UNSUPPORTED',
-]);
+function kindOf(code: JanusErrorCode): 'failure' | 'refusal' {
+	switch (code) {
+		case 'STORE_FAILED':
+		case 'UNSUPPORTED':
+		case 'PERMISSION_DEPTH':
+		case 'HASH_UNSUPPORTED':
+			return 'failure';
+		case 'NOT_FOUND':
+		case 'LOGIN_TAKEN':
+		case 'VERSION_CONFLICT':
+		case 'USER_INVALID':
+		case 'PASSWORD_TOO_SHORT':
+		case 'CREDENTIALS_INVALID':
+		case 'USER_INACTIVE':
+		case 'TOKEN_UNKNOWN':
+		case 'TOKEN_SPENT':
+		case 'TOKEN_EXPIRED':
+		case 'TOKEN_STALE':
+		case 'INVALID_CURSOR':
+			return 'refusal';
+	}
+}
 
 /** A `JanusError` the caller caused; anything else, or a failure code, is not. */
 export function isRefusal(error: unknown): error is JanusError {
-	return error instanceof JanusError && !FAILURES.has(error.code);
+	return error instanceof JanusError && kindOf(error.code) === 'refusal';
 }
 
 /** What a span or an event carries: scalars only, and never an absent one. */
@@ -62,8 +79,8 @@ export type Outcome =
  * over. A failure is rethrown inside it, so the span is `error`, with the
  * store slot and operation a `StoreFailure` names.
  *
- * `after` sees the outcome inside the span. It reads, and writes signals —
- * which never throw — so it cannot turn an answer into a failure.
+ * `after` sees the outcome inside the span, outside the flow's `try`, and a
+ * throw from it is dropped: telemetry never changes what a flow answers.
  */
 export async function traced<T>(
 	name: string,
@@ -72,10 +89,9 @@ export async function traced<T>(
 	after: (scope: SpanScope, outcome: Outcome) => void,
 ): Promise<T> {
 	const ended = await span(name, { attributes: fields }, async (scope) => {
+		let outcome: { ok: true; value: T } | { ok: false; refusal: JanusError };
 		try {
-			const value = await call();
-			after(scope, { ok: true, value });
-			return { ok: true as const, value };
+			outcome = { ok: true, value: await call() };
 		} catch (error) {
 			if (error instanceof JanusError) {
 				scope.attribute('janus.error.code', error.code);
@@ -87,9 +103,14 @@ export async function traced<T>(
 			}
 			if (!isRefusal(error)) throw error;
 			scope.attribute('janus.refusal', error.code);
-			after(scope, { ok: false, refusal: error });
-			return { ok: false as const, refusal: error };
+			outcome = { ok: false, refusal: error };
 		}
+		try {
+			after(scope, outcome);
+		} catch {
+			// A signal is never worth a flow's answer.
+		}
+		return outcome;
 	});
 	if (!ended.ok) throw ended.refusal;
 	return ended.value;

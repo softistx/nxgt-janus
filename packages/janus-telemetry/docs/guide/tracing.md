@@ -39,7 +39,7 @@ import { bindJanus } from '@nxgt/janus-hono';
 const j = bindJanus({ auth, access });
 
 const app = new Hono()
-	.use(telemetry(), j.session(), j.provide())
+	.use(telemetry({ service: 'clinic' }), j.session(), j.provide())
 	.get('/records/:id', j.permission('view', 'record', recordOf), (c) => c.json(c.var.object));
 ```
 
@@ -90,7 +90,8 @@ janus.tuple.granted   janus.object.type=record  janus.object.id=r1  janus.relati
 A login, an e-mail, a password, a token, a session id — nothing a log reader
 could sign in with, or use to tell who holds an account. A refused sign-in by
 an unknown login says `janus.refusal.reason: 'unknownLogin'`, not which login
-was tried. The spec that holds this runs every flow and searches every signal
+was tried; only `USER_INACTIVE` names the user, whose password was right.
+The spec that holds this runs every flow and searches every signal
 for each of them.
 
 ## In a test

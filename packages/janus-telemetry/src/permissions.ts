@@ -28,6 +28,14 @@ function objectFields(object: unknown): Fields {
 	});
 }
 
+/** What `permissions()` answers, as far as it is traced. */
+export interface PermissionsLike {
+	readonly can: (...args: never[]) => Promise<boolean>;
+	readonly list: (...args: never[]) => Promise<unknown>;
+	readonly grant: (...args: never[]) => Promise<unknown>;
+	readonly revoke: (...args: never[]) => Promise<unknown>;
+}
+
 type Traced = (...args: unknown[]) => Promise<unknown>;
 
 /** How each method of `permissions()` is traced. */
@@ -108,7 +116,7 @@ function tupleWrite(
  * A denial is an answer, not a failure: `janus.allowed` is `false` and the
  * span is `ok`. A relation store that cannot answer fails the span.
  */
-export function instrumentPermissions<A extends object>(access: A): A {
+export function instrumentPermissions<A extends PermissionsLike>(access: A): A {
 	// `permissions()` answers a frozen object, which a Proxy may not answer
 	// differently for: the traced methods go on a copy, frozen in turn.
 	const copy: Record<string, unknown> = Object.fromEntries(

@@ -52,7 +52,11 @@ async function questions() {
 	return access.can(patient, 'owner', { type: 'record', id: 'r1' });
 }
 
-// @ts-expect-error 4. only an object can be instrumented
+// @ts-expect-error 4. only a janus() instance can be instrumented as one
 instrumentJanus('auth');
+// @ts-expect-error 5. a permissions() instance is not a janus() one
+instrumentJanus(access);
+// @ts-expect-error 6. nor the other way round: it would trace nothing
+instrumentPermissions(auth);
 
 export const checked = { flows, questions };
