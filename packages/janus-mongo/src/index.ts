@@ -7,6 +7,11 @@
  * the two packages.
  */
 
+export {
+	createMongoAdapter,
+	type MongoAdapter,
+	syncMongoAdapter,
+} from './adapter';
 export { janusCollections, sessions, tokens, users } from './collections';
 export {
 	createMongoRelations,
