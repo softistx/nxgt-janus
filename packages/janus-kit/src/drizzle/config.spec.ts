@@ -70,6 +70,9 @@ describe('defineConfig()', () => {
 		expect(
 			refused({ postgres, redis: { url: 'redis://x', prefix: '' }, auth }),
 		).toBe('defineConfig: `redis.prefix` is a non-empty string.');
+		expect(refused({ postgres, redis: 'redis://x', auth })).toBe(
+			'defineConfig: `redis` is { url } or { connection }, or absent to keep sessions in PostgreSQL.',
+		);
 	});
 
 	it('refuses auth or access that are not functions, and a telemetry that is not a boolean', () => {

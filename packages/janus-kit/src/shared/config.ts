@@ -64,20 +64,26 @@ export interface UncheckedShared {
 }
 
 /**
- * The shared keys' checks, after the database's own. `database` is where
- * sessions stay without Redis — `PostgreSQL`, `MongoDB` — as a message
- * names it.
+ * A database the kit wires, named once per module: `key`, the name `ping`
+ * reports it under; `label`, the name a message gives it, as where sessions
+ * stay without Redis.
  */
+export interface Database<Key extends string> {
+	readonly key: Key;
+	readonly label: string;
+}
+
+/** The shared keys' checks, after the database's own. */
 export function checkShared(
 	config: UncheckedShared,
 	where: string,
-	database: string,
+	database: Database<string>,
 ): void {
 	const { redis, telemetry, auth, access } = config;
 	if (redis !== undefined) {
 		if (typeof redis !== 'object' || redis === null) {
 			throw new TypeError(
-				`${where}: \`redis\` is { url } or { connection }, or absent to keep sessions in ${database}.`,
+				`${where}: \`redis\` is { url } or { connection }, or absent to keep sessions in ${database.label}.`,
 			);
 		}
 		oneOf(where, 'redis', redis, 'url', 'connection');

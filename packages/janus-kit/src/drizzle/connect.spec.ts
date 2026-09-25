@@ -208,6 +208,31 @@ describe('connectKit()', () => {
 		expect(performance.now() - started).toBeLessThan(5_000);
 	});
 
+	it('fails on a Redis that does not answer, naming where sessions stay without it, and closes PostgreSQL', async () => {
+		const pg = await openPglite();
+		try {
+			const outcome = await connectKit(
+				defineConfig({
+					postgres: { db: pg.db },
+					redis: {
+						url: 'redis://127.0.0.1:1',
+						clientOptions: { autoReconnect: false, connectionTimeout: 500 },
+					},
+					auth: (adapters) =>
+						janus({ user, password: { login: 'email' }, hasher, ...adapters }),
+				}),
+			).then(
+				() => 'resolved',
+				(error: Error) => error.message,
+			);
+			expect(outcome).toBe(
+				'connectKit: Redis did not answer. Check `redis.url`, or leave `redis` out to keep sessions in PostgreSQL.',
+			);
+		} finally {
+			await pg.close();
+		}
+	});
+
 	it('closes the Redis connection it opened when auth throws', async () => {
 		const pg = await openPglite();
 		const clients = async () =>

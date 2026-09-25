@@ -54,15 +54,6 @@ would otherwise fail at the first sign-in.
 
 > **0.x.** A minor version may still change the surface; the changelog says how.
 
-**One kit, one subpath per database.** `@nxgt/janus-kit/drizzle` wires
-PostgreSQL; the package has no root entry, so the import names the database.
-Redis, telemetry, `ping` and `close` are the same whichever subpath you use.
-
-| Subpath | Database | State |
-| --- | --- | --- |
-| `@nxgt/janus-kit/drizzle` | PostgreSQL, through `@nxgt/janus-drizzle` | this page |
-| `@nxgt/janus-kit/mongo` | MongoDB, through `@nxgt/janus-mongo` | [next](docs/roadmap.md) |
-
 ## Install
 
 ```sh
@@ -76,8 +67,9 @@ Required peers, whichever subpath:
   sessions in the database: the kit's types name its connection;
 - `typescript` 6.
 
-Peers of `@nxgt/janus-kit/drizzle` — optional in `package.json`, so a MongoDB
-application does not install them, but required by this subpath:
+Peers of `@nxgt/janus-kit/drizzle` — optional in `package.json`, so an
+application on another subpath does not install them, but required by this
+one:
 - `@nxgt/janus-drizzle`: your schema file imports `defineJanusTables` from it
   to create the tables, and the kit's stores must query the same definition;
 - `@nxgt/drizzle` `>=0.6.1 <1` and `drizzle-orm` 1.0 (from `1.0.0-rc.4`), for
@@ -89,6 +81,20 @@ application does not install them, but required by this subpath:
 It runs on **Bun** only: the kit opens PostgreSQL over Bun's `SQL` and Redis
 over Bun's `RedisClient`. It needs PostgreSQL 15 or later and Redis 7.0 or
 later. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
+
+## Subpaths
+
+**One kit, one subpath per database.** The package has **no root entry**, so
+the import names the database: `import … from '@nxgt/janus-kit'` fails with
+`TS2307`. Redis, telemetry, `ping` and `close` are the same whichever subpath
+you use.
+
+| Subpath | Database |
+| --- | --- |
+| `@nxgt/janus-kit/drizzle` | PostgreSQL, through `@nxgt/janus-drizzle` |
+
+MongoDB, as `@nxgt/janus-kit/mongo`, is [next on the roadmap](docs/roadmap.md);
+it does not exist yet.
 
 ## API
 

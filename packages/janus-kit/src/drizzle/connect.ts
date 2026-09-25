@@ -11,7 +11,12 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import type { HealthOf } from '../shared/health';
 import { timed } from '../shared/health';
 import { assembleKit, type Closers, type KitOf } from '../shared/kit';
-import { checkConfig, type KitConfig, type PostgresConfig } from './config';
+import {
+	checkConfig,
+	type KitConfig,
+	type PostgresConfig,
+	postgresDatabase,
+} from './config';
 
 /** What `ping` answers: `{ ok, postgres, redis? }`. */
 export type Health = HealthOf<'postgres'>;
@@ -48,8 +53,7 @@ export async function connectKit<A extends object, P extends object = never>(
 		await assertTables(db, tables, opened);
 		const { store, relations } = createDrizzleAdapter(db, { tables });
 		return {
-			name: 'postgres' as const,
-			label: 'PostgreSQL',
+			database: postgresDatabase,
 			db,
 			store,
 			relations,

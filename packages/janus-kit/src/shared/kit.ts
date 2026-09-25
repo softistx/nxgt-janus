@@ -2,19 +2,19 @@ import type { JanusStores } from '@nxgt/janus';
 import type { RelationStore } from '@nxgt/janus/permissions';
 import { createRedisStores } from '@nxgt/janus-redis';
 import type { RedisConnection } from '@nxgt/redis';
-import type { RedisConfig, SharedConfig } from './config';
-import { type HealthOf, type Probe, probe } from './health';
+import type { Database, RedisConfig, SharedConfig } from './config';
+import { type HealthOf, type Probe, type Probes, probe } from './health';
 
 /**
  * What `connectKit` answers, whatever the database: `auth`, `access` when
- * configured, `db`, and the rest. `Database` is the name `ping` reports it
- * under.
+ * configured, `db`, and the rest. `Key` is the name `ping` reports the
+ * database under.
  */
 export type KitOf<
 	A extends object,
 	P extends object,
 	Db,
-	Database extends string,
+	Key extends string,
 > = {
 	/** What your `auth` returned, instrumented when `telemetry` is on. */
 	readonly auth: A;
@@ -27,7 +27,7 @@ export type KitOf<
 	 * (2 s by default). **Never throws**: a health route always has something
 	 * to report.
 	 */
-	ping(options?: { readonly timeoutMs?: number }): Promise<HealthOf<Database>>;
+	ping(options?: { readonly timeoutMs?: number }): Promise<HealthOf<Key>>;
 	/**
 	 * Closes what the kit opened — Redis, then the database — and nothing it
 	 * was handed. Idempotent.
@@ -44,12 +44,9 @@ export type KitOf<
 /** A close, pushed as soon as what it closes is open. */
 export type Closers = (() => Promise<void>)[];
 
-/** What a database side opened, and checked, for the kit to wire. */
-export interface Opened<Db, Database extends string> {
-	/** The name `ping` reports the database under. */
-	readonly name: Database;
-	/** Where sessions stay without Redis, as a message names it. */
-	readonly label: string;
+/** What the database's module opened, and checked, for the kit to wire. */
+export interface Opened<Db, Key extends string> {
+	readonly database: Database<Key>;
 	readonly db: Db;
 	/** Its identity stores and relation store, built over `db`. */
 	readonly store: JanusStores;
@@ -67,37 +64,28 @@ export async function assembleKit<
 	A extends object,
 	P extends object,
 	Db,
-	Database extends string,
+	Key extends string,
 >(
 	config: SharedConfig<A, P>,
-	open: (closers: Closers) => Promise<Opened<Db, Database>>,
-): Promise<KitOf<A, P, Db, Database>> {
-	const closers: Closers = [];
-	/** Closes everything opened, Redis first; answers what failed to close. */
-	const closeAll = async () => {
-		const failures: unknown[] = [];
-		for (const close of closers.splice(0).reverse()) {
-			await close().catch((error: unknown) => failures.push(error));
-		}
-		return failures;
-	};
-
+	open: (closers: Closers) => Promise<Opened<Db, Key>>,
+): Promise<KitOf<A, P, Db, Key>> {
+	const { closers, close, failStart } = lifecycle();
 	try {
-		const database = await open(closers);
-		const redis = await openRedis(config.redis, closers, database.label);
+		const opened = await open(closers);
+		const redis = await openRedis(config.redis, closers, opened.database.label);
 		const adapters = {
 			store:
 				redis === undefined
-					? database.store
+					? opened.store
 					: {
-							...database.store,
+							...opened.store,
 							...createRedisStores(redis, {
 								...(config.redis?.prefix === undefined
 									? {}
 									: { prefix: config.redis.prefix }),
 							}),
 						},
-			relations: database.relations,
+			relations: opened.relations,
 		};
 
 		const instrument =
@@ -110,36 +98,58 @@ export async function assembleKit<
 			if (instrument !== undefined) access = instrument.permissions(access);
 		}
 
-		const probes: Record<string, Probe> = { [database.name]: database.probe };
-		if (redis !== undefined) {
-			probes.redis = (timeoutMs) => redis.ping({ timeoutMs });
-		}
-
-		let closing: Promise<void> | undefined;
-		const close = () => {
-			closing ??= closeAll().then((failures) => {
-				if (failures.length === 1) throw failures[0];
-				if (failures.length > 1) {
-					throw new AggregateError(
-						failures,
-						'kit.close: several connections failed to close',
-					);
-				}
-			});
-			return closing;
-		};
+		const probes = {
+			[opened.database.key]: opened.probe,
+			...(redis === undefined
+				? {}
+				: { redis: (timeoutMs: number) => redis.ping({ timeoutMs }) }),
+		} as Probes<Key>;
 		const kit = {
 			auth,
 			...(config.access === undefined ? {} : { access }),
-			db: database.db,
+			db: opened.db,
 			redis,
 			ping: async (options?: { readonly timeoutMs?: number }) =>
-				await probe<Database>(probes, options?.timeoutMs ?? 2_000),
+				await probe(probes, options?.timeoutMs ?? 2_000),
 			close,
 			[Symbol.asyncDispose]: close,
 		};
-		return Object.freeze(kit) as unknown as KitOf<A, P, Db, Database>;
+		return Object.freeze(kit) as unknown as KitOf<A, P, Db, Key>;
 	} catch (error) {
+		return await failStart(error);
+	}
+}
+
+/**
+ * The closes, in reverse of the opens — Redis before the database. `close`
+ * is the kit's, idempotent, rejecting with the one failure or an
+ * `AggregateError`; `failStart` closes on the way out of a failed start and
+ * rethrows the error that stopped it.
+ */
+export function lifecycle() {
+	const closers: Closers = [];
+	/** Closes everything opened; answers what failed to close. */
+	const closeAll = async () => {
+		const failures: unknown[] = [];
+		for (const closeOne of closers.splice(0).reverse()) {
+			await closeOne().catch((error: unknown) => failures.push(error));
+		}
+		return failures;
+	};
+	let closing: Promise<void> | undefined;
+	const close = () => {
+		closing ??= closeAll().then((failures) => {
+			if (failures.length === 1) throw failures[0];
+			if (failures.length > 1) {
+				throw new AggregateError(
+					failures,
+					'kit.close: several connections failed to close',
+				);
+			}
+		});
+		return closing;
+	};
+	const failStart = async (error: unknown): Promise<never> => {
 		// The error that stopped the kit is the one to see; a failure to
 		// close on the way out is only reported.
 		for (const failure of await closeAll()) {
@@ -149,7 +159,8 @@ export async function assembleKit<
 			);
 		}
 		throw error;
-	}
+	};
+	return { closers, close, failStart };
 }
 
 async function openRedis(
@@ -177,7 +188,7 @@ async function openRedis(
 }
 
 /** `@nxgt/janus-telemetry`, an optional peer: loaded only when asked for. */
-async function loadTelemetry() {
+export async function loadTelemetry() {
 	try {
 		const telemetry = await import('@nxgt/janus-telemetry');
 		return {

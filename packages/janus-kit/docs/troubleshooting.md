@@ -14,6 +14,7 @@ and its adapters'.
 ## Index
 
 **Types**
+- [`TS2307: Cannot find module '@nxgt/janus-kit' or its corresponding type declarations.`](#ts2307-cannot-find-module-nxgtjanus-kit-or-its-corresponding-type-declarations)
 - [`TS2339: Property 'access' does not exist on type 'Kit<…>'.`](#ts2339-property-access-does-not-exist-on-type-kit)
 - [`TS2322: Type '{ url: string; db: PgDatabase; }' is not assignable to type 'PostgresConfig'.`](#ts2322-type--url-string-db-pgdatabase--is-not-assignable-to-type-postgresconfig)
 - [`TS2322: Type 'RedisConnection' is not assignable to type 'undefined'.`](#ts2322-type-redisconnection-is-not-assignable-to-type-undefined)
@@ -38,6 +39,20 @@ and its adapters'.
 ---
 
 ## Types
+
+### `TS2307: Cannot find module '@nxgt/janus-kit' or its corresponding type declarations.`
+
+**When:** you import from `@nxgt/janus-kit` itself. Bun, at run time, says
+`Cannot find module '@nxgt/janus-kit'`.
+
+**Why:** the package has no root entry: each database has its subpath, and
+the import names it.
+
+**Fix:** import from the subpath of your database.
+
+```ts
+import { connectKit, defineConfig } from '@nxgt/janus-kit/drizzle';
+```
 
 ### `TS2339: Property 'access' does not exist on type 'Kit<…>'.`
 

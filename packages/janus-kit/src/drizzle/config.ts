@@ -3,11 +3,18 @@ import type { JanusTables } from '@nxgt/janus-drizzle';
 import {
 	checkObject,
 	checkShared,
+	type Database,
 	nonEmpty,
 	oneOf,
 	type SharedConfig,
 	type UncheckedShared,
 } from '../shared/config';
+
+/** PostgreSQL, as `ping` and the messages name it. */
+export const postgresDatabase: Database<'postgres'> = {
+	key: 'postgres',
+	label: 'PostgreSQL',
+};
 
 /**
  * Where users, logins, relations — and sessions and tokens, unless Redis
@@ -84,5 +91,5 @@ export function checkConfig(
 			);
 		}
 	}
-	checkShared(config, where, 'PostgreSQL');
+	checkShared(config, where, postgresDatabase);
 }

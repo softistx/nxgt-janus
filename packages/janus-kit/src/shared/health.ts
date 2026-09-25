@@ -14,13 +14,18 @@ export type HealthOf<Database extends string> = {
 
 export type Probe = (timeoutMs: number) => Promise<PingResult>;
 
+/** The database's probe under its own name, and Redis's when it is wired. */
+export type Probes<Database extends string> = {
+	readonly [Name in Database]: Probe;
+} & { readonly redis?: Probe };
+
 /** Every probe at once, each within `timeoutMs`. */
 export async function probe<Database extends string>(
-	probes: Record<string, Probe>,
+	probes: Probes<Database>,
 	timeoutMs: number,
 ): Promise<HealthOf<Database>> {
 	const entries = await Promise.all(
-		Object.entries(probes).map(
+		(Object.entries(probes) as [string, Probe][]).map(
 			async ([name, run]) => [name, await run(timeoutMs)] as const,
 		),
 	);
