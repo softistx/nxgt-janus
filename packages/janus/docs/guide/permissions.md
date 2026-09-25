@@ -51,7 +51,10 @@ await access.can(grace, 'view', team);   // false
 ## The model
 
 ```ts
-function defineModel<const C extends ModelConfig>(config: C & CheckedModel<C>): PermissionModel<C>;
+function defineModel<
+	const S extends string,
+	const Ts extends ModelConfig['types'] & ModelTypesOf<S, Ts>, // what your editor completes
+>(config: { readonly subjects: readonly S[]; readonly types: Ts }): PermissionModel<{ subjects: readonly S[]; types: Ts }>;
 
 interface ModelConfig {
 	readonly subjects: readonly string[]; // pass auth.types
