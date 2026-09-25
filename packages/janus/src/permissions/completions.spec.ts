@@ -95,7 +95,10 @@ function completionsIn(source: string): string[][] {
 describe('an editor completes a model', () => {
 	// Asked once, on first use, so a failure to ask fails a named case.
 	let asked: string[][] | undefined;
-	const at = (cursor: number) => (asked ??= completionsIn(MODEL))[cursor];
+	const at = (cursor: number) => {
+		asked ??= completionsIn(MODEL);
+		return asked[cursor];
+	};
 
 	it("offers a relation's subject types and subject sets", () => {
 		expect(at(0)).toEqual(
