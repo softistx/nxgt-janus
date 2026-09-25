@@ -20,10 +20,10 @@ This adapter **defines no error class**. Every error it throws is
 - [`STORE_FAILED`: `sessions.<operation>: the store could not answer`](#store_failed-sessionsoperation-the-store-could-not-answer)
 - [`STORE_FAILED`: `sessions.<operation>: a reply that is not … — a key under the prefix this adapter did not write`](#store_failed-sessionsoperation-a-reply-that-is-not---a-key-under-the-prefix-this-adapter-did-not-write)
 - [`CROSSSLOT Keys in request don't hash to the same slot`, or `Script attempted to access a non local key in a cluster node`](#crossslot-keys-in-request-dont-hash-to-the-same-slot-or-script-attempted-to-access-a-non-local-key-in-a-cluster-node)
-- [Users are signed out while Redis is up, under memory pressure](#users-are-signed-out-while-redis-is-up-under-memory-pressure)
 - [`UNSUPPORTED`: `collectExpired: store.sessions does not implement deleteExpiredSessions …`](#unsupported-collectexpired-storesessions-does-not-implement-deleteexpiredsessions-)
 - [`TypeError: connectRedis: this URI is already connected with other options.`](#typeerror-connectredis-this-uri-is-already-connected-with-other-options)
 - [Users are signed out after Redis restarts](#users-are-signed-out-after-redis-restarts)
+- [Users are signed out while Redis is up, under memory pressure](#users-are-signed-out-while-redis-is-up-under-memory-pressure)
 
 ---
 
@@ -88,7 +88,10 @@ Also `tokens.<operation>: …`.
 **When:** any call, for as long as Redis cannot answer: unreachable, out of
 memory (`OOM`), a replica that refuses writes (`READONLY`), a user without the
 right (`NOPERM`). With `enableOfflineQueue: false`, an outage's `cause` reads
-`Connection is closed and offline queue is disabled`.
+`Connection is closed and offline queue is disabled`. From `insertSession`
+only, a `cause` of `JANUS a session token hash is held by another session`
+means two sessions were given one token hash: never the core's, which draws
+32 random bytes per session.
 
 **Why:** the adapter never turns a failure into an absence. An outage is not
 "no such session", which would sign every user out.

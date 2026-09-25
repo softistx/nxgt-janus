@@ -98,7 +98,7 @@ read returns.
 
 A user's set of sessions, and of tokens, lives as long as the longest of
 them. An id whose key Redis expired stays in the set until the user's next
-sign-in or token, which drops it, so a set holds live entries and the few
+sign-in or token, or "sign out everywhere", which drop it, so a set holds live entries and the few
 that lapsed since.
 
 ## What a failure looks like
