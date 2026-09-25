@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Thirty-six plausible mistakes, thirty-six refused**, each verified to fail for
+ * **Thirty-seven plausible mistakes, thirty-seven refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -372,6 +372,17 @@ defineModel({
 	types: {
 		// @ts-expect-error 35. "lead" names a relation and a permission, even with no rule
 		team: { relations: { lead: ['staff'] }, permissions: { lead: [] } },
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		team: {
+			relations: { m: ['staff'] },
+			// @ts-expect-error 37. a permission naming itself adds nothing, and never ends
+			permissions: { view: ['m', 'view'] },
+		},
 	},
 });
 

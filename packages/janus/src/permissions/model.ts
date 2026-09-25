@@ -549,6 +549,10 @@ type Spelled<U> = [U] extends [infer V extends string]
  * instead (`C & Checked<C>`) refuses the same mistakes, but meets the literal
  * being typed and completes nothing: measured with the language service.
  *
+ * A permission's own name is not among its rules: `view: ['view']` adds
+ * nothing and is a loop no relation ends, so it is neither offered nor
+ * accepted. A loop through another permission is `defineModel`'s to refuse.
+ *
  * A wrong name is unassignable **on that name** — on the whole `fromField(…)`
  * or `when(…)` call for those two — and the error lists the ones it could
  * have been, with "Did you mean" when one is close.
@@ -567,8 +571,8 @@ export type ModelTypesOf<S extends string, Ts> = {
 						never
 					>
 				: readonly (
-						| Spelled<RuleRefOf<Ts, T>>
-						| When<Spelled<RuleRefOf<Ts, T>>, never>
+						| Spelled<Exclude<RuleRefOf<Ts, T>, P>>
+						| When<Spelled<Exclude<RuleRefOf<Ts, T>, P>>, never>
 					)[];
 		};
 	};
