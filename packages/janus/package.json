@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "Embeddable, type-safe identities and permissions: bring your own database",
 	"license": "MIT",
 	"type": "module",
