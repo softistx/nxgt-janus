@@ -3,7 +3,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { getCookie } from 'hono/cookie';
 
 /** Anything `janus()` answered: the part of it this package calls. */
-type Auth<U extends { readonly type: string }> = Pick<
+export type Auth<U extends { readonly type: string }> = Pick<
 	SharedApi<U>,
 	'authenticate' | 'signOut' | 'cookie'
 >;

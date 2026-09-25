@@ -16,9 +16,20 @@
  *   as its status, `STORE_FAILED` as 503 and never as 401 or 403; `report`
  *   sees the 5xx ones first.
  *
+ * - `bindJanus({ auth, access })` — the functions above with the instances
+ *   bound once: `j.session()`, `j.permission('view', 'record', load)`, …
+ *
  * It defines no error class: what it lets through is `@nxgt/janus`'s own.
  */
 
+export {
+	type Bindable,
+	type Bound,
+	type BoundAuth,
+	type BoundPermission,
+	type BoundSession,
+	bindJanus,
+} from './bind';
 export {
 	bodyOf,
 	type JanusErrorsOptions,

@@ -39,6 +39,27 @@ app.onError((error, c) => {
 an `HTTPException` answers its own response and anything else is a logged
 500, as Hono does by default.
 
+### Binding the instances once
+
+Every function of this package takes `auth` or `access` first.
+`bindJanus()` binds them once — the same functions, the same types:
+
+```ts
+import { bindJanus } from '@nxgt/janus-hono';
+
+export const j = bindJanus({ auth, access });
+
+app.use(j.session(), j.provide());
+app.get('/me', j.session({ required: true }), (c) => c.json(c.var.user));
+app.post('/sign-in', async (c) => {
+	const user = j.sendSession(c, await auth.signIn(await c.req.json()));
+	return c.json({ id: user.id });
+});
+```
+
+The rest of this guide writes the unbound form; each call reads the same with
+`j.` and without its first argument.
+
 ## Who the request belongs to
 
 ```ts
