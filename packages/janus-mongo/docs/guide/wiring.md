@@ -8,21 +8,20 @@ on [the sync page](sync.md).
 ```ts
 import { janus, scryptHasher } from '@nxgt/janus';
 import { defineModel, permissions } from '@nxgt/janus/permissions';
-import { createMongoRelations, createMongoStores } from '@nxgt/janus-mongo';
+import { createMongoAdapter } from '@nxgt/janus-mongo';
 import { MongoClient } from 'mongodb';
 import { z } from 'zod';
 
 const client = new MongoClient(process.env.MONGO_URL ?? 'mongodb://localhost:27017');
 const db = client.db('janus');
 
-const relations = createMongoRelations(db);
+const mongo = createMongoAdapter(db); // { store, relations }
 
 export const auth = janus({
 	user: z.object({ email: z.email(), name: z.string() }),
 	password: { login: 'email' },
-	store: createMongoStores(db),
-	relations, // deleting a user deletes every tuple naming them
 	hasher: scryptHasher(),
+	...mongo, // deleting a user deletes every tuple naming them
 });
 
 export const model = defineModel({
@@ -35,8 +34,24 @@ export const model = defineModel({
 	},
 });
 
-export const access = permissions({ model, store: relations });
+export const access = permissions({ model, store: mongo.relations });
 ```
+
+## `createMongoAdapter(db)`
+
+```ts
+function createMongoAdapter(db: Db): MongoAdapter; // { store, relations }
+```
+
+`createMongoStores(db)` as `store` and `createMongoRelations(db)` as
+`relations`: the two keys `janus()` takes them under, so a spread wires both,
+and `permissions()` takes the same relation store as `mongo.relations`. It
+connects to nothing.
+
+**Pass the relation store to both.** Given to `permissions()` alone, tuples
+are written, and deleting a user leaves every one naming them behind — the
+spread is what makes that impossible to forget. An application that only
+authenticates takes `createMongoStores(db)` alone, below.
 
 ## `createMongoStores(db)`
 
@@ -135,7 +150,7 @@ single-node replica set — the adapter's own specs use
 `mongodb-memory-server-core`, one database per case:
 
 ```ts
-import { createMongoRelations, createMongoStores, syncMongoRelations, syncMongoStores } from '@nxgt/janus-mongo';
+import { createMongoAdapter, syncMongoAdapter } from '@nxgt/janus-mongo';
 import { MongoClient } from 'mongodb';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 
@@ -143,10 +158,8 @@ const server = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
 const client = await MongoClient.connect(server.getUri());
 
 const db = client.db('janusTest');
-await syncMongoStores(db);
-await syncMongoRelations(db);
-const store = createMongoStores(db);
-const relations = createMongoRelations(db);
+await syncMongoAdapter(db);
+const mongo = createMongoAdapter(db);
 
 // after the suite
 await client.close();
@@ -155,5 +168,5 @@ await server.stop();
 
 ## See also
 
-- [Collections and indexes](sync.md) — `syncMongoStores`, `syncMongoRelations`, and what the database holds
+- [Collections and indexes](sync.md) — `syncMongoAdapter`, `syncMongoStores`, `syncMongoRelations`, and what the database holds
 - [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) — its `docs/guide/` covers users, sessions and permissions

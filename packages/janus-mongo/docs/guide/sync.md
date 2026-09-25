@@ -6,25 +6,28 @@ for knowing what ends up stored. Wiring the stores into `janus()` and
 `permissions()` is on [the wiring page](wiring.md).
 
 ```ts
-import { syncMongoRelations, syncMongoStores } from '@nxgt/janus-mongo';
+import { syncMongoAdapter } from '@nxgt/janus-mongo';
 import { MongoClient } from 'mongodb';
 
 const client = await MongoClient.connect(process.env.MONGO_URL ?? 'mongodb://localhost:27017');
 const db = client.db('janus');
 
-await syncMongoStores(db);    // users, sessions, tokens
-await syncMongoRelations(db); // relations — only if you use @nxgt/janus/permissions
+await syncMongoAdapter(db); // users, sessions, tokens and relations
 
 await client.close();
 ```
 
-**The core never manages a schema, and neither function is called for you.**
+An application that only authenticates runs `syncMongoStores(db)` instead,
+and creates no `relations` collection.
+
+**The core never manages a schema, and no sync function is called for you.**
 Without `syncMongoStores` there is no unique index on logins, and nothing stops
 two concurrent sign-ups with one e-mail.
 
-## `syncMongoStores` and `syncMongoRelations`
+## `syncMongoAdapter`, `syncMongoStores` and `syncMongoRelations`
 
 ```ts
+function syncMongoAdapter(db: Db, options?: SyncOptions): Promise<SyncReport[]>; // the two below, in one
 function syncMongoStores(db: Db, options?: SyncOptions): Promise<SyncReport[]>;
 function syncMongoRelations(db: Db, options?: SyncOptions): Promise<SyncReport[]>;
 ```

@@ -6,31 +6,28 @@ users, sessions and one-time tokens — and the relation store of
 [`@nxgt/mongo`](https://www.npmjs.com/package/@nxgt/mongo).
 
 It passes both `@nxgt/janus/conformance` suites against a real mongod, outages
-included. Each side is usable alone, as in `@nxgt/janus`: `createMongoStores`
-for identities, `createMongoRelations` for permissions, or both, as below.
+included. `createMongoAdapter(db)` gives both sides under the names `janus()`
+takes them, so one spread wires them; each is also usable alone, as in
+`@nxgt/janus`: `createMongoStores` for identities, `createMongoRelations` for
+permissions.
 
 ```ts
 import { janus, scryptHasher } from '@nxgt/janus';
 import { permissions } from '@nxgt/janus/permissions';
-import {
-  createMongoRelations,
-  createMongoStores,
-  syncMongoRelations,
-  syncMongoStores,
-} from '@nxgt/janus-mongo';
+import { createMongoAdapter, syncMongoAdapter } from '@nxgt/janus-mongo';
 
-await syncMongoStores(db); // a deployment step: creates the collections and indexes
+await syncMongoAdapter(db); // a deployment step: creates the collections and indexes
+
+const mongo = createMongoAdapter(db); // { store, relations }
 
 export const auth = janus({
   user: User,
   password: { login: 'email' },
-  store: createMongoStores(db),
   hasher: scryptHasher(),
-  relations: createMongoRelations(db), // deleting a user deletes their tuples
+  ...mongo, // deleting a user deletes their tuples too
 });
 
-await syncMongoRelations(db);
-export const access = permissions({ model, store: createMongoRelations(db) });
+export const access = permissions({ model, store: mongo.relations });
 ```
 
 ## Install
@@ -50,6 +47,9 @@ declarations import without extensions, so `nodenext` is not supported.
 
 | Export | What it is |
 | --- | --- |
+| `createMongoAdapter(db)` | `{ store, relations }`: both of the below, keyed as `janus()` takes them, so `janus({ …, ...mongo })` wires both. Connects to nothing. |
+| `syncMongoAdapter(db, options?)` | `syncMongoStores` and `syncMongoRelations` in one step: the four collections. |
+| `MongoAdapter` | The type of what `createMongoAdapter` answers. |
 | `createMongoStores(db)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. Connects to nothing. |
 | `syncMongoStores(db, options?)` | Creates the three collections, their validators and indexes, and answers what it changed. Needs `dbAdmin`; run it when you deploy, never per request. |
 | `users`, `sessions`, `tokens` | The `@nxgt/mongo` definitions. Defining them registers them, so `syncAll(db)` syncs them with your own collections. |
@@ -82,7 +82,8 @@ passwords a self-describing hash.
 - **`auth.collectExpired()` answers `UNSUPPORTED`** with this adapter. The TTL
   index already drops lapsed sessions, so `deleteExpiredSessions` is
   deliberately not implemented.
-- **`syncMongoStores` is not called for you.** The core never manages a schema.
+- **No sync function is called for you** — `syncMongoAdapter`, or
+  `syncMongoStores` for identities alone. The core never manages a schema.
   Without it there is no unique index, and nothing stops two concurrent sign-ups
   with one login.
 - **A duplicate key on an index other than the login index is a

@@ -40,6 +40,10 @@ Nothing yet.
 
 The first public release, v0.1.
 
+- **One call for both sides** — `createMongoAdapter(db)` answers
+  `{ store, relations }`, spread into `janus()` so deleting a user deletes
+  their tuples without a second wiring; `syncMongoAdapter(db)` syncs the four
+  collections in one step. — v0.1.2
 - **Guides and troubleshooting pages** — a `docs/` folder shipped in the
   package, with the errors and traps you can meet running the adapter, each
   with its cause and fix. — v0.1
