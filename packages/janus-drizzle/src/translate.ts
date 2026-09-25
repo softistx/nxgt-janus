@@ -6,7 +6,7 @@ import { JanusError, StoreConflict, StoreFailure } from '@nxgt/janus';
  *
  * | What happens | Becomes |
  * | --- | --- |
- * | A login another user of the type holds | `StoreConflict('login')`, naming the login and the type |
+ * | A login another user of the type holds | `StoreConflict('login')`, carrying `login` and `userType` |
  * | A row with this id already there | nothing: the insert is a retry, and answers what is stored |
  * | A unique violation on **any other constraint** | **`StoreFailure`** |
  * | A check or foreign key refusing a row | **`StoreFailure`** |

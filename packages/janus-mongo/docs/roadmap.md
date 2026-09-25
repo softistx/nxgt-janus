@@ -40,6 +40,8 @@ Nothing yet.
 
 The first public release, v0.1.
 
+- **`LOGIN_TAKEN` no longer quotes the login in its message**; `error.login`
+  still names it. — next patch
 - **One call for both sides** — `createMongoAdapter(db)` answers
   `{ store, relations }`, spread into `janus()` so deleting a user deletes
   their tuples without a second wiring; `syncMongoAdapter(db)` syncs the four

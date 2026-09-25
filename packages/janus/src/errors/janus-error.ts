@@ -133,7 +133,8 @@ export type CredentialRefusal = 'unknownLogin' | 'noPassword' | 'wrongPassword';
  * **No field here ever holds a secret.** Not a password, not a hash, not a
  * session token, not a token secret, not a token's hash, and not a connection
  * URI — a connection string holds a password, and the specs assert its absence
- * from every message. A `login` may appear, because the caller just sent it.
+ * from every message. Nor a login: a message reports a shape, never a value,
+ * and a conflict carries the login in `login`.
  */
 export interface JanusErrorOptions {
 	readonly userId?: string;
