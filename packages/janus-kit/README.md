@@ -100,7 +100,7 @@ you use.
 | Subpath | Database | The database key | What `connectKit` checks |
 | --- | --- | --- | --- |
 | `@nxgt/janus-kit/drizzle` | PostgreSQL, through `@nxgt/janus-drizzle` | `postgres` | Janus's five tables exist |
-| `@nxgt/janus-kit/mongo` | MongoDB, through `@nxgt/janus-mongo` | `mongo` | Janus's four collections are in sync: there, with their validators and indexes |
+| `@nxgt/janus-kit/mongo` | MongoDB, through `@nxgt/janus-mongo` | `mongo` | Janus's four collections and their indexes exist; any other difference is a warning |
 
 On MongoDB, the example above changes in its first lines only:
 
@@ -160,9 +160,13 @@ has each key in detail.
   own.
 - **Janus's collections come from `syncMongoAdapter`**, a deployment step.
   `connectKit` compares them with `@nxgt/janus-mongo`'s definitions, writing
-  nothing, and refuses to start when one is missing or has drifted: MongoDB
-  would create a missing one on the first write **without the unique index on
-  logins**.
+  nothing. A missing collection or index refuses to start: MongoDB would
+  create a missing collection on the first write **without the unique index
+  on logins**. A validator or index options that differ only warn
+  (`JANUS_KIT_COLLECTIONS_DRIFTED`), so a rollback still starts.
+- **`kit.auth.collectExpired()` answers `UNSUPPORTED` on `/mongo`**: a TTL
+  index removes lapsed sessions and tokens there. Schedule it on PostgreSQL
+  only.
 - **A MongoDB URL without a database in its path uses `test`**, the driver's
   default. Name Janus's database in the URL: `mongodb://…/janus`.
 - **A MongoDB that does not answer fails after 5 seconds**, measured: the
@@ -190,7 +194,7 @@ has each key in detail.
 
 ## Type safety, counted
 
-Fifteen plausible mistakes are refused by the compiler, each with a
+Sixteen plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case: ten in `test/types/kit.ts`, over PostgreSQL,
 - `kit.access` on a kit configured without `access`;
 - a user type `auth` does not have;
@@ -203,12 +207,13 @@ Fifteen plausible mistakes are refused by the compiler, each with a
 - `postgres` with neither `url` nor `db`;
 - `telemetry` as a string, as an environment variable reads;
 
-and five in `test/types/mongo.ts`, over MongoDB:
+and six in `test/types/mongo.ts`, over MongoDB:
 - `kit.access` on a kit configured without `access`;
 - `ping()`'s `postgres` on a MongoDB kit, which answers `mongo`;
 - both `mongo.url` and `mongo.db`;
 - `mongo.clientOptions` beside a `Db` whose client is already open;
-- the `postgres` key given to the MongoDB kit.
+- the `postgres` key given to the MongoDB kit;
+- `mongo` with neither `url` nor `db`.
 
 ## Licence
 

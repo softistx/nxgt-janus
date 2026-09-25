@@ -132,6 +132,73 @@ describe('connectKit() over MongoDB', () => {
 		);
 	});
 
+	it('only warns of a collection that differs from these definitions — a rollback must still start', async () => {
+		const db = await database();
+		await db.command({ collMod: 'users', validator: {} });
+		const warnings: { message: string; code: string | undefined }[] = [];
+		const onWarning = (warning: Error & { code?: string }) => {
+			warnings.push({ message: warning.message, code: warning.code });
+		};
+		process.on('warning', onWarning);
+		try {
+			await using kit = await connectKit(defineConfig({ mongo: { db }, auth }));
+			expect((await kit.ping()).ok).toBe(true);
+			await new Promise((resolve) => setImmediate(resolve));
+			expect(warnings).toEqual([
+				{
+					message:
+						"connectKit: Janus's collections differ from this @nxgt/janus-mongo's definitions: users (validator). Run syncMongoAdapter(db) once every instance runs this version.",
+					code: 'JANUS_KIT_COLLECTIONS_DRIFTED',
+				},
+			]);
+		} finally {
+			process.off('warning', onWarning);
+		}
+	});
+
+	it('refuses a URL the driver cannot read as a TypeError, never quoting it', async () => {
+		for (const url of [
+			'mongodb://janus:s3cret@h:notaport/janus',
+			'mongodb://u:p@ss@h/janus',
+		]) {
+			const outcome = await connectKit(
+				defineConfig({ mongo: { url }, auth }),
+			).then(
+				() => 'resolved',
+				(error: Error) => `${error.name}: ${error.message}`,
+			);
+			expect(outcome).toBe(
+				'TypeError: connectKit: `mongo.url` is not a connection string the driver can read.',
+			);
+		}
+	});
+
+	it("fails on a Db that does not answer, with the driver's error as its cause", async () => {
+		const synced = await database();
+		const broken = new Error('client was closed');
+		const db = new Proxy(synced, {
+			get(target, key, receiver) {
+				const value: unknown = Reflect.get(target, key, receiver);
+				if (key !== 'listCollections' || typeof value !== 'function') {
+					return value;
+				}
+				return () => {
+					throw broken;
+				};
+			},
+		});
+		const outcome = await connectKit(
+			defineConfig({ mongo: { db }, auth }),
+		).then(
+			() => undefined,
+			(error: Error) => error,
+		);
+		expect(outcome?.message).toBe(
+			'connectKit: the Db in `mongo.db` did not answer.',
+		);
+		expect(outcome?.cause).toBe(broken);
+	});
+
 	it('fails on a MongoDB that refuses the connection within its selection timeout, never naming the URL', async () => {
 		const started = performance.now();
 		const outcome = await connectKit(

@@ -97,8 +97,8 @@ mongo: { db }                                          // a Db you opened, never
 With `url`, the kit calls `@nxgt/mongo`'s `connectMongo` with
 `{ serverSelectionTimeoutMS: 5_000, ...clientOptions }`. It must be a
 `mongodb://` or `mongodb+srv://` URL, and **its path names the database**:
-`mongodb://db.internal/janus`. Without a path, the driver uses `test`. Five
-seconds, where the driver waits thirty, makes a MongoDB that does not answer
+`mongodb://db.internal/janus`. Without a path, the driver uses `test`. A URL the driver cannot parse is a `TypeError`,
+at once. Five seconds, where the driver waits thirty, makes a MongoDB that does not answer
 fail at startup, and a request during an outage, as fast as Redis does
 without its offline queue; raise it to ride out a replica-set election.
 `clientOptions` is the driver's `MongoClientOptions`, and cannot be given
@@ -107,11 +107,9 @@ beside a `db`, whose client is already open with its own.
 Use a replica set: `@nxgt/janus-mongo` writes a relation change of more than
 one tuple in a transaction, which a standalone `mongod` refuses.
 
-**`connectKit` checks that the four collections are in sync** with
-`@nxgt/janus-mongo`'s definitions — there, with their validators and
-indexes — by running `syncMongoAdapter(db, { dryRun: true })`, which writes
-nothing. It refuses to start otherwise, naming each collection and what
-differs:
+**`connectKit` compares the four collections** with `@nxgt/janus-mongo`'s
+definitions by running `syncMongoAdapter(db, { dryRun: true })`, which writes
+nothing. **A missing collection or index refuses to start**, naming each:
 
 ```
 connectKit: Janus's collections are not in sync with @nxgt/janus-mongo: users (missing), sessions (missing), tokens (missing), relations (missing). Run syncMongoAdapter(db), a deployment step, against the database `mongo` names.
@@ -120,7 +118,12 @@ connectKit: Janus's collections are not in sync with @nxgt/janus-mongo: users (m
 A table missing in PostgreSQL fails the first query; a collection missing in
 MongoDB is created by the first write, **without the unique index on
 logins**, and two users could then share one. That is why the check is
-stricter here. Run `syncMongoAdapter(db)` where you deploy, as the migrations
+stricter here.
+
+A validator, an option or an index's options that differ **only warn**, with
+the code `JANUS_KIT_COLLECTIONS_DRIFTED`: they differ in either direction, and
+in a rolling deploy or a rollback the previous release meets the next one's
+collections and must still start. Run `syncMongoAdapter(db)` where you deploy, as the migrations
 of `/drizzle`: it needs the `dbAdmin` role, which the application's user
 should not hold.
 

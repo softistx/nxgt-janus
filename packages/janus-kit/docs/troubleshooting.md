@@ -17,6 +17,10 @@ and its adapters'.
 - [`TS2307: Cannot find module '@nxgt/janus-kit' or its corresponding type declarations.`](#ts2307-cannot-find-module-nxgtjanus-kit-or-its-corresponding-type-declarations)
 - [`TS2339: Property 'access' does not exist on type 'Kit<…>'.`](#ts2339-property-access-does-not-exist-on-type-kit)
 - [`TS2322: Type '{ url: string; db: PgDatabase; }' is not assignable to type 'PostgresConfig'.`](#ts2322-type--url-string-db-pgdatabase--is-not-assignable-to-type-postgresconfig)
+- [`TS2322: Type '{ url: string; db: Db; }' is not assignable to type 'MongoConfig'.`](#ts2322-type--url-string-db-db--is-not-assignable-to-type-mongoconfig)
+- [`TS2322: Type '{ db: Db; clientOptions: …; }' is not assignable to type 'MongoConfig'.`](#ts2322-type--db-db-clientoptions---is-not-assignable-to-type-mongoconfig)
+- [`TS2353: Object literal may only specify known properties, and 'postgres' does not exist in type 'KitConfig<object, never>'.`](#ts2353-object-literal-may-only-specify-known-properties-and-postgres-does-not-exist-in-type-kitconfigobject-never)
+- [`TS2339: Property 'postgres' does not exist on type 'HealthOf<"mongo">'.`](#ts2339-property-postgres-does-not-exist-on-type-healthofmongo)
 - [`TS2322: Type 'RedisConnection' is not assignable to type 'undefined'.`](#ts2322-type-redisconnection-is-not-assignable-to-type-undefined)
 - [`TS2353: Object literal may only specify known properties, and 'schema' does not exist in type …`](#ts2353-object-literal-may-only-specify-known-properties-and-schema-does-not-exist-in-type-)
 - [`TS2345: Argument of type '{ postgres: …; }' is not assignable to parameter of type 'KitConfig<object, never>'.`](#ts2345-argument-of-type--postgres---is-not-assignable-to-parameter-of-type-kitconfigobject-never)
@@ -28,7 +32,9 @@ and its adapters'.
 - [`connectKit: PostgreSQL did not answer. …`](#connectkit-postgresql-did-not-answer-)
 - [`` connectKit: the Drizzle instance in `postgres.db` did not answer. ``](#connectkit-the-drizzle-instance-in-postgresdb-did-not-answer)
 - [`connectKit: Janus's collections are not in sync with @nxgt/janus-mongo: …`](#connectkit-januss-collections-are-not-in-sync-with-nxgtjanus-mongo-)
+- [`connectKit: Janus's collections differ from this @nxgt/janus-mongo's definitions: …`, a process warning](#connectkit-januss-collections-differ-from-this-nxgtjanus-mongos-definitions--a-process-warning)
 - [`connectKit: MongoDB did not answer. …`](#connectkit-mongodb-did-not-answer-)
+- [`` TypeError: connectKit: `mongo.url` is not a connection string the driver can read. ``](#typeerror-connectkit-mongourl-is-not-a-connection-string-the-driver-can-read)
 - [`` connectKit: the Db in `mongo.db` did not answer. ``](#connectkit-the-db-in-mongodb-did-not-answer)
 - [`TypeError: connectMongo: this URI is already connected with other options. …`](#typeerror-connectmongo-this-uri-is-already-connected-with-other-options-)
 - [`connectKit: Redis did not answer. …`, after about 31 seconds](#connectkit-redis-did-not-answer--after-about-31-seconds)
@@ -55,7 +61,8 @@ the import names it.
 **Fix:** import from the subpath of your database.
 
 ```ts
-import { connectKit, defineConfig } from '@nxgt/janus-kit/drizzle';
+import { connectKit, defineConfig } from '@nxgt/janus-kit/drizzle'; // PostgreSQL
+import { connectKit, defineConfig } from '@nxgt/janus-kit/mongo';   // MongoDB
 ```
 
 ### `TS2339: Property 'access' does not exist on type 'Kit<…>'.`
@@ -80,6 +87,45 @@ Also `Type '{}' is not assignable to type 'PostgresConfig'.`
 opened, `db`: one of the two, never both and never neither.
 
 **Fix:** pass one. `url` is closed by `kit.close()`; `db` is yours to close.
+
+### `TS2322: Type '{ url: string; db: Db; }' is not assignable to type 'MongoConfig'.`
+
+Also `Type '{}' is not assignable to type 'MongoConfig'.`
+
+**When:** `mongo: { url, db }`, or `mongo: {}`, on `@nxgt/janus-kit/mongo`.
+
+**Why:** as for `postgres`: the kit opens the database from `url`, or uses the
+`Db` you opened — one of the two.
+
+**Fix:** pass one. `url` is closed by `kit.close()`; `db` is yours to close.
+
+### `TS2322: Type '{ db: Db; clientOptions: …; }' is not assignable to type 'MongoConfig'.`
+
+The compiler goes on: `Types of property 'clientOptions' are incompatible.`
+
+**When:** `mongo: { db, clientOptions }`.
+
+**Why:** the `Db`'s client is already open, with its own options.
+
+**Fix:** pass the options where you created that client, or pass `url` and
+let the kit open it with `clientOptions`.
+
+### `TS2353: Object literal may only specify known properties, and 'postgres' does not exist in type 'KitConfig<object, never>'.`
+
+**When:** `postgres: { … }` given to `defineConfig` from `@nxgt/janus-kit/mongo`.
+
+**Why:** each subpath takes its own database's key.
+
+**Fix:** import from the subpath of the database you configure.
+
+### `TS2339: Property 'postgres' does not exist on type 'HealthOf<"mongo">'.`
+
+**When:** `(await kit.ping()).postgres` on a MongoDB kit — a health route
+written for PostgreSQL.
+
+**Why:** `ping` names the database it probed: `mongo` there.
+
+**Fix:** read `health.mongo`, or only `health.ok`, which every kit answers.
 
 ### `TS2322: Type 'RedisConnection' is not assignable to type 'undefined'.`
 
@@ -218,21 +264,22 @@ building anything on it.
 
 ### `connectKit: Janus's collections are not in sync with @nxgt/janus-mongo: …`
 
-The rest names each collection and what differs — `users (missing)`,
-`users (indexes)`, `sessions (validator, indexes)` — then `` Run
+The rest names each collection and what it lacks — `users (missing)`, or
+`users (indexes)` for an index that is not there — then `` Run
 syncMongoAdapter(db), a deployment step, against the database `mongo` names. ``
 
 **When:** `connectKit` from `@nxgt/janus-kit/mongo`, on a database where
-`syncMongoAdapter(db, { dryRun: true })` would change something.
+`syncMongoAdapter(db, { dryRun: true })` would create a collection or an
+index. Anything else that differs is [only a warning](#connectkit-januss-collections-differ-from-this-nxgtjanus-mongos-definitions--a-process-warning).
 
 **Why:** one of three things:
 - `syncMongoAdapter` never ran against this database: every collection is
   `missing`;
 - it ran against another one — the URL has no path, and the driver used
   `test`;
-- `@nxgt/janus-mongo` was upgraded and its definitions changed, or an index
-  was dropped by hand. A missing login index is the dangerous one: two users
-  could share a login.
+- `@nxgt/janus-mongo` was upgraded and added an index, or one was dropped by
+  hand. A missing login index is the dangerous one: two users could share a
+  login.
 
 **Fix:** run the sync where you deploy, with a user that holds `dbAdmin`, and
 name the database in the URL:
@@ -243,6 +290,31 @@ import { connectMongo } from '@nxgt/mongo';
 
 await using mongo = await connectMongo(process.env.JANUS_MONGO_ADMIN_URL!); // mongodb://…/janus
 console.log(await syncMongoAdapter(mongo.db));
+```
+
+### `connectKit: Janus's collections differ from this @nxgt/janus-mongo's definitions: …`, a process warning
+
+The rest names each collection and what differs — `users (validator)`,
+`sessions (indexes)`, `tokens (options)` — then `` Run syncMongoAdapter(db)
+once every instance runs this version. `` Its code is
+`JANUS_KIT_COLLECTIONS_DRIFTED`. The kit starts.
+
+**When:** `connectKit`, on collections whose validator, options or index
+options differ from the definitions of the `@nxgt/janus-mongo` this process
+loaded — in either direction.
+
+**Why:** in a rolling deploy or a rollback, one release meets the collections
+another one synced. Refusing to start there would stop the release you are
+rolling back to; a missing collection or index, which makes the stores
+unsafe, [still refuses](#connectkit-januss-collections-are-not-in-sync-with-nxgtjanus-mongo-).
+
+**Fix:** once every instance runs the same version, run `syncMongoAdapter(db)`
+where you deploy. To act on it, listen:
+
+```ts
+process.on('warning', (warning) => {
+  if ((warning as { code?: string }).code === 'JANUS_KIT_COLLECTIONS_DRIFTED') log.warn(warning.message);
+});
 ```
 
 ### `connectKit: MongoDB did not answer. …`
@@ -260,6 +332,23 @@ so an unreachable database fails here, not at the first sign-in.
 
 **Fix:** read `error.cause` for the driver's reason, and check the URL. The
 URL is not in the message: it may hold a password.
+
+### `` TypeError: connectKit: `mongo.url` is not a connection string the driver can read. ``
+
+`cause` is the driver's `MongoParseError` or `MongoRuntimeError`.
+
+**When:** `connectKit` with a `mongo.url` the driver cannot parse — a port
+that is not a number, an `@` in an unencoded password — at once, before any
+server is contacted.
+
+**Why:** a URL that cannot be read is a wiring mistake, not an outage, as
+`/drizzle` reports one for `postgres.url`.
+
+**Fix:** read `error.cause`, and encode the password:
+
+```ts
+const url = `mongodb://janus:${encodeURIComponent(password)}@db.internal/janus`;
+```
 
 ### `` connectKit: the Db in `mongo.db` did not answer. ``
 
@@ -346,7 +435,7 @@ server's `stop()` resolves.
 
 `errors` holds each one. A single failure rejects with that error alone.
 
-**When:** `kit.close()`, when closing Redis and PostgreSQL both failed.
+**When:** `kit.close()`, when closing Redis and the database both failed.
 
 **Why:** `close()` tries every connection it opened before it reports, so one
 failure never leaves another open.

@@ -317,9 +317,10 @@ The table that exists so a duplication is a decision rather than an accident.
 
 - `*.spec.ts` colocated in `src/`. `test/` holds helpers only.
 - `test/types/` is typechecked by `tsc --noEmit` and **never run**.
-- MongoDB, when `@nxgt/janus-mongo` arrives: `mongodb-memory-server-core` as a
-  single-node replica set, binary cached in `.cache/mongodb`, one server per spec
-  file, the database dropped between cases. Measured in nxgt-data: starting a
+- MongoDB, in `@nxgt/janus-mongo` and `@nxgt/janus-kit/mongo`:
+  `mongodb-memory-server-core` as a single-node replica set, binary cached in
+  `.cache/mongodb`, one server per spec file, a clean database per case —
+  dropped between cases, or a new one. Measured in nxgt-data: starting a
   mongod costs ~300 ms warm, dropping a database costs milliseconds.
 - **Settle an expected rejection where it is created**, with `.then(ok, ko)`. A
   rejection awaited too late is counted unhandled by Bun and fails the test with

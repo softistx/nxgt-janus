@@ -41,3 +41,5 @@ defineConfig({
 });
 // @ts-expect-error 5. the PostgreSQL key, given to the MongoDB kit
 defineConfig({ postgres: { url: 'postgres://localhost/janus' }, auth });
+// @ts-expect-error 6. neither a URL nor a Db
+defineConfig({ mongo: {}, auth });
