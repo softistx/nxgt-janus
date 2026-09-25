@@ -12,6 +12,10 @@ dates here, and the version something shipped in is the only number.
   `@nxgt/janus-telemetry`: a span per flow and per permission check, and the
   security events worth keeping, never a login, a password or a token. Built,
   not yet published.
+- **A Redis adapter for sessions and tokens** — in a package of its own,
+  `@nxgt/janus-redis`: both are read on every request and ephemeral, so they
+  live in Redis, expired by Redis itself, while users stay in another store.
+  Built, not yet published.
 
 ## Next
 
@@ -24,9 +28,6 @@ Nothing yet.
   database that suits them. MongoDB is the first adapter
   ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo));
   PostgreSQL is under Now.
-- **A Redis adapter for sessions and tokens** — both are ephemeral and read on
-  every request, which is why the port gives them slots of their own: they can
-  live in Redis, with a native expiry, while users stay in another store.
 
 ## Not planned
 

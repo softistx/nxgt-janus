@@ -18,9 +18,8 @@ packages/janus-mongo   @nxgt/janus-mongo — the MongoDB adapter, for either sid
 packages/janus-hono    @nxgt/janus-hono — the Hono integration
 packages/janus-telemetry @nxgt/janus-telemetry — spans and security events on @nxgt/telemetry, not yet published
 packages/janus-drizzle @nxgt/janus-drizzle — the PostgreSQL adapter on Drizzle and @nxgt/drizzle, for either side, not yet published
+packages/janus-redis   @nxgt/janus-redis — sessions and one-time tokens in Redis, on @nxgt/redis, not yet published
 ```
-
-The adapter still to come is `@nxgt/janus-redis`, on `@nxgt/redis`.
 
 ## Two things it is trying to be
 

@@ -206,10 +206,13 @@ export const sessionStoreCases: readonly ConformanceCase[] = [
 				await stores.sessions.insertSession(record);
 			}
 
-			equal(
-				await stores.sessions.deleteUserSessions(userId),
-				3,
-				'deleteUserSessions: how many it deleted, revoked and lapsed ones included',
+			// The lapsed one may be gone already: a store with its own expiry —
+			// a Redis key TTL — drops it as soon as it lapses, which the port
+			// allows. The standing and the revoked ones are always counted.
+			const deleted = await stores.sessions.deleteUserSessions(userId);
+			ok(
+				deleted === 3 || deleted === 2,
+				`deleteUserSessions: how many it deleted, revoked and lapsed ones included — 3, or 2 when the store already expired the lapsed one; got ${String(deleted)}`,
 			);
 			for (const record of records) {
 				isNull(

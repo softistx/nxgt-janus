@@ -103,7 +103,10 @@ in MongoDB that is one `findOneAndUpdate` returning the document before the
 update. A read followed by a write lets two requests redeem one reset token.
 
 Expiry is the core's decision: a read answers a stored session verbatim,
-lapsed or revoked, and never a record it has changed.
+lapsed or revoked, and never a record it has changed. A store with its own
+expiry — a TTL index, a Redis key TTL — may drop a lapsed session or token
+before anyone asks: reads then answer `null`, and `deleteUserSessions` does
+not count it. The conformance suite accepts both.
 
 ### `RelationStore`
 
