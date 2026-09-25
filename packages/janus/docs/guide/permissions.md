@@ -276,7 +276,10 @@ page.nextCursor; // string | null
 await access.list(grace, 'view', 'record', { after: page.nextCursor, limit: 50 });
 ```
 
-`limit` is 20 by default and at most 100; `ctx` is required as for `can`.
+`limit` is 20 by default and at most 100 — a larger one is capped, and one
+that is not a positive integer is a `TypeError`, so parse a limit read from a
+request first ([troubleshooting](../troubleshooting.md#call-limit-must-be-an-integer-of-at-least-1-or-absent)).
+`ctx` is required as for `can`.
 Your editor completes `permission` with what `list()` can answer only: a name
 reaching a `fromField` with no `lookup` is neither offered nor accepted.
 `null` answers an empty page before any store call.

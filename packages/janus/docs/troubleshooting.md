@@ -438,9 +438,17 @@ do {
 
 ### `<call>: limit must be an integer of at least 1, or absent`
 
-**When:** `list({ limit })` of users, or `access.list(..., { limit })`, a `TypeError`.
-**Why:** `limit` is a positive integer. Above 100 it is capped at 100, not refused.
-**Fix:** leave it out (20), or pass `1`–`100`.
+**When:** `list({ limit })` of users, or `access.list(..., { limit })`, a `TypeError`. Most often a limit read from a request: `Number(query.limit)` is `NaN` for `?limit=abc`, and the route answers 500.
+**Why:** `limit` is a positive integer. Above 100 it is capped at 100, not refused. It is a `TypeError`, not a coded error, because the value is your code's to decide: parse a limit from a request before passing it.
+**Fix:** leave it out (20), or pass `1`–`100`. From a query string, drop what is not a positive integer:
+
+```ts
+const asked = Number(query.limit); // c.req.query('limit') in Hono
+const page = await access.list(user, 'view', 'record', {
+	after: query.after ?? null,
+	...(Number.isInteger(asked) && asked >= 1 ? { limit: asked } : {}), // 20 otherwise, 100 at most
+});
+```
 
 ### `UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions — its store expires sessions on its own, or implement the method`
 
