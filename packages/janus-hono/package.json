@@ -1,7 +1,6 @@
 {
 	"name": "@nxgt/janus-hono",
 	"version": "0.0.0",
-	"private": true,
 	"description": "Hono middleware for @nxgt/janus: the signed-in user on every request, the session cookie, routes guarded by a permission, and every error as its status",
 	"license": "MIT",
 	"type": "module",
