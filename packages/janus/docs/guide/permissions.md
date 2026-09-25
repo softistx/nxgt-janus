@@ -99,7 +99,8 @@ like a permission.
 
 A relation naming a type that does not exist, a rule naming nothing, an arrow
 to a permission its target lacks, a name that is both a relation and a
-permission: each is a compile error **on the offending name** — on the whole
+permission, a key other than `relations` and `permissions` — `permission:`,
+singular — on an object type: each is a compile error **on the offending name** — on the whole
 `fromField(…)` or `when(…)` call for those two. Except for that last one,
 which says to rename one, the error lists what you could have written, with
 "Did you mean" when one is close.

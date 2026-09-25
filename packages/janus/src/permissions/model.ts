@@ -582,6 +582,13 @@ export type ModelTypesOf<S extends string, Ts> = {
 						| When<Spelled<Exclude<RuleRefOf<Ts, T>, P>>, never>
 					)[];
 		};
+	} & {
+		// `permission:` beside `relations` would be dropped by the constraint
+		// above and refused only when defineModel runs.
+		readonly [K in Exclude<keyof Ts[T], 'relations' | 'permissions'>]: Refusal<
+			`${T & string}.${K & string} is not a key of an object type: relations or permissions`,
+			never
+		>;
 	};
 };
 
