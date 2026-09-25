@@ -619,12 +619,12 @@ const RESOLVED = new WeakMap<object, ResolvedModel>();
  * itself without crossing a relation — which no data could ever end.
  */
 export function defineModel<
-	const S extends string,
-	const Ts extends ModelConfig['types'] & ModelTypesOf<S, Ts>,
+	const Subjects extends readonly string[],
+	const Ts extends ModelConfig['types'] & ModelTypesOf<Subjects[number], Ts>,
 >(config: {
-	readonly subjects: readonly S[];
+	readonly subjects: Subjects;
 	readonly types: Ts;
-}): PermissionModel<{ readonly subjects: readonly S[]; readonly types: Ts }>;
+}): PermissionModel<{ readonly subjects: Subjects; readonly types: Ts }>;
 export function defineModel<const C extends ModelConfig>(
 	config: C,
 ): PermissionModel<C> {

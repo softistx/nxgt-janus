@@ -52,9 +52,9 @@ await access.can(grace, 'view', team);   // false
 
 ```ts
 function defineModel<
-	const S extends string,
-	const Ts extends ModelConfig['types'] & ModelTypesOf<S, Ts>, // what your editor completes
->(config: { readonly subjects: readonly S[]; readonly types: Ts }): PermissionModel<{ subjects: readonly S[]; types: Ts }>;
+	const Subjects extends readonly string[], // auth.types
+	const Ts extends ModelConfig['types'] & ModelTypesOf<Subjects[number], Ts>, // what your editor completes
+>(config: { readonly subjects: Subjects; readonly types: Ts }): PermissionModel<{ readonly subjects: Subjects; readonly types: Ts }>;
 // ModelTypesOf<S, Ts>: the names each relation and rule of each type may take
 
 interface ModelConfig {

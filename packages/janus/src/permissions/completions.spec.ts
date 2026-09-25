@@ -93,10 +93,12 @@ function completionsIn(source: string): string[][] {
 }
 
 describe('an editor completes a model', () => {
-	const [holder, fromFieldSubject, rule, whenRule] = completionsIn(MODEL);
+	// Asked once, on first use, so a failure to ask fails a named case.
+	let asked: string[][] | undefined;
+	const at = (cursor: number) => (asked ??= completionsIn(MODEL))[cursor];
 
 	it("offers a relation's subject types and subject sets", () => {
-		expect(holder).toEqual(
+		expect(at(0)).toEqual(
 			expect.arrayContaining([
 				'patient',
 				'staff',
@@ -108,22 +110,17 @@ describe('an editor completes a model', () => {
 			]),
 		);
 		// A fromField is read from one object's data: never a subject set.
-		expect(holder).not.toContain('record#doctor');
+		expect(at(0)).not.toContain('record#doctor');
 	});
 
 	it("offers a fromField's subject types", () => {
-		expect(fromFieldSubject?.sort()).toEqual([
-			'patient',
-			'record',
-			'staff',
-			'team',
-		]);
+		expect(at(1)?.sort()).toEqual(['patient', 'record', 'staff', 'team']);
 	});
 
 	it("offers a rule's relations, permissions and arrows, in when() too", () => {
 		const names = ['owner', 'doctor', 'team', 'edit', 'team->view'];
-		expect(rule).toEqual(expect.arrayContaining(names));
-		expect(whenRule).toEqual(expect.arrayContaining(names));
+		expect(at(2)).toEqual(expect.arrayContaining(names));
+		expect(at(3)).toEqual(expect.arrayContaining(names));
 	});
 });
 

@@ -171,7 +171,7 @@ What this commits us to in the code:
   check.** An editor completes from a type parameter's constraint; a check
   intersected into the parameter refuses the same mistakes and completes
   nothing, since the literal being typed meets it first. `defineModel` types
-  `types` as `Ts extends ModelTypesOf<S, Ts>`, and
+  `types` as `Ts extends ModelTypesOf<Subjects[number], Ts>`, and
   `src/permissions/completions.spec.ts` asks the language service what it
   offers — measured, like the refusals.
 - A login must name a **top-level, required string field** of the schema,

@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Twenty-six plausible mistakes, twenty-six refused**, each verified to fail for
+ * **Thirty-six plausible mistakes, thirty-six refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -277,5 +277,109 @@ async function allowed() {
 		await ward.list(staff, 'use', 'bed', { ctx: { onShift: true }, limit: 5 }),
 	];
 }
+
+// ─── Model shapes the constraint refuses ──────────────────────────────────
+// defineModel names its choices in a constraint an editor completes
+// (completions.spec.ts); each case below is one it must still refuse.
+
+/** What `auth.types` answers: an array of the user types, not a tuple. */
+declare const authTypes: readonly ('patient' | 'staff')[];
+
+defineModel({
+	subjects: authTypes,
+	types: {
+		// @ts-expect-error 27. "staf" is not a user type of auth.types
+		team: { relations: { m: ['staf'] } },
+	},
+});
+
+defineModel({
+	subjects: [],
+	types: {
+		// @ts-expect-error 28. with no subjects, "staff" is no subject type
+		team: { relations: { m: ['staff'] } },
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		// @ts-expect-error 29. "ward" is no object type
+		record: { relations: { w: ['ward'] } },
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		// @ts-expect-error 30. a subject set names a relation, never a permission
+		record: { relations: { v: ['team#view'] } },
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		record: {
+			relations: { t: fromField('teamId', 'team') },
+			// @ts-expect-error 31. an arrow through a fromField to what team lacks
+			permissions: { v: ['t->nope'] },
+		},
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		group: { relations: { m: ['staff'] } },
+		record: {
+			relations: { o: ['team', 'group'] },
+			// @ts-expect-error 32. an arrow to a permission group lacks, though team has it
+			permissions: { v: ['o->view'] },
+		},
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		record: {
+			relations: { t: ['team', 'staff'] },
+			// @ts-expect-error 33. an arrow through a relation that also holds users
+			permissions: { v: ['t->view'] },
+		},
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		record: {
+			relations: { t: ['team'] },
+			// @ts-expect-error 34. when() names an arrow to what team lacks
+			permissions: { v: [when('t->nope', () => true)] },
+		},
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		// @ts-expect-error 35. "lead" names a relation and a permission, even with no rule
+		team: { relations: { lead: ['staff'] }, permissions: { lead: [] } },
+	},
+});
+
+const misspelled = {
+	subjects,
+	types: { team: { relations: { m: ['staf'] } } },
+} as const;
+// @ts-expect-error 36. a model declared first is checked as one written inline
+defineModel(misspelled);
 
 export const checked = { clinic, allowed };
