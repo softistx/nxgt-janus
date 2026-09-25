@@ -6,8 +6,8 @@ import { connectRedis } from '@nxgt/redis';
 import { SQL } from 'bun';
 import { pgSchema } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { janusDdl, openPglite } from '../test/postgres';
-import { startRedis, type TestServer } from '../test/server';
+import { janusDdl, openPglite } from '../../test/postgres';
+import { startRedis, type TestServer } from '../../test/server';
 import { defineConfig } from './config';
 import { connectKit } from './connect';
 

@@ -9,7 +9,7 @@ import { janus, scryptHasher } from '@nxgt/janus';
 import { defineModel, permissions } from '@nxgt/janus/permissions';
 import type { RedisConnection } from '@nxgt/redis';
 import { z } from 'zod';
-import { connectKit, defineConfig } from '../../src/index';
+import { connectKit, defineConfig } from '../../src/drizzle/index';
 
 declare const db: PgDatabase;
 declare const connection: RedisConnection;

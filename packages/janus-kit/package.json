@@ -5,8 +5,6 @@
 	"description": "@nxgt/janus wired in one call: PostgreSQL through Drizzle, sessions in Redis, telemetry, a health check and a close",
 	"license": "MIT",
 	"type": "module",
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"files": [
 		"dist",
 		"docs",
@@ -15,10 +13,10 @@
 		"LICENSE"
 	],
 	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"default": "./dist/index.js"
+		"./drizzle": {
+			"types": "./dist/drizzle/index.d.ts",
+			"import": "./dist/drizzle/index.js",
+			"default": "./dist/drizzle/index.js"
 		},
 		"./package.json": "./package.json"
 	},
@@ -47,7 +45,7 @@
 	},
 	"nxgt": {
 		"entrypoints": [
-			"src/index.ts"
+			"src/drizzle/index.ts"
 		]
 	},
 	"dependencies": {
@@ -77,7 +75,16 @@
 		"typescript": "^6.0.3"
 	},
 	"peerDependenciesMeta": {
+		"@nxgt/drizzle": {
+			"optional": true
+		},
+		"@nxgt/janus-drizzle": {
+			"optional": true
+		},
 		"@nxgt/janus-telemetry": {
+			"optional": true
+		},
+		"drizzle-orm": {
 			"optional": true
 		}
 	}
