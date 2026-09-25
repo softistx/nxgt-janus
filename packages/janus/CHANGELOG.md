@@ -1,5 +1,15 @@
 # @nxgt/janus
 
+## 0.1.3
+
+### Patch Changes
+
+- [#32](https://github.com/softistx/nxgt-janus/pull/32) [`fe5bbfd`](https://github.com/softistx/nxgt-janus/commit/fe5bbfd26bad216941d8743541f579ea485d81b1) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `list()` offers its permission to your editor: it completed nothing, because its reversibility check was intersected with the whole union of names. It now offers the names `list()` can answer — those reaching no `fromField` without a `lookup` — and refuses the others with the same message.
+
+- [#30](https://github.com/softistx/nxgt-janus/pull/30) [`cfe8524`](https://github.com/softistx/nxgt-janus/commit/cfe8524656fecbc21ec52f7f3a2703ed17f92bbb) Thanks [@SteveGT96](https://github.com/SteveGT96)! - A permission's rules no longer offer or accept the permission's own name: `view: ['view']` was completed by your editor, compiled, and failed when `defineModel` ran. It is now a compile error, and a rule still names any other permission of the same type.
+
+- [#33](https://github.com/softistx/nxgt-janus/pull/33) [`4d9ed5f`](https://github.com/softistx/nxgt-janus/commit/4d9ed5f2045efa4f6b0bd2ef09082f3f885eace1) Thanks [@SteveGT96](https://github.com/SteveGT96)! - A key other than `relations` and `permissions` on an object type of `defineModel` — `permission:`, singular — is a compile error. It compiled, and was refused only when `defineModel` ran.
+
 ## 0.1.2
 
 ### Patch Changes
