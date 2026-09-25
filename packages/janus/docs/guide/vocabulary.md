@@ -77,6 +77,7 @@ either finds this row.
 | **port** | The interface a store implements: `JanusStores` for the identity stores — named after the package, not the side — and `RelationStore` | "driver" |
 | **adapter** | A package implementing the ports for one database: `@nxgt/janus-mongo`. What its `create…Adapter(db)` answers is its stores, keyed as `janus()` takes them — `{ store, relations }` | "plugin", "connector" |
 | **integration** | A package fitting Janus into one web framework or one observability library: `@nxgt/janus-hono`, `@nxgt/janus-telemetry`. It implements no port | "plugin", "adapter" |
+| **kit** | A package that opens the connections and wires adapters and integrations into one object for an application: `@nxgt/janus-kit`'s `connectKit` answers `{ auth, access, db, redis, ping, close }`. It implements no port, and `janus()` and `permissions()` are still written by the application | "framework", "starter" |
 
 ### Answers
 
