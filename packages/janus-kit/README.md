@@ -2,7 +2,8 @@
 
 [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) wired in one call:
 users and permissions in PostgreSQL through
-[`@nxgt/janus-drizzle`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/README.md), sessions and one-time tokens in
+[`@nxgt/janus-drizzle`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/README.md) or in MongoDB through
+[`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo), sessions and one-time tokens in
 Redis through [`@nxgt/janus-redis`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-redis/README.md), telemetry, a health check
 and a close.
 
@@ -57,8 +58,10 @@ would otherwise fail at the first sign-in.
 ## Install
 
 ```sh
-bun add @nxgt/janus-kit @nxgt/janus @nxgt/janus-drizzle @nxgt/drizzle drizzle-orm @nxgt/redis zod
-bun add @nxgt/janus-telemetry @nxgt/telemetry  # only for telemetry: true
+bun add @nxgt/janus-kit @nxgt/janus @nxgt/redis zod
+bun add @nxgt/janus-drizzle @nxgt/drizzle drizzle-orm   # for @nxgt/janus-kit/drizzle
+bun add @nxgt/janus-mongo @nxgt/mongo mongodb           # for @nxgt/janus-kit/mongo
+bun add @nxgt/janus-telemetry @nxgt/telemetry           # only for telemetry: true
 ```
 
 Required peers, whichever subpath:
@@ -75,12 +78,17 @@ one:
 - `@nxgt/drizzle` `>=0.6.1 <1` and `drizzle-orm` 1.0 (from `1.0.0-rc.4`), for
   PostgreSQL.
 
+Peers of `@nxgt/janus-kit/mongo`, optional in the same way:
+- `@nxgt/janus-mongo`: `syncMongoAdapter` creates the collections, and the
+  kit's stores must query the same definitions;
+- `@nxgt/mongo` `>=0.17.0 <1` and `mongodb` 7.
+
 `@nxgt/janus-telemetry` is an optional peer, loaded only when `telemetry` is
 `true`. `@nxgt/janus-redis` is a dependency: your code never imports it.
 
 It runs on **Bun** only: the kit opens PostgreSQL over Bun's `SQL` and Redis
-over Bun's `RedisClient`. It needs PostgreSQL 15 or later and Redis 7.0 or
-later. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
+over Bun's `RedisClient`. It needs PostgreSQL 15 or later, or MongoDB as a
+replica set, and Redis 7.0 or later. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 ## Subpaths
 
@@ -89,37 +97,52 @@ the import names the database: `import … from '@nxgt/janus-kit'` fails with
 `TS2307`. Redis, telemetry, `ping` and `close` are the same whichever subpath
 you use.
 
-| Subpath | Database |
-| --- | --- |
-| `@nxgt/janus-kit/drizzle` | PostgreSQL, through `@nxgt/janus-drizzle` |
+| Subpath | Database | The database key | What `connectKit` checks |
+| --- | --- | --- | --- |
+| `@nxgt/janus-kit/drizzle` | PostgreSQL, through `@nxgt/janus-drizzle` | `postgres` | Janus's five tables exist |
+| `@nxgt/janus-kit/mongo` | MongoDB, through `@nxgt/janus-mongo` | `mongo` | Janus's four collections are in sync: there, with their validators and indexes |
 
-MongoDB, as `@nxgt/janus-kit/mongo`, is [next on the roadmap](docs/roadmap.md);
-it does not exist yet.
+On MongoDB, the example above changes in its first lines only:
+
+```ts
+import { connectKit, defineConfig } from '@nxgt/janus-kit/mongo';
+
+export const kit = await connectKit(
+  defineConfig({
+    mongo: { url: process.env.JANUS_MONGO_URL! }, // mongodb://…/janus — the path names the database
+    redis: { url: process.env.REDIS_URL! },
+    auth: (adapters) => janus({ /* … */ ...adapters }),
+  }),
+);
+kit.db; // the Db; (await kit.ping()).mongo
+```
 
 ## API
 
-Everything below is imported from `@nxgt/janus-kit/drizzle`.
+Both subpaths export the same names; they differ in the database key and
+what `db` is.
 
 | Export | What it is |
 | --- | --- |
 | `defineConfig(config)` | Checks the configuration and answers it, frozen. It connects to nothing and reads no environment variable. What is wrong throws a `TypeError` here, where the application starts. |
-| `connectKit(config)` | Checks the configuration again, opens PostgreSQL and Redis, checks that Janus's five tables exist, builds `auth` and `access`, and answers the kit. Fails with an `Error` naming what to do, after closing what it opened. |
-| `Kit` | What `connectKit` answers: `auth`; `access` when configured; `db`, the Drizzle instance; `redis`, the connection or `undefined`; `ping(options?)`; `close()`; and `[Symbol.asyncDispose]`. |
-| `KitConfig`, `PostgresConfig`, `RedisConfig` | The configuration's types. |
+| `connectKit(config)` | Checks the configuration again, opens the database and Redis, checks Janus's tables or collections, builds `auth` and `access`, and answers the kit. Fails with an `Error` naming what to do, after closing what it opened. |
+| `Kit` | What `connectKit` answers: `auth`; `access` when configured; `db`, the Drizzle instance or the MongoDB `Db`; `redis`, the connection or `undefined`; `ping(options?)`; `close()`; and `[Symbol.asyncDispose]`. |
+| `KitConfig`, `RedisConfig`, and `PostgresConfig` from `/drizzle` or `MongoConfig` from `/mongo` | The configuration's types. |
 | `Adapters`, `AccessWiring` | What `auth` and `access` are given: `{ store, relations }`, and `{ relations, auth }`. |
-| `Health`, `PingResult` | What `ping` answers: `{ ok, postgres, redis? }`, each `{ ok: true, latencyMs }` or `{ ok: false, error }`. |
+| `Health`, `PingResult` | What `ping` answers: `{ ok, postgres, redis? }` or `{ ok, mongo, redis? }`, each `{ ok: true, latencyMs }` or `{ ok: false, error }`. |
 
 ## The configuration
 
 | Key | | |
 | --- | --- | --- |
-| `postgres` | required | `{ url }` of Janus's database, a `postgres://` or `postgresql://` URL, which the kit opens and closes; or `{ db }`, a Drizzle instance you opened, **never closed** by the kit. `tables`: what your schema file exports, when the tables are in a PostgreSQL schema of their own. |
-| `redis` | optional | `{ url, prefix?, clientOptions? }`, which the kit opens with `enableOfflineQueue: false` and closes; or `{ connection, prefix? }`, which it never closes. Absent, sessions and tokens stay in PostgreSQL. |
+| `postgres` | required on `/drizzle` | `{ url }` of Janus's database, a `postgres://` or `postgresql://` URL, which the kit opens and closes; or `{ db }`, a Drizzle instance you opened, **never closed** by the kit. `tables`: what your schema file exports, when the tables are in a PostgreSQL schema of their own. |
+| `mongo` | required on `/mongo` | `{ url, clientOptions? }` of Janus's database, a `mongodb://` or `mongodb+srv://` URL whose path names the database, which the kit opens with `serverSelectionTimeoutMS: 5_000` and closes; or `{ db }`, a `Db` you opened, **never closed** by the kit. |
+| `redis` | optional | `{ url, prefix?, clientOptions? }`, which the kit opens with `enableOfflineQueue: false` and closes; or `{ connection, prefix? }`, which it never closes. Absent, sessions and tokens stay in the database. |
 | `telemetry` | optional | `true` wraps `auth` with `instrumentJanus` and `access` with `instrumentPermissions`. |
 | `auth` | required | `(adapters) => janus({ …, ...adapters })`. |
 | `access` | optional | `({ relations, auth }) => permissions({ model, store: relations })`. Absent, the kit has no `access`, and `kit.access` does not compile. |
 
-`adapters` is `{ store, relations }`: users from PostgreSQL, sessions and
+`adapters` is `{ store, relations }`: users from the database, sessions and
 tokens from Redis when it is wired, and the relation store, so deleting a user
 deletes every tuple naming them. [The configuration guide](docs/guide/configuration.md)
 has each key in detail.
@@ -135,11 +158,24 @@ has each key in detail.
   the kit looks for, and the stores query, `users` in the connection's
   `search_path`: `public`, where your application may have a `users` of its
   own.
+- **Janus's collections come from `syncMongoAdapter`**, a deployment step.
+  `connectKit` compares them with `@nxgt/janus-mongo`'s definitions, writing
+  nothing, and refuses to start when one is missing or has drifted: MongoDB
+  would create a missing one on the first write **without the unique index on
+  logins**.
+- **A MongoDB URL without a database in its path uses `test`**, the driver's
+  default. Name Janus's database in the URL: `mongodb://…/janus`.
+- **A MongoDB that does not answer fails after 5 seconds**, measured: the
+  kit's `serverSelectionTimeoutMS`, where the driver's own is 30. A request
+  during a replica-set election can fail rather than wait; pass
+  `clientOptions: { serverSelectionTimeoutMS }` to wait longer.
 - **A Redis that is down at startup takes about 31 seconds to fail**, measured:
   Bun's client retries its first connection. At run time the kit's
   `enableOfflineQueue: false` makes an outage fail at once.
 - **What you hand in, you close.** A `db` or a `connection` from the
   configuration is left open by `kit.close()`.
+- **`@nxgt/mongo` shares one client per URL**, as `@nxgt/redis` does below:
+  connecting to Janus's MongoDB URL elsewhere with other options is refused.
 - **`@nxgt/redis` shares one client per URL.** If your application connects
   to the same Redis URL with other options, `connectRedis` refuses the
   second. Give Janus its own URL, another database number for instance, or
@@ -154,8 +190,8 @@ has each key in detail.
 
 ## Type safety, counted
 
-Ten plausible mistakes are refused by the compiler, each with a
-`@ts-expect-error` case in `test/types/kit.ts`:
+Fifteen plausible mistakes are refused by the compiler, each with a
+`@ts-expect-error` case: ten in `test/types/kit.ts`, over PostgreSQL,
 - `kit.access` on a kit configured without `access`;
 - a user type `auth` does not have;
 - a permission the model does not have;
@@ -165,7 +201,14 @@ Ten plausible mistakes are refused by the compiler, each with a
 - `postgres.schema` instead of the tables built in it;
 - a configuration without `auth`;
 - `postgres` with neither `url` nor `db`;
-- `telemetry` as a string, as an environment variable reads.
+- `telemetry` as a string, as an environment variable reads;
+
+and five in `test/types/mongo.ts`, over MongoDB:
+- `kit.access` on a kit configured without `access`;
+- `ping()`'s `postgres` on a MongoDB kit, which answers `mongo`;
+- both `mongo.url` and `mongo.db`;
+- `mongo.clientOptions` beside a `Db` whose client is already open;
+- the `postgres` key given to the MongoDB kit.
 
 ## Licence
 

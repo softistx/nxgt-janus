@@ -308,6 +308,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | `Clock`, `fixedClock` | `src/time/` | Same, and `fixedClock` is **shipped**, not test-only: a consumer testing session expiry needs it |
 | The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above |
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; two copies of 60 lines are cheaper. Change one, change both |
+| `test/mongo.ts`, the pinned replica set the specs start | `packages/janus-mongo/test/server.ts`, `packages/janus-kit/test/mongo.ts` | Same; the mongod version in both keys the one `.cache/mongodb` |
 | The DDL helper, drizzle-kit's `generateMigration` over `defineJanusTables()` | `packages/janus-drizzle/test/db.ts`, `packages/janus-kit/test/postgres.ts` | Same |
 
 ---

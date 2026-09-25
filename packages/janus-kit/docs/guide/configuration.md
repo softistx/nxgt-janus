@@ -1,7 +1,8 @@
 # The configuration
 
 This page covers every key of `defineConfig`:
-- `postgres`, where users, logins and relations are kept;
+- `postgres` on `@nxgt/janus-kit/drizzle`, or `mongo` on
+  `@nxgt/janus-kit/mongo`: where users, logins and relations are kept;
 - `redis`, where sessions and one-time tokens are kept instead;
 - `auth` and `access`, the two functions that build the instances;
 - `telemetry`.
@@ -80,10 +81,53 @@ otherwise:
 connectKit: Janus's tables are missing from this database: "users", "logins", "sessions", "tokens", "relations". Apply the migration drizzle-kit generated from defineJanusTables(), to the database `postgres` names.
 ```
 
+## `mongo`
+
+Required on `@nxgt/janus-kit/mongo`, in place of `postgres`. Users,
+relations, and sessions and tokens unless `redis` holds them.
+
+```ts
+import { connectKit, defineConfig } from '@nxgt/janus-kit/mongo';
+
+mongo: { url: process.env.JANUS_MONGO_URL! }         // opened and closed by the kit
+mongo: { url, clientOptions: { serverSelectionTimeoutMS: 15_000 } }
+mongo: { db }                                          // a Db you opened, never closed by the kit
+```
+
+With `url`, the kit calls `@nxgt/mongo`'s `connectMongo` with
+`{ serverSelectionTimeoutMS: 5_000, ...clientOptions }`. It must be a
+`mongodb://` or `mongodb+srv://` URL, and **its path names the database**:
+`mongodb://db.internal/janus`. Without a path, the driver uses `test`. Five
+seconds, where the driver waits thirty, makes a MongoDB that does not answer
+fail at startup, and a request during an outage, as fast as Redis does
+without its offline queue; raise it to ride out a replica-set election.
+`clientOptions` is the driver's `MongoClientOptions`, and cannot be given
+beside a `db`, whose client is already open with its own.
+
+Use a replica set: `@nxgt/janus-mongo` writes a relation change of more than
+one tuple in a transaction, which a standalone `mongod` refuses.
+
+**`connectKit` checks that the four collections are in sync** with
+`@nxgt/janus-mongo`'s definitions — there, with their validators and
+indexes — by running `syncMongoAdapter(db, { dryRun: true })`, which writes
+nothing. It refuses to start otherwise, naming each collection and what
+differs:
+
+```
+connectKit: Janus's collections are not in sync with @nxgt/janus-mongo: users (missing), sessions (missing), tokens (missing), relations (missing). Run syncMongoAdapter(db), a deployment step, against the database `mongo` names.
+```
+
+A table missing in PostgreSQL fails the first query; a collection missing in
+MongoDB is created by the first write, **without the unique index on
+logins**, and two users could then share one. That is why the check is
+stricter here. Run `syncMongoAdapter(db)` where you deploy, as the migrations
+of `/drizzle`: it needs the `dbAdmin` role, which the application's user
+should not hold.
+
 ## `redis`
 
 Optional. Sessions and one-time tokens in Redis, which expires them itself.
-Users and relations stay in PostgreSQL.
+Users and relations stay in the database.
 
 ```ts
 redis: { url: process.env.REDIS_URL! }                // opened and closed by the kit
@@ -101,8 +145,9 @@ its own.
 `prefix` starts every key, `janus:` by default. Two applications sharing one
 Redis each take their own.
 
-Absent, sessions and tokens stay in PostgreSQL. Schedule
-`kit.auth.collectExpired()` then: PostgreSQL has no TTL.
+Absent, sessions and tokens stay in the database. On PostgreSQL, schedule
+`kit.auth.collectExpired()` then: PostgreSQL has no TTL. On MongoDB, a TTL index
+removes them, and `collectExpired()` answers `UNSUPPORTED`.
 
 ## `auth`
 

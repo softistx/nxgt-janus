@@ -27,6 +27,10 @@ and its adapters'.
 - [`connectKit: Janus's tables are missing from this database: …`](#connectkit-januss-tables-are-missing-from-this-database-)
 - [`connectKit: PostgreSQL did not answer. …`](#connectkit-postgresql-did-not-answer-)
 - [`` connectKit: the Drizzle instance in `postgres.db` did not answer. ``](#connectkit-the-drizzle-instance-in-postgresdb-did-not-answer)
+- [`connectKit: Janus's collections are not in sync with @nxgt/janus-mongo: …`](#connectkit-januss-collections-are-not-in-sync-with-nxgtjanus-mongo-)
+- [`connectKit: MongoDB did not answer. …`](#connectkit-mongodb-did-not-answer-)
+- [`` connectKit: the Db in `mongo.db` did not answer. ``](#connectkit-the-db-in-mongodb-did-not-answer)
+- [`TypeError: connectMongo: this URI is already connected with other options. …`](#typeerror-connectmongo-this-uri-is-already-connected-with-other-options-)
 - [`connectKit: Redis did not answer. …`, after about 31 seconds](#connectkit-redis-did-not-answer--after-about-31-seconds)
 - [`` connectKit: `telemetry: true` needs @nxgt/janus-telemetry … ``](#connectkit-telemetry-true-needs-nxgtjanus-telemetry-)
 - [`TypeError: connectRedis: this URI is already connected with other options.`](#typeerror-connectredis-this-uri-is-already-connected-with-other-options)
@@ -144,7 +148,8 @@ telemetry: process.env.JANUS_TELEMETRY === 'true',
 The rest names the key: `` `postgres` needs url or db. ``, `` `redis` has both
 url and connection. Pass one. ``, `` `redis.prefix` is a non-empty string. ``,
 `` `auth` is required — (adapters) => janus({ …, ...adapters }). ``,
-`` `postgres.url` is a postgres:// or postgresql:// URL, not mysql://. `` and the
+`` `postgres.url` is a postgres:// or postgresql:// URL, not mysql://. ``,
+`` `mongo.url` is a mongodb:// or mongodb+srv:// URL, not postgres://. `` and the
 like. It is a `TypeError`. `connectKit: …` with the same words is the same
 check, run again on a configuration that did not go through `defineConfig`.
 
@@ -211,9 +216,83 @@ building anything on it.
 
 **Fix:** read `error.cause`, and check the instance where you opened it.
 
+### `connectKit: Janus's collections are not in sync with @nxgt/janus-mongo: …`
+
+The rest names each collection and what differs — `users (missing)`,
+`users (indexes)`, `sessions (validator, indexes)` — then `` Run
+syncMongoAdapter(db), a deployment step, against the database `mongo` names. ``
+
+**When:** `connectKit` from `@nxgt/janus-kit/mongo`, on a database where
+`syncMongoAdapter(db, { dryRun: true })` would change something.
+
+**Why:** one of three things:
+- `syncMongoAdapter` never ran against this database: every collection is
+  `missing`;
+- it ran against another one — the URL has no path, and the driver used
+  `test`;
+- `@nxgt/janus-mongo` was upgraded and its definitions changed, or an index
+  was dropped by hand. A missing login index is the dangerous one: two users
+  could share a login.
+
+**Fix:** run the sync where you deploy, with a user that holds `dbAdmin`, and
+name the database in the URL:
+
+```ts
+import { syncMongoAdapter } from '@nxgt/janus-mongo';
+import { connectMongo } from '@nxgt/mongo';
+
+await using mongo = await connectMongo(process.env.JANUS_MONGO_ADMIN_URL!); // mongodb://…/janus
+console.log(await syncMongoAdapter(mongo.db));
+```
+
+### `connectKit: MongoDB did not answer. …`
+
+The message goes on: `` Check `mongo.url`, and that the server is reachable. ``
+`cause` is the driver's error, a `MongoServerSelectionError` for a server
+that refuses the connection.
+
+**When:** `connectKit` with `mongo.url`, when the driver finds no server
+within `serverSelectionTimeoutMS`: 5 s, the kit's, measured; 30 s is the
+driver's own.
+
+**Why:** the kit connects and compares the collections before anything else,
+so an unreachable database fails here, not at the first sign-in.
+
+**Fix:** read `error.cause` for the driver's reason, and check the URL. The
+URL is not in the message: it may hold a password.
+
+### `` connectKit: the Db in `mongo.db` did not answer. ``
+
+`cause` is the driver's error.
+
+**When:** `connectKit` with `mongo: { db }`, when comparing the collections
+fails: its client closed already, or it cannot reach a server.
+
+**Why:** the kit compares the collections of the `Db` you handed in before
+building anything on it.
+
+**Fix:** read `error.cause`, and check the client where you opened it.
+
+### `TypeError: connectMongo: this URI is already connected with other options. …`
+
+**When:** `connectKit` with `mongo.url`, when your application already
+connected to the same URL with `connectMongo` and other options — without the
+kit's `serverSelectionTimeoutMS: 5_000`, for instance.
+
+**Why:** `@nxgt/mongo` shares one client per URL, and one client has one set
+of options. The kit passes the refusal through as it is.
+
+**Fix:** give the same options in both places, give Janus a URL of its own,
+or open it yourself and pass `{ db }`:
+
+```ts
+mongo: { db: mongo.db }, // your connectMongo(…) connection, closed by you
+```
+
 ### `connectKit: Redis did not answer. …`, after about 31 seconds
 
-The message goes on: `` Check `redis.url`, or leave `redis` out to keep sessions in PostgreSQL. `` `cause` is Bun's `Connection closed`.
+The message goes on: `` Check `redis.url`, or leave `redis` out to keep sessions in PostgreSQL. ``
+(`MongoDB` from `@nxgt/janus-kit/mongo`). `cause` is Bun's `Connection closed`.
 
 **When:** `connectKit`, with `redis.url` pointing at a Redis that is down or
 unreachable.
@@ -221,7 +300,7 @@ unreachable.
 **Why:** Bun's client retries its first connection before it gives up:
 31.2 s measured, with the kit's `enableOfflineQueue: false`.
 
-**Fix:** start Redis, or check the URL. The PostgreSQL connection the kit
+**Fix:** start Redis, or check the URL. The database connection the kit
 opened is closed before the error leaves.
 
 ### `` connectKit: `telemetry: true` needs @nxgt/janus-telemetry … ``
