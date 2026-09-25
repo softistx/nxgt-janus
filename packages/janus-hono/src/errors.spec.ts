@@ -8,16 +8,18 @@ import {
 } from '@nxgt/janus';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { bodyOf, janusErrors, statusOf } from './errors';
+import {
+	bodyOf,
+	type JanusErrorsOptions,
+	janusErrors,
+	statusOf,
+} from './errors';
 
-function throwing(
-	error: unknown,
-	fallback?: Parameters<typeof janusErrors>[0],
-) {
+function throwing(error: unknown, options?: JanusErrorsOptions) {
 	const app = new Hono().get('/', () => {
 		throw error;
 	});
-	app.onError(janusErrors(fallback));
+	app.onError(janusErrors(options));
 	return app.request('/');
 }
 
@@ -85,11 +87,65 @@ describe('janusErrors()', () => {
 			console.error = original;
 		}
 
-		const handled = await throwing(new Error('a bug'), (_, c) =>
-			c.text('mine', 502),
-		);
+		const handled = await throwing(new Error('a bug'), {
+			fallback: (_, c) => c.text('mine', 502),
+		});
 		expect(handled.status).toBe(502);
 		expect(await handled.text()).toBe('mine');
+	});
+
+	it('reports what the server must fix, before answering it — and nothing else', async () => {
+		const reported: string[] = [];
+		const report = (error: { readonly code: string }) => {
+			reported.push(error.code);
+		};
+
+		const outage = await throwing(
+			new StoreFailure('down', { slot: 'users', operation: 'findUser' }),
+			{ report },
+		);
+		await throwing(new NotFoundError('gone'), { report });
+		await throwing(
+			new CredentialError('CREDENTIALS_INVALID', 'wrong', {
+				reason: 'wrongPassword',
+			}),
+			{ report },
+		);
+		await throwing(new Error('a bug'), {
+			report,
+			fallback: (_, c) => c.text('mine', 500),
+		});
+
+		expect(outage.status).toBe(503);
+		expect(reported).toEqual(['STORE_FAILED']);
+	});
+
+	it('answers the outage even when report fails: a warning, never a lost 503', async () => {
+		const warnings: string[] = [];
+		const warn = (warning: string | Error) => {
+			warnings.push(String(warning));
+		};
+		process.on('warning', warn);
+		try {
+			const outage = () =>
+				new StoreFailure('down', { slot: 'users', operation: 'findUser' });
+			const thrown = await throwing(outage(), {
+				report: () => {
+					throw new Error('logger down');
+				},
+			});
+			const rejected = await throwing(outage(), {
+				report: async () => {
+					throw new Error('logger down');
+				},
+			});
+			expect(thrown.status).toBe(503);
+			expect(rejected.status).toBe(503);
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		} finally {
+			process.off('warning', warn);
+		}
+		expect(warnings.filter((w) => w.includes('report failed'))).toHaveLength(2);
 	});
 });
 

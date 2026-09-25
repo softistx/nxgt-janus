@@ -10,7 +10,7 @@ this page is only about the routes.
 The examples use this model, and one loader for its records:
 
 ```ts
-import type { Context } from 'hono';
+import { byParam } from '@nxgt/janus-hono';
 import { defineModel, fromField, permissions, when } from '@nxgt/janus/permissions';
 
 const model = defineModel({
@@ -19,7 +19,10 @@ const model = defineModel({
 		record: {
 			relations: {
 				owner: ['patient'],
-				doctor: fromField('doctorId', 'staff'), // read from the record itself
+				// Read from the record itself; the lookup lets list() find a doctor's records.
+				doctor: fromField('doctorId', 'staff', {
+					lookup: (staffId) => records.idsByDoctor(staffId),
+				}),
 			},
 			permissions: {
 				view: ['owner', 'doctor'],
@@ -31,17 +34,27 @@ const model = defineModel({
 
 export const access = permissions({ model, store: relations });
 
-/** The record a route's `:id` names. A missing id is nothing to load: `null`, a 404. */
-export const recordOf = (c: Context) => {
+/** The record a route's `:id` names; `null`, a 404, when there is none. */
+export const recordOf = byParam('id', (id) => records.find(id)); // records: your own store
+```
+
+`byParam(name, find)` is a `load`: it reads one path parameter and answers
+`find(id)`. Written by hand, it is
+
+```ts
+import type { Context } from 'hono';
+
+const recordOfByHand = (c: Context) => {
 	const id = c.req.param('id');
-	return id === undefined ? null : records.find(id); // records: your own store
+	return id === undefined ? null : records.find(id);
 };
 ```
 
-`recordOf` takes a plain `Context` because it is written apart from any route,
+A loader takes a plain `Context` because it is written apart from any route,
 and `permission()` is too: Hono types a path's parameters only in a handler
 written inline on that route. So `c.req.param('id')` is `string | undefined`
-in a loader, and the missing case is answered `null`.
+in a loader, and the missing case is answered `null`. Pass `find` as an arrow
+— `(id) => records.find(id)` — when it is a method that reads `this`.
 
 ## A guarded route
 
@@ -69,7 +82,7 @@ permission, type)` — runs in this order:
 A relation store that cannot answer at step 3 **throws** `STORE_FAILED`, and
 `janusErrors()` answers it 503 — never 403: an outage does not deny anybody.
 Whatever `load` throws reaches `app.onError` too, and goes to
-`janusErrors(fallback)`.
+`janusErrors({ fallback })`.
 
 ### What `load` answers
 
@@ -143,6 +156,33 @@ permission(access, 'view', 'record', async (c) => {
 		: null;
 });
 ```
+
+## A list route
+
+`permission()` guards one object. For the objects a user may see, ask
+`list()` — through `provide()` — and load what it answers:
+
+```ts
+app.get(
+	'/records',
+	session(auth, { required: true }),
+	provide({ access }),
+	async (c) => {
+		const page = await c.var.access.list(c.var.user, 'view', 'record', {
+			after: c.req.query('after') ?? null,
+		});
+		return c.json({
+			records: await records.findMany(page.items),
+			nextCursor: page.nextCursor,
+		});
+	},
+);
+```
+
+`list()` reverses every rule of `view`, so `doctor` needs its `lookup`:
+without one, this call does not compile. When a user only ever sees what
+names them — a patient's own records — a query filtered on `c.var.user.id`
+is shorter, and needs no `list()`.
 
 ## Writing tuples from a route
 

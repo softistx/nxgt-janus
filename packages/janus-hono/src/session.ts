@@ -111,13 +111,23 @@ export function session(
 
 /**
  * Sends the session cookie — after `signUp`, `signIn`, or anything else that
- * answered a session token and its session. Appends: a cookie set before stays.
+ * answered a session token and its session — and answers the user. Appends: a
+ * cookie set before stays.
+ *
+ * ```ts
+ * const user = sendSession(c, auth, await auth.signIn({ email, password }));
+ * return c.json({ id: user.id }); // the token is in the cookie, never in the body
+ * ```
  */
-export function sendSession(
+export function sendSession<U>(
 	c: Context,
 	auth: Pick<Auth<{ readonly type: string }>, 'cookie'>,
-	signedIn: { readonly token: string; readonly session: Session },
-): void {
+	signedIn: {
+		readonly token: string;
+		readonly session: Session;
+		readonly user: U;
+	},
+): U {
 	c.header(
 		'Set-Cookie',
 		auth.cookie.serialize(signedIn.token, signedIn.session),
@@ -125,6 +135,7 @@ export function sendSession(
 			append: true,
 		},
 	);
+	return signedIn.user;
 }
 
 /**

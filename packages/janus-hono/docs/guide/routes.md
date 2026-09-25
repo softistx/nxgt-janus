@@ -17,7 +17,14 @@ app.onError(janusErrors());
 
 `janusErrors()` is what turns a `JanusError` thrown anywhere — in a route, or
 in `session()` — into its status. Without it, Hono answers 500 for all of
-them. To log before answering, wrap it:
+them. To log what the server must fix — every error answered 5xx, an outage
+first — pass `report`; it runs before the answer:
+
+```ts
+app.onError(janusErrors({ report: (error) => logger.error(error) }));
+```
+
+To log every refusal too — why a sign-in failed, say — wrap it:
 
 ```ts
 const answer = janusErrors();
@@ -28,7 +35,7 @@ app.onError((error, c) => {
 });
 ```
 
-`janusErrors(fallback)` hands every other error to `fallback`; without one,
+`janusErrors({ fallback })` hands every other error to `fallback`; without one,
 an `HTTPException` answers its own response and anything else is a logged
 500, as Hono does by default.
 
@@ -95,18 +102,20 @@ import { sendSession } from '@nxgt/janus-hono';
 
 app.post('/sign-up', async (c) => {
 	const { email, name, password } = await c.req.json(); // validate the shape yourself
-	const signedIn = await auth.signUp({ email, name, password });
-	sendSession(c, auth, signedIn);
-	return c.json({ id: signedIn.user.id }, 201);
+	const user = sendSession(c, auth, await auth.signUp({ email, name, password }));
+	return c.json({ id: user.id }, 201);
 });
 
 app.post('/sign-in', async (c) => {
 	const { email, password } = await c.req.json();
-	const signedIn = await auth.signIn({ email, password });
-	sendSession(c, auth, signedIn);
-	return c.json({ id: signedIn.user.id });
+	const user = sendSession(c, auth, await auth.signIn({ email, password }));
+	return c.json({ id: user.id });
 });
 ```
+
+`sendSession` answers the user it signed in, so a cookie client's route never
+holds the session token: it is in the `Set-Cookie`, and the body cannot leak
+it.
 
 The refusals need no `try`: `janusErrors()` answers them.
 
@@ -120,9 +129,10 @@ The refusals need no `try`: `janusErrors()` answers them.
 
 A bearer client — a mobile app — keeps its session token itself and sends it
 as `Authorization: Bearer`. Answer it the session token in the body, not a
-cookie:
+cookie — keep what `signIn` answered:
 
 ```ts
+const signedIn = await auth.signIn({ email, password });
 return c.json({
 	id: signedIn.user.id,
 	token: signedIn.token,
@@ -190,8 +200,7 @@ name, and `session()` takes the type a route admits:
 ```ts
 app.post('/staff/sign-in', async (c) => {
 	const { username, password } = await c.req.json();
-	const signedIn = await auth.staff.signIn({ username, password });
-	sendSession(c, auth, signedIn);
+	sendSession(c, auth, await auth.staff.signIn({ username, password }));
 	return c.body(null, 204);
 });
 

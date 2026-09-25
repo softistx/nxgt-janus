@@ -11,7 +11,7 @@ import {
 	when,
 } from '@nxgt/janus/permissions';
 import { Hono } from 'hono';
-import { permission, provide, session } from '../../src/index';
+import { byParam, permission, provide, session } from '../../src/index';
 import { type MedicalRecord, setup } from '../app';
 
 const { auth, access } = setup();
@@ -122,4 +122,15 @@ permission(
 	// @ts-expect-error — 'folderz' is not an object type.
 	'folderz',
 	() => record,
+);
+
+// byParam keeps the loaded type: the route reads a field of its record.
+new Hono().get(
+	'/records/:id',
+	session(auth),
+	permission(access, 'view', 'record', byParam('id', find)),
+	(c) => {
+		const title: string = c.var.object.title;
+		return c.json({ title });
+	},
 );

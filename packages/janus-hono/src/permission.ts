@@ -179,6 +179,24 @@ export function permission(
 }
 
 /**
+ * A `load` reading one path parameter: `find(id)`, or `null` — a 404 — when
+ * the route has no such parameter.
+ *
+ * ```ts
+ * permission(access, 'view', 'record', byParam('id', (id) => records.find(id)))
+ * ```
+ */
+export function byParam<O>(
+	name: string,
+	find: (id: string) => Awaitable<O | null>,
+): (c: Context) => Awaitable<O | null> {
+	return (c) => {
+		const id = c.req.param(name);
+		return id === undefined ? null : find(id);
+	};
+}
+
+/**
  * The object as `can()` reads it: `type` added, every other field read from
  * the loaded object itself — so a getter, a class's `#private` state or an
  * ORM document's accessors answer as they do in the route. A spread would

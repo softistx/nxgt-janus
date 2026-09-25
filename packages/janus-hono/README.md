@@ -14,9 +14,8 @@ import { auth } from './auth'; // what janus() answered
 const app = new Hono()
 	.post('/sign-in', async (c) => {
 		const { email, password } = await c.req.json();
-		const signedIn = await auth.signIn({ email, password });
-		sendSession(c, auth, signedIn);
-		return c.json({ id: signedIn.user.id });
+		const user = sendSession(c, auth, await auth.signIn({ email, password }));
+		return c.json({ id: user.id }); // the token is in the cookie, not the body
 	})
 	.post('/sign-out', async (c) => {
 		await signOut(c, auth);
@@ -48,15 +47,16 @@ declarations import without extensions, so `nodenext` is not supported.
 | Export | What it is |
 | --- | --- |
 | `session(auth, options?)` | Middleware. Reads who the request belongs to — `auth.authenticate(c.req.raw)` — and sets `c.var.user` and `c.var.session`, `null` for an anonymous request. `{ required: true }` answers an anonymous request 401 and types `c.var.user` as never `null`. `{ type: 'staff' }` treats a user of any other type as anonymous. Sends a renewed session's cookie again |
-| `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, or anything that answered `{ token, session }` |
+| `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, or anything that answered `{ token, session, user }` — and answers the user |
 | `signOut(c, auth)` | Revokes the session the request presents and clears the cookie, whatever the answer. `false` when the request presented no session, or an unknown one |
-| `janusErrors(fallback?)` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)`; anything else to `fallback`, or to Hono's own handling |
+| `janusErrors({ report?, fallback? })` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)`; anything else to `fallback`, or to Hono's own handling. `report(error, c)` sees every one answered 5xx first — `STORE_FAILED` and the like, for your logs |
 | `statusOf(code)` | The status a code deserves: `STORE_FAILED` 503, `CREDENTIALS_INVALID` 401, `USER_INACTIVE` 403, `LOGIN_TAKEN` 409, … Exhaustive over `JanusErrorCode` |
 | `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID` and `minLength` for `PASSWORD_TOO_SHORT` — what the client can act on, and nothing else |
 | `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
 | `permission(access, permission, type, load, options?)` | Middleware. Loads the object with `load(c)`, checks `access.can(c.var.user, permission, object)` with `type` added, and sets `c.var.object` to what `load` answered. Anonymous: 401, before loading. `load` answers `null`: 404. A denial: 403. `{ ctx: (c, object) => … }` is required exactly when the permission reaches a condition; `{ subject: (c) => … }` replaces `c.var.user`. One per route |
+| `byParam(name, find)` | A `load` for `permission()`: `find(c.req.param(name))`, or `null` — a 404 — when the route has no such parameter |
 | `provide({ auth?, access? })` | Middleware. Sets `c.var.auth` and `c.var.access` to the instances given — only those — for a route that writes users or tuples |
 | `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
 
@@ -128,9 +128,9 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
   `http://`, `localhost` aside in most browsers. Set `cookie: { secure: false }`
   in `janus()` for a development server that is not on `localhost`, never in
   production.
-- **`janusErrors()` logs nothing.** A `STORE_FAILED` is answered 503 without a
-  line in your logs; wrap the handler to see which store failed — the
-  [guide](docs/guide/routes.md#wiring) shows how.
+- **`janusErrors()` logs nothing by itself.** A `STORE_FAILED` is answered 503
+  without a line in your logs unless you pass `report` —
+  `janusErrors({ report: (error) => logger.error(error) })`.
 - **`bodyOf` never carries `reason`, `login` or a cause.** `CREDENTIALS_INVALID`
   says one thing for an unknown login, a missing password and a wrong one, so a
   response cannot tell which users exist. Log the error before you answer it
@@ -139,7 +139,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 - **`load` does not know the route's path.** It takes a plain `Context`:
   `permission()` is built before Hono attaches it to a route, so
   `c.req.param('id')` is `string | undefined` there. Answer `null` for a
-  missing id — that is a 404.
+  missing id — that is a 404 — or let `byParam('id', find)` do it.
 - **One `permission()` per route.** Both would claim `c.var.object`, so a
   second throws a `TypeError`. Check a parent object through an arrow in the
   model.
