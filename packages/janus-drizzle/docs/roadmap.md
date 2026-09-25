@@ -11,7 +11,9 @@ something shipped in.
 
 - **Tables without a prefix, in a database or a schema of their own.**
   `defineJanusTables({ schema? })` replaces the `janus_*` tables, so Janus's
-  tables are backed up and restored on their own. Not yet released, so no
+  tables are backed up and restored on their own, and the factories take the
+  tables your schema file exports as `{ tables }`, so the stores query exactly
+  what your migration created. Not yet released, so no
   migration is owed.
 
 ## Next

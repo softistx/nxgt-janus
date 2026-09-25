@@ -28,6 +28,7 @@ How PostgreSQL's errors become the port's:
 - [`TS2345: Argument of type '…' is not assignable to parameter of type 'PgDatabase'.`](#ts2345-argument-of-type--is-not-assignable-to-parameter-of-type-pgdatabase)
 - [`TS2322: Type 'string' is not assignable to type 'PgSchema<string>'.`](#ts2322-type-string-is-not-assignable-to-type-pgschemastring)
 - [`TS2353: Object literal may only specify known properties, and 'schema' does not exist in type 'DrizzleAdapterOptions<…>'.`](#ts2353-object-literal-may-only-specify-known-properties-and-schema-does-not-exist-in-type-drizzleadapteroptions)
+- [`TS2559: Type '{ users: …; … }' has no properties in common with type 'DrizzleAdapterOptions<…>'.`](#ts2559-type--users----has-no-properties-in-common-with-type-drizzleadapteroptions)
 - [`error instanceof StoreFailure` is `false` for an outage](#error-instanceof-storefailure-is-false-for-an-outage)
 
 **Setup**
@@ -109,6 +110,18 @@ export const janusTables = defineJanusTables({ schema: janus });
 the stores query exactly the tables your migration created.
 
 **Fix:** pass the object your schema file exports.
+
+```ts
+createDrizzleAdapter(db, { tables: janusTables });
+```
+
+### `TS2559: Type '{ users: …; … }' has no properties in common with type 'DrizzleAdapterOptions<…>'.`
+
+**When:** `createDrizzleAdapter(db, janusTables)`: the tables given bare.
+
+**Why:** the second argument is options; the tables are one of them.
+
+**Fix:**
 
 ```ts
 createDrizzleAdapter(db, { tables: janusTables });

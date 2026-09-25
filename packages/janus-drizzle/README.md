@@ -46,7 +46,8 @@ export const access = permissions({ model, store: postgres.relations });
 way it writes your own. **Give them a database of their own**, as here, with a
 drizzle-kit config of its own: `pg_dump` and `pg_restore` then back up and
 restore Janus alone. Beside your tables in one database, put them in a
-PostgreSQL schema instead: `defineJanusTables({ schema: pgSchema('janus') })`.
+PostgreSQL schema of their own instead, exported with the tables and passed
+to the adapter as `{ tables }`:
 [Where the tables live](docs/guide/database.md) has both.
 
 > **0.x.** A minor version may still change the surface; the changelog says how.

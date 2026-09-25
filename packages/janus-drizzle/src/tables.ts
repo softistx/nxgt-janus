@@ -235,7 +235,12 @@ export type JanusTables = ReturnType<typeof defineJanusTables>;
  * the tables in the connection's `search_path`.
  *
  * ```ts
- * import * as janusTables from './janus/schema';
+ * // src/db/schema.ts
+ * export const janus = pgSchema('janus');
+ * export const janusTables = defineJanusTables({ schema: janus });
+ * export const { users, logins, sessions, tokens, relations } = janusTables;
+ *
+ * // where the adapter is wired
  * const postgres = createDrizzleAdapter(db, { tables: janusTables });
  * ```
  */
