@@ -88,10 +88,10 @@ bun pm ls --all | grep @nxgt/janus   # one @nxgt/janus, not two
 **Fix:** run the sync as a deployment step, with a user that has the `dbAdmin` role — never per request:
 
 ```ts
-import { syncMongoRelations, syncMongoStores } from '@nxgt/janus-mongo';
+import { syncMongoAdapter } from '@nxgt/janus-mongo';
 
-await syncMongoStores(db);     // users, sessions, tokens: validators and indexes
-await syncMongoRelations(db);  // only if you use @nxgt/janus/permissions
+await syncMongoAdapter(db); // users, sessions, tokens and relations: validators and indexes
+// identities alone: syncMongoStores(db)
 ```
 
 An application that deploys with `@nxgt/mongo`'s `syncAll(db)` already syncs

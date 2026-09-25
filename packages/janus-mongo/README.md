@@ -82,7 +82,8 @@ passwords a self-describing hash.
 - **`auth.collectExpired()` answers `UNSUPPORTED`** with this adapter. The TTL
   index already drops lapsed sessions, so `deleteExpiredSessions` is
   deliberately not implemented.
-- **`syncMongoStores` is not called for you.** The core never manages a schema.
+- **No sync function is called for you** — `syncMongoAdapter`, or
+  `syncMongoStores` for identities alone. The core never manages a schema.
   Without it there is no unique index, and nothing stops two concurrent sign-ups
   with one login.
 - **A duplicate key on an index other than the login index is a
