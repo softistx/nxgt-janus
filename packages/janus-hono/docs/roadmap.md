@@ -5,11 +5,7 @@ no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **The first release** — `@nxgt/janus-hono` 0.1 on npm: `session()`,
-  `sendSession` (which answers the user), `signOut`, `permission()` and
-  `byParam`, `provide()`, `janusErrors({ report, fallback })`, and
-  `bindJanus()` binding them to the instances once. Built, not yet
-  published.
+Nothing in progress.
 
 ## Next
 
@@ -38,4 +34,7 @@ Nothing yet.
 
 ## Shipped
 
-Nothing yet: the package is not published.
+- **The first release** — `session()`,
+  `sendSession` (which answers the user), `signOut`, `permission()` and
+  `byParam`, `provide()`, `janusErrors({ report, fallback })`, and
+  `bindJanus()` binding them to the instances once. — v0.1
