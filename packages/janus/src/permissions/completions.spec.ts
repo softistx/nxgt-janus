@@ -120,10 +120,16 @@ describe('an editor completes a model', () => {
 		expect(at(1)?.sort()).toEqual(['patient', 'record', 'staff', 'team']);
 	});
 
-	it("offers a rule's relations, permissions and arrows, in when() too", () => {
-		const names = ['owner', 'doctor', 'team', 'edit', 'team->view'];
-		expect(at(2)).toEqual(expect.arrayContaining(names));
-		expect(at(3)).toEqual(expect.arrayContaining(names));
+	it("offers a rule's relations, other permissions and arrows, in when() too", () => {
+		const names = ['owner', 'doctor', 'team', 'team->view'];
+		// The cursors sit in `view` and in `edit`: each offers the other.
+		expect(at(2)).toEqual(expect.arrayContaining([...names, 'edit']));
+		expect(at(3)).toEqual(expect.arrayContaining([...names, 'view']));
+	});
+
+	it('never offers a permission its own name: a loop no relation ends', () => {
+		expect(at(2)).not.toContain('view');
+		expect(at(3)).not.toContain('edit');
 	});
 });
 

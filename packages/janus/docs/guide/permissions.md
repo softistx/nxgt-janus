@@ -86,6 +86,12 @@ interface ModelConfig {
 | `'team->view'` | an **arrow**: whoever holds `view` on the object's `team` |
 | `when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)` | a rule under a condition — see [`when`](#when) |
 
+A rule may name another permission of the same type — `view: ['member',
+'manage']` — but never the permission itself: `view: ['view']` adds nothing
+and is a loop no relation ends, so your editor does not offer it and the
+compiler refuses it. A loop through another permission (`view: ['edit'],
+edit: ['view']`) is refused by `defineModel` when it runs.
+
 A permission may be asked of `can` and `list` like a relation, and a relation
 like a permission.
 
