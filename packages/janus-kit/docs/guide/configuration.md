@@ -13,7 +13,7 @@ settings are read, and pass the values:
 ```ts
 // src/janus.ts
 import { janus, scryptHasher } from '@nxgt/janus';
-import { connectKit, defineConfig } from '@nxgt/janus-kit';
+import { connectKit, defineConfig } from '@nxgt/janus-kit/drizzle';
 import { User } from './users';
 
 export const config = defineConfig({

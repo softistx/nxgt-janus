@@ -19,7 +19,7 @@ packages/janus-hono    @nxgt/janus-hono — the Hono integration
 packages/janus-telemetry @nxgt/janus-telemetry — spans and security events on @nxgt/telemetry, not yet published
 packages/janus-drizzle @nxgt/janus-drizzle — the PostgreSQL adapter on Drizzle and @nxgt/drizzle, for either side, not yet published
 packages/janus-redis   @nxgt/janus-redis — sessions and one-time tokens in Redis, on @nxgt/redis, not yet published
-packages/janus-kit     @nxgt/janus-kit — Janus wired in one call: PostgreSQL, Redis, telemetry, health and close, not yet published
+packages/janus-kit     @nxgt/janus-kit — Janus wired in one call, one subpath per database (/drizzle), with Redis, telemetry, health and close; not yet published
 ```
 
 ## Two things it is trying to be

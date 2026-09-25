@@ -1,5 +1,6 @@
 /**
- * `@nxgt/janus-kit` — `@nxgt/janus` wired in one call.
+ * `@nxgt/janus-kit/drizzle` — `@nxgt/janus` wired in one call, over
+ * PostgreSQL through `@nxgt/janus-drizzle`.
  *
  * `defineConfig` checks where PostgreSQL and Redis are, and holds the two
  * functions that build `auth` and `access`; `connectKit` opens the
@@ -9,13 +10,11 @@
  * reached an `Error` with its `cause`.
  */
 
-export {
-	type AccessWiring,
-	type Adapters,
-	defineConfig,
-	type KitConfig,
-	type PostgresConfig,
-	type RedisConfig,
-} from './config';
-export { connectKit, type Kit } from './connect';
-export type { Health, PingResult } from './health';
+export type {
+	AccessWiring,
+	Adapters,
+	RedisConfig,
+} from '../shared/config';
+export type { PingResult } from '../shared/health';
+export { defineConfig, type KitConfig, type PostgresConfig } from './config';
+export { connectKit, type Health, type Kit } from './connect';

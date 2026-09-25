@@ -9,7 +9,7 @@ and a close.
 ```ts
 import { janus, scryptHasher } from '@nxgt/janus';
 import { defineModel, permissions } from '@nxgt/janus/permissions';
-import { connectKit, defineConfig } from '@nxgt/janus-kit';
+import { connectKit, defineConfig } from '@nxgt/janus-kit/drizzle';
 import { z } from 'zod';
 
 export const kit = await connectKit(
@@ -61,15 +61,19 @@ bun add @nxgt/janus-kit @nxgt/janus @nxgt/janus-drizzle @nxgt/drizzle drizzle-or
 bun add @nxgt/janus-telemetry @nxgt/telemetry  # only for telemetry: true
 ```
 
-Required peers:
+Required peers, whichever subpath:
 - `@nxgt/janus`;
+- `@nxgt/redis` `>=0.3.1 <1`, and `zod` 4 which it requires, even with
+  sessions in the database: the kit's types name its connection;
+- `typescript` 6.
+
+Peers of `@nxgt/janus-kit/drizzle` — optional in `package.json`, so an
+application on another subpath does not install them, but required by this
+one:
 - `@nxgt/janus-drizzle`: your schema file imports `defineJanusTables` from it
   to create the tables, and the kit's stores must query the same definition;
 - `@nxgt/drizzle` `>=0.6.1 <1` and `drizzle-orm` 1.0 (from `1.0.0-rc.4`), for
-  PostgreSQL;
-- `@nxgt/redis` `>=0.3.1 <1`, and `zod` 4 which it requires, even with
-  sessions in PostgreSQL: the kit's types name its connection;
-- `typescript` 6.
+  PostgreSQL.
 
 `@nxgt/janus-telemetry` is an optional peer, loaded only when `telemetry` is
 `true`. `@nxgt/janus-redis` is a dependency: your code never imports it.
@@ -78,7 +82,23 @@ It runs on **Bun** only: the kit opens PostgreSQL over Bun's `SQL` and Redis
 over Bun's `RedisClient`. It needs PostgreSQL 15 or later and Redis 7.0 or
 later. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
+## Subpaths
+
+**One kit, one subpath per database.** The package has **no root entry**, so
+the import names the database: `import … from '@nxgt/janus-kit'` fails with
+`TS2307`. Redis, telemetry, `ping` and `close` are the same whichever subpath
+you use.
+
+| Subpath | Database |
+| --- | --- |
+| `@nxgt/janus-kit/drizzle` | PostgreSQL, through `@nxgt/janus-drizzle` |
+
+MongoDB, as `@nxgt/janus-kit/mongo`, is [next on the roadmap](docs/roadmap.md);
+it does not exist yet.
+
 ## API
+
+Everything below is imported from `@nxgt/janus-kit/drizzle`.
 
 | Export | What it is |
 | --- | --- |

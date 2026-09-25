@@ -6,14 +6,20 @@ in.
 
 ## Now
 
-- **The first release**: PostgreSQL through `@nxgt/janus-drizzle`, sessions and
+- **The first release**: PostgreSQL through `@nxgt/janus-drizzle`, at
+  `@nxgt/janus-kit/drizzle`; sessions and
   one-time tokens in Redis through `@nxgt/janus-redis`, telemetry through
   `@nxgt/janus-telemetry`, a health check and a close. It stays unpublished
   until its adapters are released.
 
 ## Next
 
-Nothing yet.
+- **MongoDB, at `@nxgt/janus-kit/mongo`.** The same kit over
+  `@nxgt/janus-mongo`: it opens the client or takes your `Db`, checks at
+  startup that the four collections are synced, and answers the same `auth`,
+  `access`, `ping` and `close`. A subpath of this package, not a package of
+  its own: Redis, telemetry and the lifecycle are shared, and one version
+  covers both.
 
 ## Later
 
@@ -25,9 +31,6 @@ Nothing yet.
 
 ## Not planned
 
-- **MongoDB.** With `@nxgt/janus-mongo`, the wiring is already one spread,
-  `janus({ …, ...createMongoAdapter(db) })`, and a kit per database would be
-  one package more for little. The kit stays PostgreSQL and Redis.
 - **Running migrations.** Janus's tables are created by your drizzle-kit
   migrations, as your own are. The kit checks they are there, and creates
   nothing.
