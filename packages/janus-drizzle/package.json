@@ -1,0 +1,70 @@
+{
+	"name": "@nxgt/janus-drizzle",
+	"version": "0.0.0",
+	"private": true,
+	"description": "The PostgreSQL adapter for @nxgt/janus on Drizzle and @nxgt/drizzle: users, sessions, one-time tokens and permission tuples",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"docs",
+		"README.md",
+		"package.json",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"keywords": [
+		"identity",
+		"authentication",
+		"postgresql",
+		"drizzle",
+		"janus",
+		"typescript"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/softistx/nxgt-janus.git",
+		"directory": "packages/janus-drizzle"
+	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org",
+		"access": "public"
+	},
+	"scripts": {
+		"build": "bun run ../../build.ts",
+		"test": "bun test src",
+		"typecheck": "tsc --noEmit"
+	},
+	"nxgt": {
+		"entrypoints": [
+			"src/index.ts"
+		]
+	},
+	"devDependencies": {
+		"@electric-sql/pglite": "0.5.8",
+		"@nxgt/drizzle": "0.6.1",
+		"@nxgt/janus": "workspace:^",
+		"@types/bun": "^1.4.2",
+		"@types/pg": "^8.23.1",
+		"drizzle-kit": "1.0.0-rc.4",
+		"drizzle-orm": "1.0.0-rc.4",
+		"pg": "^8",
+		"postgres": "^3",
+		"zod": "^4.6.5"
+	},
+	"peerDependencies": {
+		"@nxgt/drizzle": ">=0.6.1 <1",
+		"@nxgt/janus": "workspace:^",
+		"drizzle-orm": ">=1.0.0-rc.4 <2",
+		"typescript": "^6.0.3"
+	}
+}

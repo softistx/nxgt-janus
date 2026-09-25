@@ -5,10 +5,13 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **A Hono integration** — in a package of its own, `@nxgt/janus-hono`:
-  the session middleware, the cookie, a route guarded by a permission, the
-  instances on the context, and every error as its status. Built, not yet
-  published.
+- **A PostgreSQL adapter** — in a package of its own, `@nxgt/janus-drizzle`,
+  on Drizzle: both sides over one database, the tables in your own drizzle-kit
+  migrations. Built, not yet published.
+- **Tracing and an audit trail** — in a package of its own,
+  `@nxgt/janus-telemetry`: a span per flow and per permission check, and the
+  security events worth keeping, never a login, a password or a token. Built,
+  not yet published.
 
 ## Next
 
@@ -19,7 +22,8 @@ Nothing yet.
 - **More official adapters** — the ports are cut where atomicity is not
   required, so users, sessions and permission tuples can each live in the
   database that suits them. MongoDB is the first adapter
-  ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo)).
+  ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo));
+  PostgreSQL is under Now.
 - **A Redis adapter for sessions and tokens** — both are ephemeral and read on
   every request, which is why the port gives them slots of their own: they can
   live in Redis, with a native expiry, while users stay in another store.
@@ -63,6 +67,10 @@ Nothing yet.
 
 The first public release, v0.1.
 
+- **A Hono integration** — [`@nxgt/janus-hono`](https://www.npmjs.com/package/@nxgt/janus-hono):
+  the session middleware, the cookie, a route guarded by a permission,
+  `bindJanus()` to bind the instances once, and every error as its status.
+  Its own 0.1.0, beside `@nxgt/janus` 0.1.3.
 - **`defineModel` completed by your editor** — subject types and subject sets
   in a relation, subject types in `fromField`, relations, permissions and
   arrows in a rule and in `when`; a wrong name's error lists the names it
