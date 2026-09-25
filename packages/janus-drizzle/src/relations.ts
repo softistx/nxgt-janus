@@ -8,7 +8,11 @@ import {
 } from '@nxgt/janus';
 import type { RelationStore } from '@nxgt/janus/permissions';
 import { and, asc, eq, gt, isNotNull, isNull, or, type SQL } from 'drizzle-orm';
-import { janusRelations } from './tables';
+import {
+	type DrizzleAdapterOptions,
+	defineJanusTables,
+	type JanusTables,
+} from './tables';
 import { run } from './translate';
 
 /**
@@ -24,7 +28,12 @@ import { run } from './translate';
  * `withTransaction`: removals first, then additions, all or nothing. It is not
  * retried here — a write is idempotent, so the caller retries.
  */
-export function createDrizzleRelations(db: PgDatabase): RelationStore {
+export function createDrizzleRelations(
+	db: PgDatabase,
+	options: DrizzleAdapterOptions<'relations'> = {},
+): RelationStore {
+	const tables = options.tables ?? defineJanusTables();
+	const { rowOf, subjectIs, matching } = tupleSql(tables.relations);
 	const run$ = <T>(operation: string, body: () => Promise<T>) =>
 		run('relations', operation, body);
 
@@ -32,19 +41,19 @@ export function createDrizzleRelations(db: PgDatabase): RelationStore {
 	const holding = (object: Entity, relation: string, sets: boolean) =>
 		db
 			.select({
-				type: janusRelations.subjectType,
-				id: janusRelations.subjectId,
-				relation: janusRelations.subjectRelation,
+				type: tables.relations.subjectType,
+				id: tables.relations.subjectId,
+				relation: tables.relations.subjectRelation,
 			})
-			.from(janusRelations)
+			.from(tables.relations)
 			.where(
 				and(
-					eq(janusRelations.objectType, object.type),
-					eq(janusRelations.objectId, object.id),
-					eq(janusRelations.relation, relation),
+					eq(tables.relations.objectType, object.type),
+					eq(tables.relations.objectId, object.id),
+					eq(tables.relations.relation, relation),
 					sets
-						? isNotNull(janusRelations.subjectRelation)
-						: isNull(janusRelations.subjectRelation),
+						? isNotNull(tables.relations.subjectRelation)
+						: isNull(tables.relations.subjectRelation),
 				),
 			);
 
@@ -56,12 +65,12 @@ export function createDrizzleRelations(db: PgDatabase): RelationStore {
 		// In one order, so two writes touching the same tuples take their locks
 		// alike and never deadlock.
 		for (const tuple of inOrder(remove)) {
-			await tx.delete(janusRelations).where(matching(tuple));
+			await tx.delete(tables.relations).where(matching(tuple));
 		}
 		if (add.length > 0) {
 			// A stored tuple meets the unique constraint, and is a no-op.
 			await tx
-				.insert(janusRelations)
+				.insert(tables.relations)
 				.values(inOrder(add).map(rowOf))
 				.onConflictDoNothing();
 		}
@@ -77,8 +86,8 @@ export function createDrizzleRelations(db: PgDatabase): RelationStore {
 		has: (tuple) =>
 			run$('has', async () => {
 				const found = await db
-					.select({ relation: janusRelations.relation })
-					.from(janusRelations)
+					.select({ relation: tables.relations.relation })
+					.from(tables.relations)
 					.where(matching(tuple))
 					.limit(1);
 				return found.length === 1;
@@ -106,15 +115,16 @@ export function createDrizzleRelations(db: PgDatabase): RelationStore {
 			run$('findObjects', async () => {
 				const conditions = [
 					subjectIs(subject),
-					eq(janusRelations.relation, relation),
-					eq(janusRelations.objectType, type),
+					eq(tables.relations.relation, relation),
+					eq(tables.relations.objectType, type),
 				];
-				if (after !== null) conditions.push(gt(janusRelations.objectId, after));
+				if (after !== null)
+					conditions.push(gt(tables.relations.objectId, after));
 				const found = await db
-					.select({ id: janusRelations.objectId })
-					.from(janusRelations)
+					.select({ id: tables.relations.objectId })
+					.from(tables.relations)
 					.where(and(...conditions))
-					.orderBy(asc(janusRelations.objectId))
+					.orderBy(asc(tables.relations.objectId))
 					.limit(limit + 1);
 				const items = found.slice(0, limit).map((row) => row.id);
 				const last = items.at(-1);
@@ -127,20 +137,20 @@ export function createDrizzleRelations(db: PgDatabase): RelationStore {
 		deleteEntity: (entity) =>
 			run$('deleteEntity', async () => {
 				const deleted = await db
-					.delete(janusRelations)
+					.delete(tables.relations)
 					.where(
 						or(
 							and(
-								eq(janusRelations.objectType, entity.type),
-								eq(janusRelations.objectId, entity.id),
+								eq(tables.relations.objectType, entity.type),
+								eq(tables.relations.objectId, entity.id),
 							),
 							and(
-								eq(janusRelations.subjectType, entity.type),
-								eq(janusRelations.subjectId, entity.id),
+								eq(tables.relations.subjectType, entity.type),
+								eq(tables.relations.subjectId, entity.id),
 							),
 						),
 					)
-					.returning({ relation: janusRelations.relation });
+					.returning({ relation: tables.relations.relation });
 				return deleted.length;
 			}),
 	};
@@ -163,37 +173,44 @@ function inOrder(tuples: readonly RelationTuple[]): readonly RelationTuple[] {
 	});
 }
 
-/** A tuple as a row: an entity's `subject_relation` is `null`. */
-function rowOf(tuple: RelationTuple): typeof janusRelations.$inferInsert {
-	return {
-		objectType: tuple.object.type,
-		objectId: tuple.object.id,
-		relation: tuple.relation,
-		subjectType: tuple.subject.type,
-		subjectId: tuple.subject.id,
-		subjectRelation: isSubjectSet(tuple.subject)
-			? tuple.subject.relation
-			: null,
-	};
-}
+type Relations = JanusTables['relations'];
 
-/** Exactly this subject: a subject set is not its entity, and the reverse. */
-function subjectIs(subject: Subject): SQL | undefined {
-	return and(
-		eq(janusRelations.subjectType, subject.type),
-		eq(janusRelations.subjectId, subject.id),
-		isSubjectSet(subject)
-			? eq(janusRelations.subjectRelation, subject.relation)
-			: isNull(janusRelations.subjectRelation),
-	);
-}
+/** The SQL of one tuple, over the `relations` table in use. */
+function tupleSql(relations: Relations) {
+	/** A tuple as a row: an entity's `subject_relation` is `null`. */
+	function rowOf(tuple: RelationTuple): Relations['$inferInsert'] {
+		return {
+			objectType: tuple.object.type,
+			objectId: tuple.object.id,
+			relation: tuple.relation,
+			subjectType: tuple.subject.type,
+			subjectId: tuple.subject.id,
+			subjectRelation: isSubjectSet(tuple.subject)
+				? tuple.subject.relation
+				: null,
+		};
+	}
 
-/** Exactly this tuple. */
-function matching(tuple: RelationTuple): SQL | undefined {
-	return and(
-		eq(janusRelations.objectType, tuple.object.type),
-		eq(janusRelations.objectId, tuple.object.id),
-		eq(janusRelations.relation, tuple.relation),
-		subjectIs(tuple.subject),
-	);
+	/** Exactly this subject: a subject set is not its entity, and the reverse. */
+	function subjectIs(subject: Subject): SQL | undefined {
+		return and(
+			eq(relations.subjectType, subject.type),
+			eq(relations.subjectId, subject.id),
+			isSubjectSet(subject)
+				? eq(relations.subjectRelation, subject.relation)
+				: isNull(relations.subjectRelation),
+		);
+	}
+
+	/** Exactly this tuple. */
+	function matching(tuple: RelationTuple): SQL | undefined {
+		return and(
+			eq(relations.objectType, tuple.object.type),
+			eq(relations.objectId, tuple.object.id),
+			eq(relations.relation, tuple.relation),
+			subjectIs(tuple.subject),
+		);
+	}
+
+	return { rowOf, subjectIs, matching };
 }

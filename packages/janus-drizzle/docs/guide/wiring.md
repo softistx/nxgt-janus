@@ -5,7 +5,8 @@ This page covers connecting `@nxgt/janus` to PostgreSQL through Drizzle:
 - the relation store for `permissions()`;
 - what each one throws when the database cannot answer.
 
-Creating the tables is covered in [the migrations page](migrations.md).
+Creating the tables is covered in [the migrations page](migrations.md), and
+choosing their database in [Where the tables live](database.md).
 
 ```ts
 import { janus, scryptHasher } from '@nxgt/janus';
@@ -14,7 +15,8 @@ import { createDrizzleAdapter } from '@nxgt/janus-drizzle';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { z } from 'zod';
 
-const db = drizzle(process.env.DATABASE_URL ?? 'postgres://localhost:5432/app');
+// Janus's own database; your application's tables stay on their own instance.
+const db = drizzle(process.env.JANUS_DATABASE_URL ?? 'postgres://localhost:5432/janus');
 
 const postgres = createDrizzleAdapter(db); // { store, relations }
 
@@ -38,18 +40,28 @@ export const model = defineModel({
 export const access = permissions({ model, store: postgres.relations });
 ```
 
-## `createDrizzleAdapter(db)`
+## `createDrizzleAdapter(db, options?)`
 
 ```ts
 import type { PgDatabase } from '@nxgt/drizzle/pg'; // any Drizzle PostgreSQL instance
 
-function createDrizzleAdapter(db: PgDatabase): DrizzleAdapter; // { store, relations }
+function createDrizzleAdapter(
+	db: PgDatabase,
+	options?: { tables?: JanusTables }, // DrizzleAdapterOptions
+): DrizzleAdapter; // { store, relations }
 ```
 
-It returns `createDrizzleStores(db)` as `store` and `createDrizzleRelations(db)`
-as `relations`: the two keys `janus()` takes them under, so a spread wires
+It returns `createDrizzleStores(db, options)` as `store` and
+`createDrizzleRelations(db, options)` as `relations`: the two keys `janus()` takes them under, so a spread wires
 both. `permissions()` takes the same relation store as `postgres.relations`.
 It connects to nothing and creates nothing.
+
+`options.tables` is what your schema file's `defineJanusTables(…)` returned,
+so the stores query the tables your migration created. Leave it out for
+tables in the connection's `search_path`, `public` by default. **Pass it
+whenever the tables are in a PostgreSQL schema of their own**: without it, the
+stores query `public`, where your application may have a `users` of its own
+([Where the tables live](database.md#a-schema-of-its-own)).
 
 **Pass the relation store to both.** If only `permissions()` gets it, tuples
 are still written, but deleting a user leaves behind every tuple naming them.
@@ -68,21 +80,21 @@ authenticates takes `createDrizzleStores(db)` alone, below.
 The adapter's specs run on all four: on PGlite, and on PostgreSQL 17 over each
 of the other three, on every CI run.
 
-## `createDrizzleStores(db)`
+## `createDrizzleStores(db, options?)`
 
 ```ts
-function createDrizzleStores(db: PgDatabase): JanusStores; // { users, sessions, tokens }
+function createDrizzleStores(db: PgDatabase, options?: { tables?: Pick<JanusTables, 'users' | 'logins' | 'sessions' | 'tokens'> }): JanusStores; // { users, sessions, tokens }
 ```
 
-This is what `janus({ store })` takes. It uses `janus_users`, `janus_logins`,
-`janus_sessions` and `janus_tokens`.
+This is what `janus({ store })` takes. It uses `users`, `logins`, `sessions`
+and `tokens`.
 
 **Every read is one statement.** An absence comes back as an empty result,
 which becomes `null`. Anything that rejects is a failure, so an outage can
 never be confused with "no such user".
 
 **Writing a user is one transaction** that covers the user's row and its rows
-in `janus_logins`. It runs through `@nxgt/drizzle`'s `withTransaction`, inside
+in `logins`. It runs through `@nxgt/drizzle`'s `withTransaction`, inside
 the method; the core never opens one. Every other write is a single
 statement. `consumeToken` is one statement, `with before as (select … for update) update … from before`: of
 twenty concurrent redemptions of one token, exactly one sees `spentAt: null`.
@@ -93,14 +105,14 @@ Every method of the port is implemented, **including the optional
 `auth.collectExpired()` is how lapsed sessions leave the table; schedule it.
 The [migrations page](migrations.md#collecting-lapsed-sessions) shows how.
 
-## `createDrizzleRelations(db)`
+## `createDrizzleRelations(db, options?)`
 
 ```ts
-function createDrizzleRelations(db: PgDatabase): RelationStore;
+function createDrizzleRelations(db: PgDatabase, options?: { tables?: Pick<JanusTables, 'relations'> }): RelationStore;
 ```
 
 This is what `permissions({ store })` takes, and `janus({ relations })`. It
-uses `janus_relations`.
+uses `relations`.
 
 **A write of more than one tuple is a transaction**: removals first, then
 additions, all or nothing. `grant` and `revoke` write one tuple, in one

@@ -3,9 +3,11 @@ import {
 	describeJanusStores,
 	describeRelationStores,
 } from '@nxgt/janus/conformance';
+import { pgSchema } from 'drizzle-orm/pg-core';
 import { openTestDb, type Table } from '../test/db';
 import { createDrizzleRelations } from './relations';
 import { createDrizzleStores } from './stores';
+import { defineJanusTables, type JanusTablesOptions } from './tables';
 
 /**
  * The whole suite against a real PostgreSQL — PGlite, in process — outages
@@ -18,46 +20,67 @@ import { createDrizzleStores } from './stores';
  * fails the method.
  */
 const TABLE_OF: Record<'users' | 'sessions' | 'tokens', Table> = {
-	users: 'janus_users',
-	sessions: 'janus_sessions',
-	tokens: 'janus_tokens',
+	users: 'users',
+	sessions: 'sessions',
+	tokens: 'tokens',
 };
 
-describeJanusStores({
-	name: '@nxgt/janus-drizzle',
-	runner: { describe, it },
-	harness: {
-		async open() {
-			// A database per case: nothing one case writes is seen by the next.
-			const test = await openTestDb();
-			return {
-				stores: createDrizzleStores(test.db),
-				faults: {
-					fail: (slot) => test.takeAway(TABLE_OF[slot]),
-				},
-				close: test.close,
-			};
-		},
+/**
+ * Both layouts: the tables in a database of their own, unprefixed, and in a
+ * PostgreSQL schema of their own beside an application's tables.
+ */
+const LAYOUTS: readonly {
+	readonly name: string;
+	readonly options: JanusTablesOptions;
+}[] = [
+	{ name: '@nxgt/janus-drizzle', options: {} },
+	{
+		name: "@nxgt/janus-drizzle, schema 'janus'",
+		options: { schema: pgSchema('janus') },
 	},
-});
+];
 
-describeRelationStores({
-	name: '@nxgt/janus-drizzle',
-	runner: { describe, it },
-	harness: {
-		async open() {
-			const test = await openTestDb();
-			return {
-				store: createDrizzleRelations(test.db),
-				faults: {
-					// A write is checked by reading afterwards, so only writes fail.
-					fail: (method) =>
-						method === 'write'
-							? test.refuseWrites('janus_relations')
-							: test.takeAway('janus_relations'),
-				},
-				close: test.close,
-			};
+for (const { name, options } of LAYOUTS) {
+	describeJanusStores({
+		name,
+		runner: { describe, it },
+		harness: {
+			async open() {
+				// A database per case: nothing one case writes is seen by the next.
+				const test = await openTestDb(options);
+				return {
+					stores: createDrizzleStores(test.db, {
+						tables: defineJanusTables(options),
+					}),
+					faults: {
+						fail: (slot) => test.takeAway(TABLE_OF[slot]),
+					},
+					close: test.close,
+				};
+			},
 		},
-	},
-});
+	});
+
+	describeRelationStores({
+		name,
+		runner: { describe, it },
+		harness: {
+			async open() {
+				const test = await openTestDb(options);
+				return {
+					store: createDrizzleRelations(test.db, {
+						tables: defineJanusTables(options),
+					}),
+					faults: {
+						// A write is checked by reading afterwards, so only writes fail.
+						fail: (method) =>
+							method === 'write'
+								? test.refuseWrites('relations')
+								: test.takeAway('relations'),
+					},
+					close: test.close,
+				};
+			},
+		},
+	});
+}
