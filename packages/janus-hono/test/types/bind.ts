@@ -58,3 +58,35 @@ bindJanus({ auth }).permission;
 // 6. Bound without auth: no session.
 // @ts-expect-error — `session` does not exist on an access-only binding.
 bindJanus({ access }).session;
+
+// 7. Nor sendSession, nor signOut.
+// @ts-expect-error — `sendSession` does not exist on an access-only binding.
+bindJanus({ access }).sendSession;
+// @ts-expect-error 8. — `signOut` does not exist on an access-only binding.
+bindJanus({ access }).signOut;
+
+// 9. Something that is not a permissions() instance.
+// @ts-expect-error — `{}` has no `can`.
+bindJanus({ access: {} });
+
+// Must keep compiling: the narrow `access` permission() takes, the ctx
+// option, a staff-only route, and a computed `required` staying nullable.
+const narrow: Pick<typeof access, 'can'> = access;
+bindJanus({ access: narrow }).permission('view', 'record', byParam('id', find));
+declare const flag: boolean;
+new Hono()
+	.put(
+		'/records/:id',
+		j.permission('edit', 'record', byParam('id', find), {
+			ctx: () => ({ locked: false }),
+		}),
+		(c) => c.body(null),
+	)
+	.get('/rota', j.session({ type: 'staff', required: true }), (c) => {
+		const type: 'staff' = c.var.user.type;
+		return c.json({ type });
+	})
+	.get('/maybe', j.session({ required: flag }), (c) => {
+		const user: { readonly id: string } | null = c.var.user;
+		return c.json({ signedIn: user !== null });
+	});

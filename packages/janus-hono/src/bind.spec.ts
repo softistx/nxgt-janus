@@ -96,5 +96,10 @@ describe('bindJanus()', () => {
 			'session',
 			'signOut',
 		]);
+		const { access } = setup();
+		expect(Object.keys(bindJanus({ access })).sort()).toEqual([
+			'permission',
+			'provide',
+		]);
 	});
 });

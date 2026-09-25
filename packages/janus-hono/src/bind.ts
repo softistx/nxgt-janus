@@ -70,7 +70,8 @@ export interface BoundAuth<A> {
 /** What `bindJanus()` takes: the `janus()` instance, the `permissions()` one, or both. */
 export interface Bindable {
 	readonly auth?: Auth<{ readonly type: string }>;
-	readonly access?: object;
+	/** What `permission()` takes: a `permissions()` instance, or its `can`. */
+	readonly access?: { readonly can: unknown };
 }
 
 /**
@@ -86,7 +87,7 @@ export type Bound<I extends Bindable> = {
 } & (I['auth'] extends Auth<{ readonly type: string }>
 	? BoundAuth<I['auth']>
 	: unknown) &
-	(I['access'] extends Permissions<infer C>
+	(I['access'] extends Pick<Permissions<infer C>, 'can'>
 		? { readonly permission: BoundPermission<C> }
 		: unknown);
 
