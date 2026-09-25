@@ -419,17 +419,24 @@ export type LookupGap<
 	P extends string,
 > = GapOfPermission<TypesOf<C>, T, P, never>;
 
-/** What a permission must also be for `list()`: reversible. */
+/**
+ * What a permission must also be for `list()`: reversible. Checked name by
+ * name, so that while `P` is still every name of `T` — an editor asking what
+ * to complete — the names `list()` can answer survive the intersection, and
+ * only those.
+ */
 type ListCheck<
 	C extends ModelConfig,
 	T extends ObjectTypeOf<C>,
 	P extends string,
-> = [LookupGap<C, T, P>] extends [never]
-	? unknown
-	: Refusal<
-			`list cannot reverse ${LookupGap<C, T, P>}: give that fromField a lookup`,
-			never
-		>;
+> = P extends string
+	? [LookupGap<C, T, P>] extends [never]
+		? P
+		: Refusal<
+				`list cannot reverse ${LookupGap<C, T, P>}: give that fromField a lookup`,
+				never
+			>
+	: never;
 
 /** Where a page of `list()` starts, and how much it holds. */
 export interface ListPage {

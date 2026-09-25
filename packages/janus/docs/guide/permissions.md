@@ -240,6 +240,12 @@ can(subject, permission, object, options?): Promise<boolean>;
 - `object` is `{ type, id }` plus every field its `fromField`s read.
 - `options.ctx` is required exactly when a `when` is reachable.
 
+Your editor completes `permission` with the names of the object's type once
+the object is written. **Before, it offers the names of every type**: the
+permission comes before the object, and nothing yet says which type it is. A
+relation named after a type — `team: ['team']` — is offered as a name; it is
+the relation, not the type.
+
 ```ts
 await access.can(grace, 'view', { type: 'record', ...record });                               // true
 await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: false } });   // false
@@ -270,6 +276,8 @@ await access.list(grace, 'view', 'record', { after: page.nextCursor, limit: 50 }
 ```
 
 `limit` is 20 by default and at most 100; `ctx` is required as for `can`.
+Your editor completes `permission` with what `list()` can answer only: a name
+reaching a `fromField` with no `lookup` is neither offered nor accepted.
 `null` answers an empty page before any store call.
 
 `list()` walks backwards from the subject, reading every page of the reverse

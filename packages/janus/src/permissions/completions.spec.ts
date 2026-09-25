@@ -133,6 +133,52 @@ describe('an editor completes a model', () => {
 	});
 });
 
+const QUESTIONS = `
+import { defineModel, fromField, permissions } from './index';
+import { createMemoryRelations } from './port/memory';
+
+const access = permissions({
+	model: defineModel({
+		subjects: ['staff'],
+		types: {
+			team: { relations: { member: ['staff'] }, permissions: { view: ['member'] } },
+			record: {
+				relations: { owner: ['staff'], doctor: fromField('doctorId', 'staff'), team: ['team'] },
+				permissions: { view: ['owner', 'team->view'], read: ['owner', 'doctor'] },
+			},
+		},
+	}),
+	store: createMemoryRelations(),
+});
+const staff = { type: 'staff', id: 'u' } as const;
+
+access.can(staff, '§', { type: 'record', id: 'r', doctorId: null });
+access.list(staff, '§', 'record');
+access.grant({ type: 'record', id: 'r' }, '§', staff);
+`;
+
+describe('an editor completes a question', () => {
+	let asked: string[][] | undefined;
+	const at = (cursor: number) => {
+		asked ??= completionsIn(QUESTIONS);
+		return asked[cursor];
+	};
+
+	it("offers can() the object's relations and permissions, not another type's", () => {
+		// `team` is record's relation, not the type; `member` is team's.
+		expect(at(0)?.sort()).toEqual(['doctor', 'owner', 'read', 'team', 'view']);
+	});
+
+	it('offers list() only what it can reverse', () => {
+		// doctor, and read through it, are read from a field with no lookup.
+		expect(at(1)?.sort()).toEqual(['owner', 'team', 'view']);
+	});
+
+	it('offers grant() the relations it can write', () => {
+		expect(at(2)?.sort()).toEqual(['owner', 'team']);
+	});
+});
+
 describe('a wrong name in a model', () => {
 	it('is refused with the names it could have been', () => {
 		const [first, ...rest] = MODEL.split('§');
