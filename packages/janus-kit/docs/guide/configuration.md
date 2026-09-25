@@ -28,8 +28,9 @@ export const kit = await connectKit(config);
 What is wrong with it throws a `TypeError` there, where the application
 starts. `connectKit` runs the same checks again, as `connectKit: …`, for a
 configuration built without `defineConfig`: a missing URL must not reach Bun's
-`SQL`, which would read `DATABASE_URL` instead. A wrong URL, or a database without the tables, is `connectKit`'s
-`Error`: `defineConfig` has not connected yet.
+`SQL`, which would read `DATABASE_URL` instead. An unreachable database, or
+one without the tables, is `connectKit`'s `Error`: `defineConfig` has not
+connected yet.
 
 ## `postgres`
 

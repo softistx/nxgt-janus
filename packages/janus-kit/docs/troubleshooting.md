@@ -3,8 +3,10 @@
 Each entry is headed by the text you see: a compiler error or a message.
 Search this page for the words of your message.
 
-The kit **defines no error class**. `defineConfig` refuses with a `TypeError`,
-`connectKit` with an `Error` whose `cause` is what the driver threw. Once
+The kit **defines no error class**. A configuration it refuses is a
+`TypeError`, from `defineConfig` or from `connectKit`, which checks it again;
+a database it cannot reach is an `Error` from `connectKit`, whose `cause` is
+what the driver threw. Once
 connected, every error is `@nxgt/janus`'s, as documented in
 [`@nxgt/janus`'s troubleshooting](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md)
 and its adapters'.
@@ -31,6 +33,7 @@ and its adapters'.
 **Running**
 - [`STORE_FAILED` after `kit.close()`](#store_failed-after-kitclose)
 - [`AggregateError: kit.close: several connections failed to close`](#aggregateerror-kitclose-several-connections-failed-to-close)
+- [`connectKit: a connection failed to close after the kit failed to start: …`, a process warning](#connectkit-a-connection-failed-to-close-after-the-kit-failed-to-start--a-process-warning)
 
 ---
 
@@ -255,3 +258,16 @@ server's `stop()` resolves.
 failure never leaves another open.
 
 **Fix:** log `error.errors` at shutdown; there is nothing to retry.
+
+### `connectKit: a connection failed to close after the kit failed to start: …`, a process warning
+
+Its code is `JANUS_KIT_CLOSE_FAILED`. The rest is the close's error.
+
+**When:** `connectKit` failed, and closing a connection it had opened on the
+way failed too.
+
+**Why:** the error that stopped the kit is the one `connectKit` rejects with;
+a failure to clean up after it is reported beside it, as a process warning.
+
+**Fix:** fix the first error. The warning tells you a connection may have been
+left open until the process exits.
