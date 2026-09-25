@@ -196,20 +196,31 @@ export const sessionStoreCases: readonly ConformanceCase[] = [
 		name: 'deletes every session of one user — standing, revoked or lapsed — and counts them',
 		async run({ stores }) {
 			const userId = mintId();
+			const lapsed = sessionRecord({
+				userId,
+				expiresAt: at('2026-01-02T00:00:00.000Z'),
+			});
 			const records = [
 				sessionRecord({ userId }),
 				sessionRecord({ userId, revokedAt: at('2026-01-02T00:00:00.000Z') }),
-				sessionRecord({ userId, expiresAt: at('2026-01-02T00:00:00.000Z') }),
+				lapsed,
 			];
 			const stranger = sessionRecord();
 			for (const record of [...records, stranger]) {
 				await stores.sessions.insertSession(record);
 			}
 
-			equal(
-				await stores.sessions.deleteUserSessions(userId),
-				3,
-				'deleteUserSessions: how many it deleted, revoked and lapsed ones included',
+			// The lapsed one may be gone already: a store with its own expiry —
+			// a Redis key TTL — drops it as soon as it lapses, which the port
+			// allows. Whether it is still there is what the store answers for it.
+			const lapsedHeld =
+				(await stores.sessions.findSessionByTokenHash(lapsed.tokenHash)) !==
+				null;
+			const expected = lapsedHeld ? 3 : 2;
+			const deleted = await stores.sessions.deleteUserSessions(userId);
+			ok(
+				deleted === expected,
+				`deleteUserSessions: how many it deleted, revoked and lapsed ones included — ${String(expected)}, as the lapsed one is ${lapsedHeld ? 'still held' : 'already expired'}; got ${String(deleted)}`,
 			);
 			for (const record of records) {
 				isNull(

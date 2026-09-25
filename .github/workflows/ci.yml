@@ -75,6 +75,17 @@ jobs:
         with:
           path: .cache/mongodb
           key: mongod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts') }}
+      # @nxgt/janus-redis's specs start a real Redis. Nobody publishes a
+      # prebuilt redis-server, so redis-memory-server compiles the pinned
+      # version — about two minutes, measured in nxgt-data — once, into this
+      # cache, and in a step of its own so no test's timeout includes it.
+      - name: Cache the Redis build
+        uses: actions/cache@v4
+        with:
+          path: .cache/redis
+          key: redis-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-redis/test/server.ts') }}
+      - name: Build Redis
+        run: bun -e "const { redisBinary } = await import('./packages/janus-redis/test/server.ts'); console.log(await redisBinary())"
       # Per package, then the scripts' own specs.
       - name: Run tests
         run: bun run test

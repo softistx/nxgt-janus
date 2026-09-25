@@ -335,7 +335,8 @@ export interface SessionStore {
 	/**
 	 * Deletes every session of one user — standing, revoked or lapsed — and
 	 * answers how many. `0` is an answer, not a failure. What deleting a user
-	 * calls: a revoked session still names who held it.
+	 * calls: a revoked session still names who held it. A lapsed session the
+	 * store already dropped is not there to count.
 	 */
 	deleteUserSessions(userId: Id): Promise<number>;
 
