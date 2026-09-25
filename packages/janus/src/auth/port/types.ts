@@ -204,8 +204,8 @@ export interface UserStore {
 	 * logins: a login held by the user with this same `id` is not taken.
 	 *
 	 * A login held by **another** user of the same type rejects with
-	 * `StoreConflict('login', …)`, carrying `login` and `userType`, and writes
-	 * nothing. That refusal comes from the store's own constraint, never from a
+	 * `StoreConflict('login', …)`, carrying `login` and `userType` — never the
+	 * login in its message — and writes nothing. That refusal comes from the store's own constraint, never from a
 	 * read made first.
 	 */
 	insertUser(record: UserRecord): Promise<UserRecord>;
@@ -249,7 +249,8 @@ export interface UserStore {
 	 *   this from an absent id on its own, so the adapter reads again after a
 	 *   write that matched nothing;
 	 * - `StoreConflict('login', …)` when the patch's logins collide with another
-	 *   user's of the same type.
+	 *   user's of the same type, carrying `login` and `userType` — never the
+	 *   login in its message.
 	 */
 	updateUser(id: Id, patch: UserPatch, ifVersion: number): Promise<UserRecord>;
 

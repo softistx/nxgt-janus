@@ -131,7 +131,7 @@ copy of it.
 
 | What PostgreSQL reports | What you get |
 | --- | --- |
-| A login another user of the type holds | `StoreConflict`, code `LOGIN_TAKEN`, naming the login and the user type |
+| A login another user of the type holds | `StoreConflict`, code `LOGIN_TAKEN`, carrying `login` and `userType` |
 | A row with this id already there | Nothing: the insert was a retry, and returns what is stored — or `NOT_FOUND` if the user was deleted between the two |
 | A unique violation on **any other constraint** | `StoreFailure`: an adapter bug, never reported as a taken login |
 | A check or foreign key refusing a row | `StoreFailure`: the core validated the record already, so it is never the caller's fault |

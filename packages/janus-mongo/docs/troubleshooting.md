@@ -14,7 +14,7 @@ How the driver's errors become the port's:
 
 | What MongoDB answers | What you get |
 | --- | --- |
-| A duplicate key on the login index | `LOGIN_TAKEN`, naming the login and the user type |
+| A duplicate key on the login index | `LOGIN_TAKEN`, carrying `login` and `userType` |
 | A duplicate key on `_id` | Nothing: the insert was a retry, and what is stored is answered |
 | A duplicate key on any other index | `STORE_FAILED` |
 | A `$jsonSchema` validation failure (code 121) | `STORE_FAILED` |

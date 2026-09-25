@@ -68,6 +68,9 @@ Nothing yet.
 
 The first public release, v0.1.
 
+- **`LOGIN_TAKEN` no longer quotes the login in its message**, in the memory
+  store and in both adapters; `error.login` still names it, and the
+  conformance suite checks it. — next patch
 - **The conformance suite accepts a store with its own expiry** — a store
   that drops a lapsed session at once, as a Redis TTL does, passes
   `sessions.deleteUser`; one that still holds it must count it. — next patch

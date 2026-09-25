@@ -192,8 +192,8 @@ across the two packages.
 
 **No message ever holds a secret** — not a password, not a hash, not a session
 token, not a token's hash, and not a connection URI, because a connection string
-holds a password. A `login` may appear in a `LOGIN_TAKEN` message, since the
-caller just sent it.
+holds a password. Nor a login: a message reports a shape, never a value, so
+`LOGIN_TAKEN` names the login in `error.login`, not in its message.
 
 A refusal that can only come from how you wired the library — a lifespan that is
 not a duration, a store missing a method — throws a bare `TypeError` instead. No
@@ -483,7 +483,8 @@ describeJanusStores({
 There are 37 cases. They cover:
 - round-trip, byte for byte;
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
-  exactly one is accepted — and a login is unique per user type;
+  exactly one is accepted — and a login is unique per user type; the refusal
+  carries the login in `error.login`, never in its message;
 - versions: a refused update writes nothing;
 - **omission**, named after the Kratos `PUT` trap;
 - pagination;

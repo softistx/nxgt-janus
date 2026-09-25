@@ -14,7 +14,7 @@ How PostgreSQL's errors become the port's:
 
 | What PostgreSQL reports | What you get |
 | --- | --- |
-| A login another user of the type holds | `LOGIN_TAKEN`, naming the login and the user type |
+| A login another user of the type holds | `LOGIN_TAKEN`, carrying `login` and `userType` |
 | A row with this id already there | Nothing: the insert was a retry, and returns what is stored — or `NOT_FOUND` if the user was deleted between the two |
 | A unique violation on any other constraint | `STORE_FAILED` |
 | A check or foreign key refusing a row | `STORE_FAILED` |

@@ -96,7 +96,7 @@ is one copy of it:
 
 | What the driver reports | What you get |
 | --- | --- |
-| A duplicate key on the login index | `StoreConflict` — `LOGIN_TAKEN`, naming the login and the user type |
+| A duplicate key on the login index | `StoreConflict` — `LOGIN_TAKEN`, carrying `login` and `userType` |
 | A duplicate key on `_id` | nothing: the insert was a retry, and answers what is stored |
 | A duplicate key on **any other index** | `StoreFailure` — an adapter bug, never reported as a taken login |
 | A validator refusing a document (121) | `StoreFailure` — the core validated it already, so it is never the caller's fault |
