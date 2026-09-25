@@ -1,14 +1,15 @@
-import type {
-	Id,
-	JanusStores,
-	SessionRecord,
-	SessionStore,
-	TokenRecord,
-	TokenStore,
-} from '@nxgt/janus';
+import type { JanusStores, SessionStore, TokenStore } from '@nxgt/janus';
 import { StoreFailure } from '@nxgt/janus';
 import type { RedisConnection } from '@nxgt/redis';
 import type { RedisClient } from 'bun';
+import {
+	type Call,
+	count,
+	stamp,
+	stampOrEmpty,
+	toSession,
+	toToken,
+} from './replies';
 import {
 	CONSUME_TOKEN,
 	DELETE_USER_SESSIONS,
@@ -68,15 +69,29 @@ export function createRedisStores(
 	};
 }
 
-type Slot = 'sessions' | 'tokens';
-
 /** Runs a script, and makes every rejection one the port allows. */
 type Evaluate = (
-	slot: Slot,
-	operation: string,
+	call: Call,
 	script: string,
 	args: readonly string[],
 ) => Promise<unknown>;
+
+/** What a slot's methods call: a script's reply, already decoded. */
+type Run = <T>(
+	operation: string,
+	script: string,
+	args: readonly string[],
+	decode: (reply: unknown, call: Call) => T,
+) => Promise<T>;
+
+function runner(evaluate: Evaluate, slot: Call['slot'], prefix: string): Run {
+	return async (operation, script, args, decode) => {
+		const call = { slot, operation };
+		return decode(await evaluate(call, script, [prefix, ...args]), call);
+	};
+}
+
+const ignore = () => undefined;
 
 /**
  * Each script is sent once by its SHA — `EVALSHA` — and in full only when
@@ -94,7 +109,7 @@ function scriptsOver(client: RedisClient): Evaluate {
 		return sha;
 	};
 
-	return async (slot, operation, script, args) => {
+	return async ({ slot, operation }, script, args) => {
 		try {
 			try {
 				return await client.send('EVALSHA', [shaOf(script), '0', ...args]);
@@ -116,150 +131,81 @@ function isNoScript(error: unknown): boolean {
 }
 
 function sessionStore(evaluate: Evaluate, prefix: string): SessionStore {
-	const run = (operation: string, script: string, args: readonly string[]) =>
-		evaluate('sessions', operation, script, [prefix, ...args]);
+	const run = runner(evaluate, 'sessions', prefix);
 
 	return {
-		insertSession: async (record) => {
-			await run('insertSession', INSERT_SESSION, [
-				record.id,
-				record.tokenHash,
-				record.userId,
-				stamp(record.authenticatedAt),
-				stamp(record.expiresAt),
-				stampOrEmpty(record.revokedAt),
-				stamp(record.createdAt),
-			]);
-		},
-
-		findSessionByTokenHash: async (tokenHash) =>
-			toSession(await run('findSessionByTokenHash', FIND_SESSION, [tokenHash])),
-
-		extendSession: async (id, expiresAt) =>
-			toSession(
-				await run('extendSession', EXTEND_SESSION, [id, stamp(expiresAt)]),
+		insertSession: (record) =>
+			run(
+				'insertSession',
+				INSERT_SESSION,
+				[
+					record.id,
+					record.tokenHash,
+					record.userId,
+					stamp(record.authenticatedAt),
+					stamp(record.expiresAt),
+					stampOrEmpty(record.revokedAt),
+					stamp(record.createdAt),
+				],
+				ignore,
 			),
 
-		revokeSession: async (id, at) =>
-			(await run('revokeSession', REVOKE_SESSION, [id, stamp(at)])) === 1,
+		findSessionByTokenHash: (tokenHash) =>
+			run('findSessionByTokenHash', FIND_SESSION, [tokenHash], toSession),
 
-		revokeUserSessions: async (userId, at, except) =>
-			count(
-				await run('revokeUserSessions', REVOKE_USER_SESSIONS, [
-					userId,
-					stamp(at),
-					except ?? '',
-				]),
+		extendSession: (id, expiresAt) =>
+			run('extendSession', EXTEND_SESSION, [id, stamp(expiresAt)], toSession),
+
+		revokeSession: (id, at) =>
+			run(
+				'revokeSession',
+				REVOKE_SESSION,
+				[id, stamp(at)],
+				(reply, call) => count(reply, call) === 1,
 			),
 
-		deleteUserSessions: async (userId) =>
-			count(await run('deleteUserSessions', DELETE_USER_SESSIONS, [userId])),
+		revokeUserSessions: (userId, at, except) =>
+			run(
+				'revokeUserSessions',
+				REVOKE_USER_SESSIONS,
+				[userId, stamp(at), except ?? ''],
+				count,
+			),
+
+		deleteUserSessions: (userId) =>
+			run('deleteUserSessions', DELETE_USER_SESSIONS, [userId], count),
 	};
 }
 
 function tokenStore(evaluate: Evaluate, prefix: string): TokenStore {
-	const run = (operation: string, script: string, args: readonly string[]) =>
-		evaluate('tokens', operation, script, [prefix, ...args]);
+	const run = runner(evaluate, 'tokens', prefix);
 
 	return {
-		insertToken: async (record) => {
-			await run('insertToken', INSERT_TOKEN, [
-				record.tokenHash,
-				record.kind,
-				record.userId,
-				record.address,
-				stamp(record.expiresAt),
-				stampOrEmpty(record.spentAt),
-				stamp(record.createdAt),
-			]);
-		},
+		insertToken: (record) =>
+			run(
+				'insertToken',
+				INSERT_TOKEN,
+				[
+					record.tokenHash,
+					record.kind,
+					record.userId,
+					record.address,
+					stamp(record.expiresAt),
+					stampOrEmpty(record.spentAt),
+					stamp(record.createdAt),
+				],
+				ignore,
+			),
 
-		consumeToken: async (tokenHash, kind, at) => {
-			const before = await run('consumeToken', CONSUME_TOKEN, [
-				tokenHash,
-				kind,
-				stamp(at),
-			]);
-			if (before === null) return null;
-			const fields = fieldsOf(before);
-			return {
-				tokenHash,
-				kind: fields.kind as TokenRecord['kind'],
-				userId: fields.userId as Id,
-				address: fields.address ?? '',
-				expiresAt: dateOf(fields.expiresAt),
-				spentAt: dateOrNull(fields.spentAt),
-				createdAt: dateOf(fields.createdAt),
-			};
-		},
+		consumeToken: (tokenHash, kind, at) =>
+			run(
+				'consumeToken',
+				CONSUME_TOKEN,
+				[tokenHash, kind, stamp(at)],
+				(reply, call) => toToken(reply, tokenHash, kind, call),
+			),
 
-		deleteUserTokens: async (userId) =>
-			count(await run('deleteUserTokens', DELETE_USER_TOKENS, [userId])),
+		deleteUserTokens: (userId) =>
+			run('deleteUserTokens', DELETE_USER_TOKENS, [userId], count),
 	};
-}
-
-// ─── Replies and records ──────────────────────────────────────────────────
-
-function stamp(at: Date): string {
-	return String(at.getTime());
-}
-
-function stampOrEmpty(at: Date | null): string {
-	return at === null ? '' : stamp(at);
-}
-
-/** `[id, field, value, …]` as a session, or `null`. */
-function toSession(reply: unknown): SessionRecord | null {
-	if (reply === null) return null;
-	if (!Array.isArray(reply) || typeof reply[0] !== 'string') {
-		throw unreadable('a session');
-	}
-	const [id, ...rest] = reply as [string, ...string[]];
-	const fields = fieldsOf(rest);
-	return {
-		id,
-		tokenHash: fields.tokenHash ?? '',
-		userId: fields.userId as Id,
-		authenticatedAt: dateOf(fields.authenticatedAt),
-		expiresAt: dateOf(fields.expiresAt),
-		revokedAt: dateOrNull(fields.revokedAt),
-		createdAt: dateOf(fields.createdAt),
-	};
-}
-
-/** `[field, value, …]`, as Redis answers a hash from a script. */
-function fieldsOf(reply: unknown): Record<string, string | undefined> {
-	if (!Array.isArray(reply)) throw unreadable('a hash');
-	const fields: Record<string, string> = {};
-	for (let i = 0; i + 1 < reply.length; i += 2) {
-		fields[String(reply[i])] = String(reply[i + 1]);
-	}
-	return fields;
-}
-
-function dateOf(value: string | undefined): Date {
-	const date = new Date(Number(value));
-	if (value === undefined || value === '' || Number.isNaN(date.getTime())) {
-		throw unreadable('a date');
-	}
-	return date;
-}
-
-function dateOrNull(value: string | undefined): Date | null {
-	return value === '' ? null : dateOf(value);
-}
-
-function count(reply: unknown): number {
-	if (typeof reply !== 'number') throw unreadable('a count');
-	return reply;
-}
-
-/**
- * A reply this adapter did not write: a key of the prefix changed by hand, or
- * written by another version. A failure, never an absence.
- */
-function unreadable(what: string): StoreFailure {
-	return new StoreFailure(
-		`janus-redis: a reply that is not ${what}, under this adapter's prefix`,
-	);
 }

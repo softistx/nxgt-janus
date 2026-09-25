@@ -29,6 +29,21 @@ local function extendSet(key, at)
 end
 `;
 
+/**
+ * Drops from `set` every member whose key, `prefix .. member`, Redis already
+ * expired. Run on every insert, so a user's set holds their live sessions or
+ * tokens and the few that lapsed since — never every one they ever had.
+ */
+const PRUNE = `
+local function prune(set, prefix)
+	for _, member in ipairs(redis.call('SMEMBERS', set)) do
+		if redis.call('EXISTS', prefix .. member) == 0 then
+			redis.call('SREM', set, member)
+		end
+	end
+end
+`;
+
 /** A hash as `{ field, value, … }` for a reply: what `HGETALL` answers. */
 const SESSION_FIELDS = `
 local function session(key, id)
@@ -44,7 +59,7 @@ end
  * revokedAt, createdAt. Answers `1` when written, `0` for a retry. A token
  * hash another session holds is an error: it is not a retry.
  */
-export const INSERT_SESSION = `${EXTEND_SET}
+export const INSERT_SESSION = `${EXTEND_SET}${PRUNE}
 local p, id, tokenHash, userId = ARGV[1], ARGV[2], ARGV[3], ARGV[4]
 local key = p .. 'session:' .. id
 if redis.call('EXISTS', key) == 1 then return 0 end
@@ -59,6 +74,7 @@ redis.call('HSET', key,
 redis.call('PEXPIREAT', key, ARGV[6])
 redis.call('SET', tokenKey, id, 'PXAT', ARGV[6])
 local sessions = p .. 'user:' .. userId .. ':sessions'
+prune(sessions, p .. 'session:')
 redis.call('SADD', sessions, id)
 extendSet(sessions, ARGV[6])
 return 1
@@ -152,7 +168,7 @@ return deleted
  * `ARGV`: prefix, tokenHash, kind, userId, address, expiresAt, spentAt,
  * createdAt. The hash is the key, so a token already there is a retry.
  */
-export const INSERT_TOKEN = `${EXTEND_SET}
+export const INSERT_TOKEN = `${EXTEND_SET}${PRUNE}
 local p, tokenHash, userId = ARGV[1], ARGV[2], ARGV[4]
 local key = p .. 'token:' .. tokenHash
 if redis.call('EXISTS', key) == 1 then return 0 end
@@ -161,6 +177,7 @@ redis.call('HSET', key,
 	'expiresAt', ARGV[6], 'spentAt', ARGV[7], 'createdAt', ARGV[8])
 redis.call('PEXPIREAT', key, ARGV[6])
 local tokens = p .. 'user:' .. userId .. ':tokens'
+prune(tokens, p .. 'token:')
 redis.call('SADD', tokens, tokenHash)
 extendSet(tokens, ARGV[6])
 return 1

@@ -4,6 +4,7 @@ import {
 	janus,
 	mintId,
 	type SessionRecord,
+	StoreFailure,
 	scryptHasher,
 } from '@nxgt/janus';
 import { z } from 'zod';
@@ -90,9 +91,120 @@ describe('createRedisStores(), beyond the port suite', () => {
 
 			const outcome = await sessions.findSessionByTokenHash('abc').then(
 				() => 'resolved',
-				(error: { code?: string }) => error.code,
+				(error: unknown) => error,
 			);
+			expect(outcome).toBeInstanceOf(StoreFailure);
+			expect(outcome).toMatchObject({
+				code: 'STORE_FAILED',
+				slot: 'sessions',
+				operation: 'findSessionByTokenHash',
+			});
+		}));
+
+	it('fails on a hash missing a field, rather than filling it in', () =>
+		withCase(async ({ redis, prefix }) => {
+			const { tokens } = createRedisStores(redis, { prefix });
+			await redis.client.send('HSET', [
+				`${prefix}token:abc`,
+				'kind',
+				'verifyEmail',
+				'spentAt',
+				'',
+			]);
+
+			const outcome = await tokens
+				.consumeToken('abc', 'verifyEmail', new Date())
+				.then(
+					() => 'resolved',
+					(error: unknown) => error,
+				);
+			expect(outcome).toMatchObject({
+				code: 'STORE_FAILED',
+				slot: 'tokens',
+				operation: 'consumeToken',
+			});
+		}));
+
+	it('refuses a session token hash another session holds: not a retry', () =>
+		withCase(async ({ redis, prefix }) => {
+			const { sessions } = createRedisStores(redis, { prefix });
+			const first = session();
+			await sessions.insertSession(first);
+
+			const outcome = await sessions
+				.insertSession(session({ tokenHash: first.tokenHash }))
+				.then(
+					() => 'resolved',
+					(error: { code?: string }) => error.code,
+				);
 			expect(outcome).toBe('STORE_FAILED');
+			expect(await sessions.findSessionByTokenHash(first.tokenHash)).toEqual(
+				first,
+			);
+		}));
+
+	it("keeps a user's set of sessions as long as their longest session", () =>
+		withCase(async ({ redis, prefix }) => {
+			const { sessions } = createRedisStores(redis, { prefix });
+			const userId = mintId();
+			await sessions.insertSession(session({ userId }));
+			await sessions.insertSession(
+				session({ userId, expiresAt: new Date(Date.now() + 60_000) }),
+			);
+
+			expect(
+				await redis.client.send('PEXPIRETIME', [
+					`${prefix}user:${userId}:sessions`,
+				]),
+			).toBe(expiresAt.getTime());
+		}));
+
+	it("drops the sessions and tokens Redis expired from a user's sets", () =>
+		withCase(async ({ redis, prefix }) => {
+			const { sessions, tokens } = createRedisStores(redis, { prefix });
+			const userId = mintId();
+			const lapsedAt = new Date(Date.now() - 1000);
+			const members = (set: string) =>
+				redis.client.send('SMEMBERS', [`${prefix}user:${userId}:${set}`]);
+
+			// A lapsed session joins the set of a user who has a standing one,
+			// and Redis deletes its key at once.
+			const standing = session({ userId });
+			const lapsed = session({ userId, expiresAt: lapsedAt });
+			await sessions.insertSession(standing);
+			await sessions.insertSession(lapsed);
+			expect(await members('sessions')).toContain(lapsed.id);
+
+			// The next insert drops it.
+			const next = session({ userId });
+			await sessions.insertSession(next);
+			expect((await members('sessions')) as string[]).toEqual(
+				expect.arrayContaining([standing.id, next.id]),
+			);
+			expect(await members('sessions')).toHaveLength(2);
+
+			// So does revoking the user's sessions.
+			await sessions.insertSession(session({ userId, expiresAt: lapsedAt }));
+			expect(await sessions.revokeUserSessions(userId, new Date())).toBe(2);
+			expect(await members('sessions')).toHaveLength(2);
+
+			// And the same for tokens.
+			const token = (hash: string, at: Date) => ({
+				tokenHash: hash,
+				kind: 'verifyEmail' as const,
+				userId,
+				address: 'ada@example.test',
+				expiresAt: at,
+				spentAt: null,
+				createdAt: new Date(),
+			});
+			await tokens.insertToken(token('t1', expiresAt));
+			await tokens.insertToken(token('t2', lapsedAt));
+			await tokens.insertToken(token('t3', expiresAt));
+			expect(((await members('tokens')) as string[]).sort()).toEqual([
+				't1',
+				't3',
+			]);
 		}));
 
 	it('serves janus() beside another users store, and leaves collecting to Redis', () =>

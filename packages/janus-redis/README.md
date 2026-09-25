@@ -12,30 +12,6 @@ so no transaction ever spans the two.
 It passes the `@nxgt/janus/conformance` suite for these two slots against a
 real Redis 7.4, outages included.
 
-```ts
-import { janus, scryptHasher } from '@nxgt/janus';
-import { createMongoStores } from '@nxgt/janus-mongo';
-import { createRedisStores } from '@nxgt/janus-redis';
-import { connectRedis } from '@nxgt/redis';
-
-const redis = await connectRedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-  enableOfflineQueue: false, // an outage answers 503 at once, not after 31 s
-});
-
-export const auth = janus({
-  user: User,
-  password: { login: 'email' },
-  hasher: scryptHasher(),
-  store: {
-    ...createMongoStores(db),     // users, sessions, tokens…
-    ...createRedisStores(redis),  // …then sessions and tokens replaced by Redis
-  },
-});
-```
-
-The order of the spread matters: whatever comes last provides `sessions` and
-`tokens`.
-
 > **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
@@ -58,6 +34,39 @@ It needs **Redis 7.0 or later**, or Valkey, for `PEXPIREAT … GT` and
 `SET … PXAT`.
 
 Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
+
+`@nxgt/redis` itself requires `zod` 4 as a peer. Add it too if your
+application does not already use it: `bun add zod`.
+
+## Usage
+
+```ts
+import { janus, scryptHasher } from '@nxgt/janus';
+import { createDrizzleStores } from '@nxgt/janus-drizzle';
+import { createRedisStores } from '@nxgt/janus-redis';
+import { connectRedis } from '@nxgt/redis';
+import { drizzle } from 'drizzle-orm/bun-sql';
+import { z } from 'zod';
+
+const db = drizzle(process.env.DATABASE_URL ?? 'postgres://localhost:5432/app');
+const redis = await connectRedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+  enableOfflineQueue: false, // an outage answers 503 at once, not after 31 s
+});
+
+export const auth = janus({
+  user: z.object({ email: z.email(), name: z.string() }),
+  password: { login: 'email' },
+  hasher: scryptHasher(),
+  store: {
+    ...createDrizzleStores(db),   // users, sessions, tokens…
+    ...createRedisStores(redis),  // …then sessions and tokens replaced by Redis
+  },
+});
+```
+
+The order of the spread matters: whatever comes last provides `sessions` and
+`tokens`. `createMongoStores(db)` from `@nxgt/janus-mongo` works the same way.
+[Wiring](docs/guide/wiring.md) covers the connection's options.
 
 ## API
 
@@ -103,15 +112,18 @@ a failover or a `SCRIPT FLUSH`.
   passes. The core refuses a lapsed session on every read regardless, so
   nothing changes for your users. But a session cannot be read once it has
   lapsed, not even by an admin page.
-- **Eviction is data loss.** A Redis whose `maxmemory-policy` evicts keys
-  (`allkeys-lru`, …) can drop a standing session, which signs its user out,
-  or a set, which hides sessions from "sign out everywhere". Run this on a
-  Redis with `noeviction` or `volatile-*`, or one of its own.
+- **Eviction is data loss.** A Redis whose `maxmemory-policy` evicts keys can
+  drop a standing session, which signs its user out, or a set, which hides
+  sessions from "sign out everywhere". `volatile-*` policies are no safer:
+  every key this adapter writes has an expiry, so every one is a candidate.
+  Run this on a Redis with `noeviction`, or on one of its own.
 - **Redis Cluster is not supported.** A script reads keys it finds on the way,
   a session's token key or a user's sessions, which may live in different
   slots.
 - **`deleteUserSessions` and `revokeUserSessions` walk the user's set** in one
-  script: a user with thousands of sessions holds Redis for that long.
+  script: a user with thousands of live sessions holds Redis for that long.
+  The sets do not grow with sessions that lapsed: each insert drops the ones
+  Redis already expired.
 - **Persistence is yours to configure.** Without RDB or AOF, restarting Redis
   signs everybody out and forgets every pending reset token, which the port
   tolerates, since sessions are derived state. With AOF `everysec`, up to a
@@ -119,7 +131,7 @@ a failover or a `SCRIPT FLUSH`.
 
 ## Documentation
 
-- [Guides](docs/README.md): wiring the stores beside another adapter, and what Redis holds
+- [Guides](docs/README.md): wiring the stores beside another adapter, the connection's options, expiry
 - [Troubleshooting](docs/troubleshooting.md): look up the error message you see
 - [Roadmap](docs/roadmap.md): what is next, and what is not planned
 

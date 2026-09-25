@@ -96,6 +96,11 @@ collect.
 A revoked session stays until its expiry, so that its revocation is what a
 read returns.
 
+A user's set of sessions, and of tokens, lives as long as the longest of
+them. An id whose key Redis expired stays in the set until the user's next
+sign-in or token, which drops it, so a set holds live entries and the few
+that lapsed since.
+
 ## What a failure looks like
 
 The adapter defines **no error class**. Every rejection is `@nxgt/janus`'s
@@ -106,7 +111,7 @@ The adapter defines **no error class**. Every rejection is `@nxgt/janus`'s
 | Redis is unreachable, the connection closed, a timeout | `StoreFailure`; `cause` is Bun's `RedisError`, such as `ERR_REDIS_CONNECTION_CLOSED` |
 | Redis refuses the command: `NOPERM`, `OOM`, `READONLY` on a replica | `StoreFailure`; `cause` carries Redis's reply |
 | A session token hash already held by another session | `StoreFailure`: it is not a retry, and never happens with the core's 32 random bytes |
-| A key under the prefix that this adapter did not write | `StoreFailure`: never read as an absence |
+| A key under the prefix that this adapter did not write | `StoreFailure` naming the call, with no `cause`: never read as an absence |
 
 Nothing returns `null` for an error, so a route answers 503, not 401. With
 `@nxgt/janus-hono`, `app.onError(janusErrors())` does that for every route.

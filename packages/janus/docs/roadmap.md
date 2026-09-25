@@ -68,6 +68,10 @@ Nothing yet.
 
 The first public release, v0.1.
 
+- **The conformance suite accepts a store with its own expiry** — a store
+  that drops a lapsed session at once, as a Redis TTL does, passes
+  `sessions.deleteUser`; one that still holds it must count it. — next patch
+
 - **A Hono integration** — [`@nxgt/janus-hono`](https://www.npmjs.com/package/@nxgt/janus-hono):
   the session middleware, the cookie, a route guarded by a permission,
   `bindJanus()` to bind the instances once, and every error as its status.

@@ -18,6 +18,9 @@ This adapter **defines no error class**. Every error it throws is
 **Runtime**
 - [`STORE_FAILED` after about 31 seconds, caused by `Max reconnection attempts reached`](#store_failed-after-about-31-seconds-caused-by-max-reconnection-attempts-reached)
 - [`STORE_FAILED`: `sessions.<operation>: the store could not answer`](#store_failed-sessionsoperation-the-store-could-not-answer)
+- [`STORE_FAILED`: `sessions.<operation>: a reply that is not … — a key under the prefix this adapter did not write`](#store_failed-sessionsoperation-a-reply-that-is-not---a-key-under-the-prefix-this-adapter-did-not-write)
+- [`CROSSSLOT Keys in request don't hash to the same slot`, or `Script attempted to access a non local key in a cluster node`](#crossslot-keys-in-request-dont-hash-to-the-same-slot-or-script-attempted-to-access-a-non-local-key-in-a-cluster-node)
+- [Users are signed out while Redis is up, under memory pressure](#users-are-signed-out-while-redis-is-up-under-memory-pressure)
 - [`UNSUPPORTED`: `collectExpired: store.sessions does not implement deleteExpiredSessions …`](#unsupported-collectexpired-storesessions-does-not-implement-deleteexpiredsessions-)
 - [`TypeError: connectRedis: this URI is already connected with other options.`](#typeerror-connectredis-this-uri-is-already-connected-with-other-options)
 - [Users are signed out after Redis restarts](#users-are-signed-out-after-redis-restarts)
@@ -84,7 +87,8 @@ Also `tokens.<operation>: …`.
 
 **When:** any call, for as long as Redis cannot answer: unreachable, out of
 memory (`OOM`), a replica that refuses writes (`READONLY`), a user without the
-right (`NOPERM`).
+right (`NOPERM`). With `enableOfflineQueue: false`, an outage's `cause` reads
+`Connection is closed and offline queue is disabled`.
 
 **Why:** the adapter never turns a failure into an absence. An outage is not
 "no such session", which would sign every user out.
@@ -100,6 +104,37 @@ if (error instanceof StoreFailure) console.error(error.slot, error.operation, er
 A Redis user restricted by ACL needs `+@scripting` and the commands the scripts
 run (`HSET`, `HGET`, `HGETALL`, `EXISTS`, `GET`, `SET`, `DEL`, `SADD`, `SREM`,
 `SMEMBERS`, `PTTL`, `PEXPIREAT`), on the keys `~janus:*`, or `~<your prefix>*`.
+
+### `STORE_FAILED`: `sessions.<operation>: a reply that is not … — a key under the prefix this adapter did not write`
+
+Also `tokens.<operation>: …`, and `… not a date in \`expiresAt\``, `… not a
+hash with \`userId\``, and the like.
+
+**When:** Redis answered, but a key under the prefix holds something this
+adapter did not write: a key set by hand, another application using the same
+prefix, or a key written by another version.
+
+**Why:** a record it cannot read is a failure, never an absence — answering
+`null` would sign a user out, or refuse a valid reset link. There is no
+`cause`: Redis did not fail.
+
+**Fix:** give Janus a prefix no other code writes under, and delete the
+foreign keys:
+
+```ts
+createRedisStores(redis, { prefix: 'clinic:janus:' });
+```
+
+### `CROSSSLOT Keys in request don't hash to the same slot`, or `Script attempted to access a non local key in a cluster node`
+
+The message is the `cause` of a `STORE_FAILED`.
+
+**When:** Janus's Redis is a Redis Cluster.
+
+**Why:** a script reads keys it finds on the way, a session's token key or a
+user's set, which live in different hash slots. Cluster is not supported.
+
+**Fix:** give Janus a single Redis, or a primary with replicas.
 
 ### `UNSUPPORTED`: `collectExpired: store.sessions does not implement deleteExpiredSessions …`
 
@@ -131,3 +166,16 @@ them signs users out, which recovers.
 
 **Fix:** if it matters, enable persistence (RDB snapshots, or AOF with
 `appendfsync everysec`) on this Redis.
+
+### Users are signed out while Redis is up, under memory pressure
+
+**When:** sessions disappear before their expiry, or "sign out everywhere"
+misses some, and Redis's `evicted_keys` (in `INFO stats`) grows.
+
+**Why:** Redis evicts keys when it reaches `maxmemory`. Every key this adapter
+writes has an expiry, so `volatile-*` policies evict them as readily as
+`allkeys-*`.
+
+**Fix:** set `maxmemory-policy noeviction` on this Redis, or give Janus a Redis
+of its own. With `noeviction`, a full Redis refuses writes with `OOM`, which
+answers 503 rather than signing anyone out.
