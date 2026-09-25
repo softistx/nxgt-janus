@@ -7,19 +7,15 @@ in.
 ## Now
 
 - **The first release**: PostgreSQL through `@nxgt/janus-drizzle`, at
-  `@nxgt/janus-kit/drizzle`; sessions and
+  `@nxgt/janus-kit/drizzle`, and MongoDB through `@nxgt/janus-mongo`, at
+  `@nxgt/janus-kit/mongo`; sessions and
   one-time tokens in Redis through `@nxgt/janus-redis`, telemetry through
   `@nxgt/janus-telemetry`, a health check and a close. It stays unpublished
   until its adapters are released.
 
 ## Next
 
-- **MongoDB, at `@nxgt/janus-kit/mongo`.** The same kit over
-  `@nxgt/janus-mongo`: it opens the client or takes your `Db`, checks at
-  startup that the four collections are synced, and answers the same `auth`,
-  `access`, `ping` and `close`. A subpath of this package, not a package of
-  its own: Redis, telemetry and the lifecycle are shared, and one version
-  covers both.
+Nothing yet.
 
 ## Later
 
@@ -31,9 +27,10 @@ Nothing yet.
 
 ## Not planned
 
-- **Running migrations.** Janus's tables are created by your drizzle-kit
-  migrations, as your own are. The kit checks they are there, and creates
-  nothing.
+- **Running migrations, or `syncMongoAdapter`.** Janus's tables are created
+  by your drizzle-kit migrations, as your own are, and its collections by
+  `syncMongoAdapter` where you deploy: both need rights the application's
+  user should not hold. The kit checks, and creates nothing.
 - **Building `janus()` or `permissions()` from configuration keys.** You write
   them, in `auth` and `access`, so their types are inferred where you wrote
   them.

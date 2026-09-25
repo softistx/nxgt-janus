@@ -308,6 +308,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | `Clock`, `fixedClock` | `src/time/` | Same, and `fixedClock` is **shipped**, not test-only: a consumer testing session expiry needs it |
 | The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above |
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; two copies of 60 lines are cheaper. Change one, change both |
+| `test/mongo.ts`, the pinned replica set the specs start | `packages/janus-mongo/test/server.ts`, `packages/janus-kit/test/mongo.ts` | Same; the mongod version in both keys the one `.cache/mongodb` |
 | The DDL helper, drizzle-kit's `generateMigration` over `defineJanusTables()` | `packages/janus-drizzle/test/db.ts`, `packages/janus-kit/test/postgres.ts` | Same |
 
 ---
@@ -316,9 +317,10 @@ The table that exists so a duplication is a decision rather than an accident.
 
 - `*.spec.ts` colocated in `src/`. `test/` holds helpers only.
 - `test/types/` is typechecked by `tsc --noEmit` and **never run**.
-- MongoDB, when `@nxgt/janus-mongo` arrives: `mongodb-memory-server-core` as a
-  single-node replica set, binary cached in `.cache/mongodb`, one server per spec
-  file, the database dropped between cases. Measured in nxgt-data: starting a
+- MongoDB, in `@nxgt/janus-mongo` and `@nxgt/janus-kit/mongo`:
+  `mongodb-memory-server-core` as a single-node replica set, binary cached in
+  `.cache/mongodb`, one server per spec file, a clean database per case —
+  dropped between cases, or a new one. Measured in nxgt-data: starting a
   mongod costs ~300 ms warm, dropping a database costs milliseconds.
 - **Settle an expected rejection where it is created**, with `.then(ok, ko)`. A
   rejection awaited too late is counted unhandled by Bun and fails the test with

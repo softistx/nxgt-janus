@@ -2,7 +2,7 @@
 	"name": "@nxgt/janus-kit",
 	"version": "0.0.0",
 	"private": true,
-	"description": "@nxgt/janus wired in one call: PostgreSQL through Drizzle, sessions in Redis, telemetry, a health check and a close",
+	"description": "@nxgt/janus wired in one call, one subpath per database — PostgreSQL through Drizzle, MongoDB — with sessions in Redis, telemetry, a health check and a close",
 	"license": "MIT",
 	"type": "module",
 	"files": [
@@ -18,6 +18,11 @@
 			"import": "./dist/drizzle/index.js",
 			"default": "./dist/drizzle/index.js"
 		},
+		"./mongo": {
+			"types": "./dist/mongo/index.d.ts",
+			"import": "./dist/mongo/index.js",
+			"default": "./dist/mongo/index.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"keywords": [
@@ -27,7 +32,8 @@
 		"postgresql",
 		"redis",
 		"janus",
-		"typescript"
+		"typescript",
+		"mongodb"
 	],
 	"repository": {
 		"type": "git",
@@ -45,7 +51,8 @@
 	},
 	"nxgt": {
 		"entrypoints": [
-			"src/drizzle/index.ts"
+			"src/drizzle/index.ts",
+			"src/mongo/index.ts"
 		]
 	},
 	"dependencies": {
@@ -56,12 +63,16 @@
 		"@nxgt/drizzle": "0.6.1",
 		"@nxgt/janus": "workspace:^",
 		"@nxgt/janus-drizzle": "workspace:^",
+		"@nxgt/janus-mongo": "workspace:^",
 		"@nxgt/janus-telemetry": "workspace:^",
+		"@nxgt/mongo": "^0.17.1",
 		"@nxgt/redis": "0.3.1",
 		"@nxgt/telemetry": "0.2.1",
 		"@types/bun": "^1.4.2",
 		"drizzle-kit": "1.0.0-rc.4",
 		"drizzle-orm": "1.0.0-rc.4",
+		"mongodb": "^7.6.0",
+		"mongodb-memory-server-core": "11.2.0",
 		"redis-memory-server": "0.17.1",
 		"zod": "^4.6.5"
 	},
@@ -69,9 +80,12 @@
 		"@nxgt/drizzle": ">=0.6.1 <1",
 		"@nxgt/janus": "workspace:^",
 		"@nxgt/janus-drizzle": "workspace:^",
+		"@nxgt/janus-mongo": "workspace:^",
 		"@nxgt/janus-telemetry": "workspace:^",
+		"@nxgt/mongo": ">=0.17.0 <1",
 		"@nxgt/redis": ">=0.3.1 <1",
 		"drizzle-orm": ">=1.0.0-rc.4 <2",
+		"mongodb": ">=7.0.0 <8",
 		"typescript": "^6.0.3"
 	},
 	"peerDependenciesMeta": {
@@ -81,10 +95,19 @@
 		"@nxgt/janus-drizzle": {
 			"optional": true
 		},
+		"@nxgt/janus-mongo": {
+			"optional": true
+		},
 		"@nxgt/janus-telemetry": {
 			"optional": true
 		},
+		"@nxgt/mongo": {
+			"optional": true
+		},
 		"drizzle-orm": {
+			"optional": true
+		},
+		"mongodb": {
 			"optional": true
 		}
 	}
