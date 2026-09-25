@@ -16,6 +16,8 @@ Export the five tables from the file, or one of the files, that your
 
 ```ts
 // src/db/schema.ts
+import { pgTable } from 'drizzle-orm/pg-core';
+
 export {
 	janusLogins,
 	janusRelations,
@@ -134,10 +136,11 @@ listing, a report, a data export.
 import { janusTables } from '@nxgt/janus-drizzle';
 import { count, eq } from 'drizzle-orm';
 
-const [{ patients }] = await db
+const [row] = await db
 	.select({ patients: count() })
 	.from(janusTables.janusUsers)
 	.where(eq(janusTables.janusUsers.type, 'patient'));
+const patients = row?.patients ?? 0;
 ```
 
 **Read, never write.** A row written behind the store's back skips its

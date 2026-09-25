@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'bun:test';
+import type { PgDatabase } from '@nxgt/drizzle/pg';
+import { mintId, type UserRecord } from '@nxgt/janus';
+import { eq } from 'drizzle-orm';
+import { openTestDb } from '../test/db';
+import { createDrizzleStores } from './stores';
+import { janusUsers } from './tables';
+
+const at = new Date('2026-01-01T00:00:00.000Z');
+
+function user(logins: readonly string[]): UserRecord {
+	return {
+		id: mintId(),
+		type: 'user',
+		schemaVersion: '1',
+		active: true,
+		fields: {},
+		logins,
+		password: null,
+		emailVerifiedAt: null,
+		version: 0,
+		createdAt: at,
+		updatedAt: at,
+	};
+}
+
+describe('createDrizzleStores(), beyond the port suite', () => {
+	it('never deadlocks two sign-ups claiming one set of logins in opposite orders', async () => {
+		// Meaningful on a real server (JANUS_POSTGRES_URL): PGlite runs one
+		// connection, so nothing there is concurrent. Measured before the
+		// claim sorted its logins: 122 of 800 inserts deadlocked, `40P01`.
+		const test = await openTestDb();
+		try {
+			const { users } = createDrizzleStores(test.db);
+			const logins = ['a', 'b', 'c', 'd', 'e', 'f'].map((l) => `${l}@x.test`);
+			const outcomes: string[] = [];
+			for (let round = 0; round < 20; round += 1) {
+				const claimed = logins.map((login) => `${round}-${login}`);
+				const settled = await Promise.allSettled(
+					[0, 1, 2, 3].map((n) =>
+						users.insertUser(
+							user(n % 2 === 0 ? claimed : [...claimed].reverse()),
+						),
+					),
+				);
+				for (const outcome of settled) {
+					outcomes.push(
+						outcome.status === 'fulfilled'
+							? 'inserted'
+							: String((outcome.reason as { code?: unknown }).code),
+					);
+				}
+			}
+
+			expect(outcomes.filter((o) => o === 'inserted')).toHaveLength(20);
+			expect(new Set(outcomes)).toEqual(new Set(['inserted', 'LOGIN_TAKEN']));
+		} finally {
+			await test.close();
+		}
+	});
+
+	it('answers NOT_FOUND to a retried insert whose user was deleted meanwhile', async () => {
+		const test = await openTestDb();
+		try {
+			const record = user(['ada@x.test']);
+			await createDrizzleStores(test.db).users.insertUser(record);
+
+			// The retry's transaction finds the id taken, then the user goes
+			// before the retry reads it back.
+			const racing = new Proxy(test.db, {
+				get(target, key, receiver) {
+					const value: unknown = Reflect.get(target, key, receiver);
+					if (key !== 'transaction' || typeof value !== 'function') {
+						return value;
+					}
+					return async (...args: unknown[]) => {
+						const answer: unknown = await value.apply(target, args);
+						await target.delete(janusUsers).where(eq(janusUsers.id, record.id));
+						return answer;
+					};
+				},
+			}) as PgDatabase;
+
+			const outcome = await createDrizzleStores(racing)
+				.users.insertUser(record)
+				.then(
+					() => 'resolved',
+					(error: { code?: string }) => error.code,
+				);
+			expect(outcome).toBe('NOT_FOUND');
+		} finally {
+			await test.close();
+		}
+	});
+});

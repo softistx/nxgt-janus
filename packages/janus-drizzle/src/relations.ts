@@ -53,14 +53,16 @@ export function createDrizzleRelations(db: PgDatabase): RelationStore {
 		add: readonly RelationTuple[],
 		remove: readonly RelationTuple[],
 	) => {
-		for (const tuple of remove) {
+		// In one order, so two writes touching the same tuples take their locks
+		// alike and never deadlock.
+		for (const tuple of inOrder(remove)) {
 			await tx.delete(janusRelations).where(matching(tuple));
 		}
 		if (add.length > 0) {
 			// A stored tuple meets the unique constraint, and is a no-op.
 			await tx
 				.insert(janusRelations)
-				.values(add.map(rowOf))
+				.values(inOrder(add).map(rowOf))
 				.onConflictDoNothing();
 		}
 	};
@@ -142,6 +144,23 @@ export function createDrizzleRelations(db: PgDatabase): RelationStore {
 				return deleted.length;
 			}),
 	};
+}
+
+/** Tuples in one order: their notation, compared by code unit. */
+function inOrder(tuples: readonly RelationTuple[]): readonly RelationTuple[] {
+	const keyOf = (tuple: RelationTuple) =>
+		JSON.stringify([
+			tuple.object.type,
+			tuple.object.id,
+			tuple.relation,
+			tuple.subject.type,
+			tuple.subject.id,
+			isSubjectSet(tuple.subject) ? tuple.subject.relation : null,
+		]);
+	return [...tuples].sort((a, b) => {
+		const [x, y] = [keyOf(a), keyOf(b)];
+		return x < y ? -1 : x > y ? 1 : 0;
+	});
 }
 
 /** A tuple as a row: an entity's `subject_relation` is `null`. */

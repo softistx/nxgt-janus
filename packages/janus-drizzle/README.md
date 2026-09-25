@@ -7,8 +7,9 @@ store of `@nxgt/janus/permissions`, over one database. It works through your
 [`@nxgt/drizzle`](https://www.npmjs.com/package/@nxgt/drizzle) for
 transactions and error translation.
 
-It passes both `@nxgt/janus/conformance` suites on a real PostgreSQL 17,
-outages and concurrency included, and on PGlite. `createDrizzleAdapter(db)`
+It passes both `@nxgt/janus/conformance` suites on a real PostgreSQL 17 —
+over `node-postgres`, postgres.js and Bun's `SQL`, outages and concurrency
+included — and on PGlite. `createDrizzleAdapter(db)`
 returns both sides under the names `janus()` takes, so one spread wires them.
 Each side also works alone, as in `@nxgt/janus`: `createDrizzleStores` for
 identities, `createDrizzleRelations` for permissions.
@@ -29,8 +30,9 @@ import { janus, scryptHasher } from '@nxgt/janus';
 import { permissions } from '@nxgt/janus/permissions';
 import { createDrizzleAdapter } from '@nxgt/janus-drizzle';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { model, User } from './model'; // your user schema and permission model
 
-const db = drizzle(process.env.DATABASE_URL);
+const db = drizzle(process.env.DATABASE_URL ?? 'postgres://localhost:5432/app');
 const postgres = createDrizzleAdapter(db); // { store, relations }
 
 export const auth = janus({
@@ -123,7 +125,12 @@ and passwords a self-describing hash.
   login would tell somebody their e-mail is in use when it is not.
 - **A user's write and a relation write of more than one tuple are
   transactions**, through `@nxgt/drizzle`'s `withTransaction`. They are not
-  retried: a write is idempotent, so retry it yourself.
+  retried for you. A sign-up and a relation write are idempotent, so retry
+  them; an update after a timeout answers `VERSION_CONFLICT` if the first
+  attempt landed, so read the user again.
+- **PostgreSQL stores no NUL character.** A field or a login holding
+  `\u0000` is a `STORE_FAILED`, never the caller's fault as far as the store
+  can tell. Refuse it in your schema, and the caller gets `USER_INVALID`.
 - **Columns are `snake_case`.** This follows PostgreSQL's own convention and
   `@nxgt/drizzle`'s columns, so hand-written SQL needs no quotes. The records
   the stores return are camelCase, as everywhere in Janus.

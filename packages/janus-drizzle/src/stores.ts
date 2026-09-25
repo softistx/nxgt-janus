@@ -4,14 +4,13 @@ import type {
 	JanusStores,
 	SessionRecord,
 	SessionStore,
-	TokenRecord,
 	TokenStore,
 	UserPatch,
 	UserRecord,
 	UserStore,
 } from '@nxgt/janus';
 import { NotFoundError, StoreConflict } from '@nxgt/janus';
-import { and, asc, eq, gt, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, lte, ne, type SQL, sql } from 'drizzle-orm';
 import { janusLogins, janusSessions, janusTokens, janusUsers } from './tables';
 import { loginTaken, run } from './translate';
 
@@ -70,7 +69,9 @@ function userStore(db: PgDatabase): UserStore {
 		user: { readonly id: string; readonly type: string },
 		logins: readonly string[],
 	) => {
-		const distinct = [...new Set(logins)];
+		// Sorted: two transactions claiming the same logins take their locks in
+		// one order, and never deadlock — the loser waits, then finds them taken.
+		const distinct = [...new Set(logins)].sort();
 		if (distinct.length === 0) return;
 		const written = await tx
 			.insert(janusLogins)
@@ -246,7 +247,9 @@ function sessionStore(db: PgDatabase): SessionStore {
 				// `revokedAt` and still counts as matched.
 				const matched = await db
 					.update(janusSessions)
-					.set({ revokedAt: sql`coalesce(${janusSessions.revokedAt}, ${at})` })
+					.set({
+						revokedAt: sql`coalesce(${janusSessions.revokedAt}, ${stamp(at)})`,
+					})
 					.where(eq(janusSessions.id, id))
 					.returning({ id: janusSessions.id });
 				return matched.length === 1;
@@ -307,27 +310,36 @@ function tokenStore(db: PgDatabase): TokenStore {
 				// it. `for update` makes a concurrent call wait for this one and
 				// then read the spent row, so exactly one caller ever reads
 				// `spentAt: null`; `coalesce` keeps a first `spentAt`.
-				const result = await db.execute(sql`
-					with before as (
-						select * from ${janusTokens}
-						where token_hash = ${tokenHash} and kind = ${kind}
-						for update
-					)
-					update ${janusTokens} as spent
-					set spent_at = coalesce(spent.spent_at, ${at})
-					from before
-					where spent.token_hash = before.token_hash
-					returning
-						before.token_hash as "tokenHash",
-						before.kind as "kind",
-						before.user_id as "userId",
-						before.address as "address",
-						before.expires_at as "expiresAt",
-						before.spent_at as "spentAt",
-						before.created_at as "createdAt"
-				`);
-				const [before] = rowsOf<RawToken>(result);
-				return before === undefined ? null : fromRaw(before);
+				const before = db.$with('before').as(
+					db
+						.select()
+						.from(janusTokens)
+						.where(
+							and(
+								eq(janusTokens.tokenHash, tokenHash),
+								eq(janusTokens.kind, kind),
+							),
+						)
+						.for('update'),
+				);
+				const [spent] = await db
+					.with(before)
+					.update(janusTokens)
+					.set({ spentAt: sql`coalesce(${janusTokens.spentAt}, ${stamp(at)})` })
+					.from(before)
+					.where(eq(janusTokens.tokenHash, before.tokenHash))
+					.returning({
+						tokenHash: before.tokenHash,
+						kind: before.kind,
+						userId: before.userId,
+						address: before.address,
+						expiresAt: before.expiresAt,
+						spentAt: before.spentAt,
+						createdAt: before.createdAt,
+					});
+				return spent === undefined
+					? null
+					: { ...spent, userId: spent.userId as Id };
 			}),
 
 		deleteUserTokens: (userId) =>
@@ -417,48 +429,11 @@ function toSession(row: SessionRow): SessionRecord {
 	};
 }
 
-/** The rows of `db.execute`: an array on some drivers, `{ rows }` on others. */
-function rowsOf<T>(result: unknown): readonly T[] {
-	if (Array.isArray(result)) return result as T[];
-	const rows = (result as { rows?: unknown }).rows;
-	if (Array.isArray(rows)) return rows as T[];
-	throw new TypeError('db.execute answered no rows');
-}
-
-/** A token row as `db.execute` answers it: named, and not mapped by Drizzle. */
-interface RawToken {
-	readonly tokenHash: string;
-	readonly kind: TokenRecord['kind'];
-	readonly userId: string;
-	readonly address: string;
-	readonly expiresAt: unknown;
-	readonly spentAt: unknown;
-	readonly createdAt: unknown;
-}
-
-function fromRaw(raw: RawToken): TokenRecord {
-	return {
-		tokenHash: raw.tokenHash,
-		kind: raw.kind,
-		userId: raw.userId as Id,
-		address: raw.address,
-		expiresAt: dateOf(raw.expiresAt),
-		spentAt: raw.spentAt === null ? null : dateOf(raw.spentAt),
-		createdAt: dateOf(raw.createdAt),
-	};
-}
-
 /**
- * A timestamp as a driver answers it outside Drizzle's mapping: a `Date` from
- * `node-postgres` and PGlite, an ISO-like string from others.
+ * A `Date` inside a `sql` template, as every driver takes it: `timestamptz`
+ * from its ISO string. Drizzle's column mapping does not reach a raw
+ * template, and postgres.js refuses a `Date` object there.
  */
-function dateOf(value: unknown): Date {
-	if (value instanceof Date) return value;
-	const date = new Date(String(value));
-	if (Number.isNaN(date.getTime())) {
-		throw new TypeError(
-			`consumeToken: an unreadable timestamp, ${String(value)}`,
-		);
-	}
-	return date;
+function stamp(at: Date): SQL {
+	return sql`${at.toISOString()}::timestamptz`;
 }

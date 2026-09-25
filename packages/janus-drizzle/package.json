@@ -54,8 +54,11 @@
 		"@nxgt/drizzle": "0.6.1",
 		"@nxgt/janus": "workspace:^",
 		"@types/bun": "^1.4.2",
+		"@types/pg": "^8.23.1",
 		"drizzle-kit": "1.0.0-rc.4",
 		"drizzle-orm": "1.0.0-rc.4",
+		"pg": "^8",
+		"postgres": "^3",
 		"zod": "^4.6.5"
 	},
 	"peerDependencies": {

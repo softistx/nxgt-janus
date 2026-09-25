@@ -41,6 +41,8 @@ export const access = permissions({ model, store: postgres.relations });
 ## `createDrizzleAdapter(db)`
 
 ```ts
+import type { PgDatabase } from '@nxgt/drizzle/pg'; // any Drizzle PostgreSQL instance
+
 function createDrizzleAdapter(db: PgDatabase): DrizzleAdapter; // { store, relations }
 ```
 
@@ -63,7 +65,8 @@ authenticates takes `createDrizzleStores(db)` alone, below.
 | Bun's own `SQL` | `drizzle-orm/bun-sql` |
 | PGlite, for tests | `drizzle-orm/pglite` |
 
-The adapter's own specs run on the last two.
+The adapter's specs run on all four: on PGlite, and on PostgreSQL 17 over each
+of the other three, on every CI run.
 
 ## `createDrizzleStores(db)`
 
@@ -81,7 +84,7 @@ never be confused with "no such user".
 **Writing a user is one transaction** that covers the user's row and its rows
 in `janus_logins`. It runs through `@nxgt/drizzle`'s `withTransaction`, inside
 the method; the core never opens one. Every other write is a single
-statement. `consumeToken` is one `update … from (select … for update)`: of
+statement. `consumeToken` is one statement, `with before as (select … for update) update … from before`: of
 twenty concurrent redemptions of one token, exactly one sees `spentAt: null`.
 This is measured on PostgreSQL 17 on every CI run.
 
@@ -117,20 +120,26 @@ copy of it.
 | What PostgreSQL reports | What you get |
 | --- | --- |
 | A login another user of the type holds | `StoreConflict`, code `LOGIN_TAKEN`, naming the login and the user type |
-| A row with this id already there | Nothing: the insert was a retry, and returns what is stored |
+| A row with this id already there | Nothing: the insert was a retry, and returns what is stored — or `NOT_FOUND` if the user was deleted between the two |
 | A unique violation on **any other constraint** | `StoreFailure`: an adapter bug, never reported as a taken login |
 | A check or foreign key refusing a row | `StoreFailure`: the core validated the record already, so it is never the caller's fault |
-| Anything else: a refused connection, a timeout, a missing table | `StoreFailure`, with `@nxgt/drizzle`'s `DataError` as `cause` |
+| A NUL character in a field or a login | `StoreFailure`: PostgreSQL stores none — refuse it in your schema |
+| Anything else: a refused connection, a timeout, a missing table | `StoreFailure`, with the driver's error as `cause` |
 
 A login is claimed with `on conflict do nothing`, so no conflict is ever told
-apart by parsing a driver message. The `cause` is `toDataError(error)`: its
-`sqlState`, `table` and `constraint` say what PostgreSQL refused.
+apart by parsing a driver message. The logins are claimed in sorted order, so
+two sign-ups racing for the same ones never deadlock: the second waits, then
+gets `LOGIN_TAKEN`.
+
+The `cause` is `@nxgt/drizzle`'s `toDataError(error)`. Over `node-postgres`,
+postgres.js and PGlite that is a `DataError`, whose `sqlState`, `table` and
+`constraint` say what PostgreSQL refused. Over Bun's `SQL` it is Drizzle's
+`DrizzleQueryError`, with PostgreSQL's code as `errno` on its own `cause`.
 
 Nothing returns `null` for an error, so a route answers 503, not 401 or 404:
 
 ```ts
 import { StoreFailure } from '@nxgt/janus';
-import { DataError } from '@nxgt/drizzle';
 
 export async function me(request: Request): Promise<Response> {
 	try {
@@ -138,8 +147,7 @@ export async function me(request: Request): Promise<Response> {
 		return current === null ? new Response(null, { status: 401 }) : Response.json({ id: current.user.id });
 	} catch (error) {
 		if (error instanceof StoreFailure) {
-			const cause = error.cause instanceof DataError ? error.cause.sqlState : undefined;
-			console.error('janus: the database could not answer', cause);
+			console.error('janus: the database could not answer', error.cause);
 			return new Response(null, { status: 503 });
 		}
 		throw error;

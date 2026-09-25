@@ -22,8 +22,8 @@ Nothing yet.
 - **More official adapters** — the ports are cut where atomicity is not
   required, so users, sessions and permission tuples can each live in the
   database that suits them. MongoDB is the first adapter
-  ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo)),
-  PostgreSQL the second.
+  ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo));
+  PostgreSQL is under Now.
 - **A Redis adapter for sessions and tokens** — both are ephemeral and read on
   every request, which is why the port gives them slots of their own: they can
   live in Redis, with a native expiry, while users stay in another store.

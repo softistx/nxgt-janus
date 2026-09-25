@@ -6,7 +6,11 @@ import {
 	generateMigration,
 } from 'drizzle-kit/api-postgres';
 import { drizzle as overBunSql } from 'drizzle-orm/bun-sql';
+import { drizzle as overPg } from 'drizzle-orm/node-postgres';
 import { drizzle } from 'drizzle-orm/pglite';
+import { drizzle as overPostgresJs } from 'drizzle-orm/postgres-js';
+import { Pool } from 'pg';
+import postgres from 'postgres';
 import { janusTables } from '../src/tables';
 
 /**
@@ -93,16 +97,46 @@ async function openServer(url: string): Promise<TestDatabase> {
 	const exec = async (statements: string) => {
 		await client.unsafe(statements).simple();
 	};
+	const over = await driven(target.toString());
 	return {
-		db: overBunSql({ client }),
+		db: over.db,
 		exec,
 		...faultsOver(exec),
 		close: async () => {
+			await over.close();
 			await client.close();
 			await admin.unsafe(`drop database ${name} with (force)`);
 			await admin.close();
 		},
 	};
+}
+
+/**
+ * The Drizzle instance the stores run on, over the driver `JANUS_DRIVER`
+ * names: `bun-sql` (the default), `node-postgres` or `postgres-js`. Each
+ * shapes results, dates and errors its own way, and a `Date` one driver takes
+ * in a `sql` template another refuses — so CI runs the suites over all three.
+ */
+async function driven(
+	url: string,
+): Promise<{ readonly db: PgDatabase; close(): Promise<void> }> {
+	const driver = process.env.JANUS_DRIVER ?? 'bun-sql';
+	switch (driver) {
+		case 'bun-sql': {
+			const client = new SQL(url);
+			return { db: overBunSql({ client }), close: () => client.close() };
+		}
+		case 'node-postgres': {
+			const client = new Pool({ connectionString: url });
+			return { db: overPg({ client }), close: () => client.end() };
+		}
+		case 'postgres-js': {
+			const client = postgres(url, { onnotice: () => {} });
+			return { db: overPostgresJs({ client }), close: () => client.end() };
+		}
+		default:
+			throw new TypeError(`JANUS_DRIVER: no driver named ${driver}`);
+	}
 }
 
 function faultsOver(exec: (statements: string) => Promise<void>) {

@@ -15,10 +15,11 @@ How PostgreSQL's errors become the port's:
 | What PostgreSQL reports | What you get |
 | --- | --- |
 | A login another user of the type holds | `LOGIN_TAKEN`, naming the login and the user type |
-| A row with this id already there | Nothing: the insert was a retry, and returns what is stored |
+| A row with this id already there | Nothing: the insert was a retry, and returns what is stored — or `NOT_FOUND` if the user was deleted between the two |
 | A unique violation on any other constraint | `STORE_FAILED` |
 | A check or foreign key refusing a row | `STORE_FAILED` |
-| Anything else | `STORE_FAILED`, with `@nxgt/drizzle`'s `DataError` as `cause` |
+| A NUL character (`\u0000`) in a field or a login | `STORE_FAILED`: PostgreSQL stores none |
+| Anything else | `STORE_FAILED`, with the driver's error as `cause` (see below) |
 
 ## Index
 
@@ -37,7 +38,8 @@ How PostgreSQL's errors become the port's:
 - [`LOGIN_TAKEN`: `<operation>: the login "<login>" is taken by another <type>`](#login_taken-operation-the-login-login-is-taken-by-another-type)
 - [`NOT_FOUND` / `VERSION_CONFLICT`: `updateUser: …`](#not_found--version_conflict-updateuser-)
 - [`janus_sessions` keeps growing](#janus_sessions-keeps-growing)
-- [`TypeError: db.execute answered no rows`](#typeerror-dbexecute-answered-no-rows)
+- [`STORE_FAILED` for a sign-up whose fields hold `\u0000`](#store_failed-for-a-sign-up-whose-fields-hold-u0000)
+- [`NOT_FOUND`: `insertUser: the user was deleted meanwhile`](#not_found-insertuser-the-user-was-deleted-meanwhile)
 
 ---
 
@@ -65,7 +67,7 @@ bundler resolve them. `nodenext` is not supported, as with `@nxgt/janus`.
 
 **When:** you pass `createDrizzleAdapter` a connection string, the driver's own
 client (a `pg` `Pool`, a `postgres()` sql, a `PGlite`), or a Drizzle instance
-over SQLite or MySQL.
+over SQLite.
 
 **Why:** the adapter takes a Drizzle PostgreSQL instance and connects to
 nothing itself.
@@ -75,7 +77,9 @@ nothing itself.
 ```ts
 import { drizzle } from 'drizzle-orm/node-postgres';
 
-const postgres = createDrizzleAdapter(drizzle(process.env.DATABASE_URL));
+const postgres = createDrizzleAdapter(
+	drizzle(process.env.DATABASE_URL ?? 'postgres://localhost:5432/app'),
+);
 ```
 
 ### `error instanceof StoreFailure` is `false` for an outage
@@ -95,7 +99,8 @@ version. Align the version you depend on with the adapter's peer range.
 
 ### `STORE_FAILED` caused by `relation "janus_users" does not exist`
 
-The `cause` is a `DataError` with `sqlState: '42P01'`. It can name
+The code is `42P01`: `sqlState` on the `DataError` in `cause`, or `errno`
+under it over Bun's `SQL`. It can name
 `janus_logins`, `janus_sessions`, `janus_tokens` or `janus_relations` just as
 well.
 
@@ -164,16 +169,21 @@ connection, a timeout, a failover, a missing table, a permission denied.
 **Why:** the adapter never turns a failure into an absence. An outage is not
 "no such user".
 
-**Fix:** answer 503 and let the client retry; read `cause` for the details.
+**Fix:** answer 503 and let the client retry; log `cause` for the details.
 
 ```ts
-import { DataError } from '@nxgt/drizzle';
 import { StoreFailure } from '@nxgt/janus';
 
-if (error instanceof StoreFailure && error.cause instanceof DataError) {
-	console.error(error.slot, error.operation, error.cause.sqlState, error.cause.message);
+if (error instanceof StoreFailure) {
+	console.error(error.slot, error.operation, error.cause);
 }
 ```
+
+What `cause` is depends on the driver. Over `node-postgres`, postgres.js and
+PGlite it is `@nxgt/drizzle`'s `DataError`, whose `sqlState` is PostgreSQL's
+code — `42P01`, `57P01`. Over Bun's `SQL` it is Drizzle's `DrizzleQueryError`:
+Bun reports the code as `errno`, which `@nxgt/drizzle` does not read yet, so
+the code is `error.cause.cause.errno`.
 
 `slot` is `users`, `sessions`, `tokens` or `relations`; `operation` is the port
 method.
@@ -212,14 +222,34 @@ read, but deleting it is `auth.collectExpired()`'s job.
 const collected = await auth.collectExpired(); // hourly
 ```
 
-### `TypeError: db.execute answered no rows`
+### `NOT_FOUND`: `insertUser: the user was deleted meanwhile`
 
-**When:** `consumeToken` (resetting a password, verifying an e-mail) with a
-Drizzle driver whose `execute` returns neither an array nor `{ rows }`.
+**When:** a sign-up or `create` is retried after a timeout, and the user its
+first attempt stored was deleted before the retry read it back.
 
-**Why:** `consumeToken` is one raw statement, read through `db.execute`, and
-drivers shape that result differently: an array for postgres.js and Bun's
-`SQL`, `{ rows }` for `pg` and PGlite.
+**Why:** the retry found a row with its id already there, which makes it a
+retry, and then found no user to return. Nothing was written by the retry.
 
-**Fix:** use one of those four drivers, and
-[open an issue](https://github.com/softistx/nxgt-janus/issues) naming yours.
+**Fix:** treat it as the deletion it raced: the user is gone. Sign up again
+if that is what the caller wants.
+
+### `STORE_FAILED` for a sign-up whose fields hold `\u0000`
+
+The code is `22P05` for a field (`jsonb`) and `22021` for a login (`text`);
+a lone UTF-16 surrogate in a field gives `22P02`.
+
+**When:** a sign-up, `create` or `update` whose fields or login contain a NUL
+character, which your schema accepted.
+
+**Why:** PostgreSQL stores no NUL in `text` or `jsonb`. The record reaches the
+store valid, and the store cannot write it: that is reported as a failure,
+never as the caller's fault, because the store cannot tell. MongoDB and the
+memory store keep it.
+
+**Fix:** refuse it in your schema, so the caller gets `USER_INVALID`, a 400:
+
+```ts
+const noNul = z.string().refine((value) => !value.includes('\u0000'), 'no NUL character');
+
+const User = z.strictObject({ email: z.email(), name: noNul });
+```
