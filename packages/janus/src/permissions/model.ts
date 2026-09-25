@@ -529,77 +529,47 @@ type Refusal<Text extends string, Expected> = {
 	readonly [K in Text]: Expected;
 };
 
-type CheckRelation<C extends ModelConfig, Def> =
-	Def extends FromField<string, infer Sub>
-		? Sub extends UserTypeOf<C> | ObjectTypeOf<C>
-			? unknown
-			: {
-					readonly subject: Refusal<
-						`"${Sub}" is not a subject type; name one of`,
-						UserTypeOf<C> | ObjectTypeOf<C>
-					>;
-				}
-		: {
-				readonly [I in keyof Def]: Def[I] extends SubjectRefOf<
-					UserTypeOf<C>,
-					TypesOf<C>
-				>
-					? unknown
-					: Refusal<
-							`"${Def[I] & string}" is not a subject type or a subject set; name one of`,
-							SubjectRefOf<UserTypeOf<C>, TypesOf<C>>
-						>;
-			};
-
-type CheckRules<Ts, T, Rules> = {
-	readonly [I in keyof Rules]: Rules[I] extends string
-		? Rules[I] extends RuleRefOf<Ts, T>
-			? unknown
-			: Refusal<
-					`"${Rules[I]}" is not a relation, a permission or an arrow of ${T & string}; name one of`,
-					RuleRefOf<Ts, T>
-				>
-		: Rules[I] extends When<infer R, never>
-			? R extends RuleRefOf<Ts, T>
-				? unknown
-				: {
-						readonly rule: Refusal<
-							`"${R}" is not a relation, a permission or an arrow of ${T & string}; name one of`,
-							RuleRefOf<Ts, T>
-						>;
-					}
-			: unknown;
-};
-
-type CheckObjectType<C extends ModelConfig, T> = (TypesOf<C>[T &
-	keyof TypesOf<C>] extends { readonly relations: infer Rs }
-	? {
-			readonly relations: {
-				readonly [R in keyof Rs]: CheckRelation<C, Rs[R]>;
-			};
-		}
-	: unknown) &
-	(TypesOf<C>[T & keyof TypesOf<C>] extends { readonly permissions: infer Ps }
-		? {
-				readonly permissions: {
-					readonly [P in keyof Ps]: P extends RelationsOf<TypesOf<C>, T>
-						? Refusal<
-								`"${P & string}" names a relation and a permission of ${T & string}; rename one`,
-								never
-							>
-						: CheckRules<TypesOf<C>, T, Ps[P]>;
-				};
-			}
-		: unknown);
-
 /**
- * The compile-time checks `defineModel` intersects into its parameter — the
- * `C & Checked<C>` pattern of `janus()`: a wrong value is unassignable **on
- * the offending key**, and the reason is the type the compiler prints.
+ * What `defineModel` offers and accepts for each object type, given the
+ * subject types `S` and every object type `Ts`: the constraint of its `types`.
+ *
+ * **A constraint, so that an editor completes it.** The names a relation, a
+ * rule, a `fromField` or a `when` may take are unions of literals here, and an
+ * editor reads a type parameter's constraint to offer them — `'patient'`,
+ * `'team#member'`, `'team->view'`. A check intersected into the parameter
+ * instead (`C & Checked<C>`) refuses the same mistakes, but meets the literal
+ * being typed and completes nothing: measured with the language service.
+ *
+ * A wrong name is unassignable **on that name**, and the error lists the ones
+ * it could have been.
  */
-export type CheckedModel<C extends ModelConfig> = {
-	readonly types: {
-		readonly [T in keyof TypesOf<C>]: CheckObjectType<C, T>;
+/**
+ * The same names, spelled out: a union the compiler prints as its members —
+ * `"patient" | "staff" | "team#member"` — rather than as the alias that
+ * computed it, so an error lists what the name could have been.
+ */
+type Spelled<U> = [U] extends [infer V extends string]
+	? { [K in V]: K }[V]
+	: never;
+
+export type ModelTypesOf<S extends string, Ts> = {
+	readonly [T in keyof Ts]: {
+		readonly relations?: {
+			readonly [name: string]:
+				| readonly Spelled<SubjectRefOf<S, Ts>>[]
+				| FromField<string, Spelled<S | (keyof Ts & string)>>;
+		};
+		readonly permissions?: {
+			readonly [P in PermissionsOf<Ts, T>]: P extends RelationsOf<Ts, T>
+				? Refusal<
+						`"${P}" names a relation and a permission of ${T & string}; rename one`,
+						never
+					>
+				: readonly (
+						| Spelled<RuleRefOf<Ts, T>>
+						| When<Spelled<RuleRefOf<Ts, T>>, never>
+					)[];
+		};
 	};
 };
 
@@ -647,8 +617,15 @@ const RESOLVED = new WeakMap<object, ResolvedModel>();
  * camelCase, an object type named like a user type, a permission that reaches
  * itself without crossing a relation — which no data could ever end.
  */
+export function defineModel<
+	const S extends string,
+	const Ts extends ModelConfig['types'] & ModelTypesOf<S, Ts>,
+>(config: {
+	readonly subjects: readonly S[];
+	readonly types: Ts;
+}): PermissionModel<{ readonly subjects: readonly S[]; readonly types: Ts }>;
 export function defineModel<const C extends ModelConfig>(
-	config: C & CheckedModel<C>,
+	config: C,
 ): PermissionModel<C> {
 	const resolved = resolveModel(config, 'defineModel');
 	const model: PermissionModel<C> = Object.freeze({

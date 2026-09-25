@@ -633,6 +633,13 @@ distrust the claim without the files: when it was last measured on
 `@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
 that goes down is a visible regression.
 
+Refusing a wrong name is half of it; offering the right ones is the other.
+`src/permissions/completions.spec.ts` asks the TypeScript language service —
+the one every editor asks — what it completes inside `defineModel`: subject
+types and subject sets in a relation, subject types in `fromField`, relations,
+permissions and arrows in a rule and in `when`. It also checks that a wrong
+name's error lists the names it could have been.
+
 The gap, since a measurement that only reports wins is not a measurement:
 `'30 m'` **satisfies `Duration`**, because TypeScript's `${number}` placeholder
 tolerates trailing whitespace inside the number. `parseDuration` refuses it, and

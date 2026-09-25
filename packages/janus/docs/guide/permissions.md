@@ -89,15 +89,21 @@ like a permission.
 
 A relation naming a type that does not exist, a rule naming nothing, an arrow
 to a permission its target lacks, a name that is both a relation and a
-permission: each is a compile error **on the offending key**, and the error
+permission: each is a compile error **on the offending name**, and the error
 lists what you could have written.
+
+Your editor offers those names as you type — subject types and subject sets
+in a relation, subject types in `fromField`, relations, permissions and arrows
+in a rule and in `when` — because `defineModel` types its `types` with a
+constraint an editor reads, not only with a check. A spec asks the TypeScript
+language service what it completes, so a change that loses it fails.
 
 ```ts
 defineModel({
 	subjects: ['staff'],
 	types: {
 		team: {
-			// @ts-expect-error — '"staf" is not a subject type or a subject set; name one of' …
+			// @ts-expect-error — Type '"staf"' is not assignable to type '"staff" | "team" | "team#member"'. Did you mean '"staff"'?
 			relations: { member: ['staf'] },
 		},
 	},
