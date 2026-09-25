@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.1.2
+
+### Patch Changes
+
+- [#28](https://github.com/softistx/nxgt-janus/pull/28) [`319c940`](https://github.com/softistx/nxgt-janus/commit/319c9404d2196a8e10ced64439d161a78b0ddd0f) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `defineModel` is completed by your editor: subject types and subject sets in a relation, subject types in `fromField`, and relations, permissions and arrows in a rule and in `when`. A wrong name is still refused, and the error now lists the names it could have been — with "Did you mean" when one is close. `ModelTypesOf` is exported, as the type of what a model's `types` may hold.
+
 ## 0.1.1
 
 ### Patch Changes
