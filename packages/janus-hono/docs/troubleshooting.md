@@ -93,13 +93,11 @@ not one of them — a misspelling, or a type from another `janus()`.
 **Why:** `load` takes a plain `Context`: `permission()` is built before Hono
 attaches it to a route, so `c.req.param('id')` is `string | undefined` there.
 
-**Fix:** a missing id is nothing to load: answer `null`, which is a 404.
+**Fix:** a missing id is nothing to load: answer `null`, which is a 404 —
+what `byParam` does.
 
 ```ts
-permission(access, 'view', 'record', (c) => {
-	const id = c.req.param('id');
-	return id === undefined ? null : records.find(id);
-});
+permission(access, 'view', 'record', byParam('id', (id) => records.find(id)));
 ```
 
 ### `Expected 5 arguments, but got 4`, on `permission()`
@@ -254,17 +252,16 @@ is `STORE_FAILED`, answered 503, so that nobody is told they are signed out
 while the database is down. A request that presents nothing never reaches the
 store, and stays anonymous.
 
-**Fix:** the database. `janusErrors()` answers without logging: wrap it to see
-which store failed and why.
+**Fix:** the database. `janusErrors()` answers without logging: pass `report`
+to see which store failed and why.
 
 ```ts
-const answer = janusErrors();
-app.onError((error, c) => {
-	if (error instanceof StoreFailure) {
-		logger.error({ slot: error.slot, operation: error.operation }, error.cause);
-	}
-	return answer(error, c);
-});
+app.onError(
+	janusErrors({
+		report: (error) =>
+			logger.error({ slot: error.slot, operation: error.operation }, error.cause),
+	}),
+);
 ```
 
 ### `400 {"code":"HASH_UNSUPPORTED"}` on sign-in

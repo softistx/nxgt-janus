@@ -21,12 +21,12 @@ function app() {
 			c.json({ type: c.var.user?.type ?? null }),
 		)
 		.post('/sign-in', async (c) => {
-			const signedIn = await auth.patient.signIn({
-				email: ada.email,
-				password,
-			});
-			sendSession(c, auth, signedIn);
-			return c.body(null, 204);
+			const user = sendSession(
+				c,
+				auth,
+				await auth.patient.signIn({ email: ada.email, password }),
+			);
+			return c.json({ id: user.id, email: user.email });
 		})
 		.post('/sign-out', async (c) =>
 			c.json({ revoked: await signOut(c, auth) }),
@@ -137,6 +137,9 @@ describe('sendSession() and signOut()', () => {
 		await auth.patient.signUp({ ...ada, password });
 
 		const signedIn = await routes.request('/sign-in', { method: 'POST' });
+		// The user it answers, typed as the patient signed in; the token stays in the cookie.
+		const body = await signedIn.json();
+		expect(body).toEqual({ id: expect.any(String), email: ada.email });
 		const [sent] = signedIn.headers.getSetCookie();
 		const pair = sent?.split(';')[0] ?? '';
 

@@ -75,6 +75,19 @@ function honoDefault(error: Error | HTTPException, c: Context): Response {
 	return c.text('Internal Server Error', 500);
 }
 
+/** What `janusErrors()` takes. */
+export interface JanusErrorsOptions {
+	/**
+	 * Called with every `JanusError` answered 5xx — `STORE_FAILED`,
+	 * `UNSUPPORTED`, `PERMISSION_DEPTH`: the ones the server must fix, not the
+	 * client — before it is answered. Its `slot`, `operation`, `reason` and
+	 * `cause` are for your logs; the body never carries them.
+	 */
+	readonly report?: (error: JanusError, c: Context) => void;
+	/** Every error that is not a `JanusError`. Hono's own handling when absent. */
+	readonly fallback?: ErrorHandler;
+}
+
 /**
  * An `app.onError` handler: every `JanusError` answered with its status and
  * `bodyOf(error)`; anything else handed to `fallback` — Hono's own behaviour
@@ -82,12 +95,17 @@ function honoDefault(error: Error | HTTPException, c: Context): Response {
  *
  * Works for either side of `@nxgt/janus`: `can()`'s `STORE_FAILED` is a 503
  * here too, never a 403.
+ *
+ * ```ts
+ * app.onError(janusErrors({ report: (error) => logger.error(error) }));
+ * ```
  */
-export function janusErrors(
-	fallback: ErrorHandler = honoDefault,
-): ErrorHandler {
-	return (error, c) =>
-		error instanceof JanusError
-			? c.json(bodyOf(error), statusOf(error.code))
-			: fallback(error, c);
+export function janusErrors(options: JanusErrorsOptions = {}): ErrorHandler {
+	const { report, fallback = honoDefault } = options;
+	return (error, c) => {
+		if (!(error instanceof JanusError)) return fallback(error, c);
+		const status = statusOf(error.code);
+		if (status >= 500) report?.(error, c);
+		return c.json(bodyOf(error), status);
+	};
 }

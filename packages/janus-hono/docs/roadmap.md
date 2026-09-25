@@ -6,8 +6,9 @@ no dates here, and the version something shipped in is the only number.
 ## Now
 
 - **The first release** — `@nxgt/janus-hono` 0.1 on npm: `session()`,
-  `sendSession`, `signOut`, `permission()`, `provide()`, `janusErrors`. Built,
-  not yet published.
+  `sendSession` (which answers the user), `signOut`, `permission()` and
+  `byParam`, `provide()`, `janusErrors({ report, fallback })`. Built, not yet
+  published.
 
 ## Next
 
@@ -20,8 +21,9 @@ Nothing yet.
 ## Not planned
 
 - **A middleware that guesses the object** — `permission()` takes a `load`
-  and never reads a path parameter or a table for you: the application knows
-  where its objects live.
+  and never picks a path parameter or a table for you: the application knows
+  where its objects live. `byParam('id', find)` reads the parameter it is
+  named, with the `find` it is given.
 - **Routes of its own** — no `/sign-in` mounted for you. Every application
   names, validates and answers its routes its own way; the flows are one call
   each.

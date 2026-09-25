@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { ada, bearer, type MedicalRecord, password, setup } from '../test/app';
 import { janusErrors } from './errors';
-import { permission } from './permission';
+import { byParam, permission } from './permission';
 import { provide } from './provide';
 import { session } from './session';
 
@@ -25,7 +25,13 @@ function app() {
 		.use(session(auth))
 		.get(
 			'/records/:id',
-			permission(access, 'view', 'record', (c) => load(c.req.param('id'))),
+			permission(access, 'view', 'record', byParam('id', load)),
+			(c) => c.json({ title: c.var.object.title }),
+		)
+		// A route with no :id: byParam answers null, which is a 404.
+		.get(
+			'/records',
+			permission(access, 'view', 'record', byParam('id', load)),
 			(c) => c.json({ title: c.var.object.title }),
 		)
 		.put(
@@ -82,6 +88,9 @@ describe('permission()', () => {
 		expect((await routes.request('/records/gone', bearer(token))).status).toBe(
 			404,
 		);
+		loads.length = 0;
+		expect((await routes.request('/records', bearer(token))).status).toBe(404);
+		expect(loads).toEqual([]); // no :id, nothing asked of the store
 
 		loads.length = 0;
 		const anonymous = await routes.request('/records/r1');
