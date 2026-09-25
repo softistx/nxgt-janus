@@ -20,6 +20,10 @@ in.
 
 Nothing yet.
 
+## Shipped
+
+Nothing yet.
+
 ## Not planned
 
 - **Running migrations.** Janus's tables are created by your drizzle-kit

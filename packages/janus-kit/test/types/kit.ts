@@ -88,3 +88,7 @@ defineConfig({
 defineConfig({ postgres: { db, schema: 'janus' }, auth });
 // @ts-expect-error 8. no auth: the kit wires janus(), it does not replace it
 defineConfig({ postgres: { db } });
+// @ts-expect-error 9. neither a URL nor a Drizzle instance
+defineConfig({ postgres: {}, auth });
+// @ts-expect-error 10. telemetry as a string, as an environment variable reads
+defineConfig({ postgres: { db }, telemetry: 'true', auth });

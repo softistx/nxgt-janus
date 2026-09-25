@@ -93,7 +93,7 @@ export interface KitConfig<A extends object, P extends object> {
 export function defineConfig<A extends object, P extends object = never>(
 	config: KitConfig<A, P>,
 ): KitConfig<A, P> {
-	check(config);
+	checkConfig(config, 'defineConfig');
 	return Object.freeze({ ...config });
 }
 
@@ -106,8 +106,13 @@ interface Unchecked {
 	readonly access?: unknown;
 }
 
-function check(config: Unchecked): void {
-	const where = 'defineConfig';
+/**
+ * The checks, run by `defineConfig` and again by `connectKit`: a configuration
+ * is often built in one file and connected in another, and one that skipped
+ * `defineConfig` must not reach Bun's `SQL`, which reads `DATABASE_URL` for a
+ * missing URL.
+ */
+export function checkConfig(config: Unchecked, where: string): void {
 	if (typeof config !== 'object' || config === null) {
 		throw new TypeError(`${where}: pass the kit's configuration, an object.`);
 	}
@@ -118,7 +123,18 @@ function check(config: Unchecked): void {
 		);
 	}
 	oneOf(where, 'postgres', postgres, 'url', 'db');
-	if (postgres.url !== undefined) nonEmpty(where, 'postgres.url', postgres.url);
+	if (postgres.url !== undefined) {
+		nonEmpty(where, 'postgres.url', postgres.url);
+		// Bun's `SQL` picks its driver from the scheme: `mysql://` and
+		// `sqlite://` open another database. Only the scheme is named: the
+		// URL may hold a password.
+		const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(postgres.url)?.[1];
+		if (scheme !== 'postgres' && scheme !== 'postgresql') {
+			throw new TypeError(
+				`${where}: \`postgres.url\` is a postgres:// or postgresql:// URL${scheme === undefined ? '' : `, not ${scheme}://`}.`,
+			);
+		}
+	}
 	if (redis !== undefined) {
 		if (typeof redis !== 'object' || redis === null) {
 			throw new TypeError(

@@ -190,10 +190,87 @@ describe('connectKit()', () => {
 		}
 	});
 
+	it('fails fast on a PostgreSQL that refuses the connection, never naming the URL', async () => {
+		const started = performance.now();
+		const outcome = await connectKit(
+			defineConfig({
+				postgres: { url: 'postgres://janus:s3cret@127.0.0.1:1/janus' },
+				auth: (adapters) =>
+					janus({ user, password: { login: 'email' }, hasher, ...adapters }),
+			}),
+		).then(
+			() => 'resolved',
+			(error: Error) => error.message,
+		);
+		expect(outcome).toBe(
+			'connectKit: PostgreSQL did not answer. Check `postgres.url`, and that the database exists.',
+		);
+		expect(performance.now() - started).toBeLessThan(5_000);
+	});
+
+	it('closes the Redis connection it opened when auth throws', async () => {
+		const pg = await openPglite();
+		const clients = async () =>
+			String(await server.admin.send('CLIENT', ['LIST']))
+				.trim()
+				.split('\n').length;
+		try {
+			const before = await clients();
+			const outcome = await connectKit(
+				defineConfig({
+					postgres: { db: pg.db },
+					redis: { url: redisUrl },
+					auth: () => {
+						throw new Error('auth failed');
+					},
+				}),
+			).then(
+				() => 'resolved',
+				(error: Error) => error.message,
+			);
+			expect(outcome).toBe('auth failed');
+			expect(await clients()).toBe(before);
+		} finally {
+			await pg.close();
+		}
+	});
+
+	it('reports a database that stops answering as ok: false within timeoutMs', async () => {
+		const pg = await openPglite();
+		let hang = false;
+		const db = new Proxy(pg.db, {
+			get(target, key, receiver) {
+				const value: unknown = Reflect.get(target, key, receiver);
+				if (key !== 'execute' || typeof value !== 'function') return value;
+				return (...args: unknown[]) =>
+					hang ? new Promise(() => {}) : value.apply(target, args);
+			},
+		});
+		try {
+			await using kit = await connectKit(
+				defineConfig({
+					postgres: { db },
+					auth: (adapters) =>
+						janus({ user, password: { login: 'email' }, hasher, ...adapters }),
+				}),
+			);
+			hang = true;
+			const health = await kit.ping({ timeoutMs: 50 });
+			expect(health.ok).toBe(false);
+			expect(health.postgres).toMatchObject({ ok: false });
+			expect(String((health.postgres as { error: Error }).error.message)).toBe(
+				'ping: no answer in 50ms',
+			);
+		} finally {
+			await pg.close();
+		}
+	});
+
 	it('wraps auth and access with @nxgt/janus-telemetry when telemetry is on', async () => {
 		const pg = await openPglite();
 		try {
 			let built: object | undefined;
+			let builtAccess: object | undefined;
 			await using kit = await connectKit(
 				defineConfig({
 					postgres: { db: pg.db },
@@ -208,13 +285,35 @@ describe('connectKit()', () => {
 						built = auth;
 						return auth;
 					},
+					access: ({ relations, auth }) => {
+						const access = permissions({
+							model: defineModel({
+								subjects: auth.types,
+								types: {
+									document: {
+										relations: { owner: ['user'] },
+										permissions: { view: ['owner'] },
+									},
+								},
+							}),
+							store: relations,
+						});
+						builtAccess = access;
+						return access;
+					},
 				}),
 			);
-			// instrumentJanus answers another object, with the same flows.
+			// Each is wrapped: another object, with the same methods.
 			expect(built).toBeDefined();
 			expect(kit.auth).not.toBe(built as never);
+			expect(builtAccess).toBeDefined();
+			expect(kit.access).not.toBe(builtAccess as never);
 			const { user: ada } = await kit.auth.signUp(credentials());
 			expect(ada.email).toStartWith('ada');
+			await kit.access.grant({ type: 'document', id: 'd1' }, 'owner', ada);
+			expect(
+				await kit.access.can(ada, 'view', { type: 'document', id: 'd1' }),
+			).toBe(true);
 		} finally {
 			await pg.close();
 		}

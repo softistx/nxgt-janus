@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import type { PgDatabase } from '@nxgt/drizzle/pg';
 import type { RedisConnection } from '@nxgt/redis';
 import { defineConfig } from './config';
+import { connectKit } from './connect';
 
 const db = {} as PgDatabase;
 const connection = {} as RedisConnection;
@@ -42,6 +43,18 @@ describe('defineConfig()', () => {
 		);
 	});
 
+	it('refuses a URL Bun would open as another database, naming only its scheme', () => {
+		expect(
+			refused({ postgres: { url: 'mysql://root:s3cret@db/janus' }, auth }),
+		).toBe(
+			'defineConfig: `postgres.url` is a postgres:// or postgresql:// URL, not mysql://.',
+		);
+		expect(refused({ postgres: { url: ':memory:' }, auth })).toBe(
+			'defineConfig: `postgres.url` is a postgres:// or postgresql:// URL.',
+		);
+		defineConfig({ postgres: { url: 'postgresql://localhost/janus' }, auth });
+	});
+
 	it('refuses a redis with both sources, options beside a connection, or an empty prefix', () => {
 		const postgres = { db };
 		expect(
@@ -68,5 +81,18 @@ describe('defineConfig()', () => {
 		expect(refused({ postgres, auth, telemetry: 'yes' })).toBe(
 			'defineConfig: `telemetry` is true or false.',
 		);
+	});
+});
+
+describe('connectKit(), given a configuration defineConfig never saw', () => {
+	it('checks it again, before Bun could read DATABASE_URL for a missing URL', async () => {
+		const outcome = await connectKit({
+			postgres: {} as { url: string },
+			auth,
+		}).then(
+			() => 'resolved',
+			(error: Error) => `${error.name}: ${error.message}`,
+		);
+		expect(outcome).toBe('TypeError: connectKit: `postgres` needs url or db.');
 	});
 });

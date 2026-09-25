@@ -57,12 +57,14 @@ would otherwise fail at the first sign-in.
 ## Install
 
 ```sh
-bun add @nxgt/janus-kit @nxgt/janus @nxgt/drizzle drizzle-orm @nxgt/redis zod
+bun add @nxgt/janus-kit @nxgt/janus @nxgt/janus-drizzle @nxgt/drizzle drizzle-orm @nxgt/redis zod
 bun add @nxgt/janus-telemetry @nxgt/telemetry  # only for telemetry: true
 ```
 
 Required peers:
 - `@nxgt/janus`;
+- `@nxgt/janus-drizzle`: your schema file imports `defineJanusTables` from it
+  to create the tables, and the kit's stores must query the same definition;
 - `@nxgt/drizzle` `>=0.6.1 <1` and `drizzle-orm` 1.0 (from `1.0.0-rc.4`), for
   PostgreSQL;
 - `@nxgt/redis` `>=0.3.1 <1`, and `zod` 4 which it requires, even with
@@ -70,8 +72,7 @@ Required peers:
 - `typescript` 6.
 
 `@nxgt/janus-telemetry` is an optional peer, loaded only when `telemetry` is
-`true`. `@nxgt/janus-drizzle` and `@nxgt/janus-redis` are dependencies: they
-define no class, so one copy each is not required.
+`true`. `@nxgt/janus-redis` is a dependency: your code never imports it.
 
 It runs on **Bun** only: the kit opens PostgreSQL over Bun's `SQL` and Redis
 over Bun's `RedisClient`. It needs PostgreSQL 15 or later and Redis 7.0 or
@@ -82,7 +83,7 @@ later. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 | Export | What it is |
 | --- | --- |
 | `defineConfig(config)` | Checks the configuration and answers it, frozen. It connects to nothing and reads no environment variable. What is wrong throws a `TypeError` here, where the application starts. |
-| `connectKit(config)` | Opens PostgreSQL and Redis, checks that Janus's five tables exist, builds `auth` and `access`, and answers the kit. Fails with an `Error` naming what to do, after closing what it opened. |
+| `connectKit(config)` | Checks the configuration again, opens PostgreSQL and Redis, checks that Janus's five tables exist, builds `auth` and `access`, and answers the kit. Fails with an `Error` naming what to do, after closing what it opened. |
 | `Kit` | What `connectKit` answers: `auth`; `access` when configured; `db`, the Drizzle instance; `redis`, the connection or `undefined`; `ping(options?)`; `close()`; and `[Symbol.asyncDispose]`. |
 | `KitConfig`, `PostgresConfig`, `RedisConfig` | The configuration's types. |
 | `Adapters`, `AccessWiring` | What `auth` and `access` are given: `{ store, relations }`, and `{ relations, auth }`. |
@@ -92,7 +93,7 @@ later. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 | Key | | |
 | --- | --- | --- |
-| `postgres` | required | `{ url }` of Janus's database, which the kit opens and closes; or `{ db }`, a Drizzle instance you opened, **never closed** by the kit. `tables`: what your schema file exports, when the tables are in a PostgreSQL schema of their own. |
+| `postgres` | required | `{ url }` of Janus's database, a `postgres://` or `postgresql://` URL, which the kit opens and closes; or `{ db }`, a Drizzle instance you opened, **never closed** by the kit. `tables`: what your schema file exports, when the tables are in a PostgreSQL schema of their own. |
 | `redis` | optional | `{ url, prefix?, clientOptions? }`, which the kit opens with `enableOfflineQueue: false` and closes; or `{ connection, prefix? }`, which it never closes. Absent, sessions and tokens stay in PostgreSQL. |
 | `telemetry` | optional | `true` wraps `auth` with `instrumentJanus` and `access` with `instrumentPermissions`. |
 | `auth` | required | `(adapters) => janus({ …, ...adapters })`. |
@@ -133,7 +134,7 @@ has each key in detail.
 
 ## Type safety, counted
 
-Eight plausible mistakes are refused by the compiler, each with a
+Ten plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/kit.ts`:
 - `kit.access` on a kit configured without `access`;
 - a user type `auth` does not have;
@@ -142,7 +143,9 @@ Eight plausible mistakes are refused by the compiler, each with a
 - both `redis.url` and `redis.connection`;
 - `redis.clientOptions` beside a `connection` already open;
 - `postgres.schema` instead of the tables built in it;
-- a configuration without `auth`.
+- a configuration without `auth`;
+- `postgres` with neither `url` nor `db`;
+- `telemetry` as a string, as an environment variable reads.
 
 ## Licence
 

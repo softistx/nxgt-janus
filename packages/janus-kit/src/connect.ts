@@ -10,7 +10,12 @@ import { SQL } from 'bun';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { getTableConfig } from 'drizzle-orm/pg-core';
-import type { KitConfig, PostgresConfig, RedisConfig } from './config';
+import {
+	checkConfig,
+	type KitConfig,
+	type PostgresConfig,
+	type RedisConfig,
+} from './config';
 import { type Health, type Probe, probe } from './health';
 
 /** What `connectKit` answers: `auth`, `access` when configured, and the rest. */
@@ -57,18 +62,25 @@ export type Kit<A extends object, P extends object> = {
 export async function connectKit<A extends object, P extends object = never>(
 	config: KitConfig<A, P>,
 ): Promise<Kit<A, P>> {
+	checkConfig(config, 'connectKit');
 	const closers: (() => Promise<void>)[] = [];
+	/** Closes everything opened, Redis first; answers what failed to close. */
 	const closeAll = async () => {
-		// Redis first: it was opened last.
+		const failures: unknown[] = [];
 		for (const close of closers.splice(0).reverse()) {
-			await close().catch(() => undefined);
+			await close().catch((error: unknown) => failures.push(error));
 		}
+		return failures;
 	};
 
 	try {
-		const { db, probe: postgres } = openPostgres(config.postgres, closers);
+		const {
+			db,
+			probe: postgres,
+			opened,
+		} = openPostgres(config.postgres, closers);
 		const tables = config.postgres.tables ?? defineJanusTables();
-		await assertTables(db, tables);
+		await assertTables(db, tables, opened);
 
 		const redis = await openRedis(config.redis, closers);
 		const drizzleAdapter = createDrizzleAdapter(db, { tables });
@@ -104,7 +116,15 @@ export async function connectKit<A extends object, P extends object = never>(
 
 		let closing: Promise<void> | undefined;
 		const close = () => {
-			closing ??= closeAll();
+			closing ??= closeAll().then((failures) => {
+				if (failures.length === 1) throw failures[0];
+				if (failures.length > 1) {
+					throw new AggregateError(
+						failures,
+						'kit.close: several connections failed to close',
+					);
+				}
+			});
 			return closing;
 		};
 		const kit = {
@@ -119,22 +139,38 @@ export async function connectKit<A extends object, P extends object = never>(
 		};
 		return Object.freeze(kit) as unknown as Kit<A, P>;
 	} catch (error) {
-		await closeAll();
+		// The error that stopped the kit is the one to see; a failure to
+		// close on the way out is only reported.
+		for (const failure of await closeAll()) {
+			process.emitWarning(
+				`connectKit: a connection failed to close after the kit failed to start: ${String(failure)}`,
+				{ code: 'JANUS_KIT_CLOSE_FAILED' },
+			);
+		}
 		throw error;
 	}
 }
 
 function openPostgres(
-	{ url, db }: PostgresConfig,
+	postgres: PostgresConfig,
 	closers: (() => Promise<void>)[],
-): { db: PgDatabase; probe: Probe } {
-	if (db !== undefined) {
-		return { db, probe: (timeoutMs) => roundTrip(db, timeoutMs) };
+): { db: PgDatabase; probe: Probe; opened: boolean } {
+	if (postgres.url === undefined) {
+		const { db } = postgres;
+		return {
+			db,
+			probe: (timeoutMs) => roundTrip(db, timeoutMs),
+			opened: false,
+		};
 	}
-	const client = new SQL(url as string);
+	const client = new SQL(postgres.url);
 	closers.push(() => client.close());
 	const opened = drizzle({ client }) as unknown as PgDatabase;
-	return { db: opened, probe: (timeoutMs) => roundTrip(opened, timeoutMs) };
+	return {
+		db: opened,
+		probe: (timeoutMs) => roundTrip(opened, timeoutMs),
+		opened: true,
+	};
 }
 
 async function openRedis(
@@ -142,9 +178,9 @@ async function openRedis(
 	closers: (() => Promise<void>)[],
 ): Promise<RedisConnection | undefined> {
 	if (redis === undefined) return undefined;
-	if (redis.connection !== undefined) return redis.connection;
+	if (redis.url === undefined) return redis.connection;
 	const { connectRedis } = await import('@nxgt/redis');
-	const connection = await connectRedis(redis.url as string, {
+	const connection = await connectRedis(redis.url, {
 		enableOfflineQueue: false,
 		...redis.clientOptions,
 	}).catch((cause: unknown) => {
@@ -188,21 +224,30 @@ async function roundTrip(db: PgDatabase, timeoutMs: number) {
  * or applied to another database — and would otherwise surface as the first
  * sign-up's `STORE_FAILED`.
  */
-async function assertTables(db: PgDatabase, tables: JanusTables) {
+async function assertTables(
+	db: PgDatabase,
+	tables: JanusTables,
+	opened: boolean,
+) {
 	const names = Object.values(tables).map((table) => {
 		const { name, schema } = getTableConfig(table);
-		return schema === undefined ? `"${name}"` : `"${schema}"."${name}"`;
+		return schema === undefined
+			? quoted(name)
+			: `${quoted(schema)}.${quoted(name)}`;
 	});
 	let reply: unknown;
 	try {
 		reply = await db.execute(
-			sql`select name from unnest(${sql.raw(
-				`array[${names.map((n) => `'${n.replaceAll("'", "''")}'`).join(', ')}]`,
-			)}) as name where to_regclass(name) is null`,
+			sql`select name from unnest(array[${sql.join(
+				names.map((name) => sql`${name}`),
+				sql`, `,
+			)}]::text[]) as name where to_regclass(name) is null`,
 		);
 	} catch (cause) {
 		throw new Error(
-			'connectKit: PostgreSQL did not answer. Check `postgres.url`, and that the database exists.',
+			opened
+				? 'connectKit: PostgreSQL did not answer. Check `postgres.url`, and that the database exists.'
+				: 'connectKit: the Drizzle instance in `postgres.db` did not answer.',
 			{ cause },
 		);
 	}
@@ -218,6 +263,11 @@ async function assertTables(db: PgDatabase, tables: JanusTables) {
 				)}. Apply the migration drizzle-kit generated from defineJanusTables(), to the database \`postgres\` names.`,
 		);
 	}
+}
+
+/** A PostgreSQL identifier, quoted as `to_regclass` reads it. */
+function quoted(identifier: string): string {
+	return `"${identifier.replaceAll('"', '""')}"`;
 }
 
 /** `@nxgt/janus-telemetry`, an optional peer: loaded only when asked for. */

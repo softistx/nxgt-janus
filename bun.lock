@@ -64,13 +64,13 @@
       "name": "@nxgt/janus-kit",
       "version": "0.0.0",
       "dependencies": {
-        "@nxgt/janus-drizzle": "workspace:^",
         "@nxgt/janus-redis": "workspace:^",
       },
       "devDependencies": {
         "@electric-sql/pglite": "0.5.8",
         "@nxgt/drizzle": "0.6.1",
         "@nxgt/janus": "workspace:^",
+        "@nxgt/janus-drizzle": "workspace:^",
         "@nxgt/janus-telemetry": "workspace:^",
         "@nxgt/redis": "0.3.1",
         "@nxgt/telemetry": "0.2.1",
@@ -83,6 +83,7 @@
       "peerDependencies": {
         "@nxgt/drizzle": ">=0.6.1 <1",
         "@nxgt/janus": "workspace:^",
+        "@nxgt/janus-drizzle": "workspace:^",
         "@nxgt/janus-telemetry": "workspace:^",
         "@nxgt/redis": ">=0.3.1 <1",
         "drizzle-orm": ">=1.0.0-rc.4 <2",

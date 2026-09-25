@@ -16,17 +16,21 @@ and its adapters'.
 - [`TS2322: Type '{ url: string; db: PgDatabase; }' is not assignable to type 'PostgresConfig'.`](#ts2322-type--url-string-db-pgdatabase--is-not-assignable-to-type-postgresconfig)
 - [`TS2322: Type 'RedisConnection' is not assignable to type 'undefined'.`](#ts2322-type-redisconnection-is-not-assignable-to-type-undefined)
 - [`TS2353: Object literal may only specify known properties, and 'schema' does not exist in type …`](#ts2353-object-literal-may-only-specify-known-properties-and-schema-does-not-exist-in-type-)
+- [`TS2345: Argument of type '{ postgres: …; }' is not assignable to parameter of type 'KitConfig<object, never>'.`](#ts2345-argument-of-type--postgres---is-not-assignable-to-parameter-of-type-kitconfigobject-never)
+- [`TS2322: Type 'string' is not assignable to type 'boolean'.`](#ts2322-type-string-is-not-assignable-to-type-boolean)
 
 **Starting**
 - [`defineConfig: …`](#defineconfig-)
 - [`connectKit: Janus's tables are missing from this database: …`](#connectkit-januss-tables-are-missing-from-this-database-)
 - [`connectKit: PostgreSQL did not answer. …`](#connectkit-postgresql-did-not-answer-)
+- [`` connectKit: the Drizzle instance in `postgres.db` did not answer. ``](#connectkit-the-drizzle-instance-in-postgresdb-did-not-answer)
 - [`connectKit: Redis did not answer. …`, after about 31 seconds](#connectkit-redis-did-not-answer--after-about-31-seconds)
-- [`connectKit: \`telemetry: true\` needs @nxgt/janus-telemetry …`](#connectkit-telemetry-true-needs-nxgtjanus-telemetry-)
+- [`` connectKit: `telemetry: true` needs @nxgt/janus-telemetry … ``](#connectkit-telemetry-true-needs-nxgtjanus-telemetry-)
 - [`TypeError: connectRedis: this URI is already connected with other options.`](#typeerror-connectredis-this-uri-is-already-connected-with-other-options)
 
 **Running**
 - [`STORE_FAILED` after `kit.close()`](#store_failed-after-kitclose)
+- [`AggregateError: kit.close: several connections failed to close`](#aggregateerror-kitclose-several-connections-failed-to-close)
 
 ---
 
@@ -46,10 +50,12 @@ access: ({ relations, auth }) => permissions({ model: defineModel({ subjects: au
 
 ### `TS2322: Type '{ url: string; db: PgDatabase; }' is not assignable to type 'PostgresConfig'.`
 
-**When:** `postgres: { url, db }`.
+Also `Type '{}' is not assignable to type 'PostgresConfig'.`
+
+**When:** `postgres: { url, db }`, or `postgres: {}`.
 
 **Why:** the kit either opens the database, from `url`, or uses the one you
-opened, `db`. Not both.
+opened, `db`: one of the two, never both and never neither.
 
 **Fix:** pass one. `url` is closed by `kit.close()`; `db` is yours to close.
 
@@ -83,6 +89,34 @@ are in, so the tables the stores query are exactly the migration's.
 postgres: { db, tables: janusTables }, // export const janusTables = defineJanusTables({ schema: janus })
 ```
 
+### `TS2345: Argument of type '{ postgres: …; }' is not assignable to parameter of type 'KitConfig<object, never>'.`
+
+Followed by `Property 'auth' is missing in type …`.
+
+**When:** `defineConfig` without `auth`.
+
+**Why:** the kit wires `janus()`, it does not replace it: you write it, so its
+types are inferred where you wrote it.
+
+**Fix:**
+
+```ts
+auth: (adapters) => janus({ user: User, password: { login: 'email' }, hasher: scryptHasher(), ...adapters }),
+```
+
+### `TS2322: Type 'string' is not assignable to type 'boolean'.`
+
+**When:** `telemetry: process.env.JANUS_TELEMETRY`, or `telemetry: 'true'`.
+
+**Why:** `telemetry` is `true` or `false`, and an environment variable is a
+string: `'false'` would turn it on.
+
+**Fix:**
+
+```ts
+telemetry: process.env.JANUS_TELEMETRY === 'true',
+```
+
 ---
 
 ## Starting
@@ -91,8 +125,10 @@ postgres: { db, tables: janusTables }, // export const janusTables = defineJanus
 
 The rest names the key: `` `postgres` needs url or db. ``, `` `redis` has both
 url and connection. Pass one. ``, `` `redis.prefix` is a non-empty string. ``,
-`` `auth` is required — (adapters) => janus({ …, ...adapters }). `` and the
-like. It is a `TypeError`.
+`` `auth` is required — (adapters) => janus({ …, ...adapters }). ``,
+`` `postgres.url` is a postgres:// or postgresql:// URL, not mysql://. `` and the
+like. It is a `TypeError`. `connectKit: …` with the same words is the same
+check, run again on a configuration that did not go through `defineConfig`.
 
 **When:** the configuration is checked, where your application starts. The
 compiler refuses most of these first; they reach run time from JavaScript,
@@ -133,7 +169,7 @@ bunx drizzle-kit migrate --config drizzle.janus.config.ts
 
 ### `connectKit: PostgreSQL did not answer. …`
 
-The message goes on: `Check \`postgres.url\`, and that the database exists.`
+The message goes on: `` Check `postgres.url`, and that the database exists. ``
 `cause` is the driver's error.
 
 **When:** `connectKit`, when the first query fails: a host that refuses the
@@ -145,10 +181,21 @@ database fails here, not at the first sign-in.
 **Fix:** read `error.cause` for the driver's reason, and check the URL. The
 URL is not in the message: it may hold a password.
 
+### `` connectKit: the Drizzle instance in `postgres.db` did not answer. ``
+
+`cause` is the driver's error.
+
+**When:** `connectKit` with `postgres: { db }`, when the first query on it
+fails: its client closed already, or its connection refused.
+
+**Why:** the kit checks the tables on the instance you handed in before
+building anything on it.
+
+**Fix:** read `error.cause`, and check the instance where you opened it.
+
 ### `connectKit: Redis did not answer. …`, after about 31 seconds
 
-The message goes on: `Check \`redis.url\`, or leave \`redis\` out to keep
-sessions in PostgreSQL.` `cause` is Bun's `Connection closed`.
+The message goes on: `` Check `redis.url`, or leave `redis` out to keep sessions in PostgreSQL. `` `cause` is Bun's `Connection closed`.
 
 **When:** `connectKit`, with `redis.url` pointing at a Redis that is down or
 unreachable.
@@ -159,7 +206,7 @@ unreachable.
 **Fix:** start Redis, or check the URL. The PostgreSQL connection the kit
 opened is closed before the error leaves.
 
-### `connectKit: \`telemetry: true\` needs @nxgt/janus-telemetry …`
+### `` connectKit: `telemetry: true` needs @nxgt/janus-telemetry … ``
 
 **When:** `telemetry: true`, without `@nxgt/janus-telemetry` installed.
 
@@ -197,3 +244,14 @@ and a failure is never answered as an absence.
 
 **Fix:** stop taking requests before closing the kit, for instance after your
 server's `stop()` resolves.
+
+### `AggregateError: kit.close: several connections failed to close`
+
+`errors` holds each one. A single failure rejects with that error alone.
+
+**When:** `kit.close()`, when closing Redis and PostgreSQL both failed.
+
+**Why:** `close()` tries every connection it opened before it reports, so one
+failure never leaves another open.
+
+**Fix:** log `error.errors` at shutdown; there is nothing to retry.

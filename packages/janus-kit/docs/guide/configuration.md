@@ -26,7 +26,9 @@ export const kit = await connectKit(config);
 ```
 
 What is wrong with it throws a `TypeError` there, where the application
-starts. A wrong URL, or a database without the tables, is `connectKit`'s
+starts. `connectKit` runs the same checks again, as `connectKit: …`, for a
+configuration built without `defineConfig`: a missing URL must not reach Bun's
+`SQL`, which would read `DATABASE_URL` instead. A wrong URL, or a database without the tables, is `connectKit`'s
 `Error`: `defineConfig` has not connected yet.
 
 ## `postgres`
@@ -39,7 +41,10 @@ postgres: { url: process.env.JANUS_DATABASE_URL! }   // opened and closed by the
 postgres: { db }                                      // a Drizzle instance you opened, never closed by the kit
 ```
 
-With `url`, the kit opens it over Bun's `SQL`, as `drizzle-orm/bun-sql`. The
+With `url`, the kit opens it over Bun's `SQL`, as `drizzle-orm/bun-sql`. It
+must be a `postgres://` or `postgresql://` URL: Bun's `SQL` would open
+`mysql://` or `sqlite://` as another database, so `defineConfig` refuses
+them, naming the scheme and never the URL. The
 recommended URL is **a database of Janus's own**, which is backed up and
 restored alone: [`@nxgt/janus-drizzle`'s guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/docs/guide/database.md)
 shows how to create it, and its tables.
@@ -52,6 +57,9 @@ when the tables are in a PostgreSQL schema of their own:
 
 ```ts
 // src/db/schema.ts
+import { defineJanusTables } from '@nxgt/janus-drizzle';
+import { pgSchema } from 'drizzle-orm/pg-core';
+
 export const janus = pgSchema('janus');
 export const janusTables = defineJanusTables({ schema: janus });
 export const { users, logins, sessions, tokens, relations } = janusTables;

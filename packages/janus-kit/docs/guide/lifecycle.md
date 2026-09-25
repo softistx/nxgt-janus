@@ -25,6 +25,8 @@ app.get('/health', async (c) => {
 ```
 
 Do not send `error` to the client: it is the driver's, and may name a host.
+A probe that outlasts `timeoutMs` is `{ ok: false, error }` with the error
+`ping: no answer in 2000ms`.
 
 ## `kit.close()`
 
@@ -36,10 +38,13 @@ await using kit = await connectKit(config);
 
 It closes what the kit opened, Redis first, then PostgreSQL, and nothing it
 was handed: a `postgres.db` or a `redis.connection` from the configuration
-stays open, since it is not the kit's to close. It is idempotent.
+stays open, since it is not the kit's to close. It is idempotent. It tries
+every connection, then rejects with the error of the one that failed to
+close, or an `AggregateError` when several did.
 
-After it, every call through `kit.auth` fails with `STORE_FAILED`, and
-`kit.ping()` answers `ok: false`.
+After it, every call through `kit.auth` that reaches a connection the kit
+opened fails with `STORE_FAILED`, and `kit.ping()` answers `ok: false` for
+it. A connection you handed in keeps answering.
 
 `@nxgt/redis` shares one client per URL: the client closes with the last
 connection to it, so a connection your application opened to the same URL
