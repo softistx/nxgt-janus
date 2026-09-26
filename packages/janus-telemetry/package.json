@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus-telemetry",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Observability for @nxgt/janus on @nxgt/telemetry: a span per flow and per permission check, and the security events worth an audit trail — never a login, an e-mail, a password, a session token, a one-time token or a session id",
 	"license": "MIT",
 	"type": "module",

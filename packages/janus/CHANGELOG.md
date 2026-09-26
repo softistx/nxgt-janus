@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.2.2
+
+### Patch Changes
+
+- [#55](https://github.com/softistx/nxgt-janus/pull/55) [`b04520d`](https://github.com/softistx/nxgt-janus/commit/b04520df723cedb49863058d10124ee0968dd904) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The roadmap lists `@nxgt/janus-drizzle`, `@nxgt/janus-redis`, `@nxgt/janus-telemetry` and `@nxgt/janus-kit` as shipped, and every Shipped entry names the version it came in.
+
 ## 0.2.1
 
 ### Patch Changes
