@@ -85,14 +85,64 @@ given what:
 janus.tuple.granted   janus.object.type=record  janus.object.id=r1  janus.relation=owners  janus.subject.type=patient  janus.subject.id=u1
 ```
 
+## A second factor
+
+With `janus({ secondFactor })`, a sign-in with a code is two calls, and so
+two spans and two events. The `signIn` span says which answer it gave, in
+`janus.signIn.status`:
+
+```
+POST /sign-in                            server
+└─ janus.signIn                          janus.user.type=user  janus.signIn.status=secondFactor
+     log  janus.signIn.secondFactor      janus.user.type=user
+
+POST /sign-in/code                       server
+└─ janus.secondFactor.confirm            janus.user.type=user  user.id=0199…
+     log  janus.signIn                   user.id=0199…  janus.signIn.secondFactor=true
+```
+
+The first event carries the user type alone: a challenge names no user, and
+the log would otherwise need the login to say whose it is. The `janus.signIn`
+written by `confirm` names the user, and `janus.signIn.secondFactor: true`
+tells it from a sign-in by password alone.
+
+A wrong code is a refusal, so the span stays `ok`, and a warning names the
+user and what the challenge has left:
+
+```
+janus.signIn.refused   janus.refusal=CODE_INVALID  janus.secondFactor.attemptsLeft=3  user.id=0199…
+```
+
+At `0` the challenge is spent. A user whose count reaches `0` challenge after
+challenge is someone who has their password and not their phone — the
+signal worth an alert:
+
+```ts
+// name = 'janus.signIn.refused' AND janus.refusal = 'CODE_INVALID'
+//   AND janus.secondFactor.attemptsLeft = 0, grouped by user.id
+```
+
+A lapsed, spent or unknown challenge is a `janus.signIn.refused` with its
+`TOKEN_*` code and no `user.id`: it is refused before the user is read.
+
+`enroll`, `activate` and `disable` each write one event once they answered,
+with the `user.id` they were called for — `janus.secondFactor.enrolled`,
+`janus.secondFactor.activated`, `janus.secondFactor.disabled`. A refused one
+(`SECOND_FACTOR_ACTIVE`, a wrong first code) writes no event: its span
+carries `janus.refusal`, like any refusal.
+
 ## What is never written
 
-A login, an e-mail, a password, a session token, a one-time token, a session id — nothing a log reader
-could sign in with, or use to tell who holds an account. A refused sign-in by
+A login, an e-mail, a password, a session token, a one-time token, a
+second factor's challenge, a code or its TOTP secret, the
+`otpauth://` URI that holds it, a session id: nothing a log reader could
+sign in with, or use to tell who holds an account. A refused sign-in by
 an unknown login says `janus.refusal.reason: 'unknownLogin'`, not which login
-was tried; only `USER_INACTIVE` names the user, whose password was right.
-The spec that holds this runs every flow and searches every signal
-for each of them.
+was tried; only a refusal after the password was right — `USER_INACTIVE`, a second
+factor's `CODE_INVALID` or `SECOND_FACTOR_NOT_ENROLLED` — names the user.
+The spec that holds this runs every flow — `enroll`, `activate`, a refused
+and an accepted `confirm` among them — and searches every signal for each of
+them.
 
 ## In a test
 

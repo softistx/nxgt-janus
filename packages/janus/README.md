@@ -46,7 +46,7 @@ a published entry point is a promise.
 ## Three ways to use it
 
 Janus has two sides. **Identities** answers *who is this?* — users, their
-logins and passwords, sessions, one-time tokens. **Permissions** answers *may
+logins and passwords, a TOTP second factor, sessions, one-time tokens. **Permissions** answers *may
 they?* — a model, the tuples stored against it, and `can`. Each side is usable
 alone, and neither loads the other's code: a spec reads the import graph of
 each entry point and fails if one reaches into the other.
@@ -165,7 +165,7 @@ async function signIn(email: string, password: string): Promise<Response> {
 ```
 
 `JanusError` is the base of everything thrown at call time. It extends `Error`,
-so no consumer has to order their `catch` blocks. `code` is a union of sixteen
+so no consumer has to order their `catch` blocks. `code` is a union of nineteen
 string literals, so a `switch` over it is exhaustive and adding a code breaks the
 compilation of callers that exhaust it:
 
@@ -177,6 +177,8 @@ compilation of callers that exhaust it:
 | `USER_INVALID` | 400, field by field from `issues` |
 | `PASSWORD_TOO_SHORT`, `HASH_UNSUPPORTED` | 400 |
 | `CREDENTIALS_INVALID` | 401 — one code for an unknown login, no password and a wrong one |
+| `CODE_INVALID` | 401 — a second factor's code that does not match or was already accepted; `attemptsLeft` from `confirm` belongs in the body |
+| `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` | 409 — the factor is not in the state the call needs |
 | `USER_INACTIVE` | 403 |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
@@ -185,13 +187,15 @@ compilation of callers that exhaust it:
 
 Each code has its class, all exported: `StoreFailure`, `StoreConflict` (`on:
 'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `CredentialError`,
-`UserInactiveError`, `TokenError`, `InvalidCursorError`, `UnsupportedError`
-and `PermissionDepthError`. `StoreFailure` and `StoreConflict` are exported
+`UserInactiveError`, `TokenError` (the `TOKEN_*` codes and `CODE_INVALID`),
+`SecondFactorError`, `InvalidCursorError`, `UnsupportedError` and
+`PermissionDepthError`. `StoreFailure` and `StoreConflict` are exported
 **because an adapter throws them**. An adapter defines no error class of its own, so `instanceof` holds
 across the two packages.
 
 **No message ever holds a secret** — not a password, not a hash, not a session
-token, not a token's hash, and not a connection URI, because a connection string
+token, not a token's hash, not a challenge, a code or a TOTP secret, and not a
+connection URI, because a connection string
 holds a password. Nor a login: a message reports a shape, never a value, so
 `LOGIN_TAKEN` names the login in `error.login`, not in its message.
 
@@ -299,8 +303,8 @@ const auth = janus({
 	hasher: scryptHasher(),
 });
 
-await auth.signUp({ email, name, password });      // { user, session, token }
-await auth.signIn({ email, password });            // { user, session, token }
+await auth.signUp({ email, name, password });      // { status: 'signedIn', user, session, token }
+await auth.signIn({ email, password });            // { status: 'signedIn', user, session, token }
 await auth.authenticate(request);                  // { user, session, token, renewed } | null
 await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
@@ -333,8 +337,8 @@ store answers every method of the port, and connects to nothing. Everything
 else reaches the store and is asynchronous.
 
 - **A user is your schema's fields, at the top level**, plus what `janus` sets:
-  `id`, `type`, `emailVerified`, `active`, `hasPassword`, `version`,
-  `createdAt`, `updatedAt`. A schema declaring one of those, or a `password`, is
+  `id`, `type`, `emailVerified`, `active`, `hasPassword`, `hasSecondFactor`,
+  `version`, `createdAt`, `updatedAt`. A schema declaring one of those, or a `password`, is
   refused at compile time. The password hash never reaches a user.
 - **Schemas** are any [Standard Schema](https://standardschema.dev) — Zod 4,
   Valibot, ArkType. There is no validation peer. The output must be JSON, and a
@@ -396,11 +400,10 @@ adapter. `assertStores(store, where)` is the check `janus()` runs on it, for an
 adapter that wants to fail as early. The six rules an adapter keeps are
 written on the port's types.
 
-The port already holds what one-time codes need, before any flow uses it: a
-user's `secondFactor` (a TOTP secret, or `null`; the core will seal it before
-a store sees it, once the second factor ships), a token's `codeHash` and
-`attempts`, and `TokenStore.countAttempt`, which counts one attempt in one
-conditional write:
+The port holds what one-time codes need: a user's `secondFactor` (a TOTP
+secret the core seals before a store sees it, or `null`), a token's
+`codeHash` and `attempts`, and `TokenStore.countAttempt`, which counts one
+attempt in one conditional write:
 
 ```ts
 import { createMemoryStores, mintId } from '@nxgt/janus';
@@ -427,6 +430,62 @@ An adapter written against `@nxgt/janus` 0.3 does not compile against this
 port until it implements `countAttempt`, and `janus()` refuses it at wiring —
 [Writing an adapter](docs/guide/adapters.md#tokenstorecountattempt) has the
 contract.
+
+### Second factor — `secondFactor`
+
+```ts
+import { z } from 'zod';
+import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
+
+const auth = janus({
+	user: z.object({ email: z.email() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
+	hasher: scryptHasher(),
+	secondFactor: {
+		issuer: 'Example',                                           // shown in the authenticator app
+		keys: [{ id: '2026-09', key: process.env.TOTP_KEY ?? '' }], // openssl rand -base64 32
+	},
+});
+
+const { secret, uri } = await auth.secondFactor.enroll(user); // show uri as a QR code, secret beside it
+await auth.secondFactor.activate(user, code);                  // the first code: the factor is active
+
+const result = await auth.signIn({ email, password });
+if (result.status === 'secondFactor') {
+	// no session yet: keep result.challenge for the next request — never in a URL or a log
+	const signedIn = await auth.secondFactor.confirm(result.challenge, code); // { status: 'signedIn', … }
+}
+
+await auth.secondFactor.disable(user);
+```
+
+A TOTP second factor — the six-digit codes of any authenticator app — for
+every user type with a password.
+
+- **`signIn` answers a union once `secondFactor` is configured**:
+  `{ status: 'signedIn', user, session, token }`, or
+  `{ status: 'secondFactor', challenge, expiresAt }` for a user whose factor
+  is active. Switch on `status`: reading `token` before that is a compile
+  error. Without `secondFactor`, `signIn` answers a session, as before.
+- **A factor is enrolled, then active.** `enroll` answers the secret and its
+  `otpauth://` URI once; enrolling again replaces a factor still waiting.
+  `activate` checks a first code, and only then does `signIn` ask for one —
+  `hasSecondFactor` says so.
+- **`confirm(challenge, code)`** opens the session. A challenge lives `'5m'`
+  (`secondFactor.challenge`) and takes five attempts: a wrong code is
+  `CODE_INVALID` with `attemptsLeft`, and the fifth spends the challenge. A
+  code is accepted once, so a replay is `CODE_INVALID` too.
+- **`keys` seal every TOTP secret** with AES-256-GCM before a store sees it.
+  The first seals and every key opens, so keys rotate: put the new one first,
+  keep the old one until no secret is sealed with it.
+- **Asking for a password or a code before `enroll` or `disable` is your
+  policy**, not the library's — a recent `session.authenticatedAt` is one
+  rule.
+
+[The second factor guide](docs/guide/second-factor.md) has every option,
+error and state, key rotation, and a sign-in route with the challenge in a
+cookie.
 
 ### Permissions — `@nxgt/janus/permissions`
 
@@ -538,7 +597,7 @@ describeJanusStores({
 });
 ```
 
-There are 44 cases. They cover:
+There are 45 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -551,6 +610,7 @@ There are 44 cases. They cover:
 - one-time tokens: of twenty concurrent redemptions, exactly one succeeds;
   of twenty concurrent `countAttempt` calls, each answers a distinct count,
   and none is counted once a racing redemption spent the token;
+- a second-factor challenge, whose address is `''`, kept, counted and spent;
 - a user's second factor: round-trip, kept by a patch that does not name it,
   removed by one that names `null`;
 - deletion: a user's logins are freed, and every session and token of theirs
@@ -586,6 +646,29 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 `runRelationCase` are the runner-less layer.
 
 ## Traps
+
+**Once `secondFactor` is configured, switch on `signIn`'s `status`.** A user
+whose factor is active gets `{ status: 'secondFactor', challenge }`, with no
+`token` and no `session`: `if (result.status === 'secondFactor') …` before
+anything reads them.
+
+**A challenge is a secret, like a session token.** Keep it in a short-lived
+`HttpOnly` cookie or the body of the code form — never in a URL, where logs,
+proxies and the `Referer` header see it, and never in a log.
+
+**Every `janus()` that signs users in needs the same `secondFactor`.** An
+instance without keys never signs in a user whose factor is active: `signIn`
+throws a `TypeError` rather than open a session on the password alone. Build
+the configuration once and import it everywhere.
+
+**Never remove a sealing key while a secret is sealed with it, nor change a
+key under the same id.** That user's next sign-in is a `TypeError`, not a
+refusal. Put the new key first and keep the old one until your database holds
+no secret starting `v1.<old id>.`.
+
+**`enroll` and `disable` ask for nothing.** Whether the user proves their
+password or a code first is yours to decide; without a check, a stolen
+session can switch the factor off.
 
 **On a user type, only `setOf` makes a set.** A user passed as it is — or
 `{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
@@ -691,15 +774,16 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**One hundred and three plausible mistakes, one hundred and three refused at compile time — and
+**One hundred and eleven plausible mistakes, one hundred and eleven refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (twenty-one, on the identity stores' port, from the point
-of view of the person implementing it), `test/types/auth.ts` (twenty, on
-`janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-eight, on the
+of view of the person implementing it), `test/types/auth.ts` (twenty-eight, on
+`janus()`, from the point of view of the application — eight of them on the
+second factor) and `test/types/permissions.ts` (forty-eight, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

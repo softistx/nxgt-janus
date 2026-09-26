@@ -35,6 +35,12 @@ export interface UserBase<Type extends string = string> {
 	 * that.
 	 */
 	readonly hasPassword: boolean;
+	/**
+	 * Whether a second factor is **active**: enrolled, and proved with a first
+	 * code. A factor still waiting for that code does not count, and `signIn`
+	 * does not ask for it.
+	 */
+	readonly hasSecondFactor: boolean;
 	/** One more on every write: what `ifVersion` is compared against. */
 	readonly version: number;
 	readonly createdAt: Date;
@@ -59,9 +65,36 @@ export type Session = Omit<SessionRecord, 'tokenHash'>;
  * to a client that sends it as `Authorization: Bearer`.
  */
 export interface SignedIn<U> {
+	readonly status: 'signedIn';
 	readonly user: U;
 	readonly session: Session;
 	readonly token: string;
+}
+
+/**
+ * The password was right, and the user has a second factor: no session yet.
+ * Ask for a code, then call `secondFactor.confirm(challenge, code)`.
+ *
+ * **The challenge is a secret** like a session token: keep it where the
+ * visitor's next request can present it — a short-lived cookie, or the body
+ * of your code form — and never in a URL or a log.
+ */
+export interface SecondFactorRequired {
+	readonly status: 'secondFactor';
+	readonly challenge: string;
+	/** When the challenge lapses. Five minutes after `signIn`, by default. */
+	readonly expiresAt: Date;
+}
+
+/** What `signIn` answers once a second factor is configured: switch on `status`. */
+export type SignInResult<U> = SignedIn<U> | SecondFactorRequired;
+
+/** What `secondFactor.enroll` answers: show both, keep neither. */
+export interface SecondFactorEnrolment {
+	/** The TOTP secret, in base32: for a user who types it in instead of scanning. */
+	readonly secret: string;
+	/** The `otpauth://` URI to render as a QR code. */
+	readonly uri: string;
 }
 
 /** Who a request belongs to. */
@@ -233,8 +266,18 @@ export interface UserTypeApi<U, In> {
 	delete(user: UserRef): Promise<boolean>;
 }
 
-/** What a user type that signs in with a password answers besides. */
-export interface PasswordApi<U, In, Login extends string> {
+/**
+ * What a user type that signs in with a password answers besides.
+ *
+ * `Answer` is what `signIn` answers: {@link SignedIn}, or {@link SignInResult}
+ * once `janus()` is given a `secondFactor`.
+ */
+export interface PasswordApi<
+	U,
+	In,
+	Login extends string,
+	Answer = SignedIn<U>,
+> {
 	/**
 	 * Creates the user and signs them in.
 	 *
@@ -253,10 +296,14 @@ export interface PasswordApi<U, In, Login extends string> {
 	 * so either. **The store's own latency stays observable**, and that limit is
 	 * documented rather than denied. An inactive user who gave the right
 	 * password is `USER_INACTIVE`.
+	 *
+	 * With a `secondFactor` configured, a user whose factor is active gets no
+	 * session yet: `{ status: 'secondFactor', challenge }`, for
+	 * `secondFactor.confirm`. Switch on `status`.
 	 */
 	signIn(
 		input: { readonly [K in Login]: string } & { readonly password: string },
-	): Promise<SignedIn<U>>;
+	): Promise<Answer>;
 
 	/** The user holding this login, normalised as sign-up normalised it, or `null`. */
 	findByLogin(login: string): Promise<U | null>;
@@ -278,6 +325,46 @@ export interface PasswordApi<U, In, Login extends string> {
 		change: { readonly current: string; readonly next: string },
 		options?: WriteOptions,
 	): Promise<U>;
+}
+
+/**
+ * What a user type with a password answers besides, once `janus()` is given a
+ * `secondFactor`: a TOTP second factor, from the first QR code to the code
+ * `signIn` asks for.
+ *
+ * A factor is **enrolled** by `enroll`, **active** once `activate` accepted a
+ * first code, and gone after `disable`. Only an active one is asked for.
+ */
+export interface SecondFactorApi<U> {
+	readonly secondFactor: {
+		/**
+		 * Mints a TOTP secret, seals it onto the user, and answers it with the
+		 * URI to show as a QR code. The factor waits for `activate`; a factor
+		 * already waiting is replaced. `SECOND_FACTOR_ACTIVE` when one is active.
+		 */
+		enroll(
+			user: UserRef,
+			options?: WriteOptions,
+		): Promise<SecondFactorEnrolment>;
+		/**
+		 * Checks a first code from the app, and makes the factor active: from
+		 * then on `signIn` asks for a code. `CODE_INVALID` when it does not match,
+		 * `SECOND_FACTOR_NOT_ENROLLED` before `enroll`.
+		 */
+		activate(user: UserRef, code: string, options?: WriteOptions): Promise<U>;
+		/** Removes the factor, active or waiting. A user without one is answered as is. */
+		disable(user: UserRef, options?: WriteOptions): Promise<U>;
+		/**
+		 * Redeems `signIn`'s challenge with a code, and opens the session.
+		 *
+		 * A challenge takes **five attempts**: a code that does not match is
+		 * `CODE_INVALID` with `attemptsLeft`, and the fifth spends the challenge.
+		 * A code is accepted once, so a replay is `CODE_INVALID` too. An unknown,
+		 * spent or lapsed challenge is `TOKEN_UNKNOWN`, `TOKEN_SPENT` or
+		 * `TOKEN_EXPIRED`: sign in again.
+		 */
+		confirm(challenge: string, code: string): Promise<SignedIn<U>>;
+	};
 }
 
 /** What a user type with an e-mail answers besides. */
@@ -313,14 +400,26 @@ export interface ResetPasswordApi<U> {
 	};
 }
 
-/** The whole surface of one user type, with only the flows its configuration allows. */
-export type TypeApi<Name extends string, Def> = UserTypeApi<
-	UserOfType<Name, Def>,
-	FieldsInput<Def>
-> &
+/**
+ * The whole surface of one user type, with only the flows its configuration
+ * allows. `TwoFactor` is whether `janus()` was given a `secondFactor`.
+ */
+export type TypeApi<
+	Name extends string,
+	Def,
+	TwoFactor extends boolean = false,
+> = UserTypeApi<UserOfType<Name, Def>, FieldsInput<Def>> &
 	([LoginOf<Def>] extends [never]
 		? unknown
-		: PasswordApi<UserOfType<Name, Def>, FieldsInput<Def>, LoginOf<Def>>) &
+		: TwoFactor extends true
+			? PasswordApi<
+					UserOfType<Name, Def>,
+					FieldsInput<Def>,
+					LoginOf<Def>,
+					SignInResult<UserOfType<Name, Def>>
+				> &
+					SecondFactorApi<UserOfType<Name, Def>>
+			: PasswordApi<UserOfType<Name, Def>, FieldsInput<Def>, LoginOf<Def>>) &
 	([EmailOf<Def>] extends [never]
 		? unknown
 		: VerifyEmailApi<UserOfType<Name, Def>>) &
@@ -381,12 +480,25 @@ export interface SharedApi<U extends { readonly type: string }> {
 	readonly types: readonly U['type'][];
 }
 
+/**
+ * Whether a configuration may turn the second factor on. **A key that is
+ * there at all counts**, optional or not: a `secondFactor` set from the
+ * environment may be on at run time, and `signIn` must be typed for it.
+ */
+type TwoFactorOf<C> = 'secondFactor' extends keyof C ? true : false;
+
 /** What `janus(config)` answers. */
 export type Janus<C extends JanusConfig> = SharedApi<UserOf<C>> &
 	(C extends MultiTypeConfig
-		? { readonly [K in keyof C['users'] & string]: TypeApi<K, C['users'][K]> }
+		? {
+				readonly [K in keyof C['users'] & string]: TypeApi<
+					K,
+					C['users'][K],
+					TwoFactorOf<C>
+				>;
+			}
 		: C extends SingleTypeConfig
-			? TypeApi<'user', SingleAsType<C>>
+			? TypeApi<'user', SingleAsType<C>, TwoFactorOf<C>>
 			: never);
 
 // ─── The checks, as types ─────────────────────────────────────────────────

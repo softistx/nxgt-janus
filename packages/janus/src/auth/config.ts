@@ -11,6 +11,7 @@ import type { RelationStore } from '../permissions/port/types';
 import type { Clock } from '../time/clock';
 import { type Duration, parseDuration } from '../time/duration';
 import type { JanusStores } from './port/types';
+import { resolveSealer, type Sealer, type SealingKey } from './sealing';
 import type { StandardSchemaV1 } from './standard-schema';
 
 /**
@@ -157,6 +158,25 @@ interface SharedConfig {
 		/** `'1h'` when absent. */
 		readonly resetPassword?: Duration;
 	};
+	/**
+	 * A TOTP second factor, for every user type with a password. Absent, no
+	 * `secondFactor` flows exist and `signIn` answers a session directly.
+	 */
+	readonly secondFactor?: SecondFactorConfig;
+}
+
+/** What a TOTP second factor needs: a name for the app, and the keys that seal. */
+export interface SecondFactorConfig {
+	/** Shown in the authenticator app beside the account: your product's name. */
+	readonly issuer: string;
+	/**
+	 * The keys every TOTP secret is sealed with before a store sees it. **The
+	 * first seals, every one opens**: to rotate, put the new key first and keep
+	 * the old one until no secret is sealed with it.
+	 */
+	readonly keys: readonly [SealingKey, ...SealingKey[]];
+	/** How long `signIn`'s challenge waits for a code. `'5m'` when absent. */
+	readonly challenge?: Duration;
 }
 
 /** An application with one user type: `user` is its schema. */
@@ -192,6 +212,7 @@ export const RESERVED_FIELDS = [
 	'emailVerified',
 	'active',
 	'hasPassword',
+	'hasSecondFactor',
 	'version',
 	'createdAt',
 	'updatedAt',
@@ -232,6 +253,11 @@ export interface ResolvedConfig {
 		readonly verifyEmail: number;
 		readonly resetPassword: number;
 	};
+	readonly secondFactor: {
+		readonly issuer: string;
+		readonly sealer: Sealer;
+		readonly challengeTtlMs: number;
+	} | null;
 	readonly cookie: {
 		readonly name: string;
 		readonly domain: string | null;
@@ -329,6 +355,25 @@ export function resolveConfig(
 			),
 		},
 		cookie: resolveCookie(config.cookie ?? {}, where),
+		secondFactor: resolveSecondFactor(config.secondFactor, where),
+	};
+}
+
+function resolveSecondFactor(
+	config: SecondFactorConfig | undefined,
+	where: string,
+): ResolvedConfig['secondFactor'] {
+	if (config === undefined) return null;
+	const at = `${where}: secondFactor`;
+	if (typeof config?.issuer !== 'string' || config.issuer.trim() === '') {
+		throw new TypeError(
+			`${at}.issuer must name your application — the authenticator app shows it beside the account`,
+		);
+	}
+	return {
+		issuer: config.issuer,
+		sealer: resolveSealer(config.keys, `${at}.keys`),
+		challengeTtlMs: parseDuration(config.challenge ?? '5m', `${at}.challenge`),
 	};
 }
 

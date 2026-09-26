@@ -96,10 +96,10 @@ export interface PasswordRecord {
 /**
  * A second factor, as the store holds it: a TOTP secret.
  *
- * **The secret is opaque to a store.** Once the second factor ships, the core
- * will seal it with a key the application holds before a store ever sees it,
- * so a dump of the users cannot produce a code. A store keeps the string byte
- * for byte, like a password hash, and never parses it.
+ * **The secret is opaque to a store.** The core seals it with a key the
+ * application holds — AES-256-GCM, `v1.<key id>.<iv>.<ciphertext>` — before a
+ * store ever sees it, so a dump of the users cannot produce a code. A store
+ * keeps the string byte for byte, like a password hash, and never parses it.
  */
 export interface SecondFactorRecord {
 	/** How the codes are made. `'totp'`, the codes of an authenticator app, is the only one. */
@@ -405,7 +405,10 @@ export interface TokenRecord {
 	readonly tokenHash: string;
 	readonly kind: TokenKind;
 	readonly userId: Id;
-	/** The e-mail the token was sent to — the one a verification marks verified. */
+	/**
+	 * The e-mail the token was sent to — the one a verification marks
+	 * verified. `''` for a second-factor challenge, which nothing was sent for.
+	 */
 	readonly address: string;
 	/**
 	 * For a token redeemed with a code — `signInCode` — the code's hash, keyed
@@ -416,8 +419,8 @@ export interface TokenRecord {
 	readonly codeHash: string | null;
 	/**
 	 * How many codes were tried against it: `0` at insertion, and one more on
-	 * every {@link TokenStore.countAttempt}. What bounds guessing a six-digit
-	 * code.
+	 * every {@link TokenStore.countAttempt}. What bounds the attempts at a
+	 * six-digit code.
 	 */
 	readonly attempts: number;
 	readonly expiresAt: Date;

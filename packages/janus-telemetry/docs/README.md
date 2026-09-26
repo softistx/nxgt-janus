@@ -5,7 +5,7 @@ detail.
 
 | Page | Read it when |
 | --- | --- |
-| [Tracing Janus](guide/tracing.md) | You are wiring it into an application, or reading what it wrote |
+| [Tracing Janus](guide/tracing.md) | You are wiring it into an application, reading what it wrote, or following a sign-in with a second factor |
 | [Troubleshooting](troubleshooting.md) | A span or an event is missing, or says something you did not expect |
 | [Roadmap](roadmap.md) | You want to know what is coming, what shipped, and what is deliberately not planned |
 

@@ -235,6 +235,30 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 		},
 	},
 	{
+		id: 'tokens.challenge',
+		group,
+		name: "keeps a second-factor challenge, whose address is '' — nothing was sent for it",
+		async run({ stores }) {
+			const record = tokenRecord({ kind: 'secondFactor', address: '' });
+			await stores.tokens.insertToken(record);
+
+			equal(
+				await stores.tokens.countAttempt(record.tokenHash, 'secondFactor'),
+				{ ...record, attempts: 1 },
+				"countAttempt should answer a challenge with its empty address kept — a store that refuses '' refuses every sign-in with a second factor",
+			);
+			equal(
+				await stores.tokens.consumeToken(
+					record.tokenHash,
+					'secondFactor',
+					at('2026-02-01T00:00:00.000Z'),
+				),
+				{ ...record, attempts: 1 },
+				'consumeToken should spend the challenge and answer it as it was',
+			);
+		},
+	},
+	{
 		id: 'tokens.lapsed',
 		group,
 		name: 'spends a lapsed token all the same: expiry is compared by the core, after the call',

@@ -56,7 +56,12 @@ export async function openSession(
 	};
 
 	await context.store.sessions.insertSession(record);
-	return { user: toUser(user), session: toSession(record), token };
+	return {
+		status: 'signedIn',
+		user: toUser(user),
+		session: toSession(record),
+		token,
+	};
 }
 
 /** Everything `janus()` answers whatever its user types. */

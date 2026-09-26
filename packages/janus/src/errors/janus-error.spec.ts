@@ -87,7 +87,11 @@ describe('the codes a caller switches on', () => {
 				case 'TOKEN_STALE':
 					return 400;
 				case 'CREDENTIALS_INVALID':
+				case 'CODE_INVALID':
 					return 401;
+				case 'SECOND_FACTOR_NOT_ENROLLED':
+				case 'SECOND_FACTOR_ACTIVE':
+					return 409;
 				case 'USER_INACTIVE':
 					return 403;
 				case 'UNSUPPORTED':

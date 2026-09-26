@@ -29,7 +29,11 @@ export function statusOf(code: JanusErrorCode): ContentfulStatusCode {
 		case 'TOKEN_STALE':
 			return 400;
 		case 'CREDENTIALS_INVALID':
+		case 'CODE_INVALID':
 			return 401;
+		case 'SECOND_FACTOR_NOT_ENROLLED':
+		case 'SECOND_FACTOR_ACTIVE':
+			return 409;
 		case 'USER_INACTIVE':
 			return 403;
 		case 'UNSUPPORTED':
@@ -41,13 +45,15 @@ export function statusOf(code: JanusErrorCode): ContentfulStatusCode {
 
 /**
  * The body a refusal is answered with: its `code`, and only what the client
- * can act on — the fields that failed the schema, the policy's minimum. Never
- * `reason`, `login`, a hash prefix or a cause: those are for your logs.
+ * can act on — the fields that failed the schema, the policy's minimum, the
+ * attempts a challenge has left. Never `reason`, `login`, a hash prefix or a
+ * cause: those are for your logs.
  */
 export function bodyOf(error: JanusError): {
 	readonly code: JanusErrorCode;
 	readonly issues?: JanusError['issues'];
 	readonly minLength?: number;
+	readonly attemptsLeft?: number;
 } {
 	switch (error.code) {
 		case 'USER_INVALID':
@@ -56,6 +62,10 @@ export function bodyOf(error: JanusError): {
 			return error.minLength === undefined
 				? { code: error.code }
 				: { code: error.code, minLength: error.minLength };
+		case 'CODE_INVALID':
+			return error.attemptsLeft === undefined
+				? { code: error.code }
+				: { code: error.code, attemptsLeft: error.attemptsLeft };
 		default:
 			return { code: error.code };
 	}

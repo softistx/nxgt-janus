@@ -32,6 +32,7 @@ export {
 	type JanusErrorOptions,
 	NotFoundError,
 	PermissionDepthError,
+	SecondFactorError,
 	StoreConflict,
 	StoreFailure,
 	TokenError,

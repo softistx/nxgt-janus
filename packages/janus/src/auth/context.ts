@@ -97,6 +97,7 @@ export function toUser(record: UserRecord): AnyUser {
 		emailVerified: record.emailVerifiedAt !== null,
 		active: record.active,
 		hasPassword: record.password !== null,
+		hasSecondFactor: record.secondFactor?.confirmedAt != null,
 		version: record.version,
 		createdAt: record.createdAt,
 		updatedAt: record.updatedAt,

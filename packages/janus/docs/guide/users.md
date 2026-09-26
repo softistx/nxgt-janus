@@ -54,6 +54,7 @@ interface UserBase<Type extends string = string> {
 	readonly emailVerified: boolean;
 	readonly active: boolean;
 	readonly hasPassword: boolean; // the hash itself never reaches a user
+	readonly hasSecondFactor: boolean; // an active second factor: signIn asks for a code
 	readonly version: number;      // one more on every write
 	readonly createdAt: Date;
 	readonly updatedAt: Date;
@@ -93,6 +94,7 @@ that cuts an emoji in half, say.
 | `cookie` | `CookieConfig` | strict | See [sessions](sessions.md#the-cookie) |
 | `tokens.verifyEmail` | `Duration` | `'24h'` | How long a verification token lives |
 | `tokens.resetPassword` | `Duration` | `'1h'` | How long a reset token lives |
+| `secondFactor` | `{ issuer, keys, challenge? }` | none | A TOTP second factor for every type with a password. Changes what `signIn` answers — see [the second factor](second-factor.md#configuration) |
 
 A `Duration` is `'500ms'`, `'30s'`, `'15m'`, `'8h'`, `'7d'`, or a number of
 milliseconds.
@@ -181,11 +183,15 @@ With a `password`, besides:
 
 | Method | Answers | Rejects with |
 | --- | --- | --- |
-| `signUp(fields & { password })` | `{ user, session, token }` | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN` |
-| `signIn({ [login]: string, password })` | `{ user, session, token }` | `CREDENTIALS_INVALID`, `USER_INACTIVE`, `HASH_UNSUPPORTED` |
+| `signUp(fields & { password })` | `{ status: 'signedIn', user, session, token }` | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN` |
+| `signIn({ [login]: string, password })` | `{ status: 'signedIn', user, session, token }` — or, with `secondFactor` configured and the user's factor active, `{ status: 'secondFactor', challenge, expiresAt }`: switch on `status` | `CREDENTIALS_INVALID`, `USER_INACTIVE`, `HASH_UNSUPPORTED` |
 | `findByLogin(login)` | the user, or `null`; the login is normalised first, and one holding a NUL or a lone surrogate is nobody's | |
 | `setPassword(user, password, { ifVersion? })` | the user — an admin's call | `PASSWORD_TOO_SHORT` |
 | `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
+
+With `secondFactor` configured, a type with a password also answers
+`secondFactor.enroll`, `activate`, `disable` and `confirm` — see
+[the second factor](second-factor.md).
 
 Every method may also reject with `STORE_FAILED`. A `user` argument is a user
 or its id (`UserRef = string | { id: string }`).
