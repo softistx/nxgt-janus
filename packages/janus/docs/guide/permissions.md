@@ -57,6 +57,10 @@ function defineModel<
 	const Rs extends RulesOf<Ts> & RulesOnly<Ts, Rs>, // the reference form's rules, typed from the names on the types
 >(config: { readonly subjects: Subjects; readonly types: Ts; readonly rules?: Rs }): PermissionModel<…>;
 // ModelTypesOf<S, Ts>: the names each relation and rule of each type may take
+// `rules` is required once a type declares `permits`.
+// Exported to name them: Ref, RelationRef, PermissionRef, ArrowRef, RuleRef,
+// RuleParam<Ts, T, Self> (what a rule of T is given), RulesOf, RulesOnly,
+// NameOfRef<R> (the string a reference spells), Normalized<C> (a config in the string form).
 
 interface ModelConfig {
 	readonly subjects: readonly string[]; // pass auth.types
@@ -70,7 +74,7 @@ interface ModelConfig {
 			readonly permits?: readonly string[];
 		};
 	};
-	readonly rules?: { readonly [objectType: string]: { readonly [permit: string]: (param) => readonly RuleRef[] } };
+	readonly rules?: { readonly [objectType: string]: { readonly [permit: string]: (param) => readonly [RuleRef, ...RuleRef[]] } };
 }
 ```
 
@@ -116,14 +120,14 @@ types, under `rules`, as one function per permit given **typed references**:
 import { defineModel, fromField, when } from '@nxgt/janus/permissions';
 
 export const model = defineModel({
-	subjects: clinic.types,
+	subjects: auth.types,
 	types: {
 		team: {
 			related: { members: ['staff', 'team#members'], leads: ['staff'] },
 			permits: ['manage', 'view'],
 		},
 		record: {
-			related: { doctors: fromField('doctorId', 'staff', { lookup }), teams: ['team'] },
+			related: { doctors: fromField('doctorId', 'staff'), teams: ['team'] },
 			permits: ['view', 'edit'],
 		},
 	},
@@ -170,15 +174,17 @@ through `teams: ['team']`, are completed from what `team` declares.
 
 The two spellings share one model: a type written with `relations` and
 `permissions` beside one written with `related`, `permits` and its `rules`.
-One type takes one spelling — `relations` beside `related`, or `permissions`
-beside `permits`, is refused when the model is defined.
+**One type takes one form**: `related` beside `permissions` strings, or
+`relations` beside `permits`, is a compile error on the string-form key, `relations` or `permissions`. A type
+may have `related` and no `permits` — a team others point at through
+`team#members` — and needs no rules.
 
 ### What the compiler refuses
 
 A relation naming a type that does not exist, a rule naming nothing, an arrow
 to a permission its target lacks, a name that is both a relation and a
-permission, a key other than `relations` and `permissions` — `permission:`,
-singular — on an object type: each is a compile error **on the offending name** — on the whole
+permission, a key other than `relations` and `permissions`, or `related` and `permits`
+— `permission:`, singular — on an object type: each is a compile error **on the offending name** — on the whole
 `fromField(…)` or `when(…)` call for those two. Except for that last one,
 which says to rename one, the error lists what you could have written, with
 "Did you mean" when one is close.
@@ -189,12 +195,33 @@ not exist on type '{ readonly owners: RelationRef<"folder", "owners">; }'`,
 `related.owners.permits` through a relation held by a user type is
 `Property 'permits' does not exist on type 'RelationRef<…>'`; a rule
 answering a boolean is `Type 'boolean' is not assignable to type 'readonly
-RuleRef[]'`, on the rule; a rule for a permit the type does not declare is
-refused on that key, `rules.folder.edit is not in types.folder.permits`.
+[RuleRef, ...RuleRef[]]'`, on the rule, and a rule answering `[]` is `Type
+'[]' is not assignable to …` there too; a rule for a permit the type does not
+declare is refused on that key, `rules.folder.edit is not in
+types.folder.permits`. On the type itself:
+
+| Mistake | Refused on | The error names |
+| --- | --- | --- |
+| `related` beside `permissions`, or `relations` beside `permits` | the string-form key, `relations` or `permissions` | `folder mixes the two forms: related and permits, or relations and permissions — not one of each` |
+| a permit named like a relation, `permits: ['owners']` | that name | `"owners" names a relation and a permission of folder; rename one` |
+| a permit declared twice, `permits: ['view', 'view']` | each copy | `folder.permits names "view" twice` |
+| `permits` and no `rules` | the call | `Property 'rules' is missing …` |
+| `rules` for a type that does not exist, or that is written with strings | that key | `Object literal may only specify known properties` |
+
+A `when` on a string inside a rule is checked as in the string form:
+`when('bogus', test)`, or `when('view', test)` inside `view`, is `Type
+'When<"bogus", never>' is not assignable to type 'When<"owners", never>'` —
+the names it could have been.
+
+A refused `permits`, or a mix of the two forms, makes `types` fail its constraint, and the compiler then
+types the rules against the constraint rather than your names: they also
+report `Binding element 'related' implicitly has an 'any' type`. Fix the
+type; those go with it.
 
 Your editor offers those names as you type — subject types and subject sets
 in a relation, subject types in `fromField`, relations, permissions and arrows
-in a rule and in `when` — because `defineModel` types its `types` with a
+in a rule and in `when`, and in the reference form `related.`, `permits.`
+and an arrow's `permits.` and `related.` inside a rule function — because `defineModel` types its `types` with a
 constraint an editor reads, not only with a check. A spec asks the TypeScript
 language service what it completes, so a change that loses it fails.
 
@@ -221,10 +248,15 @@ With a `TypeError`, when the model is defined — never at a check:
 - a subject set or an arrow that would have to read **another** object's
   `fromField` — only the object passed to `can()` carries its data. Store that
   relation instead;
-- in the reference form: a type with both spellings of a key, a permit
-  declared twice or without a rule, a rule for a permit the type does not
-  declare or for a type written with strings, a rule that answers nothing, or answers something that is not a reference — `related.viewers`
-  on a type without `viewers` is `undefined`, and named as such.
+- in the reference form, what the compiler refuses first, for a model built
+  in JavaScript: a type mixing the two forms, a permit declared twice or
+  named like a relation, a permit without its rule, a rule for a permit the
+  type does not declare or for a type written with strings, a rule that
+  answers nothing, or answers something that is not a reference —
+  `related.viewers` on a type without `viewers` is `undefined`, and named as
+  such. Each message names the key you wrote: `rules.folder: view → edit →
+  view is a loop no relation ends`, `types.folder.related: "the-owners" must
+  be a camelCase name`.
 
 A loop that crosses a relation — a folder viewable through its parent — is
 fine: the data ends it.

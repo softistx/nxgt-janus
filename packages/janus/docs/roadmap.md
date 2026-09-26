@@ -73,7 +73,6 @@ The first public release, v0.1.
   references (`related.owners`, `permits.manage`,
   `related.parents.permits.view`), completed by your editor. The string form
   stays, and the two share one model. — next minor
-
 - **`LOGIN_TAKEN` no longer quotes the login in its message**, in the memory
   store and in both adapters; `error.login` still names it, and the
   conformance suite checks it. — next patch

@@ -3,7 +3,7 @@
  * refuses at COMPILE time, and what it must keep typing exactly as the
  * string form does. Checked by `tsc --noEmit`, never run.
  *
- * **Eleven plausible mistakes, eleven refused**, each verified to fail for the
+ * **Twenty-three plausible mistakes, twenty-three refused**, each verified to fail for the
  * reason its comment names. Add a case whenever the form gains something it
  * should refuse; never delete one to make a change pass.
  */
@@ -207,7 +207,7 @@ defineModel({
 });
 
 // A `when` on a string is a rule too: the two spellings mix inside a rule,
-// and the string is checked as the string form checks it.
+// and the string is checked as the string form checks it — cases 17 and 18.
 export const mixed = defineModel({
 	subjects,
 	types: {
@@ -232,3 +232,153 @@ export const canEdit = (
 		patientId: 'p1',
 		doctorId: staff.id,
 	});
+
+defineModel({
+	subjects,
+	types: {
+		folder: {
+			related: { owners: ['staff'] },
+			// @ts-expect-error 12. related beside permissions strings: a type is written in one form
+			permissions: { view: ['owners'] },
+		},
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		folder: {
+			related: { owners: ['staff'] },
+			// @ts-expect-error 13. a permit named like a relation of its type
+			permits: ['owners'],
+		},
+	},
+	// @ts-expect-error 13, its cascade: `types` refused, the rules lose the type of their parameter
+	rules: { folder: { owners: ({ related }) => [related.owners] } },
+});
+
+defineModel({
+	subjects,
+	types: {
+		folder: {
+			related: { owners: ['staff'] },
+			// @ts-expect-error 14. a permit declared twice
+			permits: ['view', 'view'],
+		},
+	},
+	// @ts-expect-error 14, its cascade: `types` refused, the rules lose the type of their parameter
+	rules: { folder: { view: ({ related }) => [related.owners] } },
+});
+
+// @ts-expect-error 15. permits without rules: each declared permit needs its rule
+defineModel({
+	subjects,
+	types: { folder: { related: { owners: ['staff'] }, permits: ['view'] } },
+});
+
+defineModel({
+	subjects,
+	types: { folder: { related: { owners: ['staff'] }, permits: ['view'] } },
+	rules: {
+		// @ts-expect-error 16. a rule answering nothing: a permission nobody could hold
+		folder: { view: () => [] },
+	},
+});
+
+// Must keep compiling: a type with `related` alone, others point at it, and
+// the model reads it in the string form.
+export const pointedAt = defineModel({
+	subjects,
+	types: {
+		team: { related: { members: ['staff'] } },
+		folder: { related: { viewers: ['team#members'] }, permits: ['view'] },
+	},
+	rules: { folder: { view: ({ related }) => [related.viewers] } },
+});
+export const member: HolderOf<ConfigOf<typeof pointedAt>, 'team', 'members'> = {
+	type: 'staff',
+	id: 's1',
+};
+export const teamRelations: ConfigOf<
+	typeof pointedAt
+>['types']['team']['relations']['members'] = ['staff'];
+
+defineModel({
+	subjects,
+	types: { folder: { related: { owners: ['staff'] }, permits: ['view'] } },
+	rules: {
+		// @ts-expect-error 17. a when on a name folder does not have
+		folder: { view: () => [when('bogus', () => true)] },
+	},
+});
+
+defineModel({
+	subjects,
+	types: { folder: { related: { owners: ['staff'] }, permits: ['view'] } },
+	rules: {
+		// @ts-expect-error 18. a when on the permission's own name: a loop nothing ends
+		folder: { view: () => [when('view', () => true)] },
+	},
+});
+
+defineModel({
+	subjects,
+	types: { folder: { related: { owners: ['staff'] }, permits: ['view'] } },
+	rules: {
+		folder: { view: ({ related }) => [related.owners] },
+		// @ts-expect-error 19. rules for a type that does not exist
+		box: { view: () => [] },
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		folder: { related: { owners: ['staff'] }, permits: ['view'] },
+		note: {
+			relations: { owners: ['staff'] },
+			permissions: { view: ['owners'] },
+		},
+	},
+	rules: {
+		folder: { view: ({ related }) => [related.owners] },
+		// @ts-expect-error 20. rules for a type written with strings: its rules are its permissions
+		note: { view: () => [] },
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		folder: {
+			related: { owners: ['staff'] },
+			// @ts-expect-error 21. relations beside related: one spelling per key
+			relations: { viewers: ['staff'] },
+		},
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		folder: {
+			related: { owners: ['staff'] },
+			permits: ['view'],
+			// @ts-expect-error 22. permissions beside permits: one spelling per key
+			permissions: { edit: ['owners'] },
+		},
+	},
+	// @ts-expect-error 22, its cascade: `types` refused, the rules lose the type of their parameter
+	rules: { folder: { view: ({ related }) => [related.owners] } },
+});
+
+defineModel({
+	subjects,
+	types: {
+		folder: {
+			related: { owners: ['staff'] },
+			// @ts-expect-error 23. a key an object type does not have — `permit`, singular
+			permit: ['view'],
+		},
+	},
+});

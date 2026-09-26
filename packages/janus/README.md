@@ -425,7 +425,10 @@ export const model = defineModel({
 	types: {
 		team: { related: { members: ['staff', 'team#members'], leads: ['staff'] }, permits: ['manage', 'view'] },
 		record: {
-			related: { doctors: fromField('doctorId', 'staff', { lookup }), teams: ['team'] },
+			related: {
+				doctors: fromField('doctorId', 'staff', { lookup: (id) => db.records.ids({ doctorId: id }) }),
+				teams: ['team'],
+			},
 			permits: ['view', 'edit'],
 		},
 	},
@@ -446,7 +449,9 @@ A rule **declares**: `defineModel` calls it once, with references, and never
 during a check — a rule that answers a boolean is a compile error. Your editor
 completes `related.`, `permits.` and `related.teams.permits.` from the names
 declared on the types; that is why the names are declared there and not
-inferred from the rules.
+inferred from the rules. A type is written in one form or the other — never
+`related` beside `permissions` — and `rules` is required once a type declares
+`permits`.
 
 Zanzibar's model — relations between objects and subjects, permissions
 computed from them — **without its infrastructure**: the tuples live in your
@@ -476,11 +481,14 @@ exist, a rule naming nothing, an arrow to a permission its target lacks, a
 permission asked of the wrong type, an object missing a field, a missing
 `ctx`, a `grant` of a relation read from a field or to a holder it does not
 admit, a `list()` through a `fromField` without a `lookup`, a rule function
-naming a relation its type lacks or answering anything but references: each
-is a compile error, on the offending argument. `defineModel` refuses with a `TypeError`
-what only running it can see: names that are not camelCase, a permission that
-reaches itself without crossing a relation, a subject set or an arrow that
-would have to read another object's field.
+naming a relation its type lacks or answering anything but references, a
+permit declared twice or named like a relation: each is a compile error, on
+the offending argument. `defineModel` refuses with a `TypeError` what only
+running it can see: names that are not camelCase, a permission that reaches
+itself without crossing a relation, a subject set or an arrow that would have
+to read another object's field — and, for a model built in JavaScript, every
+mistake the compiler would have refused, named at the key written: `rules.folder.view`,
+`types.folder.permits`.
 
 **Wire the relation store into `janus()` too** — `janus({ …, relations })` —
 and deleting a user deletes every tuple naming them. Deleting an object's
@@ -653,18 +661,19 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Ninety-nine plausible mistakes, ninety-nine refused at compile time — and
-one gap, named.**
+**A hundred and eleven plausible mistakes, a hundred and eleven refused at
+compile time — and one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
-mistake beside the shapes that must keep compiling:
+mistake — two for the three whose refusal also costs the rules their types — beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
-`janus()`, from the point of view of the application), `test/types/permissions.ts` (thirty-nine, on the
-permission model and the questions asked of it) and `test/types/rules.ts`
-(eleven, on the model written with references). The rule
-comes from `nxgt-data`, and so does the reason to
+`janus()`, from the point of view of the application),
+`test/types/permissions.ts` (thirty-nine, on the permission model and the
+questions asked of it) and `test/types/rules.ts` (twenty-three, on the model
+written with references). The rule comes from `nxgt-data`, and so does the
+reason to
 distrust the claim without the files: when it was last measured on
 `@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
 that goes down is a visible regression.

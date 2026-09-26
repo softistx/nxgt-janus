@@ -73,7 +73,15 @@ describe('defineModel, the reference form', () => {
 				);
 			}
 		}
-		expect(references.definition.rules).toBeDefined();
+		// `definition` is the string form, as its type says: no rules, no permits.
+		const folder = references.definition.types.record as object;
+		expect(Object.keys(folder)).toEqual(['relations', 'permissions']);
+		expect(references.definition.types.record.permissions.view).toEqual([
+			'doctors',
+			'teams->view',
+		]);
+		expect('rules' in references.definition).toBe(false);
+		expect(Object.isFrozen(references.definition)).toBe(true);
 	});
 
 	it('answers the same checks, and keeps its condition', async () => {
@@ -167,11 +175,44 @@ describe('defineModel, the reference form', () => {
 					},
 				},
 				// A user type has no permits: nothing to arrow into.
-				authors: { kind: 'relation', type: 'document', name: 'authors' },
+				authors: {
+					kind: 'relation',
+					type: 'document',
+					name: 'authors',
+					permits: {},
+					related: {},
+				},
 			},
 			permits: {},
 		});
 		expect(Object.isFrozen((given as { related: object }).related)).toBe(true);
+	});
+
+	it('spells out a type with related and no permits: a type others point at', async () => {
+		const model = defineModel({
+			subjects,
+			types: {
+				team: { related: { members: ['staff'] } },
+				folder: {
+					related: { viewers: ['team#members'] },
+					permits: ['view'],
+				},
+			},
+			rules: { folder: { view: ({ related }) => [related.viewers] } },
+		});
+		expect(resolvedOf(model).types.get('team')?.relations.has('members')).toBe(
+			true,
+		);
+		const access = permissions({ model, store: createMemoryRelations() });
+		const ada = { type: 'staff', id: 'ada' } as const;
+		const folder = { type: 'folder', id: 'f1' } as const;
+		await access.grant({ type: 'team', id: 't1' }, 'members', ada);
+		await access.grant(folder, 'viewers', {
+			type: 'team',
+			id: 't1',
+			relation: 'members',
+		});
+		expect(await access.can(ada, 'view', folder)).toBe(true);
 	});
 });
 
@@ -202,6 +243,65 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'types.folder has both permissions and permits',
 		],
 		[
+			'related beside permissions strings: the two forms mixed in one type',
+			define({
+				subjects,
+				types: {
+					folder: {
+						related: { owners: ['staff'] },
+						permissions: { view: ['owners'] },
+					},
+				},
+			}),
+			'types.folder mixes the two forms: related and permits, or relations and permissions — not one of each',
+		],
+		[
+			'relations beside permits: the two forms mixed in one type',
+			define({
+				subjects,
+				types: {
+					folder: { relations: { owners: ['staff'] }, permits: ['view'] },
+				},
+				rules: { folder: { view } },
+			}),
+			'types.folder mixes the two forms',
+		],
+		[
+			'a loop through permits, named where it was written',
+			define({
+				subjects,
+				types: { folder: { ...folder, permits: ['view', 'edit'] } },
+				rules: {
+					folder: {
+						view: ({ permits }: { permits: { edit: unknown } }) => [
+							permits.edit,
+						],
+						edit: ({ permits }: { permits: { view: unknown } }) => [
+							permits.view,
+						],
+					},
+				},
+			}),
+			'rules.folder: view → edit → view is a loop no relation ends',
+		],
+		[
+			'a permit named like a relation',
+			define({
+				subjects,
+				types: { folder: { ...folder, permits: ['owners'] } },
+				rules: { folder: { owners: view } },
+			}),
+			'types.folder: "owners" names a relation and a permission; rename one',
+		],
+		[
+			'a relation name that is not camelCase, named where it was written',
+			define({
+				subjects,
+				types: { folder: { related: { 'the-owners': ['staff'] } } },
+			}),
+			'types.folder.related: "the-owners" must be a camelCase name',
+		],
+		[
 			'permits that are not names',
 			define({
 				subjects,
@@ -222,7 +322,7 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 		[
 			'a permit without a rule',
 			define({ subjects, types: { folder } }),
-			'rules.folder.view is missing — a function ({ related, permits }) => [related.…, permits.…]',
+			'rules.folder.view is missing — ({ related, permits }) => [related.…, permits.…]',
 		],
 		[
 			'a rule for a permit the type does not declare',
@@ -263,7 +363,7 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				types: { folder },
 				rules: { folder: { view: ['owners'] } },
 			}),
-			'rules.folder.view is missing',
+			'rules.folder.view must be a function — ({ related, permits }) => [related.…, permits.…]',
 		],
 		[
 			'a rule answering nothing',
@@ -299,6 +399,23 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'rules.folder.view[0] is undefined — related.x, permits.p, related.x.permits.p, or when(one of those, test)',
 		],
 		[
+			'an arrow through a relation held by users, from JavaScript',
+			define({
+				subjects,
+				types: { folder },
+				rules: {
+					folder: {
+						view: ({
+							related,
+						}: {
+							related: { owners: { permits: Record<string, unknown> } };
+						}) => [related.owners.permits.view],
+					},
+				},
+			}),
+			'rules.folder.view[0] is undefined',
+		],
+		[
 			'a string among the references',
 			define({
 				subjects,
@@ -323,7 +440,7 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				types: { folder: { ...folder, permits: ['can-view'] } },
 				rules: { folder: { 'can-view': view } },
 			}),
-			'"can-view" must be a camelCase name',
+			'types.folder.permits: "can-view" must be a camelCase name',
 		],
 	];
 	for (const [name, run, message] of cases) {
@@ -332,6 +449,24 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			expect(run).toThrow(message);
 		});
 	}
+
+	it('lets a relation the type does not have fail inside the rule, as JavaScript fails it', () => {
+		// `related.viewers` is `undefined`; reading `.permits` on it is the
+		// rule's own error, let through as any other. TypeScript refuses it first.
+		const run = define({
+			subjects,
+			types: { folder },
+			rules: {
+				folder: {
+					view: ({ related }: { related: Record<string, unknown> }) => [
+						(related.viewers as { permits: { view: unknown } }).permits.view,
+					],
+				},
+			},
+		});
+		expect(run).toThrow(TypeError);
+		expect(run).not.toThrow('defineModel:');
+	});
 
 	it('lets the error of a rule that throws through, as it is', () => {
 		const boom = new Error('boom');

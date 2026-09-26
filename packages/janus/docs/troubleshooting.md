@@ -592,7 +592,10 @@ most common:
 | `defineModel: the object type "<name>" must be a camelCase name — letters and digits, starting with a lowercase letter` | Also for relation and permission names. |
 | `defineModel: "<name>" names a user type and an object type; a subject of type "<name>" would be ambiguous` | Rename the object type. |
 | `defineModel: types.<type>: "<name>" names a relation and a permission; rename one` | One name, one meaning. |
-| `defineModel: types.<type>.permissions: <a> → <b> → <a> is a loop no relation ends` | A permission must cross a relation before it reaches itself again. |
+| `defineModel: types.<type>.permissions: <a> → <b> → <a> is a loop no relation ends` — `rules.<type>: …` in the reference form | A permission must cross a relation before it reaches itself again. |
+| `defineModel: types.<type>.<key> is not a key of an object type: relations or permissions — related or permits` | An object type has `relations` and `permissions`, or `related` and `permits` with its rules under `rules`. |
+| `defineModel: types.<type> must be an object` | `types: { record: { relations: {…}, permissions: {…} } }`, one object per type. |
+| `defineModel: types.<type>.relations must be an object` — also `.related` | `{ owners: ['staff'] }`, keyed by relation name, never an array. |
 | `defineModel: … "<rule>" goes through "<relation>", which can hold a subject set; an arrow follows object types only` | An arrow's relation must hold object types: `team: ['team']`. |
 | `defineModel: … "<rule>" names "<target>", which <type> does not declare` | Arrow to a relation or permission of the target type. |
 | `defineModel: … reads <type>.<field>, and a subject set reaches <type>s nobody passed to can() — store that relation instead of reading it` | Only the object passed to `can()` carries data: a `fromField` there cannot be reached through a subject set or an arrow. Store it as a tuple. |
@@ -602,16 +605,21 @@ In the reference form — `related`, `permits`, `rules`:
 | Message | Fix |
 | --- | --- |
 | `defineModel: types.<type> has both relations and related. Pass one.` — also `permissions` and `permits` | One type, one spelling. Two types of one model may differ. |
+| `defineModel: types.<type> mixes the two forms: related and permits, or relations and permissions — not one of each` | `related` beside `permissions` strings, or `relations` beside `permits`: write the whole type in one form. The compiler refuses it first, on the string-form key. |
+| `defineModel: rules must be an object: one entry per type that declares permits` | `rules: { folder: { view: ({ related }) => [related.owners] } }`. |
+| `defineModel: types.<type>.permits: "<name>" must be a camelCase name — letters and digits, starting with a lowercase letter` | Also `types.<type>.related: …` for a relation name. |
 | `defineModel: types.<type>.permits must be an array of permission names` | `permits: ['view', 'edit']`; the rules go under `rules.<type>`. |
-| `defineModel: types.<type>.permits names "<name>" twice` | Declare each permit once. |
-| `defineModel: rules.<type>.<permit> is missing — a function ({ related, permits }) => [related.…, permits.…]` | Every permit declared on a type needs its rule — a function, not an array. |
+| `defineModel: types.<type>.permits names "<name>" twice` | Declare each permit once. The compiler refuses it first, on that name. |
+| `defineModel: types.<type>: "<name>" names a relation and a permission; rename one` | A permit named like a relation of its type. The compiler refuses it first, on that name. |
+| `defineModel: rules.<type>.<permit> is missing — ({ related, permits }) => [related.…, permits.…]` — also `must be a function — …` | Every permit declared on a type needs its rule — a function, not an array. |
 | `defineModel: rules.<type>.<permit>: "<permit>" is not in types.<type>.permits — declare it there first` | The names live on the type; add it to `permits`. |
 | `defineModel: rules.<type>: no object type named "<type>"` | Match a key of `types`. |
 | `defineModel: rules.<type>: types.<type> writes its permissions as strings; rules is for a type that declares permits` | That type is in the string form: its rules are its `permissions` arrays. |
 | `defineModel: rules.<type>.<permit> must answer a non-empty array of references` | Answer `[related.…]`, never a boolean: a rule declares, it does not check. |
-| `defineModel: rules.<type>.<permit>[<i>] is undefined — related.x, permits.p, related.x.permits.p, or when(one of those, test)` | `related.viewers` on a type without `viewers`: the compiler refuses it first; from JavaScript, it is `undefined`. |
+| `defineModel: rules.<type>.<permit>[<i>] is undefined — related.x, permits.p, related.x.permits.p, or when(one of those, test)` | `related.viewers` on a type without `viewers`, or `related.owners.permits.view` through a relation held by users: the compiler refuses it first; from JavaScript, it is `undefined`. Reading further — `related.viewers.permits.view` — fails inside your rule, with JavaScript's own `TypeError`. |
 | `defineModel: rules.<type>.<permit>[<i>] is not a reference — …` | A string among the references: use `related.<name>`, or `when('<name>', test)`. |
 | `defineModel: types.<type>.<key> is not a key of an object type: related or permits` | In the reference form a type has `related` and `permits`; its rules are under `rules`. |
+| `defineModel: rules.<type>.<permit>: … reads <type>.<field>, and only the object passed to can() carries its data — …` | As in the string form, named where the rule was written. |
 
 ---
 
