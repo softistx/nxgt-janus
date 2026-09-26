@@ -36,7 +36,7 @@ verifyWebhook({ secrets, headers, body, toleranceSeconds?, now? });
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `secrets` | `readonly string[]` | required, at least one | The endpoint's secrets. Every one is tried, so a [rotation](#rotating-a-secret) drops no request |
+| `secrets` | `readonly [string, ...string[]]` | required, at least one | The endpoint's secrets. Every one is tried, so a [rotation](#rotating-a-secret) drops no request |
 | `headers` | `Headers \| Readonly<Record<string, string \| readonly string[] \| undefined>>` | required | The request's headers: a fetch `Headers`, or a header record — its keys read whatever their case |
 | `body` | `string` | required | The body **as received**. The signature covers its bytes |
 | `toleranceSeconds` | `number` | `300` | How far `webhook-timestamp` may be from `now`, before or after |
@@ -87,8 +87,8 @@ request's:
 | `verifyWebhook: pass the endpoint's secrets — at least one` | `secrets: []`, or `secrets` missing or not an array |
 | `verifyWebhook: a secret is written whsec_<base64> — make one with mintWebhookSecret()` | a secret without the `whsec_` prefix, or not a string |
 | `verifyWebhook: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too short, or not base64 |
-| `verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more` | `NaN` — `Number(process.env.X)` with `X` unset — a negative number, or `Infinity`: each would let every timestamp through |
-| `verifyWebhook: now is a valid Date` | an Invalid Date, which would let every timestamp through too |
+| `verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more` | `NaN` — `Number(process.env.X)` with `X` unset — or `Infinity`, each of which would let every timestamp through; or a negative number, which would refuse every request |
+| `verifyWebhook: now is a valid Date` | an Invalid Date, which would let every timestamp through too, or not a `Date` at all |
 
 ## The raw body
 
@@ -169,7 +169,7 @@ interface Handled {
 }
 
 export function receiver(options: {
-	secrets: readonly string[];
+	secrets: readonly [string, ...string[]];
 	handled: Handled;
 	onUserEvent: (event: UserEvent) => Promise<void>;
 }) {

@@ -95,10 +95,15 @@ variable first, as the first example does. `types` takes the four
 | `webhooks: an endpoint needs at least one secret` | `secrets` absent or `[]` |
 | `webhooks: a secret is written whsec_<base64> — make one with mintWebhookSecret()` | a secret without the `whsec_` prefix, or not a string |
 | `webhooks: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too short, or not base64 |
-| `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.deleted` | a type `janus` never sends |
+| `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.deleted` | a type `janus` never sends, or `types` not a list |
 | `webhooks: retries: …`, `webhooks: timeout: …` | a duration `parseDuration` refuses: `'soon'`, `-1` |
 | `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
 | `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, which `setTimeout` would fire at once |
+
+The listener refuses one mistake of its own, the same way: an event whose
+`occurredAt` is not a valid `Date` — only an event rebuilt by hand can be one —
+is `webhooks: an event's occurredAt is a valid Date`, thrown at once. Nothing
+is sent, retried or given up.
 
 [Troubleshooting](../troubleshooting.md) has each with its fix.
 

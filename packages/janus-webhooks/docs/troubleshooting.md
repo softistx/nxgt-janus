@@ -33,6 +33,7 @@ How the messages are shaped:
 - [`webhooks: retries: a duration in milliseconds must be a finite number above zero`](#webhooks-retries-a-duration-in-milliseconds-must-be-a-finite-number-above-zero)
 - [`webhooks: retries is a list of durations`](#webhooks-retries-is-a-list-of-durations)
 - [`webhooks: retries wait at most 24 days each`](#webhooks-retries-wait-at-most-24-days-each)
+- [`webhooks: an event's occurredAt is a valid Date`](#webhooks-an-events-occurredat-is-a-valid-date)
 - [`verifyWebhook: pass the endpoint's secrets — at least one`](#verifywebhook-pass-the-endpoints-secrets--at-least-one)
 - [`verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more`](#verifywebhook-toleranceseconds-is-a-finite-number-of-seconds-0-or-more)
 - [`verifyWebhook: now is a valid Date`](#verifywebhook-now-is-a-valid-date)
@@ -224,6 +225,22 @@ durable queue, not in memory — see [the roadmap](roadmap.md#next):
 webhooks({ endpoints, retries: ['1h', '1d', '7d'] });
 ```
 
+### `webhooks: an event's occurredAt is a valid Date`
+
+**When:** calling the listener yourself with an event rebuilt by hand — from
+a `JANUS_EVENT_FAILED` warning, say — whose `occurredAt` is an Invalid Date or
+not a `Date` at all. `janus` itself never hands one over.
+**Why:** the body carries `occurredAt` as an ISO timestamp; without one there
+is nothing to sign. It is refused at once, as the caller's mistake: nothing is
+sent, nothing is retried, nothing is given up.
+**Fix:** rebuild the event with a real date — the user's `updatedAt` is the
+nearest you have:
+
+```ts
+const user = await auth.get(userId);
+listener({ id, type: 'user.created', occurredAt: user.updatedAt, userId, userType: user.type });
+```
+
 ### `verifyWebhook: pass the endpoint's secrets — at least one`
 
 **When:** calling `verifyWebhook({ secrets: [], … })`.
@@ -233,9 +250,12 @@ one would look like a forgery attack instead of a configuration mistake.
 this endpoint, and during a rotation both:
 
 ```ts
-const secrets = [process.env.WEBHOOK_SECRET, process.env.WEBHOOK_SECRET_NEXT].filter(
+const [first, ...rest] = [process.env.WEBHOOK_SECRET, process.env.WEBHOOK_SECRET_NEXT].filter(
   (secret): secret is string => secret !== undefined,
 );
+if (first === undefined) throw new Error('WEBHOOK_SECRET is not set');
+
+verifyWebhook({ secrets: [first, ...rest], headers, body });
 ```
 
 Leaving `secrets` out entirely is refused with the same message.
@@ -245,18 +265,21 @@ Leaving `secrets` out entirely is refused with the same message.
 **When:** calling `verifyWebhook({ toleranceSeconds, … })` with `NaN`, a
 negative number or `Infinity` — most often `Number(process.env.TOLERANCE)`
 with the variable unset.
-**Why:** the tolerance is what stops a replay. Compared with `NaN`, every
-timestamp would pass, so a request recorded years ago would verify.
-**Fix:** leave it out for the default `300`, or pass a checked number:
+**Why:** the tolerance is what stops a replay. Compared with `NaN` or
+`Infinity`, every timestamp would pass, so a request recorded years ago would
+verify; a negative one would refuse every request.
+**Fix:** leave it out for the default `300`, or check the number you read:
 
 ```ts
 const toleranceSeconds = Number(process.env.WEBHOOK_TOLERANCE ?? 300);
+if (!Number.isFinite(toleranceSeconds)) throw new Error('WEBHOOK_TOLERANCE is not a number');
 ```
 
 ### `verifyWebhook: now is a valid Date`
 
 **When:** calling `verifyWebhook({ now, … })` with an Invalid Date —
-`new Date(undefined)`, `new Date('not a date')`.
+`new Date(undefined)`, `new Date('not a date')` — or with something that is
+not a `Date`, such as a number of milliseconds.
 **Why:** the same as the tolerance: against an Invalid Date, every timestamp
 would pass.
 **Fix:** leave `now` out outside tests; in a test, pass a real date:
@@ -302,7 +325,7 @@ webhooks({ endpoints: [{ url, secrets: [first, ...rest] }] });
 
 ### `[JANUS_WEBHOOK_GAVE_UP] Warning: webhooks: gave up <type> <event id> to <origin> after <n> attempts (<why>, <status or error>)`
 
-One attempt is written in the singular — `after 1 attempt (retriesRanOut, 503)` — which is what `retries: []` always gives.
+One attempt is written in the singular — `after 1 attempt (retriesRanOut, 503)` — which is what `retries: []` gives for any delivery that was sent.
 
 A process warning, not a thrown error. It names the endpoint by its origin
 only: the path and the query, which may hold a token of the receiver's, are
@@ -318,7 +341,6 @@ parentheses hold:
 | `(retriesRanOut, TypeError)` | the last request got no answer: DNS, a refused connection, TLS |
 | `(closed, 503)`, `(closed, TimeoutError)` | `close()` was called while the delivery waited for a retry, or while an attempt was in flight that then failed with a retry left: the last attempt's status or failure |
 | `after 0 attempts (closed, no answer)` | the event arrived after `close()`: nothing was sent |
-| `(retriesRanOut, RangeError)` | the event's body could not be built — an `occurredAt` that is an Invalid Date, in an event rebuilt by hand: nothing was sent |
 
 With the default schedule, a delivery is retried for more than a day
 (`5s`, `5m`, `30m`, `2h`, `5h`, `10h`, `10h`, eight attempts), so this warning

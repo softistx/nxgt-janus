@@ -1,9 +1,11 @@
-import { type Duration, parseDuration, type UserEvent } from '@nxgt/janus';
+import type { Duration, UserEvent } from '@nxgt/janus';
+import { settingsOf } from './options';
+import { reporterOf } from './report';
 import {
+	bodyFor,
 	type Failure,
 	post,
 	type Target,
-	targetOf,
 	type WebhookEndpoint,
 } from './request';
 
@@ -61,32 +63,6 @@ export interface Webhooks {
 	close(): Promise<void>;
 }
 
-/** The Standard Webhooks retry schedule, after a first attempt at once. */
-/** The longest delay `setTimeout` keeps: 2³¹ − 1 ms, about 24.8 days. */
-const LONGEST = 2 ** 31 - 1;
-
-/** The warning for a delivery given up with no `onGivingUp`: the origin, never the URL. */
-function gaveUp(
-	delivery: Delivery,
-	reason: GivingUp,
-	origin: string | undefined,
-): string {
-	const { attempts, event } = delivery;
-	const plural = attempts === 1 ? '' : 's';
-	const got = reason.status ?? reason.error ?? 'no answer';
-	return `webhooks: gave up ${event.type} ${event.id} to ${origin} after ${attempts} attempt${plural} (${reason.why}, ${got})`;
-}
-
-const SCHEDULE: readonly Duration[] = [
-	'5s',
-	'5m',
-	'30m',
-	'2h',
-	'5h',
-	'10h',
-	'10h',
-];
-
 /**
  * Signs user events and posts them to your endpoints, retrying on failure:
  * the listener to hand `janus({ events })`.
@@ -104,30 +80,7 @@ const SCHEDULE: readonly Duration[] = [
  */
 export function webhooks(options: WebhooksOptions): Webhooks {
 	const where = 'webhooks';
-	if (!Array.isArray(options?.endpoints) || options.endpoints.length === 0) {
-		throw new TypeError(`${where}: pass at least one endpoint`);
-	}
-	const targets = options.endpoints.map((endpoint) =>
-		targetOf(endpoint, where),
-	);
-	const retries: unknown = options.retries ?? SCHEDULE;
-	if (!Array.isArray(retries)) {
-		throw new TypeError(`${where}: retries is a list of durations`);
-	}
-	const delays = retries.map((delay: Duration) => {
-		const ms = parseDuration(delay, `${where}: retries`);
-		// Past it, setTimeout fires at once: a retry meant for a month later
-		// would be sent immediately.
-		if (ms > LONGEST) {
-			throw new TypeError(`${where}: retries wait at most 24 days each`);
-		}
-		return ms;
-	});
-	const timeoutMs = parseDuration(
-		options.timeout ?? '10s',
-		`${where}: timeout`,
-	);
-	const send = options.fetch ?? fetch;
+	const { targets, delays, timeoutMs, send } = settingsOf(options, where);
 
 	const waiting = new Map<
 		ReturnType<typeof setTimeout>,
@@ -136,27 +89,11 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 	const inFlight = new Set<Promise<void>>();
 	let closed = false;
 
-	const giveUp = async (delivery: Delivery, reason: GivingUp) => {
-		if (options.onGivingUp === undefined) {
-			const target = targets.find((one) => one.url === delivery.url);
-			process.emitWarning(gaveUp(delivery, reason, target?.origin), {
-				code: 'JANUS_WEBHOOK_GAVE_UP',
-			});
-			return;
-		}
-		try {
-			await options.onGivingUp(delivery, reason);
-		} catch (failure) {
-			process.emitWarning(
-				`webhooks: onGivingUp failed on ${delivery.event.type} ${delivery.event.id}: ${failure instanceof Error ? failure.name : typeof failure}`,
-				{ code: 'JANUS_WEBHOOK_REPORT_FAILED' },
-			);
-		}
-	};
+	const giveUp = reporterOf(options.onGivingUp, targets);
 
-	const attempt = (target: Target, delivery: Delivery): void => {
+	const attempt = (target: Target, delivery: Delivery, body: string): void => {
 		const run = (async () => {
-			const failed = await post(target, delivery.event, send, timeoutMs);
+			const failed = await post(target, delivery.event, body, send, timeoutMs);
 			const sent: Delivery = { ...delivery, attempts: delivery.attempts + 1 };
 			if (failed === null) return;
 			const delay = delays[delivery.attempts];
@@ -167,7 +104,7 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 				});
 				return;
 			}
-			schedule(target, sent, failed, delay);
+			schedule(target, sent, body, failed, delay);
 		})();
 		inFlight.add(run);
 		void run.finally(() => inFlight.delete(run));
@@ -176,12 +113,13 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 	const schedule = (
 		target: Target,
 		delivery: Delivery,
+		body: string,
 		failed: Failure,
 		ms: number,
 	): void => {
 		const timer = setTimeout(() => {
 			waiting.delete(timer);
-			attempt(target, delivery);
+			attempt(target, delivery, body);
 		}, ms);
 		// Retries wait in memory, and never hold the process open: close()
 		// is what hands them over on shutdown.
@@ -190,6 +128,9 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 	};
 
 	const listener = (event: UserEvent): void => {
+		// Once, before any request: an event that is not one is a mistake of
+		// the caller's, refused at once rather than retried for a day.
+		const body = bodyFor(event, where);
 		for (const target of targets) {
 			if (target.types !== null && !target.types.has(event.type)) continue;
 			const delivery: Delivery = { event, url: target.url, attempts: 0 };
@@ -199,7 +140,7 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 			}
 			// At once, not on a timer: the request under way keeps the process
 			// alive, where an unref'd timer would let a script exit first.
-			attempt(target, delivery);
+			attempt(target, delivery, body);
 		}
 	};
 

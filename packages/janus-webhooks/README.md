@@ -117,7 +117,7 @@ mintWebhookSecret(); // 'whsec_…': 32 random bytes, base64 — give the same o
 | Export | What it is |
 | --- | --- |
 | `webhooks(options)` | The listener for `janus({ events })`, and `close()`. Options: `endpoints` (each `{ url, secrets, types? }`), `retries`, `timeout`, `onGivingUp`, `fetch`. Wiring mistakes are a `TypeError` when it is called |
-| `verifyWebhook(options)` | `{ secrets, headers, body, toleranceSeconds?, now? }` → `UserEvent \| null`. Headers as a fetch `Headers` or a Node header record. No secret, or a malformed one, is a `TypeError` |
+| `verifyWebhook(options)` | `{ secrets, headers, body, toleranceSeconds?, now? }` → `UserEvent \| null`. Headers as a fetch `Headers` or a Node header record. No secret, a malformed one, a `toleranceSeconds` that is not a finite number of seconds, or a `now` that is not a valid `Date` is a `TypeError` |
 | `mintWebhookSecret()` | A new `whsec_` secret for an endpoint |
 | `WebhooksOptions`, `WebhookEndpoint`, `Webhooks` | What `webhooks()` takes and answers |
 | `Delivery`, `GivingUp`, `Failure` | What `onGivingUp` receives: `{ event, url, attempts }`, and `{ why, status, error }` — a `GivingUp` is a `Failure`, what the last attempt got, with the reason |

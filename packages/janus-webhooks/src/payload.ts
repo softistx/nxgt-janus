@@ -76,10 +76,11 @@ export function verifyWebhook(options: VerifyOptions): UserEvent | null {
 			`${where}: toleranceSeconds is a finite number of seconds, 0 or more`,
 		);
 	}
-	const now = Math.floor((options.now ?? new Date()).getTime() / 1000);
-	if (!Number.isFinite(now)) {
+	const at: unknown = options.now ?? new Date();
+	if (!(at instanceof Date) || Number.isNaN(at.getTime())) {
 		throw new TypeError(`${where}: now is a valid Date`);
 	}
+	const now = Math.floor(at.getTime() / 1000);
 
 	const id = header(options.headers, 'webhook-id');
 	const stamp = header(options.headers, 'webhook-timestamp');

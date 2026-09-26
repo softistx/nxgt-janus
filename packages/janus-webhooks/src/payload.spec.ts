@@ -136,6 +136,54 @@ describe('verifyWebhook', () => {
 				headers: { ...request().headers, 'webhook-signature': '' },
 			},
 		],
+		['a signed body that is null', request({ body: 'null' })],
+		[
+			'a signed body whose data is null',
+			request({
+				body: JSON.stringify({
+					type: 'user.created',
+					timestamp: event.occurredAt.toISOString(),
+					data: null,
+				}),
+			}),
+		],
+		[
+			'a signed body whose userType is not a string',
+			request({
+				body: JSON.stringify({
+					type: 'user.created',
+					timestamp: event.occurredAt.toISOString(),
+					data: { userId: event.userId, userType: 42 },
+				}),
+			}),
+		],
+		[
+			'a signed body whose timestamp is a number',
+			request({
+				body: JSON.stringify({
+					type: 'user.created',
+					timestamp: 12345,
+					data: { userId: event.userId, userType: 'user' },
+				}),
+			}),
+		],
+		[
+			'a signed body whose type is an Object.prototype key',
+			request({
+				body: JSON.stringify({
+					type: 'toString',
+					timestamp: event.occurredAt.toISOString(),
+					data: { userId: event.userId, userType: 'user' },
+				}),
+			}),
+		],
+		[
+			'a timestamp header that is not plain seconds, though in range',
+			{
+				...request(),
+				headers: { ...request().headers, 'webhook-timestamp': `${seconds}.0` },
+			},
+		],
 		[
 			'a signed body whose userId is not a string',
 			request({
@@ -199,9 +247,11 @@ describe('verifyWebhook', () => {
 				'verifyWebhook: toleranceSeconds is a finite number of seconds',
 			);
 		}
-		expect(() =>
-			verifyWebhook({ secrets: [secret], now: new Date('x'), ...request() }),
-		).toThrow('verifyWebhook: now is a valid Date');
+		for (const bad of [new Date('x'), 1]) {
+			expect(() =>
+				verifyWebhook({ secrets: [secret], now: bad as Date, ...request() }),
+			).toThrow('verifyWebhook: now is a valid Date');
+		}
 	});
 
 	it('refuses, as wiring, no secret or a malformed one', () => {

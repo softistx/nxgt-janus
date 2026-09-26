@@ -75,18 +75,30 @@ export function targetOf(endpoint: WebhookEndpoint, where: string): Target {
 }
 
 /**
- * One attempt: the event signed and posted. `null` when it succeeded — a
- * `2xx`, and nothing else — or what went wrong. It never rejects: an event
- * whose body cannot be built fails like a request that could not be sent.
+ * The body of an event, or a `TypeError`: an event rebuilt by hand with an
+ * `occurredAt` that is not a date is the caller's mistake, never a failure
+ * worth a retry.
+ */
+export function bodyFor(event: UserEvent, where: string): string {
+	const at: unknown = event?.occurredAt;
+	if (!(at instanceof Date) || Number.isNaN(at.getTime())) {
+		throw new TypeError(`${where}: an event's occurredAt is a valid Date`);
+	}
+	return bodyOf(event);
+}
+
+/**
+ * One attempt: the body signed and posted. `null` when it succeeded — a
+ * `2xx`, and nothing else — or what went wrong. It never rejects.
  */
 export async function post(
 	target: Target,
 	event: UserEvent,
+	body: string,
 	send: typeof fetch,
 	timeoutMs: number,
 ): Promise<Failure | null> {
 	try {
-		const body = bodyOf(event);
 		// Signed at each attempt: a retry hours later is not a replay.
 		const timestamp = Math.floor(Date.now() / 1000);
 		const signature = target.keys

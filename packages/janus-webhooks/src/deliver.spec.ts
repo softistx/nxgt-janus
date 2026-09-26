@@ -320,31 +320,24 @@ describe('close(), racing a request in flight', () => {
 });
 
 describe('an event whose body cannot be built', () => {
-	it('is given up like a request that could not be sent, never an unhandled rejection', async () => {
-		const unhandled: unknown[] = [];
-		const onUnhandled = (reason: unknown) => unhandled.push(reason);
-		process.on('unhandledRejection', onUnhandled);
+	it("is refused at once, as the caller's mistake: nothing sent, nothing retried", async () => {
 		const { sent, fetch } = endpoint(200);
 		const { given, onGivingUp } = givingUps();
 		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret] }],
-			retries: [],
+			retries: ['5ms', '5ms'],
 			fetch,
 			onGivingUp,
 		});
 
-		listener({ ...event, occurredAt: new Date(Number.NaN) });
+		expect(() =>
+			listener({ ...event, occurredAt: new Date(Number.NaN) }),
+		).toThrow("webhooks: an event's occurredAt is a valid Date");
+		await new Promise((resolve) => setTimeout(resolve, 20));
 		await listener.close();
-		await new Promise((resolve) => setTimeout(resolve, 5));
-		process.off('unhandledRejection', onUnhandled);
 
 		expect(sent).toEqual([]);
-		expect(unhandled).toEqual([]);
-		expect(given[0]?.[1]).toEqual({
-			why: 'retriesRanOut',
-			status: null,
-			error: 'RangeError',
-		});
+		expect(given).toEqual([]);
 	});
 });
 
@@ -451,12 +444,40 @@ describe('webhooks({ … }) refuses, as wiring', () => {
 			'webhooks: retries wait at most 24 days each',
 		],
 		[
+			'a retry one day past what a timer can wait',
+			{ endpoints, retries: ['25d'] },
+			'webhooks: retries wait at most 24 days each',
+		],
+		[
+			'a retry one millisecond past what a timer can wait',
+			{ endpoints, retries: [2 ** 31] },
+			'webhooks: retries wait at most 24 days each',
+		],
+		[
+			'types that are not a list',
+			{ endpoints: [{ url, secrets: [secret], types: 'user.deleted' }] },
+			"webhooks: an endpoint's types are user event types",
+		],
+		[
+			'a type that is only an Object.prototype key',
+			{ endpoints: [{ url, secrets: [secret], types: ['toString'] }] },
+			"webhooks: an endpoint's types are user event types",
+		],
+		[
 			'retries that are not a list',
 			{ endpoints, retries: '5s' },
 			'webhooks: retries is a list of durations',
 		],
 	])('%s', (_, options, message) => {
 		expect(() => webhooks(options as never)).toThrow(message);
+	});
+
+	it('takes the longest retries a timer can wait', () => {
+		for (const retries of [['24d'], [2 ** 31 - 1]]) {
+			expect(() =>
+				webhooks({ endpoints, retries: retries as ['24d'] }),
+			).not.toThrow();
+		}
 	});
 
 	it('takes plain http to localhost, for development', () => {
