@@ -39,6 +39,7 @@ How the messages are shaped:
 - [`janus: secondFactor.issuer must name your application …`](#janus-secondfactorissuer-must-name-your-application--the-authenticator-app-shows-it-beside-the-account)
 - [`janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 …`](#janus-secondfactorkeys-the-key-id-is-not-32-bytes-in-base64--make-one-with-openssl-rand--base64-32)
 - [`"hasSecondFactor" is a field janus sets itself; rename it`](#hassecondfactor-is-a-field-janus-sets-itself-rename-it)
+- [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
 - [Other `janus:` wiring messages](#other-janus-wiring-messages)
 
 **Users, sessions and tokens**
@@ -80,6 +81,10 @@ How the messages are shaped:
 - [`signInCode.request` answers `null` for a user who exists](#signincoderequest-answers-null-for-a-user-who-exists)
 - [`TS2339: Property 'signInCode' does not exist on type 'TypeApi<…>'.`](#ts2339-property-signincode-does-not-exist-on-type-typeapi)
 - `CODE_INVALID`, `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `USER_INACTIVE` and `VERSION_CONFLICT` from `signInCode.confirm`, and `TS2339` on its `token`: in their entries above.
+
+**User events**
+- [`[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`](#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-name)
+- [An event you expected never arrived](#an-event-you-expected-never-arrived)
 
 **Permissions**
 - [`PERMISSION_DEPTH` — `can: checking <type>#<permission> crossed more than <n> relations without an answer`](#permission_depth--can-checking-typepermission-crossed-more-than-n-relations-without-an-answer)
@@ -359,6 +364,21 @@ janus({
 **When:** `tsc`, on the `janus({...})` call, when your schema declares a `hasSecondFactor` field. This version added it to the fields janus sets on every user.
 **Why:** `user.hasSecondFactor` is janus's own answer: whether the user's second factor is active. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
 **Fix:** rename the field in your schema, and read `user.hasSecondFactor` for janus's answer.
+
+### `janus: events must be a function that takes a user event — webhooks({ … }) from @nxgt/janus-webhooks, or your own`
+
+**When:** `janus({ events })` with something other than a function — most often an object of functions, one per event type.
+**Why:** `events` is one listener, called with every user event; the event's `type` says which.
+**Fix:** pass one function, and switch on `type`:
+
+```ts
+janus({
+  ...config,
+  events(event) {
+    if (event.type === 'user.created') return welcome(event.userId);
+  },
+});
+```
 
 ### Other `janus:` wiring messages
 
@@ -903,6 +923,38 @@ janus({
   ...
 });
 ```
+
+---
+
+## User events
+
+### `[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`
+
+A process warning, not a thrown error: the flow that sent the event answered as if nothing happened.
+
+**When:** the function given to `janus({ events })` threw or rejected — a queue that was down, a bug in the listener.
+**Why:** the write the event reports has landed. Failing the flow would tell the visitor it did not happen, and their retry would hit `LOGIN_TAKEN`. So the failure is warned about, with the event's type, its id and the user's id, and the failure's name — never its message, which may hold anything.
+**Fix:** make the listener only store the event (a queue, an outbox table) and fix whatever refused it. To send the lost event again, rebuild it from the warning — its type, its `id`, the user's id; the warning has no `occurredAt`, so take the user's `updatedAt` (or the warning's own time) as an approximation:
+
+```ts
+process.on('warning', (warning) => {
+  if ((warning as { code?: string }).code === 'JANUS_EVENT_FAILED') logger.error(warning.message);
+});
+```
+
+### An event you expected never arrived
+
+**When:** a `user.emailVerified` after a confirm, a `user.deleted` after a delete, a `user.created` from a sign-up.
+**Why:** one of these, in order of likelihood:
+- the e-mail was already verified: nothing changed, so nothing is sent;
+- `delete` deleted nobody — a replay, or an id of another user type;
+- the flow was refused, or the store failed during the write itself — the call threw, and nothing was written or sent;
+- the process stopped between the write and the listener — events are sent at most once, from memory;
+- the listener threw: look for `JANUS_EVENT_FAILED` in the process's warnings.
+
+**Fix:** for the last two, reconcile against the users themselves and treat events as the fast path, not the record: page through `auth.list()` and compare with the receiver's copy — a user it lacks is a missed `user.created`, a user the receiver has that `auth.find` answers `null` for is a missed `user.deleted`, and a user whose `emailVerified` differs is a missed `user.emailVerified`.
+
+A store outage **after** the write does not lose the event. `create`, `signUp` and `signInCode.confirm` send it before the steps that follow; `delete` and `resetPassword.confirm` run theirs — removing the sessions, tokens and tuples; revoking the sessions — in a `try`, and send it from its `finally`, whether they succeeded or not.
 
 ---
 

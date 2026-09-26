@@ -96,6 +96,7 @@ that cuts an emoji in half, say.
 | `tokens.resetPassword` | `Duration` | `'1h'` | How long a reset token lives |
 | `tokens.signInCode` | `Duration` | `'10m'` | How long an e-mailed sign-in code and its challenge live. See [sign-in codes](sign-in-code.md) |
 | `secondFactor` | `{ issuer, keys, challenge? }` | none | A TOTP second factor for every type with a password. Changes what `signIn` answers — see [the second factor](second-factor.md#configuration) |
+| `events` | `UserEventListener` | none | Called with every user event — `user.created`, `user.deleted`, … — after the write, awaited. See [user events](events.md) |
 
 A `Duration` is `'500ms'`, `'30s'`, `'15m'`, `'8h'`, `'7d'`, or a number of
 milliseconds.
@@ -228,7 +229,9 @@ read before that sign-in conflicts — see [passwords](passwords.md#rehash-on-si
 Deletes the user **with every session and one-time token they had**, and
 every tuple naming them when `relations` is wired. The user goes first, so an
 outage half-way leaves only sessions and tokens that authenticate nobody. It is
-idempotent: calling it again finishes the job.
+idempotent: calling it again finishes the job. When it deleted the user, it
+sends a [`user.deleted` event](events.md) — once, after the sessions, tokens and relation tuples are gone, and even when an outage interrupts removing them;
+`create` and `signUp` send `user.created`.
 
 ### Paging every user
 
@@ -285,5 +288,6 @@ fields against your schema, not that `password` is a string.
 ## See also
 
 - [Sessions](sessions.md) — `authenticate`, the cookie, signing out
+- [User events](events.md) — what `create`, `signUp` and `delete` send
 - [Errors](errors.md) — every code, and the status it deserves
 - [Writing an adapter](adapters.md) — the identity stores behind `store`

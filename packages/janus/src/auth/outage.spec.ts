@@ -20,13 +20,16 @@ function failing(
 }
 
 /**
- * The files allowed a `catch`: the shared guard, outage.ts, and sealing.ts —
- * whose one catch wraps a decipher, never a store, and throws.
+ * The files allowed a `catch`: the shared guard, outage.ts, sealing.ts —
+ * whose one catch wraps a decipher, never a store, and throws — and
+ * events.ts, whose one catch wraps the application's listener, never a
+ * store, and warns.
  */
 const GUARD = join(import.meta.dir, '..', 'stores', 'guard.ts');
 const OUTAGE = join(import.meta.dir, 'outage.ts');
 const SEALING = join(import.meta.dir, 'sealing.ts');
-const ALLOWED = new Set([GUARD, OUTAGE, SEALING]);
+const EVENTS = join(import.meta.dir, 'events.ts');
+const ALLOWED = new Set([GUARD, OUTAGE, SEALING, EVENTS]);
 
 /** The body of every `catch` in a file, comments out, whitespace collapsed. */
 async function catchBodies(path: string): Promise<string[]> {
@@ -112,6 +115,18 @@ describe('the scan: no catch around a store call, in auth, permissions or stores
 		expect(outage).toHaveLength(1);
 		expect(outage[0]).toBe(
 			"if (error instanceof StoreConflict && error.on === 'version') return null; throw error;",
+		);
+
+		// emit's: the try holds the listener alone — a store call moved
+		// inside it would be caught too — and the catch warns, and nothing
+		// else. Both held to the letter, from `try {` to the end of emit, the
+		// last function of the file.
+		const events = await Bun.file(EVENTS).text();
+		expect(
+			events.slice(events.indexOf('try {')).replace(/\s+/g, ' ').trim(),
+		).toBe(
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: the source, verbatim
+			"try { await listener(event); } catch (failure) { process.emitWarning( `janus: the events listener failed on ${type} ${event.id} for user ${user.id}: ${failure instanceof Error ? failure.name : typeof failure}`, { code: 'JANUS_EVENT_FAILED' }, ); } }",
 		);
 	});
 });

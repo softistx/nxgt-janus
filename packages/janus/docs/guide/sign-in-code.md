@@ -256,7 +256,8 @@ janus({ ..., tokens: { signInCode: '15m' } });
 
 A user whose `emailVerified` was `false` has it `true` once `confirm`
 succeeds, and their `version` moves: the code proves the address as a
-verification link would. A user already verified is not written.
+verification link would, and a [`user.emailVerified` event](events.md) is
+sent. A user already verified is not written, and nothing is sent.
 
 ### A second factor is still asked for
 

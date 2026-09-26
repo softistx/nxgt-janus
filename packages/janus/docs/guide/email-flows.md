@@ -77,6 +77,8 @@ is `TOKEN_STALE`: confirming it would verify an address nobody holds any more.
 The address is checked again on the very record the write replaces, so an
 e-mail changed while the link is being redeemed is `TOKEN_STALE` too, and
 nothing is written.
+A confirm that verifies the e-mail sends a [`user.emailVerified`
+event](events.md); one for an e-mail already verified sends nothing.
 Changing the e-mail with `update` sets `emailVerified` back to `false`.
 
 ## `resetPassword`
@@ -106,7 +108,8 @@ export async function forgotPassword(request: Request): Promise<Response> {
 and **signs the user out everywhere**: their sessions are revoked, and every
 second-factor challenge still open is spent, so a sign-in started with the
 old password cannot be finished. The e-mail is checked again on the record
-written, as for `verifyEmail`. It opens no session: call `signIn` next
+written, as for `verifyEmail`. It sends a [`user.passwordReset` event](events.md),
+then `user.emailVerified` when the link verified the e-mail. It opens no session: call `signIn` next
 if that is your policy. A password refused for its length does not spend the
 token, so the visitor can try again with the same link.
 
@@ -153,4 +156,5 @@ never the token, and no refusal's message contains it.
 - [Users](users.md) — `email`, `update`, and the other per-type methods
 - [Sign-in codes](sign-in-code.md) — the third flow that sends an e-mail: a code, not a link
 - [Sessions](sessions.md) — `signOutEverywhere`, which `resetPassword.confirm` calls for you
+- [User events](events.md) — `user.emailVerified` and `user.passwordReset`, which the confirms send
 - [Errors](errors.md) — every code, and the status it deserves

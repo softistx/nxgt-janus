@@ -56,6 +56,8 @@ either finds this row.
 | **seal**, **sealing key** | To seal is to encrypt a TOTP secret — AES-256-GCM, bound to the user's id — before a store sees it. A sealing key is one `{ id, key }` of `secondFactor.keys`: the first seals, every one opens | "encrypt", "encryption key", "master key", "pepper" |
 | **token** | Never alone in prose: a *session token* or a *one-time token*. The `tokens` store and the `TOKEN_*` codes are one-time tokens only | |
 | **e-mail flow** | `verifyEmail` or `resetPassword`: send a one-time token, then confirm it. `signInCode` sends a one-time code instead | |
+| **user event** | What happened to a user, once it is written: `user.created`, `user.emailVerified`, `user.passwordReset`, `user.deleted` — a `UserEvent`, naming the user by id alone, with an `id` of its own. See [user events](events.md) | "webhook" — a webhook is one way to deliver it; "event" alone where it could be read as `@nxgt/janus-telemetry`'s audit log record — on a page about user events, "the event" is fine |
+| **listener** | The one function `janus({ events })` hands every user event to, after the write and awaited | "handler", "hook", "subscriber" |
 
 ### Permissions
 

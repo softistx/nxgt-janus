@@ -16,6 +16,7 @@ below are defined once, in [Words](guide/vocabulary.md#words).
 | [E-mail verification and password reset](guide/email-flows.md) | You are sending a verification or reset link, and handling what comes back |
 | [Signing in with an e-mailed code](guide/sign-in-code.md) | You are signing users in with a six-digit code sent by e-mail — with no password, or beside one: requesting it without telling who exists, keeping the challenge, the attempts and the errors |
 | [The second factor](guide/second-factor.md) | You are turning on TOTP codes: making and rotating the sealing keys, the QR code, `signIn`'s `status`, confirming a challenge, disabling |
+| [User events](guide/events.md) | You want to hear when a user is created, verifies their e-mail, resets their password or is deleted — to queue it, sync it, or send it as a webhook |
 | [Password hashing](guide/passwords.md) | You are choosing a hasher, raising its cost, moving to argon2id, or importing hashes from another system |
 
 ### Permissions — `@nxgt/janus/permissions`

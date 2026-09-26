@@ -36,7 +36,7 @@ supported.
 
 | Import | What it holds |
 | --- | --- |
-| `@nxgt/janus` | **Identities**: `janus()`, the identity stores' port and its in-memory reference (`createMemoryStores`), the hashers. And the **shared vocabulary**: errors, subjects and the tuple notation, ids, pagination, time |
+| `@nxgt/janus` | **Identities**: `janus()`, the identity stores' port and its in-memory reference (`createMemoryStores`), the hashers, the user events (`UserEvent`, `UserEventListener`, `UserEventType`). And the **shared vocabulary**: errors, subjects and the tuple notation, ids, pagination, time |
 | `@nxgt/janus/permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the relation store's port and its in-memory reference (`createMemoryRelations`) |
 | `@nxgt/janus/conformance` | **For adapters**: the suites a store runs — `describeJanusStores`, `describeRelationStores` — their cases as data, and the reference harnesses |
 
@@ -560,6 +560,51 @@ A six-digit code sent to the user's e-mail signs them in, with no password.
 [The sign-in code guide](docs/guide/sign-in-code.md) has the request that
 tells nobody who exists, the challenge in a cookie, every error, and a test.
 
+### User events — `events`
+
+```ts
+import { z } from 'zod';
+import { createMemoryStores, janus, scryptHasher, type UserEvent } from '@nxgt/janus';
+
+const auth = janus({
+	user: z.object({ email: z.email() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
+	hasher: scryptHasher(),
+	async events(event: UserEvent) {
+		// { id, type: 'user.created', occurredAt, userId, userType }
+		await queue.add(event.type, event, { jobId: event.id }); // deliver it once
+	},
+});
+
+await auth.signUp({ email, password }); // the listener has the event before this answers
+```
+
+`janus({ events })` hears what happened to a user, once it is written:
+
+| `type` | Sent by |
+| --- | --- |
+| `user.created` | `create`, `signUp` |
+| `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
+| `user.passwordReset` | `resetPassword.confirm` |
+| `user.deleted` | `delete`, once — a replay that deletes nobody sends nothing |
+
+- **The user is named by id, and nothing else**: no login, no e-mail, no
+  field, no password, no token. Whoever receives the event reads the rest
+  from where it is kept, if they may.
+- **Each event has an `id` of its own**, a UUIDv7: the key to deliver it once.
+- **The listener runs after the write, and is awaited** before the
+  flow answers, so a durable queue has the event by then. `occurredAt` is the
+  write's own time. A refused flow sends nothing.
+- **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
+  union of the four types, so a `switch` on `event.type` is exhaustive.
+- **A listener that throws fails no flow** — the write happened. It is a
+  `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
+  id, never the failure's message.
+
+[The user events guide](docs/guide/events.md) has the listener, the four
+types, what a failure costs, and a test.
+
 ### Permissions — `@nxgt/janus/permissions`
 
 ```ts
@@ -859,6 +904,13 @@ a query of your own.
 `list()` with its own error, as it threw. Never answer `[]` for a database that
 could not answer: that is a denial made of an outage.
 
+**A user event is sent at most once, from the process that wrote.** It is
+handed to the listener after the write, in the same process: a crash between
+the two loses it, and nothing sends it later. Build what must not miss one
+— a billing sync, a search index — to also read the users themselves now and
+then, and treat events as the fast path. A slow listener slows every flow
+that sends one, since it is awaited: queue the event and return.
+
 ## Documentation
 
 - [Guides](docs/README.md) — one page per area, every option with an example
@@ -867,16 +919,16 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**One hundred and fifteen plausible mistakes, one hundred and fifteen refused at compile time — and
+**One hundred and eighteen plausible mistakes, one hundred and eighteen refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (twenty-two, on the identity stores' port, from the point
-of view of the person implementing it), `test/types/auth.ts` (thirty-one, on
+of view of the person implementing it), `test/types/auth.ts` (thirty-four, on
 `janus()`, from the point of view of the application — eight of them on the
-second factor, three on sign-in codes) and `test/types/permissions.ts` (forty-eight, on the
+second factor, three on sign-in codes, three on user events) and `test/types/permissions.ts` (forty-eight, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

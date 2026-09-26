@@ -10,6 +10,7 @@
 import type { RelationStore } from '../permissions/port/types';
 import type { Clock } from '../time/clock';
 import { type Duration, parseDuration } from '../time/duration';
+import type { UserEventListener } from './events';
 import type { JanusStores } from './port/types';
 import { resolveSealer, type Sealer, type SealingKey } from './sealing';
 import type { StandardSchemaV1 } from './standard-schema';
@@ -165,6 +166,13 @@ interface SharedConfig {
 	 * `secondFactor` flows exist and `signIn` answers a session directly.
 	 */
 	readonly secondFactor?: SecondFactorConfig;
+	/**
+	 * Called with every user event — `user.created`, `user.emailVerified`,
+	 * `user.passwordReset`, `user.deleted` — once the write landed,
+	 * and awaited before the flow answers. Any function will do; the coming
+	 * `@nxgt/janus-webhooks` will sign and deliver them.
+	 */
+	readonly events?: UserEventListener;
 }
 
 /** What a TOTP second factor needs: a name for the app, and the keys that seal. */
