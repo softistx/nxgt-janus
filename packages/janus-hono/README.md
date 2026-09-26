@@ -51,7 +51,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | `signOut(c, auth)` | Revokes the session the request presents and clears the cookie, whatever the answer. `false` when the request presented no session, or an unknown one |
 | `janusErrors({ report?, fallback? })` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)`; anything else to `fallback`, or to Hono's own handling. `report(error, c)` sees every one answered 5xx first — `STORE_FAILED` and the like, for your logs |
 | `statusOf(code)` | The status a code deserves: `STORE_FAILED` 503, `CREDENTIALS_INVALID` and `CODE_INVALID` 401, `USER_INACTIVE` 403, `LOGIN_TAKEN`, `SECOND_FACTOR_NOT_ENROLLED` and `SECOND_FACTOR_ACTIVE` 409, … Exhaustive over `JanusErrorCode` |
-| `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT` and `attemptsLeft` for a `CODE_INVALID` from `secondFactor.confirm` — what the client can act on, and nothing else |
+| `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT` and `attemptsLeft` for any `CODE_INVALID` that carries it — `secondFactor.confirm`'s and `signInCode.confirm`'s — what the client can act on, and nothing else |
 | `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
@@ -223,7 +223,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Documentation
 
-- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in and of a second factor, guarded routes
+- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in, of a second factor and of a code sent by e-mail, guarded routes
 - [Troubleshooting](docs/troubleshooting.md) — by the symptom or message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 

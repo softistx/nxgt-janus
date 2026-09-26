@@ -175,7 +175,15 @@ janus.signIn.refused   janus.refusal=CODE_INVALID  janus.secondFactor.attemptsLe
 
 A lapsed, spent or unknown challenge is a `janus.signIn.refused` with its
 `TOKEN_*` code and no `user.id`; `TOKEN_STALE` — the e-mail changed since
-the code was sent — and `USER_INACTIVE` name the user.
+the code was sent — and `USER_INACTIVE` name the user. **Every** refusal of
+`signInCode.confirm` carries `janus.signIn.code: true`, not only
+`CODE_INVALID`: the `TOKEN_*` codes, `TOKEN_STALE`, `USER_INACTIVE` and
+`VERSION_CONFLICT` too. A filter on the mark sees every refused e-mailed
+code, and nothing of the second factor:
+
+```
+janus.signIn.refused   janus.refusal=TOKEN_EXPIRED  janus.signIn.code=true
+```
 
 Two signals worth an alert: a user whose codes run out of attempts, as for a
 second factor, and a user sent codes again and again — someone filling an

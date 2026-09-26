@@ -72,7 +72,8 @@ export function signInCodeFlows(
 			);
 
 			// A user gone since, or of another type, is as good as no challenge:
-			// another type's API compares nothing and spends nothing.
+			// another type's API compares nothing and spends nothing — though the
+			// attempt, counted before the type is known, is gone.
 			const user = await findRecord(context, token.userId, type.name);
 			if (user === null) throw unknownOneTime(where, 'challenge');
 

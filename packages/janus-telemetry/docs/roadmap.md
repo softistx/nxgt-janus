@@ -37,7 +37,9 @@ Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
   event for every code issued, never for an address nobody holds; a sign-in
   by code is a `janus.signIn` with `janus.signIn.code: true`, and the
   `signInCode.confirm` span records `janus.signIn.status`, like `signIn`'s. A
-  refused code is a `janus.signIn.refused` warning. Neither the code nor its
+  refused code is a `janus.signIn.refused` warning, and every refusal of
+  `signInCode.confirm` is marked `janus.signIn.code: true` too, so an alert
+  tells it from a second factor's. Neither the code nor its
   challenge is ever written. Needs `@nxgt/janus` 0.6.0.
 - **The second factor in the audit trail, v0.2.0** — `janus.signIn` records
   `janus.signIn.status`; the events `janus.signIn.secondFactor`,

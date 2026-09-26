@@ -75,7 +75,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.signInCode.sent` | info | `signInCode.request` issued a code, with the `user.id` it is for. A request that answered `null` writes nothing |
 | `janus.signIn` | info | a user signed in — by `signIn`; by `signInCode.confirm`, which adds `janus.signIn.code: true`; or by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true` |
 | `janus.signIn.secondFactor` | info | the password, or an e-mailed code, was right and a second factor's code was asked for: `signIn` or `signInCode.confirm` answered a challenge. `janus.user.type` only — the answer names no user; the `janus.signIn` of the `confirm` that follows does |
-| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm` or `signInCode.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft` — the same attribute for both — a `TOKEN_*` code (`TOKEN_STALE` with `user.id`), `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for a write that raced |
+| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm` or `signInCode.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft` — the same attribute for both — a `TOKEN_*` code (`TOKEN_STALE` with `user.id`), `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for a write that raced. Every refusal of `signInCode.confirm` adds `janus.signIn.code: true` |
 | `janus.secondFactor.enrolled`, `janus.secondFactor.activated`, `janus.secondFactor.disabled` | info | `enroll`, `activate` and `disable`, with the `user.id` they were called for |
 | `janus.signOut` | info | a session was signed out |
 | `janus.signOutEverywhere` | info | every session of a user was revoked |
@@ -106,8 +106,11 @@ when the flow knows them — `janus.signOut` carries neither:
 - **A wrong code is a warning, not a failure.** `CODE_INVALID` leaves the
   `janus.secondFactor.confirm` or `janus.signInCode.confirm` span `ok`, and
   writes `janus.signIn.refused` with `janus.secondFactor.attemptsLeft` — named
-  so for an e-mailed code too, which also carries `janus.signIn.code: true`:
-  alert on a user whose count reaches `0` again and again, not on the span.
+  so for an e-mailed code too: alert on a user whose count reaches `0` again
+  and again, not on the span. **Every** refusal of `signInCode.confirm`
+  carries `janus.signIn.code: true` — `CODE_INVALID`, a `TOKEN_*` code
+  including `TOKEN_STALE`, `USER_INACTIVE` and `VERSION_CONFLICT` alike — so
+  a filter on the mark sees the whole e-mailed-code flow.
 - **One copy of `@nxgt/janus`.** A refusal is told from a failure by
   `instanceof JanusError`: with a second copy installed, every wrong password
   fails its span.

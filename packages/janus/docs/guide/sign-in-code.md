@@ -47,14 +47,14 @@ const clinic = janus({
 	users: {
 		patient: { schema: z.object({ email: z.email() }), password: { login: 'email' } },
 		staff: { schema: z.object({ username: z.string() }), password: { login: 'username' } },
-		guest: { schema: z.object({ email: z.email() }) }, // no password: signs in by code only
+		member: { schema: z.object({ email: z.email() }) }, // no password: signs in by code only
 	},
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
 });
 
 clinic.patient.signInCode.request; // exists
-clinic.guest.signInCode.request;   // exists: see Passwordless types, below
+clinic.member.signInCode.request;  // exists: see Passwordless types, below
 // @ts-expect-error — staff have no e-mail to send a code to
 clinic.staff.signInCode;
 ```
@@ -181,7 +181,10 @@ hash, like a session token, so the store cannot give it back either.
 
 A challenge belongs to the user type that issued it: confirm a patient's
 challenge with `clinic.patient.signInCode.confirm`. Another type's `confirm`
-answers `TOKEN_UNKNOWN`, and leaves the challenge for its own.
+answers `TOKEN_UNKNOWN`, compares no code and spends nothing — but it has
+already cost one of the challenge's five attempts, because the attempt is
+counted before the type is known. The challenge is left for its own type,
+with one attempt fewer.
 
 ## Confirming the code
 
@@ -267,7 +270,7 @@ answers `SignedIn`.
 | Rejects with | When | What to do |
 | --- | --- | --- |
 | `CODE_INVALID`, with `attemptsLeft` | the code does not match, or is not six digits. Message: `signInCode.confirm: the code does not match, or was already used` | ask again while `attemptsLeft > 0`; at `0` the challenge is spent: request a new code |
-| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, one whose user was deleted, or one a store's TTL already dropped | request a new code |
+| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, one whose user was deleted, or one a store's TTL already dropped. Another type's challenge still loses one of its attempts | request a new code |
 | `TOKEN_SPENT` | the challenge already signed someone in, or its attempts ran out | request a new code |
 | `TOKEN_EXPIRED` | `expiresAt` has passed | request a new code |
 | `TOKEN_STALE` | the user changed their e-mail since the code was sent. Message: `signInCode.confirm: the code was sent to an e-mail the user no longer has`. The challenge is spent | request a new code, to the current address |
@@ -313,15 +316,15 @@ answers `SignedIn`, even in an instance given a `secondFactor`:
 const clinic = janus({
 	users: {
 		patient: { schema: z.object({ email: z.email() }), password: { login: 'email' } },
-		guest: { schema: z.object({ email: z.email() }) },
+		member: { schema: z.object({ email: z.email() }) },
 	},
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
 	secondFactor: { issuer: 'Clinic', keys: [{ id: '2026-09', key: process.env.TOTP_KEY ?? '' }] },
 });
 
-const guest = await clinic.guest.signInCode.confirm(challenge, code);
-guest.token; // SignedIn: no status to narrow
+const member = await clinic.member.signInCode.confirm(challenge, code);
+member.token; // SignedIn: no status to narrow
 const patient = await clinic.patient.signInCode.confirm(challenge, code);
 if (patient.status === 'signedIn') patient.token; // SignInResult: narrow first
 ```

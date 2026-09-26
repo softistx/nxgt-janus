@@ -75,12 +75,11 @@ How the messages are shaped:
 - `TOKEN_*`, `USER_INACTIVE` and `VERSION_CONFLICT` from `secondFactor.confirm`: in their entries above.
 
 **Sign-in codes**
-- [`CODE_INVALID` — `signInCode.confirm: the code does not match, or was already used`](#code_invalid--signincodeconfirm-the-code-does-not-match-or-was-already-used)
 - [`TOKEN_STALE` — `<call>: the code was sent to an e-mail the user no longer has`](#token_stale--call-the-code-was-sent-to-an-e-mail-the-user-no-longer-has)
 - [The code from an earlier e-mail is refused with `CODE_INVALID`](#the-code-from-an-earlier-e-mail-is-refused-with-code_invalid)
 - [`signInCode.request` answers `null` for a user who exists](#signincoderequest-answers-null-for-a-user-who-exists)
 - [`TS2339: Property 'signInCode' does not exist on type 'TypeApi<…>'.`](#ts2339-property-signincode-does-not-exist-on-type-typeapi)
-- `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `USER_INACTIVE` and `VERSION_CONFLICT` from `signInCode.confirm`, and `TS2339` on its `token`: in their entries above.
+- `CODE_INVALID`, `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `USER_INACTIVE` and `VERSION_CONFLICT` from `signInCode.confirm`, and `TS2339` on its `token`: in their entries above.
 
 **Permissions**
 - [`PERMISSION_DEPTH` — `can: checking <type>#<permission> crossed more than <n> relations without an answer`](#permission_depth--can-checking-typepermission-crossed-more-than-n-relations-without-an-answer)
@@ -544,8 +543,11 @@ janus({ ..., secondFactor: { issuer: 'Acme', keys, challenge: '10m' } });
 the code that signs the user in, by the fifth wrong code, and by a refusal
 that ends it (`TOKEN_STALE`, `USER_INACTIVE`). `TOKEN_UNKNOWN` also covers a
 challenge whose user was deleted, one confirmed through another user type's
-`signInCode` — which leaves it for its own — the decoy challenge of a
-`request` that answered `null`, and the two arguments swapped.
+`signInCode`, the decoy challenge of a `request` that answered `null`, and
+the two arguments swapped. Another type's `confirm` compares no code and
+spends nothing, but it has already cost one of the challenge's five
+attempts: the attempt is counted before the type is known. The challenge is
+left for its own type, with one attempt fewer.
 **Fix:** answer 400 and offer to send a new code. To give slower inboxes
 more time:
 
@@ -609,7 +611,8 @@ const page = await access.list(user, 'view', 'record', {
 
 ## Second factor
 
-Every entry here needs `janus({ ..., secondFactor })`. The messages start with
+Every entry here needs `janus({ ..., secondFactor })`, but for the
+`signInCode.confirm` paragraph of `CODE_INVALID`. The messages start with
 `secondFactor.enroll`, `secondFactor.activate`, `secondFactor.confirm` or
 `signIn` — prefixed by the type with several user types:
 `staff.secondFactor.confirm: …`. `secondFactor.confirm` also rejects with
@@ -640,11 +643,25 @@ const signedIn = await auth.secondFactor.confirm(challenge, code); // { status: 
 
 ### `CODE_INVALID` — `<call>: the code does not match, or was already used`
 
-`TokenError`, carrying `attemptsLeft` on `secondFactor.confirm`.
+`TokenError`. The same message answers three calls; there is a paragraph
+for each below.
 
-**When:** `secondFactor.activate(user, code)` or `secondFactor.confirm(challenge, code)`.
-**Why:** the code is wrong, or it was accepted before: a code is accepted once. On `confirm`, every call costs one of the challenge's five attempts, counted before anything is checked. `attemptsLeft` is what remains; at `0`, the challenge is spent and the next `confirm` is `TOKEN_SPENT`. On `activate` there is no challenge, no `attemptsLeft`, and nothing is spent: the user tries the next code.
-**Fix:** answer 401 with `attemptsLeft`, and send the visitor back to sign in once it is `0`:
+**When:** `secondFactor.activate`, `secondFactor.confirm` or
+`signInCode.confirm`, with a code that does not match.
+
+**`secondFactor.activate(user, code)`**
+**Why:** the code is wrong, or it was accepted before: a code is accepted
+once. There is no challenge here: no `attemptsLeft`, and nothing is spent.
+**Fix:** let the user try the next code the app shows. If it is the one on
+screen, see [the next entry](#the-code-the-authenticator-app-shows-is-refused-with-code_invalid).
+
+**`secondFactor.confirm(challenge, code)`**
+**Why:** the code is wrong, or it was accepted before. Every call costs one of
+the challenge's five attempts, counted before anything is checked. The error
+carries `attemptsLeft`, what remains; at `0`, the challenge is spent and the
+next `confirm` is `TOKEN_SPENT`.
+**Fix:** answer 401 with `attemptsLeft`, and send the visitor back to sign in
+once it is `0`:
 
 ```ts
 import { TokenError } from '@nxgt/janus';
@@ -659,7 +676,34 @@ try {
 }
 ```
 
-If the code the user typed is the one their app shows, see the next entry.
+**`signInCode.confirm(challenge, code)`** — the e-mailed code.
+**Why:** the code is not the one sent with this challenge, or is not six
+digits — a space, a dash, a code pasted with its label. The error carries
+`attemptsLeft` and the `userId` of the user the code was sent to. Every call
+costs one of the challenge's five attempts, counted before the code is
+compared — a call through another user type's `signInCode` too, although it
+answers `TOKEN_UNKNOWN`. At `0` the challenge is spent, and the next
+`confirm` is `TOKEN_SPENT`, even with the right code. Codes sent at once past
+the fifth attempt are all refused, the right one included.
+**Fix:** answer 401 with `attemptsLeft`, and request a new code once it is
+`0`. Strip what the visitor may have typed around the digits before calling
+`confirm`:
+
+```ts
+import { TokenError } from '@nxgt/janus';
+
+try {
+  return await auth.signInCode.confirm(challenge, code.replace(/\D/g, ''));
+} catch (error) {
+  if (error instanceof TokenError && error.code === 'CODE_INVALID') {
+    return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status: 401 });
+  }
+  throw error;
+}
+```
+
+If the visitor typed the code from the e-mail correctly, see
+[the code from an earlier e-mail](#the-code-from-an-earlier-e-mail-is-refused-with-code_invalid).
 
 ### The code the authenticator app shows is refused with `CODE_INVALID`
 
@@ -774,45 +818,12 @@ The messages start with `signInCode.confirm` — prefixed by the type with
 several user types: `patient.signInCode.confirm: …`. `signInCode.request`
 throws nothing but `STORE_FAILED`: an e-mail it cannot sign in is `null`.
 `signInCode.confirm` also rejects with
+[`CODE_INVALID`](#code_invalid--call-the-code-does-not-match-or-was-already-used),
 [`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
 [`USER_INACTIVE`](#user_inactive--call-the-user-is-inactive) and
 [`VERSION_CONFLICT`](#version_conflict--call-expected-version-n-found-m);
 each of those entries has a paragraph for it.
 [The sign-in code guide](guide/sign-in-code.md) has the whole flow.
-
-### `CODE_INVALID` — `signInCode.confirm: the code does not match, or was already used`
-
-The message is the second factor's too; this entry is the e-mailed code's.
-
-`TokenError`, carrying `attemptsLeft` and the `userId` of the user the code
-was sent to.
-
-**When:** `signInCode.confirm(challenge, code)`.
-**Why:** the code is not the one sent with this challenge, or is not six
-digits — a space, a dash, a code pasted with its label. Every call costs one
-of the challenge's five attempts, counted before the code is compared;
-`attemptsLeft` is what remains. At `0` the challenge is spent, and the next
-`confirm` is `TOKEN_SPENT`, even with the right code. Codes sent at once past
-the fifth attempt are all refused, the right one included.
-**Fix:** answer 401 with `attemptsLeft`, and offer a new code once it is `0`.
-Strip what the visitor may have typed around the digits before calling
-`confirm`:
-
-```ts
-import { TokenError } from '@nxgt/janus';
-
-try {
-  return await auth.signInCode.confirm(challenge, code.replace(/\D/g, ''));
-} catch (error) {
-  if (error instanceof TokenError && error.code === 'CODE_INVALID') {
-    return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status: 401 });
-  }
-  throw error;
-}
-```
-
-If the visitor typed the code from the e-mail correctly, see
-[the code from an earlier e-mail](#the-code-from-an-earlier-e-mail-is-refused-with-code_invalid).
 
 ### `TOKEN_STALE` — `<call>: the code was sent to an e-mail the user no longer has`
 
@@ -863,6 +874,9 @@ the field with `email: 'contact'`. Do not tell the visitor which case it
 was — the route answers the same page either way.
 
 ### `TS2339: Property 'signInCode' does not exist on type 'TypeApi<…>'.`
+
+Also `Property 'signInCode' does not exist on type 'Janus<…>'.`, with the
+single-type form, `janus({ user })`.
 
 **When:** `tsc`, on `auth.signInCode` or `clinic.<type>.signInCode`.
 **Why:** the user type has no e-mail: no field called `email`, and no
