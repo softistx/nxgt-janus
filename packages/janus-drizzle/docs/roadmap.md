@@ -6,15 +6,7 @@ something shipped in.
 
 ## Now
 
-- **The first release.** The adapter passes both conformance suites on
-  PostgreSQL 17 and PGlite. It stays unpublished until its release is decided.
-
-- **Tables without a prefix, in a database or a schema of their own.**
-  `defineJanusTables({ schema? })` replaces the `janus_*` tables, so Janus's
-  tables are backed up and restored on their own, and the factories take the
-  tables your schema file exports as `{ tables }`, so the stores query exactly
-  what your migration created. Not yet released, so no
-  migration is owed.
+Nothing yet.
 
 ## Next
 
@@ -44,4 +36,9 @@ Nothing yet.
 
 ## Shipped
 
-Nothing yet.
+- **The first release, v0.1.0.** Both sides of `@nxgt/janus` over one
+  PostgreSQL database, on Drizzle; the adapter passes both conformance suites
+  on PostgreSQL 17 and PGlite. `defineJanusTables({ schema? })` puts the tables
+  in a database or a schema of their own, with no prefix, and the factories
+  take the tables your schema file exports, so the stores query exactly what
+  your drizzle-kit migration created.
