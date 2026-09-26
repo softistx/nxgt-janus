@@ -6,6 +6,7 @@ export type {
 	Normalize,
 	PasswordConfig,
 	PasswordHasher,
+	SecondFactorConfig,
 	SessionConfig,
 	SingleTypeConfig,
 	UserSchema,
@@ -33,6 +34,7 @@ export type {
 	UserRecord,
 	UserStore,
 } from './port/types';
+export type { SealingKey } from './sealing';
 export type { StandardSchemaV1 } from './standard-schema';
 export type {
 	Authenticated,
@@ -46,9 +48,13 @@ export type {
 	RequestLike,
 	RequiredStringKeys,
 	ResetPasswordApi,
+	SecondFactorApi,
+	SecondFactorEnrolment,
+	SecondFactorRequired,
 	Session,
 	SharedApi,
 	SignedIn,
+	SignInResult,
 	TypeApi,
 	TypesOf,
 	User,

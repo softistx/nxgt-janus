@@ -7,7 +7,7 @@
  * a user who can never sign in, a field read off the wrong kind of user, a
  * password hash handed to a request handler.
  *
- * **Twenty plausible mistakes, twenty refused.** Add a case whenever the
+ * **Twenty-five plausible mistakes, twenty-five refused.** Add a case whenever the
  * surface gains something it should refuse; never delete one to make a change
  * pass.
  */
@@ -50,6 +50,16 @@ const clinic = janus({
 	},
 	store,
 	hasher,
+});
+
+const twoFactor = janus({
+	users: {
+		patient: { schema: Patient, password: { login: 'email' } },
+		guest: { schema: z.object({ email: z.email() }) },
+	},
+	store,
+	hasher,
+	secondFactor: { issuer: 'Clinic', keys: [{ id: 'k1', key: 'a'.repeat(43) }] },
 });
 
 // ── Wiring ───────────────────────────────────────────────────────────────────
@@ -190,6 +200,37 @@ async function flows() {
 	// A mutation would not reach the store: `update` is the only write.
 	// @ts-expect-error a user is readonly
 	user.service = 'surgery';
+
+	// ── 21. A schema declaring what janus sets ────────────────────────────
+	janus({
+		// @ts-expect-error hasSecondFactor is janus's own field
+		user: z.object({ email: z.email(), hasSecondFactor: z.boolean() }),
+		password: { login: 'email' },
+		store,
+		hasher,
+	});
+
+	// ── 22. A second factor janus() was not given keys for ────────────────
+	// @ts-expect-error no secondFactor in the configuration, so no flows
+	await one.secondFactor.enroll('0190e3b4-0000-7000-8000-000000000000');
+
+	// ── 23. A session read off a sign-in that may have asked for a code ───
+	const result = await twoFactor.patient.signIn({
+		email: 'a@b.test',
+		password: 'p',
+	});
+	// @ts-expect-error narrow on status first: a challenge has no token
+	void result.token;
+
+	// ── 24. A second factor on a type with no password ────────────────────
+	// @ts-expect-error guests do not sign in, so they have no second factor
+	await twoFactor.guest.secondFactor.enroll(
+		'0190e3b4-0000-7000-8000-000000000000',
+	);
+
+	// ── 25. Confirming a challenge without the code ───────────────────────
+	// @ts-expect-error the code is what the challenge waits for
+	await twoFactor.patient.secondFactor.confirm('challenge');
 }
 
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
@@ -226,7 +267,36 @@ async function allowed() {
 		email: 'g@b.test',
 	});
 
-	return [name, type, verified, token, session, badge, guest, one.cookie.name];
+	// With a second factor, `status` says which answer `signIn` gave.
+	const result = await twoFactor.patient.signIn({
+		email: 'a@b.test',
+		password: 'secret123',
+	});
+	const signedIn =
+		result.status === 'signedIn'
+			? result
+			: await twoFactor.patient.secondFactor.confirm(
+					result.challenge,
+					'123456',
+				);
+	const patientToken: string = signedIn.token;
+	const enrolment: { secret: string; uri: string } =
+		await twoFactor.patient.secondFactor.enroll(signedIn.user);
+	const active: boolean = signedIn.user.hasSecondFactor;
+
+	return [
+		name,
+		type,
+		verified,
+		token,
+		session,
+		badge,
+		guest,
+		one.cookie.name,
+		patientToken,
+		enrolment,
+		active,
+	];
 }
 
 export const checked = { flows, allowed };

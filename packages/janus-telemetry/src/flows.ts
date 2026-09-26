@@ -16,6 +16,10 @@ const events = {
 	signedUp: event('janus.signUp'),
 	signedIn: event('janus.signIn'),
 	signInRefused: event('janus.signIn.refused'),
+	secondFactorAsked: event('janus.signIn.secondFactor'),
+	secondFactorEnrolled: event('janus.secondFactor.enrolled'),
+	secondFactorActivated: event('janus.secondFactor.activated'),
+	secondFactorDisabled: event('janus.secondFactor.disabled'),
 	signedOut: event('janus.signOut'),
 	signedOutEverywhere: event('janus.signOutEverywhere'),
 	userDeleted: event('janus.user.deleted'),
@@ -52,11 +56,39 @@ const WRITTEN: Readonly<
 		if (outcome.ok) log.info(events.signedUp(userFields(call, outcome.value)));
 	},
 	signIn: (call, outcome) => {
-		if (outcome.ok) {
+		if (!outcome.ok) {
+			log.warn(events.signInRefused(refusalFields(call, outcome.refusal)));
+		} else if (statusOf(outcome.value) === 'secondFactor') {
+			// The password was right; the session waits for a code.
+			log.info(
+				events.secondFactorAsked(
+					fieldsOf({ 'janus.user.type': call.userType }),
+				),
+			);
+		} else {
 			log.info(events.signedIn(userFields(call, outcome.value)));
+		}
+	},
+	'secondFactor.confirm': (call, outcome) => {
+		if (outcome.ok) {
+			log.info(
+				events.signedIn({
+					...userFields(call, outcome.value),
+					'janus.signIn.secondFactor': true,
+				}),
+			);
 		} else {
 			log.warn(events.signInRefused(refusalFields(call, outcome.refusal)));
 		}
+	},
+	'secondFactor.enroll': (call, outcome) => {
+		if (outcome.ok) log.info(events.secondFactorEnrolled(argumentUser(call)));
+	},
+	'secondFactor.activate': (call, outcome) => {
+		if (outcome.ok) log.info(events.secondFactorActivated(argumentUser(call)));
+	},
+	'secondFactor.disable': (call, outcome) => {
+		if (outcome.ok) log.info(events.secondFactorDisabled(argumentUser(call)));
 	},
 	signOut: (_call, outcome) => {
 		if (outcome.ok && outcome.value === true) log.info(events.signedOut());
@@ -111,14 +143,28 @@ function argumentUser(call: Call): Fields {
 	});
 }
 
-/** Why a sign-in was refused: the code, the reason, and the user when one holds the login. */
+/**
+ * Why a sign-in was refused: the code, the reason, the user when one holds
+ * the login, and what a challenge has left of its attempts.
+ */
 function refusalFields(call: Call, refusal: JanusError): Fields {
 	return fieldsOf({
 		'janus.user.type': refusal.userType ?? call.userType,
 		'janus.refusal': refusal.code,
 		'janus.refusal.reason': refusal.reason,
+		'janus.secondFactor.attemptsLeft': refusal.attemptsLeft,
 		'user.id': refusal.userId,
 	});
+}
+
+/** `signIn`'s `status`, when the answer has one. */
+function statusOf(value: unknown): string | undefined {
+	return typeof value === 'object' &&
+		value !== null &&
+		'status' in value &&
+		typeof value.status === 'string'
+		? value.status
+		: undefined;
 }
 
 /** What a span learns from an answer: whose it is, never what it holds. */
@@ -131,6 +177,8 @@ function answered(scope: SpanScope, call: Call, outcome: Outcome): void {
 		if (typeof value === 'object' && value !== null && 'renewed' in value) {
 			scope.attribute('janus.session.renewed', value.renewed === true);
 		}
+		const status = call.flow === 'signIn' ? statusOf(value) : undefined;
+		if (status !== undefined) scope.attribute('janus.signIn.status', status);
 	}
 	WRITTEN[call.flow]?.(call, outcome);
 }
@@ -142,7 +190,8 @@ const UNTRACED = new Set(['cookie']);
  * The same `janus()` instance, with every flow traced — a span per call,
  * named `janus.signIn` or `janus.patient.signIn` — and the events a security
  * review reads written as logs: sign-ups, sign-ins and the reason one was
- * refused, sign-outs, deleted and deactivated users, changed passwords.
+ * refused, a second factor asked for, enrolled, activated or disabled,
+ * sign-outs, deleted and deactivated users, changed passwords.
  *
  * ```ts
  * const auth = instrumentJanus(janus({ users, store, hasher }));
@@ -152,8 +201,9 @@ const UNTRACED = new Set(['cookie']);
  * `janus.refusal` set, and is a `janus.signIn.refused` warning — never a
  * failed span. A store that cannot answer is one, with `janus.store.slot`.
  *
- * Nothing written carries a login, an e-mail, a password, a token or a
- * session id: user types, user ids, codes and reasons only.
+ * Nothing written carries a login, an e-mail, a password, a token, a
+ * challenge, a code, a TOTP secret or a session id: user types, user ids,
+ * codes and reasons only.
  */
 export function instrumentJanus<A extends JanusLike>(auth: A): A {
 	const types = auth.types.filter((type) => typeof type === 'string');

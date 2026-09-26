@@ -19,10 +19,14 @@ function failing(
 	};
 }
 
-/** The two files allowed a `catch`: the shared guard, and outage.ts. */
+/**
+ * The files allowed a `catch`: the shared guard, outage.ts, and sealing.ts —
+ * whose one catch wraps a decipher, never a store, and throws.
+ */
 const GUARD = join(import.meta.dir, '..', 'stores', 'guard.ts');
 const OUTAGE = join(import.meta.dir, 'outage.ts');
-const ALLOWED = new Set([GUARD, OUTAGE]);
+const SEALING = join(import.meta.dir, 'sealing.ts');
+const ALLOWED = new Set([GUARD, OUTAGE, SEALING]);
 
 /** The body of every `catch` in a file, comments out, whitespace collapsed. */
 async function catchBodies(path: string): Promise<string[]> {

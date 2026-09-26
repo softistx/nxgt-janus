@@ -4,6 +4,7 @@ import {
 	type JanusErrorCode,
 	NotFoundError,
 	StoreFailure,
+	TokenError,
 	UserInvalidError,
 } from '@nxgt/janus';
 import { Hono } from 'hono';
@@ -165,6 +166,9 @@ describe('statusOf()', () => {
 			'TOKEN_SPENT',
 			'TOKEN_EXPIRED',
 			'TOKEN_STALE',
+			'CODE_INVALID',
+			'SECOND_FACTOR_NOT_ENROLLED',
+			'SECOND_FACTOR_ACTIVE',
 			'INVALID_CURSOR',
 			'UNSUPPORTED',
 			'PERMISSION_DEPTH',
@@ -178,5 +182,17 @@ describe('statusOf()', () => {
 
 	it('keeps a body to its code for every other refusal', () => {
 		expect(bodyOf(new NotFoundError('gone'))).toEqual({ code: 'NOT_FOUND' });
+	});
+
+	it('answers a wrong code 401, with the attempts its challenge has left', () => {
+		const wrong = new TokenError('CODE_INVALID', 'no match', {
+			attemptsLeft: 2,
+			userId: 'u1',
+		});
+		expect(statusOf(wrong.code)).toBe(401);
+		expect(bodyOf(wrong)).toEqual({ code: 'CODE_INVALID', attemptsLeft: 2 });
+		expect(bodyOf(new TokenError('CODE_INVALID', 'no match'))).toEqual({
+			code: 'CODE_INVALID',
+		});
 	});
 });

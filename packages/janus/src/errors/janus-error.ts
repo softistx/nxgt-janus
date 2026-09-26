@@ -94,6 +94,20 @@ export type JanusErrorCode =
 	 * would verify an address nobody holds any more, so it is spent and refused.
 	 */
 	| 'TOKEN_STALE'
+	/**
+	 * A one-time code that does not match: a wrong TOTP code, or one already
+	 * used. Carries `attemptsLeft` when the code was checked against a
+	 * challenge: what is left of its attempts, and `0` once the last one spent
+	 * it.
+	 */
+	| 'CODE_INVALID'
+	/** `activate` before `enroll`: the user has no second factor waiting. */
+	| 'SECOND_FACTOR_NOT_ENROLLED'
+	/**
+	 * `enroll` or `activate` on a user whose second factor is already active.
+	 * `disable` it first: enrolling again must not quietly switch it off.
+	 */
+	| 'SECOND_FACTOR_ACTIVE'
 	/** A cursor this store did not mint, or one written for another ordering.
 	 * Never a silent first page: a caller paging a list would loop for ever. */
 	| 'INVALID_CURSOR'
@@ -157,6 +171,8 @@ export interface JanusErrorOptions {
 	readonly permission?: string;
 	/** The depth a check may walk. */
 	readonly maxDepth?: number;
+	/** What is left of a challenge's attempts after a code that did not match. */
+	readonly attemptsLeft?: number;
 	readonly cause?: unknown;
 }
 
@@ -192,6 +208,7 @@ export class JanusError extends Error {
 	readonly slot: 'users' | 'sessions' | 'tokens' | 'relations' | undefined;
 	readonly permission: string | undefined;
 	readonly maxDepth: number | undefined;
+	readonly attemptsLeft: number | undefined;
 
 	constructor(message: string, options?: JanusErrorOptions) {
 		super(message, { cause: options?.cause });
@@ -208,6 +225,7 @@ export class JanusError extends Error {
 		this.slot = options?.slot;
 		this.permission = options?.permission;
 		this.maxDepth = options?.maxDepth;
+		this.attemptsLeft = options?.attemptsLeft;
 	}
 }
 
@@ -283,7 +301,10 @@ export class UserInactiveError extends JanusError {
 	override readonly code = 'USER_INACTIVE' as const;
 }
 
-/** A one-time token that is unknown, already spent, lapsed, or sent to an e-mail the user no longer has. */
+/**
+ * A one-time token that is unknown, already spent, lapsed, or sent to an
+ * e-mail the user no longer has — or a one-time code that does not match.
+ */
 export class TokenError extends JanusError {
 	override name = 'TokenError';
 	override readonly code: JanusErrorCode;
@@ -291,7 +312,29 @@ export class TokenError extends JanusError {
 	constructor(
 		code: Extract<
 			JanusErrorCode,
-			'TOKEN_UNKNOWN' | 'TOKEN_SPENT' | 'TOKEN_EXPIRED' | 'TOKEN_STALE'
+			| 'TOKEN_UNKNOWN'
+			| 'TOKEN_SPENT'
+			| 'TOKEN_EXPIRED'
+			| 'TOKEN_STALE'
+			| 'CODE_INVALID'
+		>,
+		message: string,
+		options?: JanusErrorOptions,
+	) {
+		super(message, options);
+		this.code = code;
+	}
+}
+
+/** A second factor asked to change from a state it is not in. */
+export class SecondFactorError extends JanusError {
+	override name = 'SecondFactorError';
+	override readonly code: JanusErrorCode;
+
+	constructor(
+		code: Extract<
+			JanusErrorCode,
+			'SECOND_FACTOR_NOT_ENROLLED' | 'SECOND_FACTOR_ACTIVE'
 		>,
 		message: string,
 		options?: JanusErrorOptions,

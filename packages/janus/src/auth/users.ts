@@ -25,12 +25,15 @@ import {
 	writeUser,
 } from './context';
 import type { TokenKind, TokenRecord, UserRecord } from './port/types';
+import { secondFactorFlows } from './second-factor';
 import { hashSecret, mintSecret } from './secrets';
 import { openSession } from './sessions';
 import type {
 	IssuedToken,
 	PasswordApi,
 	ResetPasswordApi,
+	SecondFactorApi,
+	SignInResult,
 	UserTypeApi,
 	VerifyEmailApi,
 } from './types';
@@ -39,7 +42,8 @@ type Input = Record<string, unknown>;
 
 /** Everything one user type answers. Which flows it has is decided by its types; all are built. */
 export type AnyTypeApi = UserTypeApi<AnyUser, Input> &
-	PasswordApi<AnyUser, Input, string> &
+	PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> &
+	SecondFactorApi<AnyUser> &
 	VerifyEmailApi<AnyUser> &
 	ResetPasswordApi<AnyUser>;
 
@@ -47,6 +51,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 	const { store, clock } = context;
 	const at = (operation: string) =>
 		context.config.single ? operation : `${type.name}.${operation}`;
+	const secondFactor = secondFactorFlows(context, type, at);
 
 	/**
 	 * The user holding this normalised login, or `null`. A login no store can
@@ -333,11 +338,11 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				});
 			}
 
-			return openSession(
-				context,
-				type,
-				await rehashed(context, record, String(password)),
-			);
+			const signedIn = await rehashed(context, record, String(password));
+			// The password alone opens nothing for a user with an active factor.
+			return secondFactor.required(signedIn)
+				? secondFactor.challenge(signedIn, where)
+				: openSession(context, type, signedIn);
 		},
 
 		async findByLogin(login) {
@@ -398,6 +403,8 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				),
 			);
 		},
+
+		secondFactor: secondFactor.api,
 
 		verifyEmail: {
 			async send(user) {
