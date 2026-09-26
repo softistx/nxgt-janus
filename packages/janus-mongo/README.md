@@ -93,6 +93,8 @@ spend the same one.
   the driver's default:
 
   ```ts
+  import { MongoClient } from 'mongodb';
+
   const client = new MongoClient(url); // readPreference 'primary' by default
   const adapter = createMongoAdapter(client.db('app'));
   ```

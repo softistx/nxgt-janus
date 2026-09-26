@@ -103,7 +103,8 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   carries `userId`, for logs and rate limits. For adapters:
   `TokenStore.spendUserTokens(userId, kind, at, except?)`, with four new conformance
   cases, implemented in `@nxgt/janus-drizzle`, `@nxgt/janus-mongo` and
-  `@nxgt/janus-redis`.
+  `@nxgt/janus-redis` — and the port now says a read sees every write that
+  completed before it: never a secondary or a read replica.
 - **Sign in with a code sent by e-mail, v0.6.0** —
   `auth.<type>.signInCode.request(email)` answers a six-digit code to send
   and a challenge to keep with the visitor, or `null` for nobody — never
