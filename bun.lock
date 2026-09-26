@@ -156,6 +156,19 @@
         "typescript": "^6.0.3",
       },
     },
+    "packages/janus-webhooks": {
+      "name": "@nxgt/janus-webhooks",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@nxgt/janus": "workspace:^",
+        "@types/bun": "^1.4.2",
+        "zod": "^4.6.5",
+      },
+      "peerDependencies": {
+        "@nxgt/janus": "workspace:^",
+        "typescript": "^6.0.3",
+      },
+    },
   },
   "overrides": {
     "typescript": "~6.0.3",
@@ -302,6 +315,8 @@
     "@nxgt/janus-redis": ["@nxgt/janus-redis@workspace:packages/janus-redis"],
 
     "@nxgt/janus-telemetry": ["@nxgt/janus-telemetry@workspace:packages/janus-telemetry"],
+
+    "@nxgt/janus-webhooks": ["@nxgt/janus-webhooks@workspace:packages/janus-webhooks"],
 
     "@nxgt/mongo": ["@nxgt/mongo@0.17.1", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-mkG+G9ebZImja9qJgywhyzonSHDYXH7eAEGt2y6hEj29qnw++Z7U38LI3cH4mdXqZpxi6VO06AG2BpsOm7tfNA=="],
 

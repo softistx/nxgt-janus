@@ -5,7 +5,13 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **Webhooks** — in a package of its own, `@nxgt/janus-webhooks`: the user
+  events `janus({ events })` already hands over, signed and sent over HTTP,
+  so another service can follow without polling. A signature it can check —
+  the Standard Webhooks headers, HMAC-SHA256, secrets that rotate — retries
+  with backoff on failure, and retries that run out reported to a function
+  you give, never dropped in silence. The payload carries the event: the user
+  named by id, every key camelCase.
 
 ## Next
 
@@ -36,13 +42,6 @@ Nothing between releases.
   catalogue, or replace any one template with your own function of the same
   shape — built with the same toolkit, React Email or a plain string — and
   keep the defaults for the rest.
-- **Webhooks** — in a package of its own, `@nxgt/janus-webhooks`: the user
-  events `janus({ events })` already hands over, signed and sent over HTTP,
-  so another service can follow without polling. A signature it can check —
-  the Standard Webhooks headers, HMAC-SHA256, secrets that rotate — retries
-  with backoff on failure, and retries that run out reported to a function
-  you give, never dropped in silence. The payload is the event: the user
-  named by id, every key camelCase.
 
 ## Later
 
