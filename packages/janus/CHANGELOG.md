@@ -1,5 +1,16 @@
 # @nxgt/janus
 
+## 0.8.0
+
+### Minor Changes
+
+- [#68](https://github.com/softistx/nxgt-janus/pull/68) [`206c2f0`](https://github.com/softistx/nxgt-janus/commit/206c2f0a2c496b964199a9f3cce5fb9d379cb1a2) Thanks [@SteveGT96](https://github.com/SteveGT96)! - User events: `janus({ events })` hears what happened to a user once it is written.
+  
+  - `events` is one function, called with a `UserEvent` of type `user.created` (`create`, `signUp`), `user.emailVerified` (`verifyEmail.confirm`, and the link of `resetPassword.confirm` or the code of `signInCode.confirm`, never for an e-mail already verified), `user.passwordReset` (`resetPassword.confirm`) or `user.deleted` (`delete`, once).
+  - An event names the user by id alone: `{ id, type, occurredAt, userId, userType }`. Its `id` is a UUIDv7 minted for it, which is the key to deliver it once. It carries no login, no e-mail, no field and no secret.
+  - The listener runs after the write has landed — `signUp` before it opens the session, `signInCode.confirm` before it opens the session or the second-factor challenge; `resetPassword.confirm` after it revokes the old sessions, and `delete` after it removes the sessions, tokens and tuples, sending the event even when a store outage interrupts those — and is awaited before the flow answers, so a durable queue has the event by then. `occurredAt` is the write's own time. A listener that throws fails no flow: the write happened. The failure is a `JANUS_EVENT_FAILED` warning that names the event type, its id and the user id, never the failure's message.
+  - `webhooks({ … })` from the coming `@nxgt/janus-webhooks` will sign and deliver the events; any function will do meanwhile.
+
 ## 0.7.0
 
 ### Minor Changes
