@@ -23,18 +23,23 @@ dates here, and the version something shipped in is the only number.
   to sign in without a password, or to confirm a sensitive action, issued
   and redeemed by `janus` like the verification and reset tokens today; and
   TOTP, the one-time codes of an authenticator app, as a second factor.
-- **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`: a
-  `Mailer` port you plug your transport into (SMTP, Resend, SES…) — a
-  transport that fails throws, like a store — and default templates for
-  verification, password reset and one-time codes. The templates are built
-  with Maizzle and Tailwind CSS 4 when the package is built — CSS inlined for
-  mail clients — and ship as typed functions:
-  `templates.verifyEmail({ link })` answers `{ subject, html, text }`, every
-  value escaped, a missing or misspelled variable a compile error. No template
-  engine at run time. The defaults are a starting point, not a requirement:
-  replace any one template with your own function of the same shape — built
-  with your own Maizzle project, React Email or a plain string — and keep the
-  defaults for the rest.
+- **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`, built
+  on a general mail toolkit shared with applications that are not about
+  sign-in: a `Mailer` port you plug your transport into (SMTP, Resend, SES…) —
+  a transport that fails throws, like a store — and default templates for
+  verification, password reset and one-time codes, in English and French. One
+  template per e-mail, never one HTML file per language: the layout is built
+  once with Maizzle and Tailwind CSS 4 — CSS inlined for mail clients — and
+  its text lives in ICU message catalogues, one per language, plurals and
+  dates included. Both are compiled when the package is built into typed
+  functions: `templates.verifyEmail({ locale: 'fr', link })` answers
+  `{ subject, html, text }`, every value escaped, a missing variable or an
+  unknown locale a compile error, a message that fails to format a throw —
+  never an e-mail sent with `{link}` in it. No template engine at run time.
+  The defaults are a starting point, not a requirement: add a language with a
+  catalogue, or replace any one template with your own function of the same
+  shape — built with the same tool, React Email or a plain string — and keep
+  the defaults for the rest.
 - **Webhooks** — signed HTTP events when something happens to a user
   (created, e-mail verified, password reset, deleted), so another service can
   follow without polling: a signature it can check, retries on failure, and
