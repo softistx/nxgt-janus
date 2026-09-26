@@ -77,11 +77,15 @@ new Hono().post(
 	session(auth, { type: 'patient', required: true }),
 	provide({ access }),
 	async (c) => {
-		await c.var.access.grant({ type: 'record', id: 'r2' }, 'owner', c.var.user);
+		await c.var.access.grant(
+			{ type: 'record', id: 'r2' },
+			'owners',
+			c.var.user,
+		);
 		const record = { type: 'record', id: 'r2' } as const;
 		// 14. A relation read from a field: nothing to grant.
-		// @ts-expect-error — `doctor` is a fromField.
-		await c.var.access.grant(record, 'doctor', c.var.user);
+		// @ts-expect-error — `doctors` is a fromField.
+		await c.var.access.grant(record, 'doctors', c.var.user);
 		// 15. An instance that was not provided.
 		// @ts-expect-error — only `access` was given to provide().
 		c.var.auth;
@@ -95,14 +99,14 @@ const folders = permissions({
 		subjects: auth.types,
 		types: {
 			folder: {
-				relations: { owner: ['patient'] },
-				permissions: {
-					open: [when('owner', (ctx: { unlocked: boolean }) => ctx.unlocked)],
+				related: { owners: ['patient'] },
+				permits: {
+					open: [when('owners', (ctx: { unlocked: boolean }) => ctx.unlocked)],
 				},
 			},
 			record: {
-				relations: { parent: ['folder'] },
-				permissions: { view: ['parent->open'] },
+				related: { parents: ['folder'] },
+				permits: { view: ['parents->open'] },
 			},
 		},
 	}),

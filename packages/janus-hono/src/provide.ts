@@ -9,7 +9,7 @@ export interface Instances {
 /**
  * The middleware that puts the instances on the context — `c.var.auth`, and
  * `c.var.access` — so a route writes users and tuples through them rather
- * than through a module import: `c.var.access.grant(record, 'owner', user)`.
+ * than through a module import: `c.var.access.grant(record, 'owners', user)`.
  *
  * Only what is passed is set, and typed.
  */

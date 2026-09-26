@@ -82,7 +82,7 @@ query away. Refused sign-ins are **warnings**; everything else is info:
 given what:
 
 ```
-janus.tuple.granted   janus.object.type=record  janus.object.id=r1  janus.relation=owner  janus.subject.type=patient  janus.subject.id=u1
+janus.tuple.granted   janus.object.type=record  janus.object.id=r1  janus.relation=owners  janus.subject.type=patient  janus.subject.id=u1
 ```
 
 ## What is never written

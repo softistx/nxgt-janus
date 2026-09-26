@@ -52,8 +52,8 @@ describe('connectKit() over MongoDB', () => {
 							subjects: auth.types,
 							types: {
 								document: {
-									relations: { owner: ['user'] },
-									permissions: { view: ['owner'] },
+									related: { owners: ['user'] },
+									permits: { view: ['owners'] },
 								},
 							},
 						}),
@@ -66,7 +66,7 @@ describe('connectKit() over MongoDB', () => {
 			password: 'correct horse',
 		});
 		const document = { type: 'document', id: 'd1' } as const;
-		await kit.access.grant(document, 'owner', ada);
+		await kit.access.grant(document, 'owners', ada);
 		expect(await kit.access.can(ada, 'view', document)).toBe(true);
 		const request = new Request('https://x.test', {
 			headers: { authorization: `Bearer ${token}` },

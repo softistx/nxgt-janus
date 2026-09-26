@@ -92,12 +92,12 @@ const app = new Hono()
 	)
 	.post('/records', session(auth, { type: 'patient', required: true }), async (c) => {
 		const record = await records.create(await c.req.json());
-		await c.var.access.grant({ type: 'record', id: record.id }, 'owner', c.var.user);
+		await c.var.access.grant({ type: 'record', id: record.id }, 'owners', c.var.user);
 		return c.json(record, 201);
 	});
 ```
 
-The model — `owner`, a `doctor` read from the record, `edit` under a condition
+The model — `owners`, `doctors` read from the record, `edit` under a condition
 — and `recordOf` are those of the [guarded routes guide](docs/guide/permissions.md). The
 permission, the object type, the fields a `fromField` reads and the `ctx`
 of a condition are typed from the model, as they are for `can()`.

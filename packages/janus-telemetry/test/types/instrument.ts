@@ -39,7 +39,7 @@ const access = instrumentPermissions(
 	permissions({
 		model: defineModel({
 			subjects: auth.types,
-			types: { record: { relations: { owner: ['patient'] } } },
+			types: { record: { related: { owners: ['patient'] } } },
 		}),
 		store: createMemoryRelations(),
 	}),
@@ -49,7 +49,7 @@ async function questions() {
 	const patient = { type: 'patient', id: 'u1' } as const;
 	// @ts-expect-error 3. a permission record does not declare
 	await access.can(patient, 'view', { type: 'record', id: 'r1' });
-	return access.can(patient, 'owner', { type: 'record', id: 'r1' });
+	return access.can(patient, 'owners', { type: 'record', id: 'r1' });
 }
 
 // @ts-expect-error 4. only a janus() instance can be instrumented as one

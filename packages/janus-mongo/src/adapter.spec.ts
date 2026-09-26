@@ -29,7 +29,7 @@ describe('createMongoAdapter()', () => {
 		const access = permissions({
 			model: defineModel({
 				subjects: auth.types,
-				types: { note: { relations: { owner: ['user'] } } },
+				types: { note: { related: { owners: ['user'] } } },
 			}),
 			store: mongo.relations,
 		});
@@ -38,13 +38,13 @@ describe('createMongoAdapter()', () => {
 			password: 'correct horse',
 		});
 		const note = { type: 'note', id: 'n1' } as const;
-		await access.grant(note, 'owner', user);
-		expect(await access.can(user, 'owner', note)).toBe(true);
+		await access.grant(note, 'owners', user);
+		expect(await access.can(user, 'owners', note)).toBe(true);
 
 		expect(await auth.delete(user)).toBe(true);
 
 		// The tuple went with the user: the relation store was wired into janus().
-		expect(await access.can(user, 'owner', note)).toBe(false);
+		expect(await access.can(user, 'owners', note)).toBe(false);
 		await db.dropDatabase();
 	});
 });

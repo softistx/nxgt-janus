@@ -56,15 +56,3 @@ export type {
 	RelationChanges,
 	RelationStore,
 } from './port/types';
-export type {
-	ArrowRef,
-	NameOfRef,
-	Normalized,
-	PermissionRef,
-	Ref,
-	RelationRef,
-	RuleParam,
-	RuleRef,
-	RulesOf,
-	RulesOnly,
-} from './rules';

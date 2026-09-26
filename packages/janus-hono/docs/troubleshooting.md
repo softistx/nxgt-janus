@@ -124,7 +124,7 @@ Also: `Property 'doctorId' is missing in type '{ id: string; }'`.
 reads — `doctorId` for `fromField('doctorId', 'staff')`.
 
 **Why:** `can()` reads that relation from the object. At run time a missing
-field is a `TypeError` — `can: record.doctor reads doctorId, which the object
+field is a `TypeError` — `can: record.doctors reads doctorId, which the object
 does not carry …` — never a denial, so the type refuses it first.
 
 **Fix:** load the field — `null` when it holds nobody.
@@ -159,8 +159,8 @@ model, so the one check covers it.
 
 ```ts
 record: {
-	relations: { owner: ['patient'], folder: ['folder'] },
-	permissions: { view: ['owner', 'folder->view'] },
+	related: { owners: ['patient'], folders: ['folder'] },
+	permits: { view: ['owners', 'folders->view'] },
 },
 ```
 

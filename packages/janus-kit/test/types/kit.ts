@@ -44,8 +44,8 @@ export const kit = await connectKit(
 					subjects: auth.types,
 					types: {
 						record: {
-							relations: { doctor: ['staff'], patient: ['patient'] },
-							permissions: { view: ['doctor', 'patient'] },
+							related: { doctors: ['staff'], patients: ['patient'] },
+							permits: { view: ['doctors', 'patients'] },
 						},
 					},
 				}),

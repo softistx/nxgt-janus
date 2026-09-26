@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Thirty-nine plausible mistakes, thirty-nine refused**, each verified to fail for
+ * **Forty-one plausible mistakes, forty-one refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -31,19 +31,19 @@ const clinic = defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { member: ['staff', 'team#member'], lead: ['staff'] },
-			permissions: { manage: ['lead'], view: ['member', 'manage'] },
+			related: { members: ['staff', 'team#members'], leads: ['staff'] },
+			permits: { manage: ['leads'], view: ['members', 'manage'] },
 		},
 		record: {
-			relations: {
-				patient: fromField('patientId', 'patient'),
-				doctor: fromField('doctorId', 'staff'),
-				team: ['team'],
-				viewer: ['staff', 'team#member'],
+			related: {
+				patients: fromField('patientId', 'patient'),
+				doctors: fromField('doctorId', 'staff'),
+				teams: ['team'],
+				viewers: ['staff', 'team#members'],
 			},
-			permissions: {
-				view: ['patient', 'doctor', 'viewer', 'team->view', 'edit'],
-				edit: [when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)],
+			permits: {
+				view: ['patients', 'doctors', 'viewers', 'teams->view', 'edit'],
+				edit: [when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)],
 			},
 		},
 	},
@@ -64,7 +64,7 @@ defineModel({
 	subjects,
 	types: {
 		// @ts-expect-error 1. "staf" is not a subject type
-		team: { relations: { member: ['staf'] } },
+		team: { related: { members: ['staf'] } },
 	},
 });
 
@@ -72,7 +72,7 @@ defineModel({
 	subjects,
 	types: {
 		// @ts-expect-error 2. a subject set naming a relation team does not have
-		team: { relations: { member: ['team#membre'] } },
+		team: { related: { members: ['team#membre'] } },
 	},
 });
 
@@ -81,7 +81,7 @@ defineModel({
 	types: {
 		record: {
 			// @ts-expect-error 3. fromField naming "doctr", not a subject type
-			relations: { doctor: fromField('doctorId', 'doctr') },
+			related: { doctors: fromField('doctorId', 'doctr') },
 		},
 	},
 });
@@ -90,9 +90,9 @@ defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { lead: ['staff'] },
+			related: { leads: ['staff'] },
 			// @ts-expect-error 4. a rule naming no relation or permission
-			permissions: { manage: ['leed'] },
+			permits: { manage: ['leed'] },
 		},
 	},
 });
@@ -101,9 +101,9 @@ defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { lead: ['staff'] },
+			related: { leads: ['staff'] },
 			// @ts-expect-error 5. a condition on a rule naming nothing
-			permissions: { manage: [when('leed', () => true)] },
+			permits: { manage: [when('leed', () => true)] },
 		},
 	},
 });
@@ -111,11 +111,11 @@ defineModel({
 defineModel({
 	subjects,
 	types: {
-		team: { relations: { lead: ['staff'] } },
+		team: { related: { leads: ['staff'] } },
 		record: {
-			relations: { team: ['team'] },
+			related: { teams: ['team'] },
 			// @ts-expect-error 6. an arrow to "view", which team does not declare
-			permissions: { view: ['team->view'] },
+			permits: { view: ['teams->view'] },
 		},
 	},
 });
@@ -124,9 +124,9 @@ defineModel({
 	subjects,
 	types: {
 		record: {
-			relations: { doctor: ['staff'] },
+			related: { doctors: ['staff'] },
 			// @ts-expect-error 7. an arrow through a relation holding users, who have no permissions
-			permissions: { view: ['doctor->view'] },
+			permits: { view: ['doctors->view'] },
 		},
 	},
 });
@@ -135,9 +135,9 @@ defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { lead: ['staff'] },
-			// @ts-expect-error 8. "lead" names a relation and a permission
-			permissions: { lead: ['lead'] },
+			related: { leads: ['staff'] },
+			// @ts-expect-error 8. "leads" names a relation and a permission
+			permits: { leads: ['leads'] },
 		},
 	},
 });
@@ -153,7 +153,7 @@ can(staff, 'manage', record);
 can(
 	staff,
 	'view',
-	// @ts-expect-error 11. a record without doctorId: the doctor relation could never hold
+	// @ts-expect-error 11. a record without doctorId: the doctors relation could never hold
 	{ type: 'record', id: 'r1', patientId: 'p1' },
 	{ ctx: { onShift: true } },
 );
@@ -177,46 +177,46 @@ can(staff, 'view', { type: 'ward', id: 'w' });
 
 const access = permissions({ model: clinic, store: createMemoryRelations() });
 
-// @ts-expect-error 17. doctor is read from doctorId: there is no tuple to write
-access.grant(record, 'doctor', staff);
+// @ts-expect-error 17. doctors is read from doctorId: there is no tuple to write
+access.grant(record, 'doctors', staff);
 
-// @ts-expect-error 18. team.lead is held by staff, not by patients
-access.grant({ type: 'team', id: 't' }, 'lead', { type: 'patient', id: 'p' });
+// @ts-expect-error 18. team.leads is held by staff, not by patients
+access.grant({ type: 'team', id: 't' }, 'leads', { type: 'patient', id: 'p' });
 
-access.grant(record, 'viewer', {
+access.grant(record, 'viewers', {
 	type: 'team',
 	id: 't',
-	// @ts-expect-error 19. record.viewer admits team#member, not team#lead
-	relation: 'lead',
+	// @ts-expect-error 19. record.viewers admits team#members, not team#leads
+	relation: 'leads',
 });
 
 defineModel({
 	subjects,
 	types: {
-		team: { relations: { lead: fromField('leadId', 'staff') } },
+		team: { related: { leads: fromField('leadId', 'staff') } },
 		// @ts-expect-error 20. a subject set on a relation read from a field: no data to read it from
-		record: { relations: { viewer: ['team#lead'] } },
+		record: { related: { viewers: ['team#leads'] } },
 	},
 });
 
 // ─── Listing ──────────────────────────────────────────────────────────────
 
-// @ts-expect-error 21. view reaches record.doctor, a fromField with no lookup: nothing finds those records
+// @ts-expect-error 21. view reaches record.doctors, a fromField with no lookup: nothing finds those records
 access.list(staff, 'view', 'record', { ctx: { onShift: true } });
 
 // @ts-expect-error 22. a relation read from a field, listed directly, without its lookup
-access.list(staff, 'patient', 'record');
+access.list(staff, 'patients', 'record');
 
 const ward = permissions({
 	model: defineModel({
 		subjects,
 		types: {
 			bed: {
-				relations: {
-					nurse: fromField('nurseId', 'staff', { lookup: async () => [] }),
+				related: {
+					nurses: fromField('nurseId', 'staff', { lookup: async () => [] }),
 				},
-				permissions: {
-					use: [when('nurse', (ctx: { onShift: boolean }) => ctx.onShift)],
+				permits: {
+					use: [when('nurses', (ctx: { onShift: boolean }) => ctx.onShift)],
 				},
 			},
 		},
@@ -258,22 +258,22 @@ async function allowed() {
 		await can(null, 'manage', { type: 'team', id: 't' }),
 		await can(staff, 'edit', record, { ctx: { onShift: false } }),
 		// A relation can be asked directly, and a fromField holding nobody is null.
-		await can(staff, 'doctor', record),
+		await can(staff, 'doctors', record),
 		// An object can be a subject: a team, member of another team.
-		await can({ type: 'team', id: 't' }, 'member', { type: 'team', id: 't2' }),
+		await can({ type: 'team', id: 't' }, 'members', { type: 'team', id: 't2' }),
 		// A user is a subject as it is; a subject set is granted by its relation.
-		await access.grant({ type: 'team', id: 't' }, 'member', staff),
-		await access.grant(record, 'viewer', {
+		await access.grant({ type: 'team', id: 't' }, 'members', staff),
+		await access.grant(record, 'viewers', {
 			type: 'team',
 			id: 't',
-			relation: 'member',
+			relation: 'members',
 		}),
 		await access.can(staff, 'view', record, { ctx: { onShift: true } }),
 		// Stored relations and arrows need nothing more to be listed.
 		await access.list(staff, 'view', 'team', { limit: 10 }),
-		await access.list(staff, 'team', 'record', { after: null }),
+		await access.list(staff, 'teams', 'record', { after: null }),
 		// A fromField with a lookup can be listed; its condition still needs ctx.
-		await ward.list(staff, 'nurse', 'bed'),
+		await ward.list(staff, 'nurses', 'bed'),
 		await ward.list(staff, 'use', 'bed', { ctx: { onShift: true }, limit: 5 }),
 	];
 }
@@ -289,7 +289,7 @@ defineModel({
 	subjects: authTypes,
 	types: {
 		// @ts-expect-error 27. "staf" is not a user type of auth.types
-		team: { relations: { m: ['staf'] } },
+		team: { related: { m: ['staf'] } },
 	},
 });
 
@@ -297,7 +297,7 @@ defineModel({
 	subjects: [],
 	types: {
 		// @ts-expect-error 28. with no subjects, "staff" is no subject type
-		team: { relations: { m: ['staff'] } },
+		team: { related: { m: ['staff'] } },
 	},
 });
 
@@ -305,27 +305,27 @@ defineModel({
 	subjects,
 	types: {
 		// @ts-expect-error 29. "ward" is no object type
-		record: { relations: { w: ['ward'] } },
+		record: { related: { w: ['ward'] } },
 	},
 });
 
 defineModel({
 	subjects,
 	types: {
-		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		team: { related: { m: ['staff'] }, permits: { view: ['m'] } },
 		// @ts-expect-error 30. a subject set names a relation, never a permission
-		record: { relations: { v: ['team#view'] } },
+		record: { related: { v: ['team#view'] } },
 	},
 });
 
 defineModel({
 	subjects,
 	types: {
-		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		team: { related: { m: ['staff'] }, permits: { view: ['m'] } },
 		record: {
-			relations: { t: fromField('teamId', 'team') },
+			related: { t: fromField('teamId', 'team') },
 			// @ts-expect-error 31. an arrow through a fromField to what team lacks
-			permissions: { v: ['t->nope'] },
+			permits: { v: ['t->nope'] },
 		},
 	},
 });
@@ -333,12 +333,12 @@ defineModel({
 defineModel({
 	subjects,
 	types: {
-		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
-		group: { relations: { m: ['staff'] } },
+		team: { related: { m: ['staff'] }, permits: { view: ['m'] } },
+		group: { related: { m: ['staff'] } },
 		record: {
-			relations: { o: ['team', 'group'] },
+			related: { o: ['team', 'group'] },
 			// @ts-expect-error 32. an arrow to a permission group lacks, though team has it
-			permissions: { v: ['o->view'] },
+			permits: { v: ['o->view'] },
 		},
 	},
 });
@@ -346,11 +346,11 @@ defineModel({
 defineModel({
 	subjects,
 	types: {
-		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		team: { related: { m: ['staff'] }, permits: { view: ['m'] } },
 		record: {
-			relations: { t: ['team', 'staff'] },
+			related: { t: ['team', 'staff'] },
 			// @ts-expect-error 33. an arrow through a relation that also holds users
-			permissions: { v: ['t->view'] },
+			permits: { v: ['t->view'] },
 		},
 	},
 });
@@ -358,11 +358,11 @@ defineModel({
 defineModel({
 	subjects,
 	types: {
-		team: { relations: { m: ['staff'] }, permissions: { view: ['m'] } },
+		team: { related: { m: ['staff'] }, permits: { view: ['m'] } },
 		record: {
-			relations: { t: ['team'] },
+			related: { t: ['team'] },
 			// @ts-expect-error 34. when() names an arrow to what team lacks
-			permissions: { v: [when('t->nope', () => true)] },
+			permits: { v: [when('t->nope', () => true)] },
 		},
 	},
 });
@@ -370,8 +370,8 @@ defineModel({
 defineModel({
 	subjects,
 	types: {
-		// @ts-expect-error 35. "lead" names a relation and a permission, even with no rule
-		team: { relations: { lead: ['staff'] }, permissions: { lead: [] } },
+		// @ts-expect-error 35. "leads" names a relation and a permission, even with no rule
+		team: { related: { leads: ['staff'] }, permits: { leads: [] } },
 	},
 });
 
@@ -379,9 +379,9 @@ defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { m: ['staff'] },
+			related: { m: ['staff'] },
 			// @ts-expect-error 37. a permission naming itself adds nothing, and never ends
-			permissions: { view: ['m', 'view'] },
+			permits: { view: ['m', 'view'] },
 		},
 	},
 });
@@ -390,33 +390,51 @@ defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { m: ['staff'] },
+			related: { m: ['staff'] },
 			// @ts-expect-error 38. "permission", singular: a key no object type has
 			permission: { view: ['m'] },
 		},
 	},
 });
 
-const misspelled = {
+defineModel({
 	subjects,
-	types: { team: { relations: { m: ['staf'] } } },
-} as const;
-// @ts-expect-error 36. a model declared first is checked as one written inline
-defineModel(misspelled);
-
-export const checked = { clinic, allowed };
+	types: {
+		team: { related: { m: ['staff'] }, permits: { view: ['m'] } },
+		doc: {
+			related: { teams: ['team', 'team#m'] },
+			// @ts-expect-error 39. no arrow through a relation that can hold a subject set: an arrow follows object types only
+			permits: { view: ['teams->view'] },
+		},
+	},
+});
 
 defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { member: ['staff'] },
-			permissions: { view: ['member'] },
-		},
-		document: {
-			relations: { team: ['team', 'team#member'] },
-			// @ts-expect-error 39. an arrow through a relation that can hold a subject set: defineModel refuses it, so the compiler does first
-			permissions: { view: ['team->view'] },
+			// @ts-expect-error 40. relations, the key before 0.2: it is now related
+			relations: { m: ['staff'] },
 		},
 	},
 });
+
+defineModel({
+	subjects,
+	types: {
+		team: {
+			related: { m: ['staff'] },
+			// @ts-expect-error 41. permissions, the key before 0.2: it is now permits
+			permissions: { view: ['m'] },
+		},
+	},
+});
+
+const misspelled = {
+	subjects,
+	types: { team: { related: { m: ['staf'] } } },
+} as const;
+// @ts-expect-error 36. a model declared first is checked as one written inline
+defineModel(misspelled);
+
+export const checked = { clinic, allowed };

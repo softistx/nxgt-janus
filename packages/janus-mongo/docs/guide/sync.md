@@ -104,7 +104,7 @@ encoded: a document read in a shell reads like the record in the code.
   store mints nothing.
 - **A tuple is unique by construction**, since it is its own `_id`, so writing
   a stored tuple again is a no-op rather than a duplicate. A subject set and
-  its entity (`team:t1#member`, `team:t1`) are two different keys.
+  its entity (`team:t1#members`, `team:t1`) are two different keys.
 - `findObjects` is served by `subjectObjects` with no in-memory sort —
   measured, 11 keys examined for a page of 10.
 - The collection names are fixed: `users`, `sessions`, `tokens`, `relations`.

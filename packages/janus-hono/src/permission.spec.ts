@@ -57,7 +57,7 @@ function app() {
 				records.set(record.id, record);
 				await c.var.access.grant(
 					{ type: 'record', id: record.id },
-					'owner',
+					'owners',
 					c.var.user,
 				);
 				return c.json({ id: record.id }, 201);
@@ -71,7 +71,7 @@ describe('permission()', () => {
 	it('runs the route with the loaded object when the subject holds the permission', async () => {
 		const { auth, access, routes } = app();
 		const { user, token } = await auth.patient.signUp({ ...ada, password });
-		await access.grant({ type: 'record', id: 'r1' }, 'owner', user);
+		await access.grant({ type: 'record', id: 'r1' }, 'owners', user);
 
 		const response = await routes.request('/records/r1', bearer(token));
 		expect(response.status).toBe(200);
@@ -115,7 +115,7 @@ describe('permission()', () => {
 	it("reads a condition's context from the request", async () => {
 		const { auth, access, routes } = app();
 		const { user, token } = await auth.patient.signUp({ ...ada, password });
-		await access.grant({ type: 'record', id: 'r1' }, 'owner', user);
+		await access.grant({ type: 'record', id: 'r1' }, 'owners', user);
 
 		const put = (locked: string) =>
 			routes.request('/records/r1', {
@@ -129,7 +129,7 @@ describe('permission()', () => {
 	it('takes the subject from elsewhere when told to', async () => {
 		const { auth, access, routes } = app();
 		const { user } = await auth.patient.signUp({ ...ada, password });
-		await access.grant({ type: 'record', id: 'r1' }, 'owner', user);
+		await access.grant({ type: 'record', id: 'r1' }, 'owners', user);
 
 		expect((await routes.request(`/as/${user.id}/records/r1`)).status).toBe(
 			200,
@@ -140,7 +140,7 @@ describe('permission()', () => {
 	it('answers an outage 503, never 403', async () => {
 		const { auth, access, routes, outage, loads } = app();
 		const { user } = await auth.patient.signUp({ ...ada, password });
-		await access.grant({ type: 'record', id: 'r1' }, 'owner', user);
+		await access.grant({ type: 'record', id: 'r1' }, 'owners', user);
 		outage.on = true;
 
 		// No session credential: the only store call is the relation store's,
@@ -205,7 +205,7 @@ describe('permission()', () => {
 	it('refuses a second permission() on one route: both would claim c.var.object', async () => {
 		const { auth, access } = app();
 		const { user, token } = await auth.patient.signUp({ ...ada, password });
-		await access.grant({ type: 'record', id: 'r1' }, 'owner', user);
+		await access.grant({ type: 'record', id: 'r1' }, 'owners', user);
 		const record = { id: 'r1', doctorId: null };
 		const twice = new Hono().use(session(auth)).get(
 			'/',

@@ -188,8 +188,8 @@ export function defineJanusTables(options: JanusTablesOptions = {}) {
 	);
 
 	/**
-	 * Permission tuples, one row each: `record:r1#owner@patient:u1`, or
-	 * `…@team:t1#member` for a subject set, whose `subject_relation` an
+	 * Permission tuples, one row each: `record:r1#owners@patient:u1`, or
+	 * `…@team:t1#members` for a subject set, whose `subject_relation` an
 	 * entity's row leaves `null`.
 	 *
 	 * **The uniqueness of a tuple is the unique constraint**, `nulls not

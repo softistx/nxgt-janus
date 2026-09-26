@@ -127,7 +127,7 @@ describe('@nxgt/janus-mongo relations, beyond the port suite', () => {
 		const object = { type: 'record', id: 'r1' };
 		const before = {
 			object,
-			relation: 'owner',
+			relation: 'owners',
 			subject: { type: 'staff', id: 'a' },
 		};
 		const after = { ...before, subject: { type: 'staff', id: 'b' } };

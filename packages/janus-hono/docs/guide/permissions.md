@@ -17,16 +17,16 @@ const model = defineModel({
 	subjects: auth.types, // 'patient', 'staff'
 	types: {
 		record: {
-			relations: {
-				owner: ['patient'],
+			related: {
+				owners: ['patient'],
 				// Read from the record itself; the lookup lets list() find a doctor's records.
-				doctor: fromField('doctorId', 'staff', {
+				doctors: fromField('doctorId', 'staff', {
 					lookup: (staffId) => records.idsByDoctor(staffId),
 				}),
 			},
-			permissions: {
-				view: ['owner', 'doctor'],
-				edit: [when('owner', (ctx: { locked: boolean }) => !ctx.locked)],
+			permits: {
+				view: ['owners', 'doctors'],
+				edit: [when('owners', (ctx: { locked: boolean }) => !ctx.locked)],
 			},
 		},
 	},
@@ -106,7 +106,7 @@ is `null`.
 `permission()` sets `c.var.object`, so a route has one. A second throws a
 `TypeError` at the first request rather than type `c.var.object` as both
 objects at once. A parent — the folder of a record — is checked through an
-arrow in the model: `view: ['owner', 'folder->view']`.
+arrow in the model: `view: ['owners', 'folders->view']`.
 
 ### A condition's context
 
@@ -179,7 +179,7 @@ app.get(
 );
 ```
 
-`list()` reverses every rule of `view`, so `doctor` needs its `lookup`:
+`list()` reverses every rule of `view`, so `doctors` needs its `lookup`:
 without one, this call does not compile. When a user only ever sees what
 names them — a patient's own records — a query filtered on `c.var.user.id`
 is shorter, and needs no `list()`.
@@ -198,7 +198,7 @@ const app = new Hono().use(session(auth), provide({ auth, access }));
 
 app.post('/records', session(auth, { type: 'patient', required: true }), async (c) => {
 	const record = await records.create(await c.req.json());
-	await c.var.access.grant({ type: 'record', id: record.id }, 'owner', c.var.user);
+	await c.var.access.grant({ type: 'record', id: record.id }, 'owners', c.var.user);
 	return c.json(record, 201);
 });
 
@@ -209,14 +209,14 @@ app.delete(
 		ctx: (c, record) => ({ locked: record.locked }),
 	}),
 	async (c) => {
-		await c.var.access.revoke({ type: 'record', id: c.var.object.id }, 'owner', c.var.user);
+		await c.var.access.revoke({ type: 'record', id: c.var.object.id }, 'owners', c.var.user);
 		return c.body(null, 204);
 	},
 );
 ```
 
 `grant` and `revoke` are typed from the model as everywhere: a relation read
-from a field — `doctor` — cannot be granted, and a subject the relation does
+from a field — `doctors` — cannot be granted, and a subject the relation does
 not admit is a compile error. Both are idempotent.
 
 ## See also

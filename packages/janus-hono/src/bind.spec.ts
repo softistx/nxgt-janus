@@ -40,7 +40,7 @@ function app() {
 			if (user?.type !== 'patient') return c.body(null, 401);
 			await c.var.access.grant(
 				{ type: 'record', id: c.req.param('id') },
-				'owner',
+				'owners',
 				user,
 			);
 			return c.body(null, 204);

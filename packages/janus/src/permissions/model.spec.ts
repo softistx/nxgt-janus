@@ -14,17 +14,17 @@ const clinic = () =>
 		subjects,
 		types: {
 			team: {
-				relations: { member: ['staff', 'team#member'], lead: ['staff'] },
-				permissions: { manage: ['lead'], view: ['member', 'manage'] },
+				related: { members: ['staff', 'team#members'], leads: ['staff'] },
+				permits: { manage: ['leads'], view: ['members', 'manage'] },
 			},
 			record: {
-				relations: {
-					doctor: fromField('doctorId', 'staff'),
-					team: ['team'],
+				related: {
+					doctors: fromField('doctorId', 'staff'),
+					teams: ['team'],
 				},
-				permissions: {
-					view: ['doctor', 'team->view', 'edit'],
-					edit: [when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)],
+				permits: {
+					view: ['doctors', 'teams->view', 'edit'],
+					edit: [when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)],
 				},
 			},
 		},
@@ -47,21 +47,21 @@ describe('defineModel', () => {
 		const record = resolvedOf(clinic()).types.get('record');
 		const team = resolvedOf(clinic()).types.get('team');
 
-		expect(team?.relations.get('member')).toEqual({
+		expect(team?.relations.get('members')).toEqual({
 			kind: 'stored',
 			holders: [
 				{ kind: 'type', type: 'staff' },
-				{ kind: 'set', type: 'team', relation: 'member' },
+				{ kind: 'set', type: 'team', relation: 'members' },
 			],
 		});
-		expect(record?.relations.get('doctor')).toEqual({
+		expect(record?.relations.get('doctors')).toEqual({
 			kind: 'fromField',
 			field: 'doctorId',
 			subject: 'staff',
 		});
 		const [doctor, arrow, edit] = record?.permissions.get('view') ?? [];
-		expect(doctor).toEqual({ kind: 'name', name: 'doctor' });
-		expect(arrow).toEqual({ kind: 'arrow', relation: 'team', target: 'view' });
+		expect(doctor).toEqual({ kind: 'name', name: 'doctors' });
+		expect(arrow).toEqual({ kind: 'arrow', relation: 'teams', target: 'view' });
 		expect(edit).toEqual({ kind: 'name', name: 'edit' });
 		const [conditional] = record?.permissions.get('edit') ?? [];
 		expect(conditional?.kind).toBe('name');
@@ -74,8 +74,8 @@ describe('defineModel', () => {
 				subjects,
 				types: {
 					folder: {
-						relations: { parent: ['folder'], owner: ['staff'] },
-						permissions: { view: ['owner', 'parent->view'] },
+						related: { parents: ['folder'], owners: ['staff'] },
+						permits: { view: ['owners', 'parents->view'] },
 					},
 				},
 			}),
@@ -88,7 +88,7 @@ describe('defineModel', () => {
 });
 
 describe('refuses, with a TypeError, what only running it can see', () => {
-	const team = { relations: { lead: ['staff'] } };
+	const team = { related: { leads: ['staff'] } };
 	const cases: [string, () => unknown, string][] = [
 		[
 			'no subjects array',
@@ -110,25 +110,41 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'a relation name with the notation’s separator',
 			define({
 				subjects,
-				types: { team: { relations: { 'a#b': ['staff'] } } },
+				types: { team: { related: { 'a#b': ['staff'] } } },
 			}),
 			'"a#b" must be a camelCase name',
 		],
 		[
 			'an empty relation',
-			define({ subjects, types: { team: { relations: { lead: [] } } } }),
+			define({ subjects, types: { team: { related: { leads: [] } } } }),
 			'non-empty array',
 		],
 		[
 			'a key an object type does not have',
 			define({ subjects, types: { team: { ...team, roles: {} } } }),
-			'types.team.roles is not a key',
+			'types.team.roles is not a key of an object type: related or permits',
+		],
+		[
+			'relations, the key before 0.2',
+			define({
+				subjects,
+				types: { team: { relations: { leads: ['staff'] } } },
+			}),
+			'types.team.relations is now related: rename the key',
+		],
+		[
+			'permissions, the key before 0.2',
+			define({
+				subjects,
+				types: { team: { ...team, permissions: { view: ['leads'] } } },
+			}),
+			'types.team.permissions is now permits: rename the key',
 		],
 		[
 			'a subject set naming an unknown relation',
 			define({
 				subjects,
-				types: { team: { relations: { member: ['team#membre'] } } },
+				types: { team: { related: { members: ['team#membre'] } } },
 			}),
 			'"team#membre" is not a subject set',
 		],
@@ -138,7 +154,7 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				subjects,
 				types: {
 					record: {
-						relations: { doctor: fromField('care.doctorId', 'staff') },
+						related: { doctors: fromField('care.doctorId', 'staff') },
 					},
 				},
 			}),
@@ -150,8 +166,8 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				subjects,
 				types: {
 					record: {
-						relations: {
-							doctor: {
+						related: {
+							doctors: {
 								kind: 'fromField',
 								field: 'doctorId',
 								subject: 'staff',
@@ -167,9 +183,9 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'a relation and a permission with one name',
 			define({
 				subjects,
-				types: { team: { ...team, permissions: { lead: ['lead'] } } },
+				types: { team: { ...team, permits: { leads: ['leads'] } } },
 			}),
-			'"lead" names a relation and a permission',
+			'"leads" names a relation and a permission',
 		],
 		[
 			'an arrow through a subject set',
@@ -177,8 +193,8 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				subjects,
 				types: {
 					team: {
-						relations: { member: ['staff'], sub: ['team#member'] },
-						permissions: { view: ['sub->view', 'member'] },
+						related: { members: ['staff'], subteams: ['team#members'] },
+						permits: { view: ['subteams->view', 'members'] },
 					},
 				},
 			}),
@@ -191,7 +207,7 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				types: {
 					team: {
 						...team,
-						permissions: { manage: [{ kind: 'when', rule: 'lead', test: 1 }] },
+						permits: { manage: [{ kind: 'when', rule: 'leads', test: 1 }] },
 					},
 				},
 			}),
@@ -202,11 +218,11 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			define({
 				subjects,
 				types: {
-					team: { relations: { lead: fromField('leadId', 'staff') } },
-					record: { relations: { viewer: ['team#lead'] } },
+					team: { related: { leads: fromField('leadId', 'staff') } },
+					record: { related: { viewers: ['team#leads'] } },
 				},
 			}),
-			'"team#lead" reads team.leadId, and a subject set reaches teams nobody passed to can()',
+			'"team#leads" reads team.leadId, and a subject set reaches teams nobody passed to can()',
 		],
 		[
 			'an arrow to a permission read from the target’s own fields',
@@ -214,16 +230,16 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				subjects,
 				types: {
 					team: {
-						relations: { lead: fromField('leadId', 'staff') },
-						permissions: { manage: ['lead'] },
+						related: { leads: fromField('leadId', 'staff') },
+						permits: { manage: ['leads'] },
 					},
 					record: {
-						relations: { team: ['team'] },
-						permissions: { view: ['team->manage'] },
+						related: { teams: ['team'] },
+						permits: { view: ['teams->manage'] },
 					},
 				},
 			}),
-			'"team->manage" reaches team.manage, which reads team.leadId',
+			'"teams->manage" reaches team.manage, which reads team.leadId',
 		],
 		[
 			'a loop no relation ends',
@@ -232,7 +248,7 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 				types: {
 					team: {
 						...team,
-						permissions: { view: ['edit'], edit: ['manage'], manage: ['view'] },
+						permits: { view: ['edit'], edit: ['manage'], manage: ['view'] },
 					},
 				},
 			}),
