@@ -5,13 +5,7 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **Webhooks** — in a package of its own, `@nxgt/janus-webhooks`: the user
-  events `janus({ events })` already hands over, signed and sent over HTTP,
-  so another service can follow without polling. A signature it can check —
-  the Standard Webhooks headers, HMAC-SHA256, secrets that rotate — retries
-  with backoff on failure, and retries that run out reported to a function
-  you give, never dropped in silence. The payload carries the event: the user
-  named by id, every key camelCase.
+Nothing between releases.
 
 ## Next
 
@@ -93,6 +87,11 @@ dates here, and the version something shipped in is the only number.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Webhooks, `@nxgt/janus-webhooks` v0.1.0** — a package of its own: the
+  user events `janus({ events })` hands over, signed by the Standard
+  Webhooks specification (HMAC-SHA256, secrets that rotate) and posted to
+  your endpoints, retried with backoff, and reported to `onGivingUp` when
+  given up — never dropped in silence. `verifyWebhook` is the receiving side.
 - **User events, v0.8.0** — `janus({ events })` takes one listener, called
   with `user.created`, `user.emailVerified`, `user.passwordReset` and
   `user.deleted` once the write landed, and awaited before the flow answers.
@@ -161,6 +160,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `defineModel`, with a message naming the new key —
   `types.team.relations is now related: rename the key`. The `permissions()`
   function and `janus({ relations })` keep their names. — v0.2.0
-- **`LOGIN_TAKEN` no longer quotes the login in its message**, in the memory
-  store and in both adapters; `error.login` still names it, and the
-  conformance suite checks it. — v0.2.0

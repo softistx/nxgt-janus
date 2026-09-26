@@ -5,17 +5,7 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **The first release** — `webhooks({ endpoints })`, the listener
-  `janus({ events })` takes: each `@nxgt/janus` user event signed by the
-  Standard Webhooks specification (HMAC-SHA256, `webhook-id`,
-  `webhook-timestamp` and `webhook-signature` headers) and posted to your
-  endpoints, retried with backoff in memory when a request fails. Secrets
-  rotate by listing the new one beside the old, and `mintWebhookSecret()`
-  makes a new `whsec_` secret. A delivery given up — out of retries, or cut
-  short by `close()` — goes to your `onGivingUp`, or is a `JANUS_WEBHOOK_GAVE_UP` warning without one — never
-  dropped in silence. On the receiving side, `verifyWebhook` answers the
-  event a request carries, or `null` when it is not one your secrets signed.
-  Not yet on npm; it will be once reviewed.
+Nothing between releases.
 
 ## Next
 
@@ -43,4 +33,13 @@ are no dates here, and the version something shipped in is the only number.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
-Nothing yet.
+- **The first release, v0.1.0** — `webhooks({ endpoints })`, the listener
+  `janus({ events })` takes: each `@nxgt/janus` user event signed by the
+  Standard Webhooks specification (HMAC-SHA256, `webhook-id`,
+  `webhook-timestamp` and `webhook-signature` headers) and posted to your
+  endpoints, retried with backoff in memory when a request fails. Secrets
+  rotate by listing the new one beside the old, and `mintWebhookSecret()`
+  makes a new `whsec_` secret. A delivery given up — out of retries, or cut
+  short by `close()` — goes to your `onGivingUp`, or is a `JANUS_WEBHOOK_GAVE_UP` warning without one — never
+  dropped in silence. On the receiving side, `verifyWebhook` answers the
+  event a request carries, or `null` when it is not one your secrets signed.
