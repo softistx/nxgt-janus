@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.8.1
+
+### Patch Changes
+
+- [#70](https://github.com/softistx/nxgt-janus/pull/70) [`396f4dc`](https://github.com/softistx/nxgt-janus/commit/396f4dc38dbc76b462da78833784f71b2abbdbd4) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The roadmap moves Webhooks to Now: `@nxgt/janus-webhooks`, the package that signs and delivers user events, is under way.
+
 ## 0.8.0
 
 ### Minor Changes
