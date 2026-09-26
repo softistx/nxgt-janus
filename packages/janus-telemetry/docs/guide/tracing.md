@@ -87,7 +87,7 @@ janus.tuple.granted   janus.object.type=record  janus.object.id=r1  janus.relati
 
 ## What is never written
 
-A login, an e-mail, a password, a token, a session id — nothing a log reader
+A login, an e-mail, a password, a session token, a one-time token, a session id — nothing a log reader
 could sign in with, or use to tell who holds an account. A refused sign-in by
 an unknown login says `janus.refusal.reason: 'unknownLogin'`, not which login
 was tried; only `USER_INACTIVE` names the user, whose password was right.

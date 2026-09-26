@@ -24,8 +24,7 @@ Nothing yet.
 - **An OpenTelemetry SDK** — like `@nxgt/telemetry`, it speaks OTLP through its
   exporters and depends on no `@opentelemetry/*` package.
 - **Writing a login, an e-mail, a password, a session token, a one-time token
-  or a session id** — in any
-  span or event, on any setting.
+  or a session id** — in any span or event, on any setting.
 - **`moduleResolution: "nodenext"`** — like `@nxgt/janus`, the package imports
   without extensions. Use `"moduleResolution": "bundler"`.
 
