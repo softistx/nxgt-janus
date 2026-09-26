@@ -276,7 +276,7 @@ async function resend(event: UserEvent): Promise<void> {
 close(): Promise<void>;
 ```
 
-`close()` cancels the retries still waiting and gives each up as `closed`,
+`close()` cancels the retries still waiting and gives up their deliveries as `closed`,
 waits for the requests in flight — and for the reports of those that fail —
 then resolves. After it, the listener sends nothing: an event it receives is
 given up as `closed`, with `attempts: 0`.

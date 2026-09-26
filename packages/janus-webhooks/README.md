@@ -29,7 +29,7 @@ export const auth = janus({
 });
 
 process.on('SIGTERM', async () => {
-	await listener.close(); // waits for requests in flight, gives up the retries still waiting
+	await listener.close(); // waits for requests in flight, gives up the deliveries waiting for a retry
 	process.exit(0);
 });
 ```
@@ -37,6 +37,9 @@ process.on('SIGTERM', async () => {
 > **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
+
+Not on npm yet: the first release comes once it is reviewed — see
+[the roadmap](docs/roadmap.md).
 
 ```sh
 bun add @nxgt/janus-webhooks @nxgt/janus
@@ -132,7 +135,7 @@ may miss an event. A durable queue is on the [roadmap](docs/roadmap.md);
 until then, build what must not miss one to also read the users now and then.
 
 **Call `close()` on shutdown.** It waits for the requests in flight and gives
-up the retries still waiting, each reported as `closed` — without it they
+up the deliveries waiting for a retry, each reported as `closed` — without it they
 vanish without a word. `process.on('SIGTERM', () => listener.close())`.
 
 **The listener never makes a flow wait.** It starts the first request at once

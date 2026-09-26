@@ -10,7 +10,8 @@ How the messages are shaped:
   print the message.
 - **A `TypeError` is a wiring mistake**: it comes from how the application was
   put together — an endpoint, a secret, a duration — and never from a request.
-  It is thrown when `webhooks()` or `verifyWebhook()` is called, so fix the
+  It is thrown when `webhooks()`, the listener it answers, or `verifyWebhook()`
+  is called, so fix the
   configuration; no handler should answer one.
 - **A delivery that fails is never thrown.** The listener returns at once and
   the flow of `@nxgt/janus` answers as usual; a delivery given up — out of
