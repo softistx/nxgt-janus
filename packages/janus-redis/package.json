@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus-redis",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "The Redis adapter for @nxgt/janus on @nxgt/redis: sessions and one-time tokens, expired by Redis itself",
 	"license": "MIT",
 	"type": "module",
