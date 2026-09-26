@@ -147,7 +147,9 @@ export async function signOut(request: Request): Promise<Response> {
 
 `signOutEverywhere(user, { except })` revokes every standing session of a
 user, but the one named, and answers how many it revoked — "sign out
-everywhere else":
+everywhere else". An `except` that names no session of theirs — an unknown
+id, or anything that is not an id at all — keeps none: every session goes,
+the current one included.
 
 ```ts
 const current = await auth.authenticate(request);
