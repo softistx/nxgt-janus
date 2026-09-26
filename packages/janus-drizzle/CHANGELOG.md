@@ -1,5 +1,12 @@
 # @nxgt/janus-drizzle
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`9c64782`](https://github.com/softistx/nxgt-janus/commit/9c64782611e21e6e62d5cd332b48f982f2cbbc63)]:
+  - @nxgt/janus@0.3.0
+
 ## 0.1.0
 
 ### Minor Changes
