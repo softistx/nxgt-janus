@@ -761,9 +761,9 @@ example to copy.
 
 A relation store has its own suite, `describeRelationStores({ name, harness })`
 — 16 cases: round-trip, a subject whose `relation` is `undefined` read as its
-entity, ids of edge characters kept exactly, absence, idempotent writes, a tuple stored once, one write's removals
-and additions applied together, the one-hop reads, the reverse index in pages,
-`deleteEntity`, and an outage for each of the six methods — a write that
+entity, ids of edge characters kept exactly, absence, idempotent writes, a
+tuple stored once, one write's removals and additions applied together, the
+one-hop reads, the reverse index in pages, `deleteEntity`, and an outage for each of the six methods — a write that
 rejects must have changed nothing. `referenceRelationHarness()` is its
 example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 `runRelationCase` are the runner-less layer.

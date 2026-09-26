@@ -87,6 +87,13 @@ Nothing between releases.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **A permission id no store can keep is held by nobody** — an object or
+  subject id holding a NUL character or a lone surrogate answers `false` from
+  `can()` and an empty page from `list()`, before any store call, and a
+  `fromField` holding one names nobody; `grant()` and `revoke()` refuse it
+  with a `TypeError` rather than `STORE_FAILED` on PostgreSQL alone. The
+  relation store suite holds every adapter to round-tripping every other
+  character in an id. — v0.8.3
 - **Webhooks, `@nxgt/janus-webhooks` v0.1.0** — a package of its own: the
   user events `janus({ events })` hands over, signed by the Standard
   Webhooks specification (HMAC-SHA256, secrets that rotate) and posted to
@@ -153,10 +160,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   fields with `USER_INVALID` on every adapter, rather than `STORE_FAILED` on
   PostgreSQL alone; a login holding one is nobody's. The conformance suite
   holds every adapter to round-tripping every other character. — v0.2.1
-- **The model's keys read `related` and `permits`** — Keto's OPL words: an
-  object type declares `related: { members: ['staff', 'team#members'] }` and
-  `permits: { view: ['members'] }`, and relation names are plural by convention. Breaking:
-  `relations` and `permissions` as keys are refused, by the compiler and by
-  `defineModel`, with a message naming the new key —
-  `types.team.relations is now related: rename the key`. The `permissions()`
-  function and `janus({ relations })` keep their names. — v0.2.0
