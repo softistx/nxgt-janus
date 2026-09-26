@@ -39,7 +39,7 @@ How the messages are shaped:
 - [`janus: secondFactor.issuer must name your application …`](#janus-secondfactorissuer-must-name-your-application--the-authenticator-app-shows-it-beside-the-account)
 - [`janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 …`](#janus-secondfactorkeys-the-key-id-is-not-32-bytes-in-base64--make-one-with-openssl-rand--base64-32)
 - [`"hasSecondFactor" is a field janus sets itself; rename it`](#hassecondfactor-is-a-field-janus-sets-itself-rename-it)
-- [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks--from-nxgtjanus-webhooks-or-your-own)
+- [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
 - [Other `janus:` wiring messages](#other-janus-wiring-messages)
 
 **Users, sessions and tokens**
@@ -367,7 +367,7 @@ janus({
 
 ### `janus: events must be a function that takes a user event — webhooks({ … }) from @nxgt/janus-webhooks, or your own`
 
-**When:** `janus({ events })` with something other than a function — most often an object of handlers, one per event type.
+**When:** `janus({ events })` with something other than a function — most often an object of functions, one per event type.
 **Why:** `events` is one listener, called with every user event; the event's `type` says which.
 **Fix:** pass one function, and switch on `type`:
 
@@ -952,7 +952,9 @@ process.on('warning', (warning) => {
 - the process stopped between the write and the listener — events are sent at most once, from memory;
 - the listener threw: look for `JANUS_EVENT_FAILED` in the process's warnings.
 
-**Fix:** for the last two, reconcile from the users themselves — `auth.list()` pages through them — and treat events as the fast path, not the record.
+**Fix:** for the last two, reconcile against the users themselves and treat events as the fast path, not the record: page through `auth.list()` and compare with the receiver's copy — a user it lacks is a missed `user.created`, a user the receiver has that `auth.find` answers `null` for is a missed `user.deleted`, and a user whose `emailVerified` differs is a missed `user.emailVerified`.
+
+A store outage **after** the write does not lose the event: it is sent right after the write it reports, before the steps that follow — the sessions `delete` removes, the sessions a reset revokes.
 
 ---
 

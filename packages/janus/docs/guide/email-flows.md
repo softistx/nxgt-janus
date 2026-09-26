@@ -153,4 +153,5 @@ never the token, and no refusal's message contains it.
 - [Users](users.md) — `email`, `update`, and the other per-type methods
 - [Sign-in codes](sign-in-code.md) — the third flow that sends an e-mail: a code, not a link
 - [Sessions](sessions.md) — `signOutEverywhere`, which `resetPassword.confirm` calls for you
+- [User events](events.md) — `user.emailVerified` and `user.passwordReset`, which the confirms send
 - [Errors](errors.md) — every code, and the status it deserves

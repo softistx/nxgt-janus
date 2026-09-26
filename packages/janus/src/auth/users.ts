@@ -93,7 +93,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 		});
 		// Once the user exists: an outage opening signUp's session later still
 		// leaves a user created, and reported.
-		await emit(context, 'user.created', inserted);
+		await emit(context, 'user.created', inserted, inserted.createdAt);
 		return inserted;
 	};
 
@@ -180,13 +180,17 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			// is left — sessions, tokens — is refused for a user who is gone. An
 			// outage between the steps leaves only that inert remainder, and a
 			// replay, finding no user, still deletes it.
+			const deletedAt = clock.now();
 			const deleted = record !== null && (await store.users.deleteUser(id));
+			// Once, when this call deleted them, and before the steps an outage
+			// can interrupt: a replay deletes nobody, so it could not send it.
+			if (deleted) {
+				await emit(context, 'user.deleted', { id, type: type.name }, deletedAt);
+			}
 			await store.sessions.deleteUserSessions(id);
 			await store.tokens.deleteUserTokens(id);
 			// Last, and on a replay too: the tuples naming them.
 			await context.relations?.deleteEntity({ type: type.name, id });
-			// Once, when this call deleted them: a replay deleted nobody.
-			if (deleted) await emit(context, 'user.deleted', { id, type: type.name });
 			return deleted;
 		},
 

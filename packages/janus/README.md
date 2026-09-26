@@ -36,7 +36,7 @@ supported.
 
 | Import | What it holds |
 | --- | --- |
-| `@nxgt/janus` | **Identities**: `janus()`, the identity stores' port and its in-memory reference (`createMemoryStores`), the hashers. And the **shared vocabulary**: errors, subjects and the tuple notation, ids, pagination, time |
+| `@nxgt/janus` | **Identities**: `janus()`, the identity stores' port and its in-memory reference (`createMemoryStores`), the hashers, the user events (`UserEvent`, `UserEventListener`, `UserEventType`). And the **shared vocabulary**: errors, subjects and the tuple notation, ids, pagination, time |
 | `@nxgt/janus/permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the relation store's port and its in-memory reference (`createMemoryRelations`) |
 | `@nxgt/janus/conformance` | **For adapters**: the suites a store runs — `describeJanusStores`, `describeRelationStores` — their cases as data, and the reference harnesses |
 
@@ -593,9 +593,11 @@ await auth.signUp({ email, password }); // the listener has the event before thi
   field, no password, no token. Whoever receives the event reads the rest
   from where it is kept, if they may.
 - **Each event has an `id` of its own**, a UUIDv7: the key to deliver it once.
-- **The listener runs after the write, and is awaited** before the flow
-  answers, so a durable queue has the event by then. A refused flow sends
-  nothing.
+- **The listener runs right after the write, and is awaited** before the
+  flow answers, so a durable queue has the event by then. `occurredAt` is the
+  write's own time. A refused flow sends nothing.
+- **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
+  union of the four types, so a `switch` on `event.type` is exhaustive.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.

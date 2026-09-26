@@ -1,17 +1,26 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test';
-import { ada, hasher, password, person, rejection } from '../../test/auth';
+import {
+	ada,
+	clinic,
+	hasher,
+	password,
+	person,
+	rejection,
+} from '../../test/auth';
+import { StoreFailure } from '../errors/janus-error';
 import { fixedClock } from '../time/clock';
 import type { UserEvent, UserEventListener } from './events';
 import { janus } from './janus';
 import { createMemoryStores } from './port/memory';
+import type { JanusStores } from './port/types';
 
-function setup(events?: UserEventListener) {
+function setup(events?: UserEventListener, store?: JanusStores) {
 	const clock = fixedClock(Date.UTC(2026, 8, 26));
 	const received: UserEvent[] = [];
 	const auth = janus({
 		user: person,
 		password: { login: 'email' },
-		store: createMemoryStores(),
+		store: store ?? createMemoryStores(),
 		hasher,
 		clock,
 		events:
@@ -136,6 +145,100 @@ describe('user events', () => {
 
 		expect(order).toEqual(['listener', 'answered']);
 	});
+
+	it('reports the time the write landed, not the time the listener ran', async () => {
+		const store = createMemoryStores();
+		const { auth, clock, received } = setup(undefined, {
+			...store,
+			users: {
+				...store.users,
+				// Time passes between the write and whatever follows it.
+				async updateUser(...args) {
+					const written = await store.users.updateUser(...args);
+					clock.advance(60_000);
+					return written;
+				},
+			},
+		});
+		const { user } = await auth.signUp({ ...ada, password });
+		const sent = await auth.verifyEmail.send(user);
+
+		const verified = await auth.verifyEmail.confirm(sent.token);
+
+		expect(received.at(-1)?.occurredAt).toEqual(verified.updatedAt);
+		expect(received.at(-1)?.occurredAt).not.toEqual(clock.now());
+	});
+
+	it('names the user type, and reports nothing for a delete given another type', async () => {
+		const received: UserEvent[] = [];
+		const { auth } = clinic({ events: (event) => void received.push(event) });
+		const { user } = await auth.staff.signUp({
+			username: 'grace',
+			service: 'navy',
+			password,
+		});
+
+		expect(await auth.patient.delete(user)).toBe(false);
+
+		expect(received).toEqual([
+			expect.objectContaining({ type: 'user.created', userType: 'staff' }),
+		]);
+	});
+});
+
+describe('an outage after the write', () => {
+	/** The reference stores, with one sessions method failing once. */
+	function failingOnce(method: 'deleteUserSessions' | 'revokeUserSessions') {
+		const store = createMemoryStores();
+		let failed = false;
+		return {
+			...store,
+			sessions: {
+				...store.sessions,
+				async [method](...args: [never, never]) {
+					if (!failed) {
+						failed = true;
+						throw new StoreFailure('sessions down', { cause: null });
+					}
+					return (store.sessions[method] as (...a: unknown[]) => unknown)(
+						...args,
+					);
+				},
+			},
+		} as JanusStores;
+	}
+
+	it('still reports the user deleted: the replay deletes nobody, so could not', async () => {
+		const { auth, received } = setup(
+			undefined,
+			failingOnce('deleteUserSessions'),
+		);
+		const { user } = await auth.signUp({ ...ada, password });
+
+		await rejection(auth.delete(user));
+		expect(await auth.delete(user)).toBe(false);
+
+		expect(types(received)).toEqual(['user.created', 'user.deleted']);
+	});
+
+	it('still reports the reset: the link is spent, so a retry could not', async () => {
+		const { auth, received } = setup(
+			undefined,
+			failingOnce('revokeUserSessions'),
+		);
+		await auth.signUp({ ...ada, password });
+		const reset = await auth.resetPassword.request(ada.email);
+
+		await rejection(
+			auth.resetPassword.confirm(reset?.token ?? '', 'a new password'),
+		);
+
+		expect(types(received)).toEqual([
+			'user.created',
+			'user.passwordReset',
+			'user.emailVerified',
+		]);
+	});
 });
 
 describe('a listener that fails', () => {
@@ -170,6 +273,37 @@ describe('a listener that fails', () => {
 		expect(warning?.message).toContain(created.id);
 		// The failure's name, never its message: it may hold anything.
 		expect(warning?.message).not.toContain('queue full');
+	});
+
+	it('fails no reset and no sign-in code either: the user holds what they asked for', async () => {
+		const { auth } = setup((event) => {
+			if (event.type !== 'user.created') throw new Error('down');
+		});
+		await auth.signUp({ ...ada, password });
+
+		const reset = await auth.resetPassword.request(ada.email);
+		await auth.resetPassword.confirm(reset?.token ?? '', 'a new password');
+		await auth.signIn({ email: ada.email, password: 'a new password' });
+
+		const other = await auth.signUp({
+			email: 'bob@example.test',
+			name: 'Bob',
+			password,
+		});
+		const issued = await auth.signInCode.request('bob@example.test');
+		const signedIn = await auth.signInCode.confirm(
+			issued?.challenge ?? '',
+			issued?.code ?? '',
+		);
+		await new Promise((resolve) => setImmediate(resolve));
+
+		expect(signedIn.user.id).toBe(other.user.id);
+		expect(signedIn.user.emailVerified).toBe(true);
+		expect(warnings.map((warning) => warning.message)).toEqual([
+			expect.stringContaining('user.passwordReset'),
+			expect.stringContaining('user.emailVerified'),
+			expect.stringContaining('user.emailVerified'),
+		]);
 	});
 
 	it('fails no flow when it rejects, either', async () => {

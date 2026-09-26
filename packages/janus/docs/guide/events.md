@@ -26,7 +26,7 @@ received[0];
 // {
 //   id: '0199…',            a UUIDv7 minted for this event
 //   type: 'user.created',
-//   occurredAt: Date,       when the write landed
+//   occurredAt: Date,       when the write landed — its createdAt here
 //   userId: user.id,
 //   userType: 'user',
 // }
@@ -77,9 +77,9 @@ never share one.
 
 ## When the listener runs
 
-After the write, **awaited**, before the flow answers. So a listener that
-stores the event durably — a job queue, an outbox table — has done so when
-`signUp` answers:
+Right after the write, **awaited**, before the flow answers. So a listener
+that stores the event durably — a job queue, an outbox table — has done so
+when `signUp` answers:
 
 ```ts
 const auth = janus({
@@ -89,6 +89,16 @@ const auth = janus({
 	},
 });
 ```
+
+**Right after** means before any step that follows the write: `delete` hands
+over `user.deleted` before it removes the user's sessions, and
+`resetPassword.confirm` its events before it revokes them. A store outage in
+those later steps fails the call, but the event is already sent — a retry
+could not send it, since `delete` then finds nobody and the reset link is
+spent.
+
+`occurredAt` is the write's own time: the `createdAt` or `updatedAt` it
+wrote, the time read just before the deletion — not when the listener ran.
 
 It runs inline, so it costs every flow that sends an event: store the event
 and return. Sending an HTTP request from the listener makes every sign-up as
@@ -133,6 +143,7 @@ them back in order.
 
 ```ts
 import { expect, it } from 'bun:test';
+import { z } from 'zod';
 import { createMemoryStores, janus, scryptHasher, type UserEvent } from '@nxgt/janus';
 
 it('tells the CRM about a sign-up', async () => {
@@ -159,7 +170,7 @@ type UserEventType = 'user.created' | 'user.emailVerified' | 'user.passwordReset
 interface UserEvent {
 	readonly id: Id;           // a UUIDv7, the key to deliver it once
 	readonly type: UserEventType;
-	readonly occurredAt: Date; // when the write landed
+	readonly occurredAt: Date; // when the write landed: the createdAt or updatedAt written
 	readonly userId: Id;
 	readonly userType: string;
 }
@@ -170,7 +181,7 @@ janus({ ..., events?: UserEventListener });
 ```
 
 `events` that is not a function is a `TypeError` when `janus()` is called —
-see [troubleshooting](../troubleshooting.md#janus-events-must-be-a-function-that-takes-a-user-event--webhooks--from-nxgtjanus-webhooks-or-your-own).
+see [troubleshooting](../troubleshooting.md#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own).
 
 ## See also
 

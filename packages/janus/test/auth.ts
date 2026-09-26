@@ -10,6 +10,7 @@
  */
 
 import { z } from 'zod';
+import type { UserEventListener } from '../src/auth/events';
 import { scryptHasher } from '../src/auth/hashers';
 import { janus } from '../src/auth/janus';
 import { createMemoryStores } from '../src/auth/port/memory';
@@ -54,7 +55,11 @@ export const Staff = z.strictObject({
 });
 
 export function clinic(
-	options: { store?: JanusStores; relations?: RelationStore } = {},
+	options: {
+		store?: JanusStores;
+		relations?: RelationStore;
+		events?: UserEventListener;
+	} = {},
 ) {
 	const clock = fixedClock(Date.UTC(2026, 8, 23));
 	const store = options.store ?? createMemoryStores();
@@ -73,6 +78,7 @@ export function clinic(
 		...(options.relations === undefined
 			? {}
 			: { relations: options.relations }),
+		...(options.events === undefined ? {} : { events: options.events }),
 	});
 
 	return { auth, store, clock };

@@ -8,7 +8,7 @@
  * surface as a conformance failure at best, and at worst as an outage reported
  * as "no such account".
  *
- * **Twenty-one plausible mistakes, twenty-one refused.** Add a case whenever the port
+ * **Twenty-two plausible mistakes, twenty-two refused.** Add a case whenever the port
  * gains something it should refuse; never delete one to make a change pass.
  */
 

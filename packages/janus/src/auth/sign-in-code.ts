@@ -121,7 +121,7 @@ export function signInCodeFlows(
 				where,
 				(_, now) => ({ emailVerifiedAt: now }),
 			);
-			await emit(context, 'user.emailVerified', proved);
+			await emit(context, 'user.emailVerified', proved, proved.updatedAt);
 			return finish(proved, where);
 		},
 	};

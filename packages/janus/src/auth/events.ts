@@ -26,7 +26,10 @@ export interface UserEvent {
 	/** A UUIDv7 minted for this event: the key to deliver it once. */
 	readonly id: Id;
 	readonly type: UserEventType;
-	/** When the write landed. */
+	/**
+	 * When the write landed: the `createdAt` or `updatedAt` it wrote, or, for
+	 * a deletion, the time read just before it.
+	 */
 	readonly occurredAt: Date;
 	readonly userId: Id;
 	readonly userType: string;
@@ -56,19 +59,20 @@ export function resolveEvents(
 }
 
 /**
- * Hands one event to the listener. Its failure is the application's, not the
- * flow's: warned about, with what it takes to send the event again — never
- * thrown, since the write it reports has landed.
+ * Hands one event to the listener, right after the write it reports — before
+ * any store call that follows, whose outage would otherwise lose it for good.
+ * Its failure is the application's, not the flow's: warned about, with what
+ * it takes to send the event again — never thrown, since the write has landed.
  */
 export async function emit(
 	context: Context,
 	type: UserEventType,
 	user: { readonly id: Id; readonly type: string },
+	occurredAt: Date,
 ): Promise<void> {
 	const listener = context.events;
 	if (listener === null) return;
 
-	const occurredAt = context.clock.now();
 	const event: UserEvent = Object.freeze({
 		id: mintId(occurredAt.getTime()),
 		type,
