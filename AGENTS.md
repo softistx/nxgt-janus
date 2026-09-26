@@ -265,12 +265,14 @@ is the whole point of having them from commit 1.
 
 Removing `"private"` is what makes a package publishable. It is a deliberate
 commit of its own, with the changeset that versions it, and not something to do
-while fixing something else. **A private package never gets a changeset
-before that commit:** `changeset version` would consume it and `publish.ts` skip
-the package, keeping the release in version mode (#51 → #53).
-`bun run changeset:private` (`scripts/check-changesets.ts`, run by CI) refuses
-a changeset naming a private package, or one that does not exist. `@nxgt/janus` and `@nxgt/janus-mongo` lost it
+while fixing something else. `@nxgt/janus` and `@nxgt/janus-mongo` lost it
 together, for v0.1, when the repository went public.
+
+**A private package never gets a changeset before that commit.** `changeset
+version` would consume it and `publish.ts` skip the package, keeping the
+release in version mode (#51 → #53). `bun run changeset:private`
+(`scripts/check-changesets.ts`, run by CI) refuses a changeset naming a private
+package, or one that does not exist.
 
 ---
 
