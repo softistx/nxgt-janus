@@ -330,6 +330,24 @@ function memoryTokenStore(): TokenStore {
 			return copy(counted);
 		},
 
+		async spendUserTokens(userId, kind, at, except) {
+			let spent = 0;
+
+			for (const [tokenHash, stored] of byTokenHash) {
+				if (
+					tokenHash !== except &&
+					stored.userId === userId &&
+					stored.kind === kind &&
+					stored.spentAt === null
+				) {
+					byTokenHash.set(tokenHash, { ...stored, spentAt: new Date(at) });
+					spent += 1;
+				}
+			}
+
+			return spent;
+		},
+
 		async deleteUserTokens(userId) {
 			let deleted = 0;
 

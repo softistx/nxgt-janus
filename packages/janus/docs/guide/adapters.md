@@ -133,6 +133,7 @@ interface TokenStore {
 	insertToken(record: TokenRecord): Promise<void>;
 	consumeToken(tokenHash: string, kind: TokenKind, at: Date): Promise<TokenRecord | null>;
 	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
+	spendUserTokens(userId: Id, kind: TokenKind, at: Date, except?: string): Promise<number>; // the unspent ones, but except
 	deleteUserTokens(userId: Id): Promise<number>;
 }
 ```
@@ -222,6 +223,50 @@ Lua script: `HINCRBY` only when `spentAt` is empty, then `HGETALL`. Wrap the
 driver's error in `StoreFailure` as in [the six rules](#the-six-rules):
 `countAttempt` has its own outage case.
 
+### `TokenStore.spendUserTokens`
+
+Spends every **unspent** token of one user and one `kind` at `at` — but the
+one whose hash is `except`, when given — and answers how many it spent. The
+core calls it right after issuing a sign-in code, with that code's hash as
+`except`, so only the last code sent works; and after writing a password,
+for the user's `secondFactor` challenges:
+
+| The stored token | Written | Counted |
+| --- | --- | --- |
+| unspent, of this user and this `kind` | `spentAt: at` | yes |
+| already spent | nothing — `spentAt` never changes once set | no |
+| another `kind`, another user, or the one named by `except` | nothing | no |
+| none at all | nothing | `0`, an absence — never a failure |
+
+Each token is spent by a **conditional write**, as `consumeToken` spends one:
+a token that a racing `consumeToken` spends at the same moment is counted by
+exactly one of the two calls, never both. An expired token is spent all the
+same, or not counted by a store that already dropped it.
+
+In MongoDB, one `updateMany` through the `userId` index `deleteUserTokens`
+already reads:
+
+```ts
+import type { TokenStore } from '@nxgt/janus';
+
+export const spendUserTokens: TokenStore['spendUserTokens'] = async (userId, kind, at, except) => {
+	const result = await tokens.updateMany(
+		{ userId, kind, spentAt: null, ...(except === undefined ? {} : { _id: { $ne: except } }) },
+		{ $set: { spentAt: at } },
+	);
+	return result.modifiedCount;
+};
+```
+
+In SQL, `update … set spent_at = $3 where user_id = $1 and kind = $2 and
+spent_at is null returning token_hash`, with `and token_hash <> $4` added
+only when `except` is given — bound to `NULL`, `<>` matches no row — answering the row count: PostgreSQL
+re-checks `spent_at is null` on a row a racing redemption just committed. In
+Redis, one Lua script over the user's set of tokens, `HSET spentAt` on each
+of the right `kind` whose `spentAt` is empty, skipping the one named by
+`except`. `spendUserTokens` has its own
+outage case.
+
 ### `RelationStore`
 
 ```ts
@@ -257,7 +302,11 @@ Written on the port's types, and checked by the suites:
    normalises logins before a store sees them, and never hands a store
    `\u0000` or a lone surrogate; every other character comes back as written.
 5. **Every method is atomic on its own.** The core opens no transaction; an
-   adapter may open one inside a method.
+   adapter may open one inside a method. And **a read sees every write that
+   completed before it** — never a secondary or a read replica: a sign-in
+   re-reads the user to see a password written while it ran, and a new
+   sign-in code spends the ones issued before it. No suite can check this
+   one; a `readPreference: 'secondaryPreferred'` breaks it silently.
 6. **Schema management is not on the port.** Expose your own `sync`; the core
    never calls it.
 
@@ -298,7 +347,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 45: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — twelve of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 49: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — thirteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
@@ -315,7 +364,7 @@ stores: a case that leaks into the next is the hardest failure to debug.
 
 The suites import no test framework and no assertion library.
 
-The second factor and attempts have their own cases — skip one by its id
+The second factor, attempts and a user's tokens spent have their own cases — skip one by its id
 while you work on it, never to ship:
 
 | Case | Checks |
@@ -327,6 +376,10 @@ while you work on it, never to ship:
 | `tokens.challenge` | a second-factor challenge, whose `address` is `''`, kept, counted and spent like any token |
 | `tokens.countAttemptSpent` | a spent token answered unchanged; another kind and an unknown hash answer `null` and count nothing |
 | `outage.countAttempt` | a store that cannot answer rejects, never `null` |
+| `tokens.spendUserTokens` | spends the unspent tokens of one user and kind at `at`, keeping their attempts, and counts them; a spent token keeps its `spentAt`; another kind and another user are untouched; `0` for none |
+| `tokens.spendUserTokensExcept` | spares the token named by `except`, and spends the user's others of that kind |
+| `tokens.spendUserTokensRace` | racing one `consumeToken`, ten times over: exactly one of the two spends the token |
+| `outage.spendUserTokens` | a store that cannot answer rejects, never `0` |
 
 ### `faults`: prove the outage invariant
 

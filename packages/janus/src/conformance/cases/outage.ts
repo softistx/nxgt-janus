@@ -5,7 +5,7 @@ import { at, sessionRecord, tokenRecord, userRecord } from '../fixtures';
 import type { CaseContext, ConformanceCase, PortMethod } from '../types';
 
 /**
- * **The invariant, as cases.** For each of the twelve methods whose honest
+ * **The invariant, as cases.** For each of the thirteen methods whose honest
  * answer can be "nothing" — `null`, `false`, `0`, an empty page — a store that
  * cannot answer must **reject**, and the rejection must not be `NOT_FOUND`.
  *
@@ -120,6 +120,13 @@ export const outageCases: readonly ConformanceCase[] = [
 		'countAttempt',
 		({ stores }) =>
 			stores.tokens.countAttempt(token.tokenHash, 'resetPassword'),
+		seed,
+	),
+	outage(
+		'tokens',
+		'spendUserTokens',
+		({ stores }) =>
+			stores.tokens.spendUserTokens(user.id, 'resetPassword', now),
 		seed,
 	),
 	outage(

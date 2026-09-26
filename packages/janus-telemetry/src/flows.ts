@@ -62,9 +62,7 @@ const WRITTEN: Readonly<
 		} else if (statusOf(outcome.value) === 'secondFactor') {
 			// The password was right; the session waits for a code.
 			log.info(
-				events.secondFactorAsked(
-					fieldsOf({ 'janus.user.type': call.userType }),
-				),
+				events.secondFactorAsked(secondFactorFields(call, outcome.value)),
 			);
 		} else {
 			log.info(events.signedIn(userFields(call, outcome.value)));
@@ -87,9 +85,7 @@ const WRITTEN: Readonly<
 			);
 		} else if (statusOf(outcome.value) === 'secondFactor') {
 			log.info(
-				events.secondFactorAsked(
-					fieldsOf({ 'janus.user.type': call.userType }),
-				),
+				events.secondFactorAsked(secondFactorFields(call, outcome.value)),
 			);
 		} else {
 			log.info(
@@ -163,6 +159,18 @@ function userFields(call: Call, value: unknown): Fields {
 	return fieldsOf({
 		'janus.user.type': typeOf(user) ?? call.userType,
 		'user.id': idOf(user),
+	});
+}
+
+/** Whose sign-in waits for a code: the `userId` the answer carries. */
+function secondFactorFields(call: Call, value: unknown): Fields {
+	const userId =
+		typeof value === 'object' && value !== null && 'userId' in value
+			? value.userId
+			: undefined;
+	return fieldsOf({
+		'janus.user.type': call.userType,
+		'user.id': typeof userId === 'string' ? userId : undefined,
 	});
 }
 

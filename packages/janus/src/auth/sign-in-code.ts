@@ -17,9 +17,10 @@ import {
 	issueCode,
 	refuseStale,
 	spendOneTime,
-	unknownOneTime,
+	unknownChallenge,
 } from './one-time';
 import type { UserRecord } from './port/types';
+import { hashSecret } from './secrets';
 import type { SignInCodeApi, SignInResult } from './types';
 
 /**
@@ -29,9 +30,12 @@ import type { SignInCodeApi, SignInResult } from './types';
  * The code is six digits, so it is guessable where a link is not. What
  * bounds that is the same as for a second factor: the store counts every
  * attempt in one write, before the code is compared, and the fifth wrong one
- * spends the challenge. **The bound is per challenge**: anybody who knows an
- * e-mail can ask for another, so the application rate-limits `request`. The
- * code's hash is keyed by the challenge, so the tokens alone do not reveal it.
+ * spends the challenge. **At most one code is live per user**: `request`
+ * spends every other once it issued its own, so concurrent requests cannot
+ * each keep one. Yet anybody who knows an e-mail can ask for another — and
+ * each request cancels the code before — so the application rate-limits
+ * `request`, per address. The code's hash is keyed by the challenge, so the
+ * tokens alone do not reveal it.
  */
 export function signInCodeFlows(
 	context: Context,
@@ -51,6 +55,15 @@ export function signInCodeFlows(
 				address: String(record.fields[type.email]),
 				ttlMs: context.config.tokenTtlMs.signInCode,
 			});
+			// One live code per user: the ones sent before stop working. Issued
+			// first, spent after, so requests that race leave at most one live
+			// — maybe none, and the visitor asks again — never one each.
+			await context.store.tokens.spendUserTokens(
+				record.id,
+				'signInCode',
+				context.clock.now(),
+				hashSecret(secret),
+			);
 			return {
 				code,
 				challenge: secret,
@@ -72,10 +85,12 @@ export function signInCodeFlows(
 			);
 
 			// A user gone since, or of another type, is as good as no challenge:
-			// another type's API compares nothing and spends nothing — though the
-			// attempt, counted before the type is known, is gone.
+			// another type's API compares nothing — though the attempt, counted
+			// before the type is known, is gone, and the last one spends it.
 			const user = await findRecord(context, token.userId, type.name);
-			if (user === null) throw unknownOneTime(where, 'challenge');
+			if (user === null) {
+				throw await unknownChallenge(context, token, secret, where);
+			}
 
 			if (!codeMatches(token, secret, String(code))) {
 				// The last attempt, and a wrong code: the challenge is spent.

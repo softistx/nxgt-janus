@@ -33,6 +33,10 @@ Nothing yet.
 
 ## Shipped
 
+- **A user's tokens spent in one script, v0.3.0** — for `@nxgt/janus` 0.7:
+  `spendUserTokens(userId, kind, at, except?)` walks the user's set of
+  tokens in one Lua script, with the commands the ACL already allows, and
+  passes the four new conformance cases.
 - **Attempts counted on a one-time token, v0.2.0** — for `@nxgt/janus` 0.4:
   a token keeps its `codeHash` and `attempts`, and `countAttempt` counts an
   attempt at a code in one Lua script. No migration: a token written before

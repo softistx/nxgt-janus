@@ -1,8 +1,4 @@
-import {
-	CredentialError,
-	NotFoundError,
-	UserInactiveError,
-} from '../errors/janus-error';
+import { CredentialError, UserInactiveError } from '../errors/janus-error';
 import { isId, mintId } from '../ids/id';
 import { invalidCursor, pageLimit } from '../pagination/cursor-page';
 import { isStorable } from '../stores/storable';
@@ -14,28 +10,23 @@ import {
 	emailOf,
 	findRecord,
 	getRecord,
-	holderOfEmail,
 	idOf,
 	loginsOf,
 	passwordMatches,
+	passwordRule,
 	rehashed,
 	requireHasher,
 	toUser,
 	validateFields,
 	writeUser,
 } from './context';
-import {
-	issueOneTime,
-	refuseStale,
-	spendOneTime,
-	unknownOneTime,
-} from './one-time';
-import type { TokenKind, TokenRecord, UserRecord } from './port/types';
+import { emailFlows } from './email-flows';
+import { endSignInsWaiting, heldByPassword } from './password-written';
+import type { UserRecord } from './port/types';
 import { secondFactorFlows } from './second-factor/flows';
 import { openSession } from './sessions';
 import { signInCodeFlows } from './sign-in-code';
 import type {
-	IssuedToken,
 	PasswordApi,
 	ResetPasswordApi,
 	SecondFactorApi,
@@ -99,58 +90,6 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			createdAt: now,
 			updatedAt: now,
 		});
-	};
-
-	/**
-	 * Spends a token and says why it cannot be used, when it cannot. A user
-	 * gone since, or of another type, is as good as no token; a token sent to
-	 * an e-mail the user no longer has is stale.
-	 */
-	const redeem = async (
-		kind: TokenKind,
-		secret: string,
-		where: string,
-	): Promise<{ token: TokenRecord; user: UserRecord }> => {
-		const token = await spendOneTime(context, secret, kind, where, 'token');
-		const user = await findRecord(context, token.userId, type.name);
-		if (user === null) throw unknownOneTime(where, 'token');
-
-		refuseStale(type, user, token, where, 'token');
-		return { token, user };
-	};
-
-	/** Issues a one-time token for the user's current e-mail. */
-	const issue = async (
-		kind: 'verifyEmail' | 'resetPassword',
-		user: UserRecord,
-		where: string,
-	): Promise<IssuedToken> => {
-		const email = emailOf(type, user.fields);
-		if (email === null) {
-			throw new NotFoundError(`${where}: the user has no e-mail`, {
-				userId: user.id,
-				userType: type.name,
-				operation: where,
-			});
-		}
-
-		const { secret, expiresAt } = await issueOneTime(context, {
-			kind,
-			userId: user.id,
-			address: email,
-			ttlMs: context.config.tokenTtlMs[kind],
-		});
-		return { token: secret, email, expiresAt };
-	};
-
-	/** The type's password rule, or a wiring refusal for a JavaScript caller. */
-	const passwordRule = (where: string) => {
-		if (type.password === null) {
-			throw new TypeError(
-				`${where}: the ${type.name} type does not sign in with a password — add password: { login } to it`,
-			);
-		}
-		return type.password;
 	};
 
 	return {
@@ -246,7 +185,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 		async signUp(input) {
 			const where = at('signUp');
-			passwordRule(where);
+			passwordRule(type, where);
 			if ((input as Input)?.password === undefined) {
 				checkPassword(type, undefined as unknown as string, where);
 			}
@@ -256,7 +195,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 		async signIn(input) {
 			const where = at('signIn');
-			const rule = passwordRule(where);
+			const rule = passwordRule(type, where);
 			const hasher = requireHasher(context, where);
 			const login = (input as Input)?.[rule.login];
 			const password = (input as Input)?.password;
@@ -292,138 +231,92 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				});
 			}
 
-			return secondFactor.finish(
-				await rehashed(context, record, String(password)),
-				where,
-			);
+			const verified = await rehashed(context, record, String(password));
+			const result = await secondFactor.finish(verified, where);
+			// A password written while this sign-in ran ends it: the password
+			// verified above is no longer the user's.
+			if (
+				!(await heldByPassword(
+					context,
+					type,
+					verified,
+					String(password),
+					result,
+					where,
+				))
+			) {
+				throw refuse('wrongPassword');
+			}
+			return result;
 		},
 
 		async findByLogin(login) {
-			const rule = passwordRule(at('findByLogin'));
+			const rule = passwordRule(type, at('findByLogin'));
 			const record = await byLogin(rule.normalize(login));
 			return record === null ? null : toUser(record);
 		},
 
 		async setPassword(user, password, options) {
 			const where = at('setPassword');
-			passwordRule(where);
+			passwordRule(type, where);
 			checkPassword(type, password, where);
 			const hash = await requireHasher(context, where).hash(password);
 
-			return toUser(
-				await writeUser(context, user, type, options, where, (_, now) => ({
-					password: { hash, updatedAt: now },
-				})),
+			const written = await writeUser(
+				context,
+				user,
+				type,
+				options,
+				where,
+				(_, now) => ({ password: { hash, updatedAt: now } }),
 			);
+			await endSignInsWaiting(context, written.id);
+			return toUser(written);
 		},
 
 		async changePassword(user, change, options) {
 			const where = at('changePassword');
-			passwordRule(where);
+			passwordRule(type, where);
 			checkPassword(type, change?.next, where);
 			const hasher = requireHasher(context, where);
 
-			return toUser(
-				await writeUser(
-					context,
-					user,
-					type,
-					options,
-					where,
-					async (record, now) => {
-						if (
-							record.password === null ||
-							!(await passwordMatches(context, record, change.current, where))
-						) {
-							throw new CredentialError(
-								'CREDENTIALS_INVALID',
-								`${where}: the current password does not match`,
-								{
-									reason:
-										record.password === null ? 'noPassword' : 'wrongPassword',
-									userId: record.id,
-									userType: type.name,
-								},
-							);
-						}
-						return {
-							password: {
-								hash: await hasher.hash(change.next),
-								updatedAt: now,
+			const written = await writeUser(
+				context,
+				user,
+				type,
+				options,
+				where,
+				async (record, now) => {
+					if (
+						record.password === null ||
+						!(await passwordMatches(context, record, change.current, where))
+					) {
+						throw new CredentialError(
+							'CREDENTIALS_INVALID',
+							`${where}: the current password does not match`,
+							{
+								reason:
+									record.password === null ? 'noPassword' : 'wrongPassword',
+								userId: record.id,
+								userType: type.name,
 							},
-						};
-					},
-				),
+						);
+					}
+					return {
+						password: {
+							hash: await hasher.hash(change.next),
+							updatedAt: now,
+						},
+					};
+				},
 			);
+			await endSignInsWaiting(context, written.id);
+			return toUser(written);
 		},
 
 		secondFactor: secondFactor.api,
 		signInCode,
 
-		verifyEmail: {
-			async send(user) {
-				const where = at('verifyEmail.send');
-				const record = await getRecord(context, idOf(user), type.name, where);
-				return issue('verifyEmail', record, where);
-			},
-
-			async confirm(secret) {
-				const where = at('verifyEmail.confirm');
-				const { user } = await redeem('verifyEmail', secret, where);
-				return toUser(
-					await writeUser(
-						context,
-						user.id,
-						type,
-						undefined,
-						where,
-						(_, now) => ({
-							emailVerifiedAt: now,
-						}),
-					),
-				);
-			},
-		},
-
-		resetPassword: {
-			async request(email) {
-				const where = at('resetPassword.request');
-				passwordRule(where);
-				const record = await holderOfEmail(context, type, String(email));
-				if (record === null) return null;
-
-				const issued = await issue('resetPassword', record, where);
-				return { ...issued, user: toUser(record) };
-			},
-
-			async confirm(secret, password) {
-				const where = at('resetPassword.confirm');
-				passwordRule(where);
-				// Checked before the token is spent: a password refused for its
-				// length must not cost the visitor their link.
-				checkPassword(type, password, where);
-				const hash = await requireHasher(context, where).hash(password);
-
-				const { user } = await redeem('resetPassword', secret, where);
-				const written = await writeUser(
-					context,
-					user.id,
-					type,
-					undefined,
-					where,
-					(record, now) => ({
-						password: { hash, updatedAt: now },
-						// The link reached the inbox: that proves the e-mail.
-						...(record.emailVerifiedAt === null
-							? { emailVerifiedAt: now }
-							: {}),
-					}),
-				);
-
-				// Whoever had the old password is signed out.
-				await store.sessions.revokeUserSessions(written.id, clock.now());
-				return toUser(written);
-			},
-		},
+		...emailFlows(context, type, at),
 	};
 }

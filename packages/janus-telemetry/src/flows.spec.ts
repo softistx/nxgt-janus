@@ -192,6 +192,16 @@ describe('instrumentJanus()', () => {
 			const code = totp(secret, Date.now() + 30_000);
 			const signedIn = await auth.secondFactor.confirm(asked.challenge, code);
 			secrets.push(secret, uri, asked.challenge, first, code, signedIn.token);
+			// An e-mailed code proves the e-mail, and the factor is asked again.
+			const issued = await auth.signInCode.request(email);
+			if (issued === null) throw new Error('expected a code');
+			const byCode = await auth.signInCode.confirm(
+				issued.challenge,
+				issued.code,
+			);
+			if (byCode.status !== 'secondFactor')
+				throw new Error('expected a challenge');
+			secrets.push(issued.code, issued.challenge, byCode.challenge);
 			await auth.secondFactor.disable(user);
 		});
 
@@ -205,6 +215,15 @@ describe('instrumentJanus()', () => {
 				'janus.secondFactor.disabled',
 			]),
 		);
+		// From signIn, then from signInCode.confirm: both name the user.
+		expect(
+			logs
+				.filter((log) => log.name === 'janus.signIn.secondFactor')
+				.map((log) => log.attributes),
+		).toEqual([
+			{ 'janus.user.type': 'user', 'user.id': id },
+			{ 'janus.user.type': 'user', 'user.id': id },
+		]);
 		const refused = logs.find((log) => log.name === 'janus.signIn.refused');
 		expect(refused?.attributes).toMatchObject({
 			'janus.refusal': 'CODE_INVALID',

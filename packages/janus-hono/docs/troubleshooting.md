@@ -155,7 +155,7 @@ Also: `Type 'SecondFactorRequired' is missing the following properties …: toke
 given a `secondFactor`.
 
 **Why:** `signIn` then answers a session, or `{ status: 'secondFactor',
-challenge, expiresAt }` for a user whose second factor is active — and a
+challenge, expiresAt, userId }` for a user whose second factor is active — and a
 challenge is no session to send.
 
 **Fix:** switch on `status`, and send the session `secondFactor.confirm`

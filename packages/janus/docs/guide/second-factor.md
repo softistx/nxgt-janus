@@ -203,6 +203,7 @@ interface SecondFactorRequired {
 	readonly status: 'secondFactor';
 	readonly challenge: string; // a secret, like a session token
 	readonly expiresAt: Date;   // five minutes from now, by default
+	readonly userId: Id;        // for your logs and rate limits — not for the visitor
 }
 ```
 
@@ -261,8 +262,8 @@ const signedIn = await auth.secondFactor.confirm(challenge, code);
 | Rejects with | When | What to do |
 | --- | --- | --- |
 | `CODE_INVALID`, with `attemptsLeft` | the code does not match, is not six digits, or was already accepted | ask again while `attemptsLeft > 0`; at `0` the challenge is spent: sign in again |
-| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, or one a store's TTL already dropped | sign in again |
-| `TOKEN_SPENT` | the challenge already opened a session, or its attempts ran out | sign in again |
+| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, or one a store's TTL already dropped. Another type's challenge still loses one of its attempts, and its fifth spends it | sign in again |
+| `TOKEN_SPENT` | the challenge already opened a session, its attempts ran out, or a password reset spent it | sign in again |
 | `TOKEN_EXPIRED` | `expiresAt` has passed | sign in again |
 | `USER_INACTIVE` | the user was deactivated since `signIn`. The challenge is spent | answer 403, as `signIn` would |
 | `SECOND_FACTOR_NOT_ENROLLED` | the factor was disabled since `signIn`. The challenge is spent | sign in again: the password alone now opens a session |
@@ -291,6 +292,30 @@ try {
 Five attempts at a million values is a one-in-200,000 chance per password
 guessed right. A new challenge takes a new sign-in, with the password, so the
 attempts are bounded by your sign-in rate limit too.
+
+A call made through **another user type's** API — `auth.staff.secondFactor.confirm`
+for a patient's challenge — answers `TOKEN_UNKNOWN` and compares nothing, but
+its attempt counts all the same: the fifth spends the challenge, as a wrong
+code would.
+
+**Writing a password ends the sign-ins left waiting.** `resetPassword.confirm`,
+`setPassword` and `changePassword` spend every challenge of the user still
+open, so whoever had the old password cannot finish a sign-in they started
+with it:
+
+```ts
+const result = await auth.signIn({ email, password: oldPassword }); // a challenge
+await auth.resetPassword.confirm(resetToken, newPassword);
+await auth.secondFactor.confirm(result.challenge, code); // TOKEN_SPENT
+```
+
+A sign-in still running when the password is written is refused too.
+`signIn` reads the user again once it answered: if the password it verified
+is no longer theirs, it spends its own challenge — or revokes the session it
+opened — and throws `CREDENTIALS_INVALID`. The writer spends after writing,
+the sign-in reads after issuing, so however the two interleave one of them
+sees the other. A hash rewritten for the same password — another sign-in
+rehashing it — is not a change.
 
 ### Lifetime
 

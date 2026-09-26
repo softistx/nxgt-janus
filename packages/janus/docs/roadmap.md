@@ -93,6 +93,18 @@ Nothing between releases.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **At most one sign-in code live per user, and challenges that end when
+  they should, v0.7.0** — `signInCode.request` spends the codes sent before,
+  even when requests race, so only the last e-mail's works; writing a
+  password spends the second-factor challenges left waiting, and a sign-in
+  still running when it lands is refused; another user type's `confirm` spends a challenge
+  at its fifth attempt; `verifyEmail.confirm` and `resetPassword.confirm`
+  check the e-mail again on the record they write. `SecondFactorRequired`
+  carries `userId`, for logs and rate limits. For adapters:
+  `TokenStore.spendUserTokens(userId, kind, at, except?)`, with four new conformance
+  cases, implemented in `@nxgt/janus-drizzle`, `@nxgt/janus-mongo` and
+  `@nxgt/janus-redis` — and the port now says a read sees every write that
+  completed before it: never a secondary or a read replica.
 - **Sign in with a code sent by e-mail, v0.6.0** —
   `auth.<type>.signInCode.request(email)` answers a six-digit code to send
   and a challenge to keep with the visitor, or `null` for nobody — never
@@ -149,7 +161,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
 - **The conformance suite accepts a store with its own expiry** — a store
   that drops a lapsed session at once, as a Redis TTL does, passes
   `sessions.deleteUser`; one that still holds it must count it. — v0.2.0
-- **A Hono integration** — [`@nxgt/janus-hono`](https://www.npmjs.com/package/@nxgt/janus-hono):
-  the session middleware, the cookie, a route guarded by a permission,
-  `bindJanus()` to bind the instances once, and every error as its status.
-  Its own 0.1.0, beside `@nxgt/janus` 0.1.3.

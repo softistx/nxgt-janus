@@ -129,6 +129,24 @@ export const unknownOneTime = (where: string, noun: OneTimeNoun) =>
 	});
 
 /**
+ * The refusal for a challenge whose user is gone, or of another type — the
+ * API of the wrong type compares no code. Its attempt was counted all the
+ * same, before the type was known, so the last one spends the challenge, as
+ * a wrong code would: past it, every call answers `TOKEN_SPENT`.
+ */
+export async function unknownChallenge(
+	context: Context,
+	token: TokenRecord,
+	secret: string,
+	where: string,
+): Promise<TokenError> {
+	if (token.attempts === CODE_ATTEMPTS) {
+		await burnOneTime(context, secret, token.kind);
+	}
+	return unknownOneTime(where, 'challenge');
+}
+
+/**
  * Spends a token, and refuses it when this call did not: the store answers it
  * **as it was before**, so exactly one call ever reads `spentAt: null`. A
  * lapsed token is spent all the same, so it cannot be retried.

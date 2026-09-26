@@ -385,6 +385,28 @@ function tokenStore(db: PgDatabase, tables: IdentityTables): TokenStore {
 				return row === undefined ? null : { ...row, userId: row.userId as Id };
 			}),
 
+		spendUserTokens: (userId, kind, at, except) =>
+			run$('spendUserTokens', async () => {
+				// One statement: each row is written under its lock, and
+				// re-checked after a concurrent `consumeToken` committed, so the
+				// two never both spend it.
+				const spent = await db
+					.update(tables.tokens)
+					.set({ spentAt: at })
+					.where(
+						and(
+							eq(tables.tokens.userId, userId),
+							eq(tables.tokens.kind, kind),
+							isNull(tables.tokens.spentAt),
+							except === undefined
+								? undefined
+								: ne(tables.tokens.tokenHash, except),
+						),
+					)
+					.returning({ tokenHash: tables.tokens.tokenHash });
+				return spent.length;
+			}),
+
 		deleteUserTokens: (userId) =>
 			run$('deleteUserTokens', async () => {
 				const deleted = await db

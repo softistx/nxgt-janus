@@ -119,6 +119,11 @@ passwords a self-describing hash, and `second_factor_secret` a TOTP secret
 
 ## Traps
 
+- **Hand the adapter the primary, never a read replica.** `@nxgt/janus`
+  counts on a read seeing every write that completed before it: a sign-in
+  re-reads the user to catch a password written while it ran. A replica
+  that lags misses that write, and the sign-in goes through. Pass the
+  `db` that writes, not one routed to replicas.
 - **Upgrading to 0.2 needs a migration.** The tables gained columns for the
   second factor and for attempts at a code. Deployed without them, every
   query on `users` and `tokens` fails with `STORE_FAILED`, caused by

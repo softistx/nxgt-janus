@@ -40,6 +40,10 @@ Nothing yet.
 
 Each entry names the version it came in; `CHANGELOG.md` holds the rest.
 
+- **A user's tokens spent in one write, v0.4.0** — for `@nxgt/janus` 0.7:
+  `spendUserTokens(userId, kind, at, except?)` is one `updateMany`, and
+  passes the four new conformance cases. No sync needed: it reads through the
+  `userId` index the collection already has.
 - **A second factor on a user, and attempts counted on a token** — the stores
   keep a user's `secondFactor` and a token's `codeHash` and `attempts`, and
   `countAttempt` counts an attempt at a code in one conditional write, for

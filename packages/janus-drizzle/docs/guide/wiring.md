@@ -100,8 +100,11 @@ statement. `consumeToken` is one statement, `with before as (select … for upda
 twenty concurrent redemptions of one token, exactly one sees `spentAt: null`.
 `countAttempt` is one `update … set attempts = attempts + 1 … returning`
 under the row's lock, followed by a plain read only when it matched nothing — a spent token, or none:
-twenty concurrent attempts answer twenty distinct counts. Both are measured
-on PostgreSQL 17 on every CI run.
+twenty concurrent attempts answer twenty distinct counts.
+`spendUserTokens` is one `update … set spent_at = … where user_id = … and kind = …
+and spent_at is null returning` — with `and token_hash <> …` when `except` is given: PostgreSQL re-checks `spent_at is null` on
+a row a racing redemption just committed, so the two never both spend it.
+All three are measured on PostgreSQL 17 on every CI run.
 
 Every method of the port is implemented, **including the optional
 `deleteExpiredSessions`**. PostgreSQL has no TTL, so

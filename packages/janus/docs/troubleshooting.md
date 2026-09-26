@@ -232,9 +232,11 @@ Also: `janus: store.<slot> is missing`, `janus: store must be an object with use
 
 **When:** `janus({...})`, from JavaScript or with a store typed loosely. TypeScript refuses a partial store at compile time and names the method.
 **Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. `deleteExpiredSessions` is the one optional method: absent, or a function.
-An adapter written against `@nxgt/janus` 0.3 reports
-`store.tokens has no method countAttempt` until it implements the method 0.4
-added.
+An adapter written for an earlier `@nxgt/janus` reports the method a later
+release added to the port: `store.tokens has no method countAttempt` for one
+written against 0.3 (the method came in 0.4), and
+`store.tokens has no method spendUserTokens` for one written against 0.6 (the
+method came in 0.7).
 
 **Fix:** pass the three stores, whole:
 
@@ -244,17 +246,17 @@ import { createMemoryStores, janus } from '@nxgt/janus';
 janus({ ..., store: createMemoryStores() });
 ```
 
-For `countAttempt`, upgrade the published adapter to the release that
-implements it — `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3,
-`@nxgt/janus-redis` 0.2:
+Upgrade the published adapter to the release that implements both —
+`@nxgt/janus-drizzle` 0.3, `@nxgt/janus-mongo` 0.4, `@nxgt/janus-redis` 0.3:
 
 ```bash
-bun add @nxgt/janus@^0.4 @nxgt/janus-drizzle@^0.2 # or @nxgt/janus-mongo@^0.3, @nxgt/janus-redis@^0.2
+bun add @nxgt/janus@^0.7 @nxgt/janus-drizzle@^0.3 # or @nxgt/janus-mongo@^0.4, @nxgt/janus-redis@^0.3
 ```
 
-Your own adapter implements it as
-[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt) sets
-out, then runs the conformance suite.
+Your own adapter implements them as
+[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt) and
+[`TokenStore.spendUserTokens`](guide/adapters.md#tokenstorespendusertokens)
+set out, then runs the conformance suite.
 
 ### `janus: relations must be a relation store — relations.deleteEntity is missing`
 
@@ -473,7 +475,7 @@ if (error instanceof UserInvalidError) {
 Also `changePassword: the current password does not match`.
 
 **When:** `signIn`, `changePassword`.
-**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one.
+**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one.
 **Fix:** answer 401 with the same body whatever the reason:
 
 ```ts
@@ -522,10 +524,14 @@ answered: `secondFactor.confirm: no such challenge`,
 
 **When:** `secondFactor.confirm(challenge, code)`.
 **Why:** a challenge lives five minutes and takes five codes. It is spent by
-the code that opens the session, by the fifth wrong code, and by a refusal
-that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`). `TOKEN_UNKNOWN`
-also covers a challenge whose user was deleted, and a challenge passed where a
-code was expected — the two arguments swapped.
+the code that opens the session, by the fifth wrong code, by a refusal
+that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`), and by a
+password written — `resetPassword.confirm`, `setPassword`, `changePassword` —
+which ends every sign-in left waiting on its code.
+`TOKEN_UNKNOWN` also covers a challenge whose user was deleted, one
+confirmed through another user type's `secondFactor`, and a challenge passed
+where a code was expected — the two arguments swapped. Another type's
+`confirm` still costs an attempt, and the fifth spends the challenge.
 **Fix:** answer 400 and send the visitor back to sign in, which asks for a new
 code. To give slower visitors more time:
 
@@ -540,15 +546,20 @@ janus({ ..., secondFactor: { issuer: 'Acme', keys, challenge: '10m' } });
 
 **When:** `signInCode.confirm(challenge, code)`.
 **Why:** a challenge lives ten minutes and takes five codes. It is spent by
-the code that signs the user in, by the fifth wrong code, and by a refusal
-that ends it (`TOKEN_STALE`, `USER_INACTIVE`). `TOKEN_UNKNOWN` also covers a
+the code that signs the user in, by the fifth wrong code, by a refusal
+that ends it (`TOKEN_STALE`, `USER_INACTIVE`), and by the next `request` for
+the same user: only the last code sent works, so a visitor who asked twice
+and typed the first code gets `TOKEN_SPENT` — and when two requests race,
+even the last code can be spent: at most one survives, sometimes none. `TOKEN_UNKNOWN` also covers a
 challenge whose user was deleted, one confirmed through another user type's
 `signInCode`, the decoy challenge of a `request` that answered `null`, and
-the two arguments swapped. Another type's `confirm` compares no code and
-spends nothing, but it has already cost one of the challenge's five
+the two arguments swapped. Another type's `confirm` compares no code, but it
+has already cost one of the challenge's five
 attempts: the attempt is counted before the type is known. The challenge is
-left for its own type, with one attempt fewer.
-**Fix:** answer 400 and offer to send a new code. To give slower inboxes
+left for its own type, with one attempt fewer — and the fifth such call
+spends it, as a fifth wrong code would.
+**Fix:** answer 400 and offer to send a new code — and tell the visitor to
+use the latest e-mail. To give slower inboxes
 more time:
 
 ```ts
@@ -557,8 +568,8 @@ janus({ ..., tokens: { signInCode: '15m' } });
 
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
 
-**When:** `verifyEmail.confirm` or `resetPassword.confirm`, after the user changed their e-mail.
-**Why:** confirming it would verify an address nobody holds any more. The token is spent.
+**When:** `verifyEmail.confirm` or `resetPassword.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
+**Why:** confirming it would verify an address nobody holds any more, or reset a password through one. The token is spent, and nothing is written.
 **Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)`.
 
 ### `INVALID_CURSOR` — `<call>: this cursor was not minted by this store, or was minted for another ordering (<n> characters)`
@@ -626,7 +637,7 @@ each of those entries has a paragraph for it.
 The same for `session` and `user`.
 
 **When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor` — and `signInCode.confirm`'s, on a user type with a password.
-**Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
+**Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt, userId }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
 **Fix:** switch on `status`:
 
 ```ts
@@ -849,8 +860,8 @@ form field now holds the second challenge, so the first code does not
 match it — and costs an attempt.
 **Fix:** tell the visitor that only the last code sent works, and put the
 time it was sent in the e-mail's subject or text so they can tell the
-e-mails apart. The earlier challenge is not revoked: it still expires on its
-own.
+e-mails apart. The earlier challenge is spent by the new `request`: the
+first code, even with its own challenge, answers `TOKEN_SPENT`.
 
 ### `signInCode.request` answers `null` for a user who exists
 

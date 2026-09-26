@@ -77,9 +77,27 @@ secret `@nxgt/janus` has already sealed with your application's key —
 
 `countAttempt` counts an attempt at a code in one `findOneAndUpdate` with
 `$inc`, so twenty concurrent attempts answer twenty distinct counts.
+`spendUserTokens` is one `updateMany` on `{ userId, kind, spentAt: null }` —
+and `_id: { $ne: except }` when `except` is given —
+through the index `deleteUserTokens` already reads: each token it spends is
+matched and written in one step, so a racing redemption and it never both
+spend the same one.
 
 ## Traps
 
+- **Read from the primary.** `@nxgt/janus` counts on a read seeing every
+  write that completed before it: a sign-in re-reads the user to catch a
+  password written while it ran. A `db` whose client reads from secondaries
+  (`readPreference: 'secondaryPreferred'`) misses that write, and the
+  sign-in goes through. Hand the adapter a `db` that reads from the primary —
+  the driver's default:
+
+  ```ts
+  import { MongoClient } from 'mongodb';
+
+  const client = new MongoClient(url); // readPreference 'primary' by default
+  const adapter = createMongoAdapter(client.db('app'));
+  ```
 - **Upgrading to 0.3: run the sync before deploying.** No document is
   rewritten — a user without `secondFactor` reads as having none, a token
   without `codeHash` and `attempts` as `null` and `0` — but the validators the

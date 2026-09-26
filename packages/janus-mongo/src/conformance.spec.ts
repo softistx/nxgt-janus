@@ -31,6 +31,7 @@ const COMMAND_OF: Record<string, readonly string[]> = {
 	countAttempt: ['findAndModify', 'find'],
 	deleteUser: ['delete'],
 	deleteUserSessions: ['delete'],
+	spendUserTokens: ['update'],
 	deleteUserTokens: ['delete'],
 };
 

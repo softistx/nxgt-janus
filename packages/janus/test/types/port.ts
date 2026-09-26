@@ -206,6 +206,12 @@ const patchSecondFactor: UserPatch = {
 	secondFactor: undefined,
 };
 
+// ── 22. Spending a user's tokens without saying which kind ─────────────────
+// Without `kind`, issuing a sign-in code would spend the user's reset link and
+// their e-mail verification with it.
+// @ts-expect-error kind is required
+tokens.spendUserTokens(record.id, now);
+
 // A class implements the port as well as an object literal does.
 class ClassStore implements TokenStore {
 	async insertToken(): Promise<void> {}
@@ -214,6 +220,9 @@ class ClassStore implements TokenStore {
 	}
 	async countAttempt(): Promise<null> {
 		return null;
+	}
+	async spendUserTokens(): Promise<number> {
+		return 0;
 	}
 	async deleteUserTokens(): Promise<number> {
 		return 0;

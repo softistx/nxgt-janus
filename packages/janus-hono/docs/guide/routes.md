@@ -171,7 +171,7 @@ return c.json({
 ## A second factor
 
 With `janus({ secondFactor })`, `signIn` answers either a session or a
-**challenge** — `{ status: 'secondFactor', challenge, expiresAt }` — and
+**challenge** — `{ status: 'secondFactor', challenge, expiresAt, userId }` — and
 `sendSession` only takes the first. **Narrow on `status` before
 `sendSession`**: passing `signIn`'s answer straight in no longer compiles,
 because a challenge has no `token` and no `session`.

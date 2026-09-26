@@ -30,6 +30,6 @@ below are defined once, in [Words](guide/vocabulary.md#words).
 | --- | --- |
 | [The shared vocabulary](guide/vocabulary.md) | You want the words the documentation uses, or subjects and the tuple notation, ids, cursors, durations or `fixedClock` |
 | [Errors](guide/errors.md) | You are turning what the package throws into a status code, and want every code and what it carries |
-| [Writing an adapter](guide/adapters.md) | You are implementing the identity stores or the relation store for your database, upgrading one for `countAttempt` and the second factor, or running the conformance suites |
+| [Writing an adapter](guide/adapters.md) | You are implementing the identity stores or the relation store for your database, upgrading one for `countAttempt`, `spendUserTokens` and the second factor, or running the conformance suites |
 | [Troubleshooting](troubleshooting.md) | You have an error message and want its cause and its fix |
 | [Roadmap](roadmap.md) | You want to know what is coming, what shipped, and what is deliberately not planned |

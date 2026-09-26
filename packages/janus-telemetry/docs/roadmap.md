@@ -33,6 +33,9 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Whose sign-in waits for a second factor, v0.3.1** —
+  `janus.signIn.secondFactor` carries the `user.id` of the user asked for a
+  code, from `signIn` and from `signInCode.confirm` alike.
 - **Sign-in codes in the audit trail, v0.3.0** — a `janus.signInCode.sent`
   event for every code issued, never for an address nobody holds; a sign-in
   by code is a `janus.signIn` with `janus.signIn.code: true`, and the

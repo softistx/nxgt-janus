@@ -181,10 +181,10 @@ hash, like a session token, so the store cannot give it back either.
 
 A challenge belongs to the user type that issued it: confirm a patient's
 challenge with `clinic.patient.signInCode.confirm`. Another type's `confirm`
-answers `TOKEN_UNKNOWN`, compares no code and spends nothing — but it has
-already cost one of the challenge's five attempts, because the attempt is
-counted before the type is known. The challenge is left for its own type,
-with one attempt fewer.
+answers `TOKEN_UNKNOWN` and compares no code — but it has already cost one of
+the challenge's five attempts, because the attempt is counted before the type
+is known. The challenge is left for its own type, with one attempt fewer, and
+the fifth such call spends it, as a fifth wrong code would.
 
 ## Confirming the code
 
@@ -221,8 +221,26 @@ try {
 Five attempts at a million values is a one-in-200,000 chance per challenge.
 Codes sent at once past the fifth attempt are all refused, the right one
 included: the store counts, and nothing reads the count before writing it.
-A new challenge takes a new `request` and a new e-mail — which is why that
-route is the one to rate-limit.
+
+**At most one code is live per user.** A `request` issues its code, then
+spends every other challenge of the user, so the code in an earlier e-mail
+answers `TOKEN_SPENT` — only the last one works:
+
+```ts
+const first = await auth.signInCode.request(email);
+const second = await auth.signInCode.request(email); // the visitor asked again
+await auth.signInCode.confirm(first.challenge, first.code);   // TOKEN_SPENT
+await auth.signInCode.confirm(second.challenge, second.code); // signed in
+```
+
+Requests that arrive at once cannot each keep a code: each spends the others'
+once it issued its own, so at most one survives — sometimes none, and the
+visitor asks again. Guesses therefore never run against two live challenges.
+
+**Rate-limit `request` per address.** A new challenge takes only a new
+`request`, and each one sends an e-mail and cancels the code before it:
+without a limit, anyone who knows an address can fill its inbox, or keep
+its owner from ever typing a code in time.
 
 ### Lifetime
 
@@ -270,8 +288,8 @@ answers `SignedIn`.
 | Rejects with | When | What to do |
 | --- | --- | --- |
 | `CODE_INVALID`, with `attemptsLeft` | the code does not match, or is not six digits. Message: `signInCode.confirm: the code does not match, or was already used` | ask again while `attemptsLeft > 0`; at `0` the challenge is spent: request a new code |
-| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, one whose user was deleted, or one a store's TTL already dropped. Another type's challenge still loses one of its attempts | request a new code |
-| `TOKEN_SPENT` | the challenge already signed someone in, or its attempts ran out | request a new code |
+| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, one whose user was deleted, or one a store's TTL already dropped. Another type's challenge still loses one of its attempts, and its fifth spends it | request a new code |
+| `TOKEN_SPENT` | the challenge already signed someone in, its attempts ran out, or a newer `request` for the same user spent it — only the last code sent works | request a new code, and use the latest e-mail |
 | `TOKEN_EXPIRED` | `expiresAt` has passed | request a new code |
 | `TOKEN_STALE` | the user changed their e-mail since the code was sent. Message: `signInCode.confirm: the code was sent to an e-mail the user no longer has`. The challenge is spent | request a new code, to the current address |
 | `USER_INACTIVE` | the user was deactivated since the code was sent. The challenge is spent | answer 403 |

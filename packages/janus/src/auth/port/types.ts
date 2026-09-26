@@ -35,7 +35,11 @@
  * 5. **Every method is atomic on its own.** Nothing composes into a
  *    transaction, and the core never opens one. An adapter may open one
  *    *inside* a method — a normalised SQL schema writes several rows per
- *    user — but the port exposes none.
+ *    user — but the port exposes none. And **a read sees every write that
+ *    completed before it**: never a secondary or a read replica. A sign-in
+ *    that re-reads the user after answering, and a new code spending the
+ *    ones issued before it, both count on it — the one promise here no suite
+ *    can check.
  * 6. **Schema management is not on this interface.** An adapter exposes its own
  *    `sync()`; the core never calls it.
  *
@@ -481,6 +485,30 @@ export interface TokenStore {
 	 * core's decision, after the call; spending the token is `consumeToken`.
 	 */
 	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
+
+	/**
+	 * Spends every **unspent** token of one user and one `kind` at `at` —
+	 * but the one whose hash is `except`, when given — and answers how many
+	 * it spent. What issuing a sign-in code calls, sparing the code it just
+	 * issued, so only the last code sent works; and what writing a password
+	 * calls, so no second-factor challenge opened with the old one survives.
+	 *
+	 * - A spent token keeps its `spentAt`: it never changes once set.
+	 * - A token of another `kind`, or of another user, is not touched.
+	 * - An expired token is spent all the same, or not counted by a store that
+	 *   already dropped it.
+	 * - `0` for a user with none: an absence, not a failure.
+	 *
+	 * Each token is spent by a conditional write, as `consumeToken` spends
+	 * one: a token `consumeToken` spends at the same moment is counted by
+	 * exactly one of the two calls.
+	 */
+	spendUserTokens(
+		userId: Id,
+		kind: TokenKind,
+		at: Date,
+		except?: string,
+	): Promise<number>;
 
 	/**
 	 * Deletes every token of one user, spent or not, and answers how many.
