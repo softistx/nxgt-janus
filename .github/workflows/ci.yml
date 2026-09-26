@@ -56,6 +56,13 @@ jobs:
         uses: ./.github/actions/setup
       - name: Lint code
         run: biome ci
+      # A changeset naming a private package is consumed by `changeset
+      # version` and published by nothing: the release stays in version mode
+      # (#51 → #53). A typo in a package name is the same release that never
+      # happens. Checked everywhere, and early: it takes milliseconds — the release branch has no changesets
+      # left, so it passes there.
+      - name: Changesets name published packages
+        run: bun run changeset:private
       # Build FIRST. Every package's `exports` points at `./dist/*`, so on a
       # clean checkout a package that imports a sibling resolves it to nothing
       # and typecheck reports phantom TS2307s. A developer's tree always has a
@@ -121,13 +128,6 @@ jobs:
       # changesets 3.0.3 it exits 0, so it cannot fail there — but it cannot
       # catch anything either, and a step that can only pass is one a reader
       # has to work out.
-      # A changeset naming a private package is consumed by `changeset
-      # version` and published by nothing: the release stays in version mode
-      # (#51 → #53). A typo in a package name is the same release that never
-      # happens. Checked everywhere — the release branch has no changesets
-      # left, so it passes there.
-      - name: Changesets name published packages
-        run: bun run changeset:private
       - name: Changeset present
         if: >-
           github.event_name == 'pull_request' &&

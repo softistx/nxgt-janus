@@ -14,6 +14,7 @@
 
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseChangesetFile } from '@changesets/parse';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -27,22 +28,31 @@ export interface Workspace {
 	readonly private: boolean;
 }
 
-/** The package names a changeset's front matter bumps. */
-export function namesIn(text: string): string[] {
-	const front = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? '';
-	return [...front.matchAll(/^\s*["']?([^"':\s]+)["']?\s*:/gm)].map(
-		(match) => match[1] as string,
-	);
+/**
+ * The package names a changeset bumps, read by the parser `changeset version`
+ * itself uses — a hand-written one would fail open on a shape it accepts.
+ * `null` when it cannot read the changeset at all.
+ */
+export function namesIn(text: string): string[] | null {
+	try {
+		return parseChangesetFile(text).releases.map((release) => release.name);
+	} catch {
+		return null;
+	}
 }
 
-/** One line per mistake: a changeset naming a private or unknown package. */
+/** One line per mistake: a changeset unreadable, or naming a private or unknown package. */
 export function refusals(
 	changesets: readonly Changeset[],
 	workspaces: readonly Workspace[],
 ): string[] {
 	const byName = new Map(workspaces.map((one) => [one.name, one]));
-	return changesets.flatMap(({ file, text }) =>
-		namesIn(text).flatMap((name) => {
+	return changesets.flatMap(({ file, text }) => {
+		const names = namesIn(text);
+		if (names === null) {
+			return [`${file}: changesets cannot read its front matter`];
+		}
+		return names.flatMap((name) => {
 			const workspace = byName.get(name);
 			if (workspace === undefined) {
 				return [`${file}: ${name} is not a package of this repository`];
@@ -52,11 +62,14 @@ export function refusals(
 						`${file}: ${name} is private — publish it in a commit of its own that removes "private", with this changeset`,
 					]
 				: [];
-		}),
-	);
+		});
+	});
 }
 
-async function read(root: string) {
+/** The changesets and the packages of a repository, as the check reads them. */
+export async function read(
+	root: string,
+): Promise<{ changesets: Changeset[]; workspaces: Workspace[] }> {
 	const changesets: Changeset[] = [];
 	for (const file of await readdir(join(root, '.changeset'))) {
 		if (!file.endsWith('.md') || file === 'README.md') continue;

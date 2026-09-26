@@ -347,6 +347,7 @@ bun run typecheck    # includes test/types/, which is the type-safety measuremen
 bun run build
 bun run test
 bun run verify:artifacts   # on the tarball actually packed
+bun run changeset:private  # no changeset names a private or unknown package
 ```
 
 `verify:artifacts` is the one that matters most here: it loads **every**
@@ -357,6 +358,8 @@ The scripts have specs of their own, run by the root `test`:
 `scripts/verify-artifacts.spec.ts` covers the pure checks. Among them is the
 one-class-per-entry scan, proven against a real `Bun.build` both with and
 without `splitting`. `scripts/publish.spec.ts` covers the publish order and the
-skipping of a `private` package. Their first run found that `newestMtime`
+skipping of a `private` package. `scripts/check-changesets.spec.ts` covers the changeset
+check — read with `@changesets/parse`, the parser `changeset version` uses, so a
+shape it accepts is never let through unread. Their first run found that `newestMtime`
 threw `ENOENT` on a missing `dist/`, where it should have reported the
 package as unbuilt.
