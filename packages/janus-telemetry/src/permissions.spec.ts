@@ -17,8 +17,8 @@ function setup() {
 				subjects: ['staff'],
 				types: {
 					record: {
-						relations: { owner: ['staff'] },
-						permissions: { view: ['owner'] },
+						related: { owners: ['staff'] },
+						permits: { view: ['owners'] },
 					},
 				},
 			}),
@@ -59,9 +59,9 @@ describe('instrumentPermissions()', () => {
 	it('writes an audit event per tuple granted or revoked', async () => {
 		const { access } = setup();
 		const { logs, spans } = await collect(async () => {
-			await access.grant(record, 'owner', ada);
+			await access.grant(record, 'owners', ada);
 			expect(await access.can(ada, 'view', record)).toBe(true);
-			await access.revoke(record, 'owner', ada);
+			await access.revoke(record, 'owners', ada);
 		});
 
 		const audit = logs
@@ -70,7 +70,7 @@ describe('instrumentPermissions()', () => {
 		const tuple = {
 			'janus.object.type': 'record',
 			'janus.object.id': 'r1',
-			'janus.relation': 'owner',
+			'janus.relation': 'owners',
 			'janus.subject.type': 'staff',
 			'janus.subject.id': 'u1',
 		};
@@ -87,7 +87,7 @@ describe('instrumentPermissions()', () => {
 
 	it('counts what list() found', async () => {
 		const { access } = setup();
-		await access.grant(record, 'owner', ada);
+		await access.grant(record, 'owners', ada);
 		const { spans } = await collect(async () => {
 			await access.list(ada, 'view', 'record');
 		});

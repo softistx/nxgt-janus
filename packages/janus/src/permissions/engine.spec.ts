@@ -9,24 +9,24 @@ const model = defineModel({
 	subjects: ['patient', 'staff'],
 	types: {
 		team: {
-			relations: { member: ['staff', 'team#member'], lead: ['staff'] },
-			permissions: { manage: ['lead'], view: ['member', 'manage'] },
+			related: { members: ['staff', 'team#members'], leads: ['staff'] },
+			permits: { manage: ['leads'], view: ['members', 'manage'] },
 		},
 		folder: {
-			relations: { parent: ['folder'], owner: ['staff'] },
-			permissions: { view: ['owner', 'parent->view'] },
+			related: { parents: ['folder'], owners: ['staff'] },
+			permits: { view: ['owners', 'parents->view'] },
 		},
 		record: {
-			relations: {
-				patient: fromField('patientId', 'patient'),
-				doctor: fromField('doctorId', 'staff'),
-				team: ['team'],
-				folder: ['folder'],
-				viewer: ['staff', 'team#member'],
+			related: {
+				patients: fromField('patientId', 'patient'),
+				doctors: fromField('doctorId', 'staff'),
+				teams: ['team'],
+				folders: ['folder'],
+				viewers: ['staff', 'team#members'],
 			},
-			permissions: {
-				view: ['patient', 'viewer', 'team->view', 'folder->view', 'edit'],
-				edit: [when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)],
+			permits: {
+				view: ['patients', 'viewers', 'teams->view', 'folders->view', 'edit'],
+				edit: [when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)],
 			},
 		},
 	},
@@ -71,10 +71,10 @@ describe('the Keto behaviours', () => {
 		const access = setup();
 		const ada = staff();
 		const doc = record();
-		await access.grant(doc, 'viewer', ada);
+		await access.grant(doc, 'viewers', ada);
 
-		expect(await access.can(ada, 'viewer', doc)).toBe(true);
-		expect(await access.can(staff(), 'viewer', doc)).toBe(false);
+		expect(await access.can(ada, 'viewers', doc)).toBe(true);
+		expect(await access.can(staff(), 'viewers', doc)).toBe(false);
 	});
 
 	it('a denial is false, never a thrown error', async () => {
@@ -85,9 +85,9 @@ describe('the Keto behaviours', () => {
 		const access = setup();
 		const lead = staff();
 		const t = team();
-		await access.grant(t, 'lead', lead);
+		await access.grant(t, 'leads', lead);
 
-		// view includes manage, which includes lead: one write, two grants.
+		// view includes manage, which includes leads: one write, two grants.
 		expect(await access.can(lead, 'view', t)).toBe(true);
 	});
 
@@ -96,11 +96,11 @@ describe('the Keto behaviours', () => {
 		const ada = staff();
 		const t = team();
 		const doc = record();
-		await access.grant(t, 'member', ada);
-		await access.grant(doc, 'viewer', {
+		await access.grant(t, 'members', ada);
+		await access.grant(doc, 'viewers', {
 			type: 'team',
 			id: t.id,
-			relation: 'member',
+			relation: 'members',
 		});
 
 		expect(await access.can(ada, 'view', doc, offShift)).toBe(true);
@@ -110,24 +110,24 @@ describe('the Keto behaviours', () => {
 		const access = setup();
 		const ada = staff();
 		const [outer, inner] = [team(), team()];
-		await access.grant(inner, 'member', ada);
-		await access.grant(outer, 'member', {
+		await access.grant(inner, 'members', ada);
+		await access.grant(outer, 'members', {
 			type: 'team',
 			id: inner.id,
-			relation: 'member',
+			relation: 'members',
 		});
 
-		expect(await access.can(ada, 'member', outer)).toBe(true);
+		expect(await access.can(ada, 'members', outer)).toBe(true);
 	});
 
 	it('answers a question whose subject is a subject set', async () => {
 		const access = setup();
 		const t = team();
 		const doc = record();
-		const members = { type: 'team', id: t.id, relation: 'member' } as const;
-		await access.grant(doc, 'viewer', members);
+		const members = { type: 'team', id: t.id, relation: 'members' } as const;
+		await access.grant(doc, 'viewers', members);
 
-		expect(await access.can(members, 'viewer', doc)).toBe(true);
+		expect(await access.can(members, 'viewers', doc)).toBe(true);
 	});
 
 	it('follows only the subject sets the model admits, as list() does', async () => {
@@ -136,21 +136,21 @@ describe('the Keto behaviours', () => {
 		const ada = staff();
 		const t = team();
 		const doc = record();
-		await access.grant(t, 'lead', ada);
-		// viewer admits team#member, not team#lead: written past grant(), as a
+		await access.grant(t, 'leads', ada);
+		// viewers admits team#members, not team#leads: written past grant(), as a
 		// store shared with an older model could hold it.
 		await store.write({
 			add: [
 				{
 					object: { type: doc.type, id: doc.id },
-					relation: 'viewer',
-					subject: { type: 'team', id: t.id, relation: 'lead' },
+					relation: 'viewers',
+					subject: { type: 'team', id: t.id, relation: 'leads' },
 				},
 			],
 		});
 
-		expect(await access.can(ada, 'viewer', doc)).toBe(false);
-		expect((await access.list(ada, 'viewer', 'record')).items).toEqual([]);
+		expect(await access.can(ada, 'viewers', doc)).toBe(false);
+		expect((await access.list(ada, 'viewers', 'record')).items).toEqual([]);
 	});
 
 	it('grants no direct tuple whose subject the model does not admit, as grant() refuses to write it', async () => {
@@ -158,36 +158,36 @@ describe('the Keto behaviours', () => {
 		const access = setup(store);
 		const t = team();
 		const doc = record();
-		// viewer admits staff and team#member, not a team itself.
+		// viewers admits staff and team#members, not a team itself.
 		const tuple = {
 			object: { type: doc.type, id: doc.id },
-			relation: 'viewer',
+			relation: 'viewers',
 			subject: { type: 'team', id: t.id },
 		};
 		await store.write({ add: [tuple] });
 
-		expect(await access.can(t, 'viewer', doc)).toBe(false);
-		expect((await access.list(t, 'viewer', 'record')).items).toEqual([]);
+		expect(await access.can(t, 'viewers', doc)).toBe(false);
+		expect((await access.list(t, 'viewers', 'record')).items).toEqual([]);
 		const refused = (await rejection(
-			// @ts-expect-error record.viewer admits no team itself
-			access.grant(doc, 'viewer', t),
+			// @ts-expect-error record.viewers admits no team itself
+			access.grant(doc, 'viewers', t),
 		)) as Error;
-		expect(refused.message).toContain('record.viewer is not held by team');
+		expect(refused.message).toContain('record.viewers is not held by team');
 
-		// record.team admits a team, not the set of its members.
+		// record.teams admits a team, not the set of its members.
 		const ada = staff();
-		await access.grant(t, 'member', ada);
+		await access.grant(t, 'members', ada);
 		await store.write({
 			add: [
 				{
 					object: { type: doc.type, id: doc.id },
-					relation: 'team',
-					subject: { type: 'team', id: t.id, relation: 'member' },
+					relation: 'teams',
+					subject: { type: 'team', id: t.id, relation: 'members' },
 				},
 			],
 		});
-		expect(await access.can(ada, 'team', doc)).toBe(false);
-		expect((await access.list(ada, 'team', 'record')).items).toEqual([]);
+		expect(await access.can(ada, 'teams', doc)).toBe(false);
+		expect((await access.list(ada, 'teams', 'record')).items).toEqual([]);
 	});
 
 	it('follows only the arrow targets the model admits', async () => {
@@ -196,13 +196,13 @@ describe('the Keto behaviours', () => {
 		const ada = staff();
 		const t = team();
 		const doc = record();
-		await access.grant(t, 'member', ada);
-		// record.folder admits folder, not team: written past grant().
+		await access.grant(t, 'members', ada);
+		// record.folders admits folder, not team: written past grant().
 		await store.write({
 			add: [
 				{
 					object: { type: doc.type, id: doc.id },
-					relation: 'folder',
+					relation: 'folders',
 					subject: { type: 'team', id: t.id },
 				},
 			],
@@ -235,17 +235,17 @@ describe('fromField and when', () => {
 		const [ada, bob] = [patient(), patient()];
 
 		expect(
-			await access.can(ada, 'patient', record({ patientId: ada.id })),
+			await access.can(ada, 'patients', record({ patientId: ada.id })),
 		).toBe(true);
 		expect(
-			await access.can(bob, 'patient', record({ patientId: ada.id })),
+			await access.can(bob, 'patients', record({ patientId: ada.id })),
 		).toBe(false);
-		expect(await access.can(ada, 'patient', record())).toBe(false);
+		expect(await access.can(ada, 'patients', record())).toBe(false);
 		// The same id under another subject type is somebody else.
 		expect(
 			await access.can(
 				{ type: 'staff', id: ada.id },
-				'patient',
+				'patients',
 				record({ patientId: ada.id }),
 			),
 		).toBe(false);
@@ -274,7 +274,7 @@ describe('fromField and when', () => {
 		).toBeInstanceOf(TypeError);
 		const { doctorId: _, ...withoutDoctor } = doc;
 		const missing = await rejection(
-			access.can(doctor, 'doctor', withoutDoctor as never),
+			access.can(doctor, 'doctors', withoutDoctor as never),
 		);
 		expect(missing).toBeInstanceOf(TypeError);
 		expect((missing as Error).message).toContain('reads doctorId');
@@ -288,11 +288,11 @@ describe('arrows', () => {
 		const t = team();
 		const [root, sub] = [folder(), folder()];
 		const doc = record();
-		await access.grant(t, 'lead', lead);
-		await access.grant(doc, 'team', t);
-		await access.grant(root, 'owner', owner);
-		await access.grant(sub, 'parent', root);
-		await access.grant(doc, 'folder', sub);
+		await access.grant(t, 'leads', lead);
+		await access.grant(doc, 'teams', t);
+		await access.grant(root, 'owners', owner);
+		await access.grant(sub, 'parents', root);
+		await access.grant(doc, 'folders', sub);
 
 		expect(await access.can(lead, 'view', doc, offShift)).toBe(true);
 		expect(await access.can(owner, 'view', doc, offShift)).toBe(true);
@@ -305,20 +305,20 @@ describe('cycles and depth', () => {
 		const access = setup();
 		const [a, b] = [team(), team()];
 		const ada = staff();
-		await access.grant(a, 'member', {
+		await access.grant(a, 'members', {
 			type: 'team',
 			id: b.id,
-			relation: 'member',
+			relation: 'members',
 		});
-		await access.grant(b, 'member', {
+		await access.grant(b, 'members', {
 			type: 'team',
 			id: a.id,
-			relation: 'member',
+			relation: 'members',
 		});
-		await access.grant(b, 'member', ada);
+		await access.grant(b, 'members', ada);
 
-		expect(await access.can(staff(), 'member', a)).toBe(false);
-		expect(await access.can(ada, 'member', a)).toBe(true);
+		expect(await access.can(staff(), 'members', a)).toBe(false);
+		expect(await access.can(ada, 'members', a)).toBe(true);
 	});
 
 	it('throws PERMISSION_DEPTH past maxDepth, and answers within it', async () => {
@@ -326,11 +326,11 @@ describe('cycles and depth', () => {
 		const store = createMemoryRelations();
 		const chain = Array.from({ length: 12 }, folder);
 		const shallow = setup(store, 20);
-		await shallow.grant(chain[0] ?? folder(), 'owner', owner);
+		await shallow.grant(chain[0] ?? folder(), 'owners', owner);
 		for (let n = 1; n < chain.length; n += 1) {
 			await shallow.grant(
 				chain[n] ?? folder(),
-				'parent',
+				'parents',
 				chain[n - 1] ?? folder(),
 			);
 		}
@@ -363,12 +363,12 @@ describe('an outage is never a denial', () => {
 			const access = setup(store);
 			const t = team();
 			const doc = record();
-			await access.grant(doc, 'viewer', {
+			await access.grant(doc, 'viewers', {
 				type: 'team',
 				id: t.id,
-				relation: 'member',
+				relation: 'members',
 			});
-			await access.grant(doc, 'team', t);
+			await access.grant(doc, 'teams', t);
 
 			const error = (await rejection(
 				access.can(staff(), 'view', doc, offShift),
@@ -389,7 +389,7 @@ describe('an outage is never a denial', () => {
 		});
 
 		const error = (await rejection(
-			access.grant(team(), 'member', staff()),
+			access.grant(team(), 'members', staff()),
 		)) as {
 			code: string;
 		};
@@ -402,11 +402,11 @@ describe('grant and revoke', () => {
 		const access = setup();
 		const ada = staff();
 		const t = team();
-		await access.grant(t, 'member', ada);
-		await access.revoke(t, 'member', ada);
-		await access.revoke(t, 'member', ada);
+		await access.grant(t, 'members', ada);
+		await access.revoke(t, 'members', ada);
+		await access.revoke(t, 'members', ada);
 
-		expect(await access.can(ada, 'member', t)).toBe(false);
+		expect(await access.can(ada, 'members', t)).toBe(false);
 	});
 
 	it('treats a user as a user, whatever fields it carries', async () => {
@@ -414,9 +414,9 @@ describe('grant and revoke', () => {
 		const t = team();
 		// A user's fields are flat on it; one named relation is still a field.
 		const ada = { ...staff(), relation: 'cousin', name: 'Ada' };
-		await access.grant(t, 'member', ada);
+		await access.grant(t, 'members', ada);
 
-		expect(await access.can({ type: 'staff', id: ada.id }, 'member', t)).toBe(
+		expect(await access.can({ type: 'staff', id: ada.id }, 'members', t)).toBe(
 			true,
 		);
 	});
@@ -428,17 +428,17 @@ describe('grant and revoke', () => {
 	][] = [
 		[
 			'a relation read from a field',
-			(access) => access.grant(record(), 'doctor' as never, staff() as never),
+			(access) => access.grant(record(), 'doctors' as never, staff() as never),
 			'is read from doctorId',
 		],
 		[
 			'a holder the relation does not admit',
-			(access) => access.grant(team(), 'lead', patient() as never),
-			'team.lead is not held by patient',
+			(access) => access.grant(team(), 'leads', patient() as never),
+			'team.leads is not held by patient',
 		],
 		[
 			'an id the notation would read two ways',
-			(access) => access.grant({ type: 'team', id: 't#1' }, 'member', staff()),
+			(access) => access.grant({ type: 'team', id: 't#1' }, 'members', staff()),
 			'without @, # or parentheses',
 		],
 		[
@@ -446,7 +446,7 @@ describe('grant and revoke', () => {
 			(access) =>
 				access.grant(
 					{ type: 'ward', id: 'w' } as never,
-					'member' as never,
+					'members' as never,
 					staff() as never,
 				),
 			'"ward" is not an object type',

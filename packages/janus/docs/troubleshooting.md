@@ -514,7 +514,7 @@ Also `can: <type>.<relation> reads <field>, which the object holds as something 
 **Fix:** pass the loaded object, spread:
 
 ```ts
-await access.can(staff, 'view', { type: 'record', ...record });
+await access.can(grace, 'view', { type: 'record', ...record });
 ```
 
 ### `can: <type>.<name> reaches a condition, and no ctx was passed — pass { ctx }`
@@ -526,7 +526,7 @@ Also `list: <type>.<name> reaches a condition, and no ctx was passed — pass { 
 **Fix:**
 
 ```ts
-await access.can(staff, 'edit', { type: 'record', ...record }, { ctx: { onShift } });
+await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: true } });
 ```
 
 ### `list: <type>.<relation> is read from a field, and has no lookup to find the <type>s naming <id> — …`
@@ -536,7 +536,7 @@ await access.can(staff, 'edit', { type: 'record', ...record }, { ctx: { onShift 
 **Fix:**
 
 ```ts
-fromField('doctorId', 'staff', { lookup: (id) => db.records.idsWhere({ doctorId: id }) });
+doctors: fromField('doctorId', 'staff', { lookup: (staffId) => db.records.idsByDoctor(staffId) }),
 ```
 
 A `lookup` is your code and is not guarded: if it throws, `list()` rejects with that error. Never answer `[]` for a database that could not answer — that is an outage turned into a denial.
@@ -560,8 +560,8 @@ Also with `revoke:`.
 Also with `revoke:`.
 
 **When:** `access.grant(object, relation, subject)`.
-**Why:** the model's relation does not admit that kind of subject: `member: ['staff']` refuses a `patient`, and refuses the subject set `team#member` unless it is listed.
-**Fix:** grant a subject the relation admits, or add the holder to the model: `member: ['staff', 'team#member']`.
+**Why:** the model's relation does not admit that kind of subject: `members: ['staff']` refuses a `patient`, and refuses the subject set `team#members` unless it is listed.
+**Fix:** grant a subject the relation admits, or add the holder to the model: `members: ['staff', 'team#members']`.
 With `revoke:` on a tuple stored before the model stopped admitting it, the tuple already grants nothing; remove it through the store: `relations.write({ remove: [tuple] })`.
 
 ### Other `can:`, `list:`, `grant:` and `revoke:` messages
@@ -575,7 +575,7 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: the object must be { type, id, …its fields }` | `{ type: 'record', ...record }`. |
 | `<call>: the subject must be a user, or { type, id }` | Pass the user from `janus()`, or `{ type, id }`. `null` is anonymous and answers `false`. |
 | `<call>: the object id must be a non-empty string without @, # or parentheses` | Also for `the subject id`. Those characters belong to the tuple notation. |
-| `<call>: "<relation>" is not a relation of <type>, so <type>:<id>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'member' }`. |
+| `<call>: "<relation>" is not a relation of <type>, so <type>:<id>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'members' }`. |
 | `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. |
 | `list: the type must be an object type of the model` | The third argument is a type name: `'record'`. |
 | `list: after must be the nextCursor of a page, or null` | Pass `nextCursor` back as it came. |
@@ -587,39 +587,33 @@ most common:
 
 | Message | Fix |
 | --- | --- |
+| `defineModel: types.<type>.relations is now related: rename the key` | The key before 0.2. Rename it, nothing else: `related: { members: ['staff'] }`. The compiler refuses it first: `team.relations is now related: rename the key`. |
+| `defineModel: types.<type>.permissions is now permits: rename the key` | The same for the permissions: `permits: { view: ['members'] }`. The compiler refuses it first: `team.permissions is now permits: rename the key`. |
+| `defineModel: types.<type>.<key> is not a key of an object type: related or permits` | An object type has two keys, `related` and `permits` — `permit:`, singular, is a typo. |
 | `defineModel: subjects must be an array of subject type names — auth.types from janus(), or your own` | `defineModel({ subjects: auth.types, types })` with `janus()`, or your own names alone: `subjects: ['user']`. |
 | `defineModel: types declares no object type` | Declare at least one type under `types`. |
-| `defineModel: the object type "<name>" must be a camelCase name — letters and digits, starting with a lowercase letter` | Also for relation and permission names. |
-| `defineModel: "<name>" names a user type and an object type; a subject of type "<name>" would be ambiguous` | Rename the object type. |
+| `defineModel: types.<type> must be an object` | Also `types.<type>.related must be an object` and `types.<type>.permits must be an object`: each is keyed by name — `related: { members: ['staff'] }`. |
+| `defineModel: the object type "<name>" must be a camelCase name — letters and digits, starting with a lowercase letter` | Also `types.<type>.related: "<name>" must be a camelCase name — …` for a relation, and `types.<type>.permits: …` for a permission. |
+| `defineModel: "<name>" names a user type and an object type; a subject of type "<name>" would be ambiguous` | Rename the object type. For permissions on a user, see [the guide](guide/permissions.md#permissions-on-a-user). |
 | `defineModel: types.<type>: "<name>" names a relation and a permission; rename one` | One name, one meaning. |
-| `defineModel: types.<type>.permissions: <a> → <b> → <a> is a loop no relation ends` — `rules.<type>: …` in the reference form | A permission must cross a relation before it reaches itself again. |
-| `defineModel: types.<type>.<key> is not a key of an object type: relations or permissions — related or permits` | An object type has `relations` and `permissions`, or `related` and `permits` with its rules under `rules`. |
-| `defineModel: types.<type> must be an object` | `types: { record: { relations: {…}, permissions: {…} } }`, one object per type. |
-| `defineModel: types.<type>.relations must be an object` — also `.related` | `{ owners: ['staff'] }`, keyed by relation name, never an array. |
-| `defineModel: … "<rule>" goes through "<relation>", which can hold a subject set; an arrow follows object types only` | An arrow's relation must hold object types: `team: ['team']`. |
+| `defineModel: types.<type>.related.<relation> must be a non-empty array of subject types, or fromField()` | `members: ['staff']`, or `doctors: fromField('doctorId', 'staff')`. |
+| `defineModel: types.<type>.related.<relation>: "<holder>" is not a subject type` | Also `"<holder>" is not a subject set — it must name an object type and one of its relations`: `'team#members'`, a declared type and one of its relations. |
+| `defineModel: types.<type>.permits.<permission> must be a non-empty array of rules` | `view: ['members']`. |
+| `defineModel: pass { subjects, types }` | From JavaScript: `defineModel` was given something other than an object. |
+| `defineModel: the subject type "<name>" must be a camelCase name` | A user type from `janus()` is always one; check a list of your own. |
+| `defineModel: types.<type>.related.<relation>: fromField names "<name>", which is not a subject type` | `fromField('doctorId', 'staff')`: the second argument is a user type or an object type of the model. |
+| `defineModel: types.<type>.related.<relation>: fromField must name a top-level field` | `fromField('doctorId', …)`, never `'doctor.id'`: the field is read from the object passed to `can()`. |
+| `defineModel: types.<type>.related.<relation>: fromField's lookup must be a function` | `{ lookup: (staffId) => db.records.idsByDoctor(staffId) }`. |
+| `defineModel: types.<type>.related.<relation>: a holder must be a string` | `members: ['staff', 'team#members']`. |
+| `defineModel: types.<type>.permits.<permission>[<i>]: a rule is a name, an arrow, or when()` | `view: ['doctors', 'teams->view', when('doctors', test)]`. |
+| `defineModel: types.<type>.permits.<permission>[<i>]: when() takes a function as its test` | `when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)`. |
+| `defineModel: types.<type>.permits.<permission>[<i>]: "<rule>" is not a relation or a permission of <type>` | Name a relation or a permission the type declares — `'members'`, `'manage'`. |
+| `defineModel: types.<type>.permits: <a> → <b> → <a> is a loop no relation ends` | A permission must cross a relation before it reaches itself again. |
+| `defineModel: … "<rule>" goes through "<relation>", which is not a relation of <type>` | An arrow starts from a relation of the same type: `'teams->view'` needs `teams` under `related`. |
+| `defineModel: … "<rule>" goes through "<relation>", which can hold a subject set; an arrow follows object types only` — also `which can hold a <user type>` | An arrow's relation must hold object types: `teams: ['team']`. A user has no permissions to follow. The compiler refuses it first. |
 | `defineModel: … "<rule>" names "<target>", which <type> does not declare` | Arrow to a relation or permission of the target type. |
 | `defineModel: … reads <type>.<field>, and a subject set reaches <type>s nobody passed to can() — store that relation instead of reading it` | Only the object passed to `can()` carries data: a `fromField` there cannot be reached through a subject set or an arrow. Store it as a tuple. |
-
-In the reference form — `related`, `permits`, `rules`:
-
-| Message | Fix |
-| --- | --- |
-| `defineModel: types.<type> has both relations and related. Pass one.` — also `permissions` and `permits` | One type, one spelling. Two types of one model may differ. |
-| `defineModel: types.<type> mixes the two forms: related and permits, or relations and permissions — not one of each` | `related` beside `permissions` strings, or `relations` beside `permits`: write the whole type in one form. The compiler refuses it first, on the string-form key. |
-| `defineModel: rules must be an object: one entry per type that declares permits` | `rules: { folder: { view: ({ related }) => [related.owners] } }`. |
-| `defineModel: types.<type>.permits: "<name>" must be a camelCase name — letters and digits, starting with a lowercase letter` | Also `types.<type>.related: …` for a relation name. |
-| `defineModel: types.<type>.permits must be an array of permission names` | `permits: ['view', 'edit']`; the rules go under `rules.<type>`. |
-| `defineModel: types.<type>.permits names "<name>" twice` | Declare each permit once. The compiler refuses it first, on that name. |
-| `defineModel: types.<type>: "<name>" names a relation and a permission; rename one` | A permit named like a relation of its type. The compiler refuses it first, on that name. |
-| `defineModel: rules.<type>.<permit> is missing — ({ related, permits }) => [related.…, permits.…]` — also `must be a function — …` | Every permit declared on a type needs its rule — a function, not an array. |
-| `defineModel: rules.<type>.<permit>: "<permit>" is not in types.<type>.permits — declare it there first` | The names live on the type; add it to `permits`. |
-| `defineModel: rules.<type>: no object type named "<type>"` | Match a key of `types`. |
-| `defineModel: rules.<type>: types.<type> writes its permissions as strings; rules is for a type that declares permits` | That type is in the string form: its rules are its `permissions` arrays. |
-| `defineModel: rules.<type>.<permit> must answer a non-empty array of references` | Answer `[related.…]`, never a boolean: a rule declares, it does not check. |
-| `defineModel: rules.<type>.<permit>[<i>] is undefined — related.x, permits.p, related.x.permits.p, or when(one of those, test)` | `related.viewers` on a type without `viewers`, or `related.owners.permits.view` through a relation held by users, by a subject set, or by users and objects alike, or an arrow to a name not every holder declares as the same kind: the compiler refuses it first; from JavaScript, it is `undefined`. Reading further — `related.viewers.permits.view` — fails inside your rule, with JavaScript's own `TypeError`. |
-| `defineModel: rules.<type>.<permit>[<i>] is not a reference — …` | A string among the references: use `related.<name>`, or `when('<name>', test)`. |
-| `defineModel: types.<type>.<key> is not a key of an object type: related or permits` | In the reference form a type has `related` and `permits`; its rules are under `rules`. |
-| `defineModel: rules.<type>.<permit>: … reads <type>.<field>, and only the object passed to can() carries its data — …` | As in the string form, named where the rule was written. |
+| `defineModel: types.<type>.permits.<permission>: "<relation>-><target>" reaches <type>.<target>, which reads <type>.<field>, and only the object passed to can() carries its data — store that relation instead of reading it` | The same through an arrow: `'teams->leads'` where the team's `leads` is a `fromField`. Store it as a tuple. |
 
 ---
 
@@ -630,14 +624,14 @@ In the reference form — `related`, `permits`, `rules`:
 Also `parseSubject: "<text>" is not a subject; expected type:id, or type:id#relation for a subject set`.
 
 **When:** `parseTuple(...)` or `parseSubject(...)`, a `TypeError`.
-**Why:** subjects are typed. `record:r1#viewer@alice` — Keto's untyped subject — is refused. No part may hold `@`, `#` or a parenthesis, and a type may not hold `:`.
+**Why:** subjects are typed. `team:t1#members@grace` — Keto's untyped subject — is refused. No part may hold `@`, `#` or a parenthesis, and a type may not hold `:`.
 **Fix:**
 
 ```ts
 import { parseTuple } from '@nxgt/janus';
 
-parseTuple('record:r1#viewer@staff:u1');
-parseTuple('record:r1#viewer@team:t1#member');
+parseTuple('record:r1#teams@team:t1');
+parseTuple('team:t1#members@team:t2#members');
 ```
 
 ---

@@ -68,11 +68,13 @@ Nothing yet.
 
 The first public release, v0.1.
 
-- **The model written the way Keto's OPL reads** — `related` and the `permits`
-  names on the type, the rules beside the types as functions given typed
-  references (`related.owners`, `permits.manage`,
-  `related.parents.permits.view`), completed by your editor. The string form
-  stays, and the two share one model. — next minor
+- **The model's keys read `related` and `permits`** — Keto's OPL words: an
+  object type declares `related: { members: ['staff', 'team#members'] }` and
+  `permits: { view: ['members'] }`, and relation names are plural by convention. Breaking:
+  `relations` and `permissions` as keys are refused, by the compiler and by
+  `defineModel`, with a message naming the new key —
+  `types.team.relations is now related: rename the key`. The `permissions()`
+  function and `janus({ relations })` keep their names. — next minor
 - **`LOGIN_TAKEN` no longer quotes the login in its message**, in the memory
   store and in both adapters; `error.login` still names it, and the
   conformance suite checks it. — next patch

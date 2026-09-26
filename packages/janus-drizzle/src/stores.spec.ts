@@ -130,7 +130,7 @@ describe('createDrizzleAdapter(db, { tables }), in a schema of their own', () =>
 			expect(await store.users.findUser(record.id)).toEqual(record);
 			const tuple = {
 				object: { type: 'record', id: 'r1' },
-				relation: 'owner',
+				relation: 'owners',
 				subject: { type: 'user', id: record.id },
 			};
 			await relations.write({ add: [tuple] });

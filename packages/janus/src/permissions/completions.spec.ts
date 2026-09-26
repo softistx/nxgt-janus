@@ -24,17 +24,17 @@ defineModel({
 	subjects,
 	types: {
 		team: {
-			relations: { member: ['staff', 'team#member'], lead: ['staff'] },
-			permissions: { manage: ['lead'], view: ['member', 'manage'] },
+			related: { members: ['staff', 'team#members'], leads: ['staff'] },
+			permits: { manage: ['leads'], view: ['members', 'manage'] },
 		},
 		record: {
-			relations: {
-				owner: ['§'],
-				team: ['team'],
-				doctor: fromField('doctorId', '§'),
+			related: {
+				owners: ['§'],
+				teams: ['team'],
+				doctors: fromField('doctorId', '§'),
 			},
-			permissions: {
-				view: ['owner', '§'],
+			permits: {
+				view: ['owners', '§'],
 				edit: [when('§', (ctx: { locked: boolean }) => !ctx.locked)],
 			},
 		},
@@ -73,11 +73,8 @@ function serviceOver(text: string): ts.LanguageService {
 	return service;
 }
 
-/** The completions of `kind` offered at each `§` of `source`, in order. */
-function completionsIn(
-	source: string,
-	kind: ts.ScriptElementKind = ts.ScriptElementKind.string,
-): string[][] {
+/** The string completions offered at each `§` of `source`, in order. */
+function completionsIn(source: string): string[][] {
 	const cursors: number[] = [];
 	let text = '';
 	for (const part of source.split('§')) {
@@ -89,7 +86,7 @@ function completionsIn(
 
 	return cursors.map((cursor) =>
 		(service.getCompletionsAtPosition(FILE, cursor, {})?.entries ?? [])
-			.filter((entry) => entry.kind === kind)
+			.filter((entry) => entry.kind === ts.ScriptElementKind.string)
 			.map((entry) => entry.name)
 			.filter((name) => name !== ''),
 	);
@@ -110,13 +107,13 @@ describe('an editor completes a model', () => {
 				'staff',
 				'team',
 				'record',
-				'team#member',
-				'team#lead',
-				'record#owner',
+				'team#members',
+				'team#leads',
+				'record#owners',
 			]),
 		);
 		// A fromField is read from one object's data: never a subject set.
-		expect(at(0)).not.toContain('record#doctor');
+		expect(at(0)).not.toContain('record#doctors');
 	});
 
 	it("offers a fromField's subject types", () => {
@@ -124,7 +121,7 @@ describe('an editor completes a model', () => {
 	});
 
 	it("offers a rule's relations, other permissions and arrows, in when() too", () => {
-		const names = ['owner', 'doctor', 'team', 'team->view'];
+		const names = ['owners', 'doctors', 'teams', 'teams->view'];
 		// The cursors sit in `view` and in `edit`: each offers the other.
 		expect(at(2)).toEqual(expect.arrayContaining([...names, 'edit']));
 		expect(at(3)).toEqual(expect.arrayContaining([...names, 'view']));
@@ -136,58 +133,6 @@ describe('an editor completes a model', () => {
 	});
 });
 
-const RULES = `
-import { defineModel, fromField, when } from './index';
-
-const subjects = ['patient', 'staff'] as readonly ('patient' | 'staff')[];
-
-defineModel({
-	subjects,
-	types: {
-		team: {
-			related: { members: ['staff', 'team#members'], leads: ['staff'] },
-			permits: ['manage', 'view'],
-		},
-		record: {
-			related: { doctors: fromField('doctorId', 'staff'), teams: ['team'] },
-			permits: ['view', 'edit'],
-		},
-	},
-	rules: {
-		team: {
-			manage: ({ related }) => [related.§],
-			view: ({ related, permits }) => [related.members, permits.§],
-		},
-		record: {
-			view: ({ related }) => [related.teams.permits.§, related.teams.related.§],
-			edit: ({ related }) => [when(related.§, (ctx: { onShift: boolean }) => ctx.onShift)],
-		},
-	},
-});
-`;
-
-describe('an editor completes a rule function', () => {
-	let asked: string[][] | undefined;
-	const at = (cursor: number) => {
-		asked ??= completionsIn(RULES, ts.ScriptElementKind.memberVariableElement);
-		return asked[cursor];
-	};
-
-	it("offers related. the type's relations, in when() too", () => {
-		expect(at(0)?.sort()).toEqual(['leads', 'members']);
-		expect(at(4)?.sort()).toEqual(['doctors', 'teams']);
-	});
-
-	it('offers permits. the other permits, never its own name', () => {
-		expect(at(1)).toEqual(['manage']);
-	});
-
-	it("offers an arrow the target's permits and relations", () => {
-		expect(at(2)?.sort()).toEqual(['manage', 'view']);
-		expect(at(3)?.sort()).toEqual(['leads', 'members']);
-	});
-});
-
 const QUESTIONS = `
 import { defineModel, fromField, permissions } from './index';
 import { createMemoryRelations } from './port/memory';
@@ -196,10 +141,10 @@ const access = permissions({
 	model: defineModel({
 		subjects: ['staff'],
 		types: {
-			team: { relations: { member: ['staff'] }, permissions: { view: ['member'] } },
+			team: { related: { members: ['staff'] }, permits: { view: ['members'] } },
 			record: {
-				relations: { owner: ['staff'], doctor: fromField('doctorId', 'staff'), team: ['team'] },
-				permissions: { view: ['owner', 'team->view'], read: ['owner', 'doctor'] },
+				related: { owners: ['staff'], doctors: fromField('doctorId', 'staff'), teams: ['team'] },
+				permits: { view: ['owners', 'teams->view'], read: ['owners', 'doctors'] },
 			},
 		},
 	}),
@@ -220,17 +165,23 @@ describe('an editor completes a question', () => {
 	};
 
 	it("offers can() the object's relations and permissions, not another type's", () => {
-		// `team` is record's relation, not the type; `member` is team's.
-		expect(at(0)?.sort()).toEqual(['doctor', 'owner', 'read', 'team', 'view']);
+		// `teams` is record's relation; `members` is team's.
+		expect(at(0)?.sort()).toEqual([
+			'doctors',
+			'owners',
+			'read',
+			'teams',
+			'view',
+		]);
 	});
 
 	it('offers list() only what it can reverse', () => {
-		// doctor, and read through it, are read from a field with no lookup.
-		expect(at(1)?.sort()).toEqual(['owner', 'team', 'view']);
+		// doctors, and read through it, are read from a field with no lookup.
+		expect(at(1)?.sort()).toEqual(['owners', 'teams', 'view']);
 	});
 
 	it('offers grant() the relations it can write', () => {
-		expect(at(2)?.sort()).toEqual(['owner', 'team']);
+		expect(at(2)?.sort()).toEqual(['owners', 'teams']);
 	});
 });
 
@@ -238,7 +189,7 @@ describe('a wrong name in a model', () => {
 	it('is refused with the names it could have been', () => {
 		const [first, ...rest] = MODEL.split('§');
 		// The name to refuse first, then a valid name at each other cursor.
-		const text = ['staf', 'staff', 'owner', 'owner'].reduce(
+		const text = ['staf', 'staff', 'owners', 'owners'].reduce(
 			(done, name, at) => done + name + (rest[at] ?? ''),
 			first ?? '',
 		);
@@ -253,7 +204,7 @@ describe('a wrong name in a model', () => {
 		// would name the model back instead of the choices.
 		expect(refusal).not.toMatch(/[A-Za-z]Of</);
 		expect(refusal).toContain('"patient"');
-		expect(refusal).toContain('"team#member"');
+		expect(refusal).toContain('"team#members"');
 		expect(refusal).toContain('Did you mean \'"staff"\'?');
 	});
 });

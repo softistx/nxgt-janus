@@ -26,7 +26,7 @@ import { run } from './translate';
  * `_id` index every collection has — a constraint, never a read — an insert
  * of a stored tuple is a retry, and a document read in a shell is the tuple
  * in the code. A subject set carries `relation`, an entity does not, so
- * `team:t1#member` and `team:t1` are two keys.
+ * `team:t1#members` and `team:t1` are two keys.
  *
  * The key is always built by {@link keyOf}, in one field order: MongoDB
  * compares embedded documents field by field, in order.

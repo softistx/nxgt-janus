@@ -11,16 +11,23 @@ it to `janus()` so the user types become the subjects, but `subjects` takes
 any list of names — `defineModel({ subjects: ['user'], … })` — when your users
 live elsewhere. Importing `@nxgt/janus/permissions` loads no identity code.
 
+## The running example: a clinic
+
+Every snippet on this page uses this model, and only its names. Two sections
+need something else and say so: a [folder tree](#a-hierarchy) and
+[permissions on a user](#permissions-on-a-user).
+
 ```ts
 import { z } from 'zod';
-import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
-import { createMemoryRelations, defineModel, permissions } from '@nxgt/janus/permissions';
+import { createMemoryStores, type CursorPage, janus, scryptHasher } from '@nxgt/janus';
+import { createMemoryRelations, defineModel, fromField, permissions, when } from '@nxgt/janus/permissions';
 
 const relations = createMemoryRelations();
 
 const auth = janus({
 	users: {
 		staff: { schema: z.object({ username: z.string() }), password: { login: 'username' } },
+		patient: { schema: z.object({ email: z.email() }), password: { login: 'email' } },
 	},
 	store: createMemoryStores(),
 	relations, // deleting a user deletes every tuple naming them
@@ -28,25 +35,44 @@ const auth = janus({
 });
 
 const model = defineModel({
-	subjects: auth.types, // 'staff': a user type is a subject type
+	subjects: auth.types, // 'staff' | 'patient': a user type is a subject type
 	types: {
 		team: {
-			relations: { member: ['staff', 'team#member'], lead: ['staff'] },
-			permissions: { manage: ['lead'], view: ['member', 'manage'] },
+			related: { members: ['staff', 'team#members'], leads: ['staff'] },
+			permits: { manage: ['leads'], view: ['members', 'manage'] },
+		},
+		record: {
+			related: {
+				doctors: fromField('doctorId', 'staff', { lookup: (staffId) => db.records.idsByDoctor(staffId) }),
+				patients: fromField('patientId', 'patient', { lookup: (patientId) => db.records.idsByPatient(patientId) }),
+				teams: ['team'],
+			},
+			permits: {
+				view: ['doctors', 'patients', 'teams->view'],
+				review: ['teams->leads'],
+				edit: [when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)],
+			},
 		},
 	},
 });
 
 const access = permissions({ model, store: relations });
 
-const grace = await auth.staff.create({ username: 'grace' });
+const grace = await auth.staff.create({ username: 'grace' }); // a doctor
+const ada = await auth.staff.create({ username: 'ada' });     // a team lead
 const team = { type: 'team', id: 't1' } as const;
-
-await access.grant(team, 'lead', grace);
-await access.can(grace, 'view', team);   // true: view includes manage, which includes lead
-await access.revoke(team, 'lead', grace);
-await access.can(grace, 'view', team);   // false
+const record = { id: 'r1', doctorId: grace.id, patientId: 'p1', title: 'Chart' }; // as your database answered it
 ```
+
+`db` is your database; the two `lookup`s answer the ids of the records whose
+field names the subject — see [`fromField`](#a-relation-read-from-the-object).
+
+In words: a team has **members** — staff, or every member of another team —
+and **leads**; whoever leads it may **manage** it, and members and managers
+may **view** it. A record's **doctors** and **patients** are read from its own
+fields, its **teams** are stored; its doctors, its patients and whoever can
+view one of its teams may **view** it, the leads of its teams may **review**
+it, and its doctors may **edit** it while on shift.
 
 ## The model
 
@@ -54,40 +80,24 @@ await access.can(grace, 'view', team);   // false
 function defineModel<
 	const Subjects extends readonly string[], // auth.types
 	const Ts extends ModelConfig['types'] & ModelTypesOf<Subjects[number], Ts>, // what your editor completes
-	const Rs extends RulesOf<Ts> & RulesOnly<Ts, Rs>, // the reference form's rules, typed from the names on the types
->(config: { readonly subjects: Subjects; readonly types: Ts; readonly rules?: Rs }): PermissionModel<…>;
+>(config: { readonly subjects: Subjects; readonly types: Ts }): PermissionModel<{ readonly subjects: Subjects; readonly types: Ts }>;
 // ModelTypesOf<S, Ts>: the names each relation and rule of each type may take
-// `rules` is required once a type declares `permits`.
-// Exported to name them: Ref, RelationRef, PermissionRef, ArrowRef, RuleRef,
-// RuleParam<Ts, T, Self> (what a rule of T is given), RulesOf, RulesOnly,
-// NameOfRef<R> (the string a reference spells), Normalized<C> (a config in the string form).
 
 interface ModelConfig {
 	readonly subjects: readonly string[]; // pass auth.types
 	readonly types: {
 		readonly [objectType: string]: {
-			// The string form:
-			readonly relations?: { readonly [name: string]: readonly string[] | FromField };
-			readonly permissions?: { readonly [name: string]: readonly (string | When)[] };
-			// The reference form — the same holders, and the permission names; the rules are in `rules`:
-			readonly related?: { readonly [name: string]: readonly string[] | FromField };
-			readonly permits?: readonly string[];
+			readonly related?: { readonly [relation: string]: readonly string[] | FromField };
+			readonly permits?: { readonly [permission: string]: readonly (string | When)[] };
 		};
 	};
-	readonly rules?: { readonly [objectType: string]: { readonly [permit: string]: (param) => readonly [RuleRef, ...RuleRef[]] } };
-	// A rule answers a non-empty list: references, or when() on one — or on a name its type declares.
 }
 ```
 
-`model.definition` holds the model in the string form, whichever form it
-was written in — a reference-form type reads `relations` and `permissions`
-there, its rules spelled out. It is a copy, for a string-form model too, and
-its top level is frozen.
-
-A model is written in one of two spellings, or both: the **string form**
-below, and the **[reference form](#the-reference-form)** — `related`,
-`permits`, `rules` — which reads like Keto's OPL and which your editor
-completes as you type.
+An object type has two keys, Keto's words: **`related`**, who may hold each
+relation, and **`permits`**, what each permission is made of. Relation names
+are plural by convention — `members`, `doctors`, `teams` — because a relation
+holds many; `defineModel` does not enforce it.
 
 **A relation** lists who may hold it:
 
@@ -95,19 +105,20 @@ completes as you type.
 | --- | --- |
 | `'staff'` | one user of type `staff` |
 | `'team'` | one object of type `team` — what an arrow follows |
-| `'team#member'` | a **subject set**: every member of a team |
-| `fromField('doctorId', 'staff')` | read from the object's own data — see [`fromField`](#fromfield) |
+| `'team#members'` | a **subject set**: every member of a team |
+| `fromField('doctorId', 'staff')` | read from the object's own data — see [`fromField`](#a-relation-read-from-the-object) |
 
 **A permission** is the union of its rules:
 
 | Rule | Means |
 | --- | --- |
-| `'member'` | a relation of the same object |
+| `'members'` | a relation of the same object |
 | `'manage'` | another permission of the same object |
-| `'team->view'` | an **arrow**: whoever holds `view` on the object's `team` |
-| `when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)` | a rule under a condition — see [`when`](#when) |
+| `'teams->view'` | an **arrow**: whoever holds `view` on one of the object's `teams` |
+| `'teams->leads'` | an arrow to a relation: whoever leads one of the object's `teams` |
+| `when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)` | a rule under a condition — see [`when`](#a-condition) |
 
-A rule may name another permission of the same type — `view: ['member',
+A rule may name another permission of the same type — `view: ['members',
 'manage']` — but never the permission itself: `view: ['view']` adds nothing
 and is a loop no relation ends, so your editor does not offer it and the
 compiler refuses it. A loop through another permission (`view: ['edit'],
@@ -116,160 +127,169 @@ edit: ['view']`) is refused by `defineModel` when it runs.
 A permission may be asked of `can` and `list` like a relation, and a relation
 like a permission.
 
-### The reference form
-
-The same model, the way Keto's OPL reads: the relations under `related` and
-the permission **names** under `permits`, on the type; the rules beside the
-types, under `rules`, as one function per permit given **typed references**:
-
-```ts
-import { defineModel, fromField, when } from '@nxgt/janus/permissions';
-
-export const model = defineModel({
-	subjects: auth.types,
-	types: {
-		team: {
-			related: { members: ['staff', 'team#members'], leads: ['staff'] },
-			permits: ['manage', 'view'],
-		},
-		record: {
-			related: { doctors: fromField('doctorId', 'staff'), teams: ['team'] },
-			permits: ['view', 'edit'],
-		},
-	},
-	rules: {
-		team: {
-			manage: ({ related }) => [related.leads],
-			view: ({ related, permits }) => [related.members, permits.manage],
-		},
-		record: {
-			view: ({ related }) => [related.doctors, related.teams.permits.view],
-			edit: ({ related }) => [when(related.doctors, (ctx: { onShift: boolean }) => ctx.onShift)],
-		},
-	},
-});
-```
-
-| Reference | The string it spells | Means |
-| --- | --- | --- |
-| `related.members` | `'members'` | a relation of the same object |
-| `permits.manage` | `'manage'` | another permission of the same object — never the one being defined |
-| `related.teams.permits.view` | `'teams->view'` | an arrow to a permission of the object `teams` reaches |
-| `related.teams.related.leads` | `'teams->leads'` | an arrow to a relation of it |
-| `when(related.doctors, (ctx) => …)` | `when('doctors', …)` | a rule under a condition |
-
-**A rule declares; it never runs a check.** `defineModel` calls each rule
-function **once**, when the model is defined, with frozen references, and
-spells what it answers into the string form — so `can`, `list`, `grant`,
-`ConfigOf` and everything reading the model see one form. A function that
-answers a boolean, `related.owners.includes(subject)` as Keto's literal
-OPL would, is a compile error: nothing could turn it into a `list()`. A rule
-that throws stops `defineModel` with its own error, as it threw it.
-
-Holders stay strings — `['staff', 'team#members']`: they name types and
-relations of *other* types, which the string form already types and
-completes. A `when` on a string is accepted inside a rule function too.
-
-**Why the names are declared on the type and the rules beside it.** A rule
-function is context-sensitive: TypeScript infers nothing from a literal that
-holds one until it knows the parameter's type, so a function inside `types`
-would type its own `related` as `any` — measured, with the self-referential
-constraint and with an intersection alike. Declared first, the names type the
-rules: `permits.manage` inside `view`, and `related.teams.permits.view`
-through `teams: ['team']`, are completed from what `team` declares.
-
-The two spellings share one model: a type written with `relations` and
-`permissions` beside one written with `related`, `permits` and its `rules`.
-**One type takes one form**: `related` beside `permissions` strings, or
-`relations` beside `permits`, is a compile error on the string-form key, `relations` or `permissions`. A type
-may have `related` and no `permits` — a team others point at through
-`team#members` — and needs no rules.
-
 ### What the compiler refuses
 
 A relation naming a type that does not exist, a rule naming nothing, an arrow
-to a permission its target lacks, a name that is both a relation and a
-permission, a key other than `relations` and `permissions`, or `related` and `permits`
-— `permission:`, singular — on an object type: each is a compile error **on the offending name** — on the whole
-`fromField(…)` or `when(…)` call for those two. Except for that last one,
-which says to rename one, the error lists what you could have written, with
-"Did you mean" when one is close.
-
-In the reference form, the same mistakes are refused **on the reference**:
-`related.viewers` on a type without `viewers` is `Property 'viewers' does
-not exist on type '{ readonly owners: RelationRef<"folder", "owners">; }'`,
-`related.owners.permits` through a relation held by a user type is
-`Property 'permits' does not exist on type 'RelationRef<…>'`; a rule
-answering a boolean is `Type 'boolean' is not assignable to type 'readonly
-[RuleOf<…>, ...RuleOf<…>[]]'`, on the rule, and a rule answering `[]` is `Type
-'[]' is not assignable to …` there too; a rule for a permit the type does not
-declare is refused on that key, `rules.folder.edit is not in
-types.folder.permits`. On the type itself:
-
-| Mistake | Refused on | The error names |
-| --- | --- | --- |
-| `related` beside `permissions`, or `relations` beside `permits` | the string-form key, `relations` or `permissions` | `folder mixes the two forms: related and permits, or relations and permissions — not one of each` |
-| a permit named like a relation, `permits: ['owners']` | that name | `"owners" names a relation and a permission of folder; rename one` |
-| a permit declared twice, `permits: ['view', 'view']` | each copy | `folder.permits names "view" twice` |
-| `permits` and no `rules` | the call | `Property 'rules' is missing …` |
-| `rules` for a type that does not exist | that key | `Object literal may only specify known properties`, then `rules.box: no object type named box` |
-| `rules` for a type written with strings | that key | `Object literal may only specify known properties`, then `rules.note: types.note declares no permits` |
-| an arrow to a name that is a permit of one holder type and a relation of another | the reference | `Property 'x' does not exist on type …`: an arrow reaches a name every holder declares as the same kind |
-
-A `when` on a string inside a rule is checked as in the string form:
-`when('bogus', test)`, or `when('view', test)` inside `view`, is `Type
-'When<"bogus", never>' is not assignable to type 'When<"owners", never>'` —
-the names it could have been.
-
-A refused `permits`, or a mix of the two forms, makes `types` fail its constraint, and the compiler then
-types the rules against the constraint rather than your names: they also
-report `Binding element 'related' implicitly has an 'any' type`. Fix the
-type; those go with it.
-
-Your editor offers those names as you type — subject types and subject sets
-in a relation, subject types in `fromField`, relations, permissions and arrows
-in a rule and in `when`, and in the reference form `related.`, `permits.`
-and an arrow's `permits.` and `related.` inside a rule function — because `defineModel` types its `types` with a
-constraint an editor reads, not only with a check. A spec asks the TypeScript
-language service what it completes, so a change that loses it fails.
+to a permission its target lacks, an arrow through a relation that can hold a
+subject set, a name that is both a relation and a permission, a key other than
+`related` and `permits` — `permit:`, singular — on an object type: each is a
+compile error **on the offending name** — on the whole `fromField(…)` or
+`when(…)` call for those two. Except for the name used twice, which says to
+rename one, the error lists what you could have written, with "Did you mean"
+when one is close.
 
 ```ts
 defineModel({
 	subjects: ['staff'],
 	types: {
 		team: {
-			// @ts-expect-error — Type '"staf"' is not assignable to type '"staff" | "team" | "team#member"'. Did you mean '"staff"'?
-			relations: { member: ['staf'] },
+			// @ts-expect-error — Type '"staf"' is not assignable to type '"staff" | "team" | "team#members"'. Did you mean '"staff"'?
+			related: { members: ['staf'] },
 		},
 	},
 });
 ```
 
+**The keys before 0.2**, `relations` and `permissions`, are refused with the
+name that replaced them — rename the key, nothing else changes:
+
+```ts
+defineModel({
+	subjects: ['staff'],
+	types: {
+		team: {
+			// @ts-expect-error — 'members' does not exist in type 'Refusal<"team.relations is now related: rename the key", never>'
+			relations: { members: ['staff'] },
+		},
+	},
+});
+```
+
+`permissions:` is refused the same way: `team.permissions is now permits:
+rename the key`.
+
+Your editor offers those names as you type — subject types and subject sets
+in a relation, subject types in `fromField`, relations, permissions and arrows
+in a rule and in `when` — because `defineModel` types its `types` with a
+constraint an editor reads, not only with a check. A spec asks the TypeScript
+language service what it completes, so a change that loses it fails.
+
 ### What `defineModel` refuses at run time
 
-With a `TypeError`, when the model is defined — never at a check:
+With a `TypeError`, when the model is defined — never at a check. Each names
+the key you wrote, `types.record.permits.view` or `types.team.related.members`:
 
+- `relations` or `permissions` — the keys before 0.2 — and any key other than
+  `related` and `permits`;
 - a name that is not camelCase;
-- an object type named like a user type;
+- an object type named like a user type — see
+  [permissions on a user](#permissions-on-a-user);
 - a permission that reaches itself without crossing a relation (`view:
   ['edit'], edit: ['view']`) — no data could ever end that loop;
 - a subject set or an arrow that would have to read **another** object's
   `fromField` — only the object passed to `can()` carries its data. Store that
-  relation instead;
-- in the reference form, what the compiler refuses first, for a model built
-  in JavaScript: a type mixing the two forms, a permit declared twice or
-  named like a relation, a permit without its rule, a rule for a permit the
-  type does not declare or for a type written with strings, a rule that
-  answers nothing, or answers something that is not a reference —
-  `related.viewers` on a type without `viewers` is `undefined`, and named as
-  such. Each message names the key you wrote: `rules.folder: view → edit →
-  view is a loop no relation ends`, `types.folder.related: "the-owners" must
-  be a camelCase name`.
+  relation instead.
 
-A loop that crosses a relation — a folder viewable through its parent — is
-fine: the data ends it.
+A loop that crosses a relation — a folder viewable through its parents — is
+fine: the data ends it. See [a hierarchy](#a-hierarchy).
 
-## `fromField`
+## Use cases
+
+Each case below runs against the clinic above, in order — except the two that
+say otherwise: a folder tree for a hierarchy, and an `account` for
+permissions on a user.
+
+### A direct relation
+
+A relation is what you store: `grant` writes it, `can` reads it.
+
+```ts
+await access.grant(team, 'leads', ada);
+await access.can(ada, 'leads', team);  // true: a relation may be asked like a permission
+await access.can(grace, 'leads', team); // false
+```
+
+### A permission naming a permission
+
+`view: ['members', 'manage']` includes whoever holds `manage`, which is
+`['leads']` — so a lead can view the team without being a member.
+
+```ts
+await access.can(ada, 'manage', team); // true: ada leads t1
+await access.can(ada, 'view', team);   // true: view includes manage
+```
+
+### A subject set
+
+`members: ['staff', 'team#members']` admits a staff member, or **every member
+of another team** at once. Grant the set with its `relation`:
+
+```ts
+const cardiology = { type: 'team', id: 't2' } as const;
+await access.grant(cardiology, 'members', grace);
+await access.grant(team, 'members', { type: 'team', id: 't2', relation: 'members' });
+await access.can(grace, 'view', team); // true: grace is a member of t2, whose members are members of t1
+```
+
+The set is followed as the data stands: revoke grace from `t2`, and she no
+longer views `t1`. A team member of itself — a cycle in the data — is cut, and
+is not an error.
+
+### An arrow
+
+`'teams->view'` is **whoever can view one of the record's teams**; the arrow
+follows the objects the `teams` relation holds, and asks them `view`. Grant
+the record its team, then everyone who views the team views the record:
+
+```ts
+await access.grant({ type: 'record', id: record.id }, 'teams', team);
+await access.can(ada, 'view', { type: 'record', ...record }); // true: ada views t1 (she leads it)
+```
+
+An arrow may end on a relation too: `review: ['teams->leads']` is whoever
+**leads** one of the record's teams — not its members.
+
+```ts
+await access.can(ada, 'review', { type: 'record', ...record });   // true: ada leads t1
+await access.can(grace, 'review', { type: 'record', ...record }); // false: grace is a member, not a lead
+```
+
+An arrow follows **object types only**: through a relation that can hold a
+subject set (`teams: ['team', 'team#members']`), `'teams->view'` is a compile
+error.
+
+### A hierarchy
+
+A folder tree, one of the two models on this page besides the clinic: a folder is
+viewable by its owners and by whoever views one of its parents. The arrow
+names the folder's own `view` — a loop in the model, which **the data ends**:
+the walk stops at a folder with no parents.
+
+```ts
+const files = permissions({
+	model: defineModel({
+		subjects: auth.types,
+		types: {
+			folder: {
+				related: { owners: ['staff'], parents: ['folder'] },
+				permits: { view: ['owners', 'parents->view'] },
+			},
+		},
+	}),
+	store: createMemoryRelations(),
+});
+
+const root = { type: 'folder', id: 'root' } as const;
+const reports = { type: 'folder', id: 'reports' } as const;
+await files.grant(root, 'owners', grace);
+await files.grant(reports, 'parents', root);
+await files.can(grace, 'view', reports); // true: she owns its parent
+```
+
+A deep tree crosses one relation per level; past `maxDepth` (`25`) the check
+is `PERMISSION_DEPTH`, never `false`.
+
+### A relation read from the object
 
 ```ts
 function fromField(field, subjectType): FromField;
@@ -277,74 +297,88 @@ function fromField(field, subjectType, { lookup }): ReversibleFromField;
 type Lookup = (subjectId: string) => Promise<readonly string[]>;
 ```
 
-A relation read from the object's own data — a record's `doctorId` — rather
-than a tuple kept in sync with it. Nothing is stored, and `grant` refuses it at
-compile time. `can()` is given the object, and the compiler requires every
-field a `fromField` of its type reads:
+`doctors: fromField('doctorId', 'staff')` reads the record's own `doctorId`
+rather than a tuple kept in sync with it. Nothing is stored, and `grant`
+refuses it at compile time. `can()` is given the object, and the compiler
+requires every field a `fromField` of its type reads — here `doctorId` and
+`patientId`:
 
 ```ts
-const model = defineModel({
-	subjects: ['staff'],
-	types: {
-		record: {
-			relations: { doctor: fromField('doctorId', 'staff') },
-			permissions: { view: ['doctor'] },
-		},
-	},
-});
-const access = permissions({ model, store: createMemoryRelations() });
-
-const record = { id: 'r1', doctorId: grace.id, title: 'Chart' }; // as your database answered it
-await access.can(grace, 'view', { type: 'record', ...record });
+await access.can(grace, 'view', { type: 'record', ...record }); // true: record.doctorId is grace's id
+// @ts-expect-error — doctors is read from a field: there is nothing to grant
+await access.grant({ type: 'record', id: record.id }, 'doctors', grace);
 ```
 
 **Spread the loaded object.** A field missing at run time is a `TypeError`,
 never a denial. `null` in the field holds nobody.
 
-`list()` cannot read a field of objects it has not found, so it asks `lookup`
-for the ids of the objects whose field names the subject. A `list()` that would
-reach a `fromField` without one is a compile error:
-
-```ts
-fromField('doctorId', 'staff', { lookup: (staffId) => db.records.ids({ doctorId: staffId }) });
-```
+**`list()` needs a `lookup`.** It cannot read a field of objects it has not
+found, so it asks `lookup` for the ids of the objects whose field names the
+subject — in the clinic, `db.records.idsByDoctor(staffId)`. A `list()` that
+would reach a `fromField` without one is a compile error, and your editor does
+not offer that permission.
 
 A lookup is your code, and it is not guarded: one that throws rejects `list()`
 with its own error. **Never answer `[]` for a database that could not answer**
 — that is a denial made of an outage.
 
-## `when`
+### A condition
 
 ```ts
 function when<const Rule extends string, Ctx>(rule: Rule, test: (ctx: Ctx) => boolean): When<Rule, Ctx>;
-// In the reference form, on a reference: when(related.doctors, test) is when('doctors', test).
-function when<const R extends Ref, Ctx>(ref: R, test: (ctx: Ctx) => boolean): When<NameOfRef<R>, Ctx>;
 ```
 
-Puts a condition written in TypeScript on a rule — any rule of the same type:
-a relation, a permission, an arrow. The test is synchronous and pure: it
-decides on what the caller passes, and reads nothing. Its `ctx` is what `can()`
-and `list()` then **require**, and only for the permissions whose rules reach
-it:
+`edit: [when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)]` grants
+the record's doctors, **while on shift**. The rule is any rule of the same
+type — a relation, a permission, an arrow. The test is synchronous and pure:
+it decides on what the caller passes, and reads nothing. Its `ctx` is what
+`can()` and `list()` then **require** — and only for the permissions whose
+rules reach it:
 
 ```ts
-const model = defineModel({
-	subjects: ['staff'],
-	types: {
-		record: {
-			relations: { doctor: fromField('doctorId', 'staff') },
-			permissions: {
-				edit: [when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)],
-			},
-		},
-	},
-});
-const access = permissions({ model, store: createMemoryRelations() });
-
-await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: true } });
+await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: true } });  // true
+await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: false } }); // false
 // @ts-expect-error — ctx is required: edit reaches a condition
 await access.can(grace, 'edit', { type: 'record', ...record });
+
+await access.can(grace, 'view', { type: 'record', ...record }); // no ctx: view reaches no condition
+await access.list(grace, 'edit', 'record', { ctx: { onShift: true } });
 ```
+
+### Permissions on a user
+
+A user type cannot also be an object type: `defineModel` refuses `staff` in
+`types` — `"staff" names a user type and an object type`. To decide who may
+edit a staff member's account, declare an object type **whose id is the
+user's id**, and read it with `fromField('id', …)`:
+
+```ts
+const accounts = permissions({
+	model: defineModel({
+		subjects: auth.types,
+		types: {
+			account: {
+				related: {
+					self: fromField('id', 'staff', { lookup: async (staffId) => [staffId] }),
+					managers: ['staff'],
+				},
+				permits: { edit: ['self', 'managers'] },
+			},
+		},
+	}),
+	store: relations,
+});
+
+const bob = await auth.staff.create({ username: 'bob' });
+await accounts.can(bob, 'edit', { type: 'account', id: bob.id }); // true: his own account
+await accounts.can(ada, 'edit', { type: 'account', id: bob.id }); // false
+await accounts.grant({ type: 'account', id: bob.id }, 'managers', ada);
+await accounts.can(ada, 'edit', { type: 'account', id: bob.id }); // true: she manages it
+await accounts.list(ada, 'edit', 'account');                      // her own account, and bob's
+```
+
+The `lookup` answers the one account whose id is the subject's, so `list()`
+finds a user's own account too.
 
 ## `permissions()`
 
@@ -376,14 +410,12 @@ can(subject, permission, object, options?): Promise<boolean>;
 
 Your editor completes `permission` with the names of the object's type once
 the object is written. **Before, it offers the names of every type**: the
-permission comes before the object, and nothing yet says which type it is. A
-relation named after a type — `team: ['team']` — is offered as a name; it is
-the relation, not the type.
+permission comes before the object, and nothing yet says which type it is.
 
 ```ts
-await access.can(grace, 'view', { type: 'record', ...record });                               // true
-await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: false } });   // false
-await access.can(null, 'view', { type: 'record', ...record });                                // false, no store call
+await access.can(grace, 'view', { type: 'record', ...record });                              // true
+await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: false } }); // false
+await access.can(null, 'view', { type: 'record', ...record });                               // false, no store call
 ```
 
 **A denial is `false`; a failure throws.** A store that cannot answer is
@@ -400,19 +432,30 @@ list(subject, permission, objectType, options?): Promise<CursorPage<string>>;
 
 The ids of the objects of `objectType` on which `subject` holds `permission`,
 ascending, by pages — what `can()` answers `true` for, found without naming
-them.
+them. Page with `limit` and `after`, passing each `nextCursor` back as it
+came, until it is `null`:
 
 ```ts
 const page = await access.list(grace, 'view', 'record', { limit: 50 });
-page.items;      // readonly string[]
+page.items;      // readonly string[]: the records grace can view — hers, and her teams'
 page.nextCursor; // string | null
 await access.list(grace, 'view', 'record', { after: page.nextCursor, limit: 50 });
+
+// Every page — annotate the page, or TypeScript cannot type the loop (TS7022):
+let after: string | null = null;
+do {
+	const next: CursorPage<string> = await access.list(grace, 'view', 'record', { after, limit: 100 });
+	for (const id of next.items) console.log(id);
+	after = next.nextCursor;
+} while (after);
 ```
+
+`CursorPage` is exported from `@nxgt/janus`.
 
 `limit` is 20 by default and at most 100 — a larger one is capped, and one
 that is not a positive integer is a `TypeError`, so parse a limit read from a
 request first ([troubleshooting](../troubleshooting.md#call-limit-must-be-an-integer-of-at-least-1-or-absent)).
-`ctx` is required as for `can`.
+`ctx` is required as for `can` — `list(grace, 'edit', 'record', { ctx })`.
 Your editor completes `permission` with what `list()` can answer only: a name
 reaching a `fromField` with no `lookup` is neither offered nor accepted.
 `null` answers an empty page before any store call.
@@ -430,7 +473,18 @@ revoke(object, relation, subject): Promise<void>;
 ```
 
 Both are typed from the model: only a stored relation (never a `fromField`),
-and only a holder the relation admits.
+and only a holder the relation admits — a staff member, or a team's members
+where `'team#members'` is declared.
+
+```ts
+await access.grant(team, 'members', grace);                                               // a staff member
+await access.grant(team, 'members', { type: 'team', id: 't2', relation: 'members' });     // a subject set
+await access.grant({ type: 'record', id: 'r1' }, 'teams', team);                         // what 'teams->view' follows
+await access.revoke(team, 'members', grace);
+```
+
+Both are idempotent: granting what is held, or revoking what is not, is not an
+error. Each writes one tuple.
 
 The same rule holds when reading: `can()` and `list()` follow only the holders
 a relation admits. A tuple stored past `grant()` — by an older model, or by
@@ -439,36 +493,21 @@ it refuses to `grant()` it, so remove it with the store:
 
 ```ts
 await relations.write({
-	remove: [
-		{
-			object: { type: 'record', id: 'r1' },
-			relation: 'viewer',
-			subject: { type: 'team', id: 't1' },
-		},
-	],
+	remove: [{ object: { type: 'record', id: 'r1' }, relation: 'teams', subject: { type: 'team', id: 't1' } }],
 });
 ```
 
 Narrowing a model therefore hides the tuples it no longer admits; it does not
 delete them, and widening it again brings them back.
 
-```ts
-await access.grant({ type: 'team', id: 't1' }, 'member', grace);
-await access.grant({ type: 'team', id: 't1' }, 'member', { type: 'team', id: 't2', relation: 'member' }); // a subject set
-await access.grant({ type: 'record', id: 'r1' }, 'team', { type: 'team', id: 't1' });                  // what 'team->view' follows
-await access.revoke({ type: 'team', id: 't1' }, 'member', grace);
-```
-
-Both are idempotent: granting what is held, or revoking what is not, is not an
-error. Each writes one tuple.
-
 ### Deleting
 
-Wire the relation store into `janus({ relations })`, and deleting a user
-deletes every tuple naming them. Deleting an object's tuples is yours, from
-your own code, when you delete the object:
+Wire the relation store into `janus({ relations })`, as the clinic does, and
+deleting a user deletes every tuple naming them. Deleting an object's tuples
+is yours, from your own code, when you delete the object:
 
 ```ts
+await auth.staff.delete(grace);                              // grace, her sessions, and every tuple naming her
 await relations.deleteEntity({ type: 'record', id: 'r1' }); // answers how many tuples it removed
 ```
 
@@ -494,11 +533,16 @@ export async function getRecord(request: Request, id: string): Promise<Response>
 }
 ```
 
+Load the record first: `can()` needs its `doctorId` and `patientId`. An
+anonymous caller is `null`, which `can()` answers `false` without a store call
+— a `401` here, a `403` for a signed-in one.
+
 ## Subjects and the notation
 
 A user **is** a subject: `subjectOf(user)` from `@nxgt/janus` answers its
 `{ type, id }`, and `can` takes the user as it is. Tuples print in Zanzibar's
-notation, typed — see [the shared vocabulary](vocabulary.md#subjects-and-the-tuple-notation).
+notation, typed — `record:r1#teams@team:t1`, `team:t1#members@team:t2#members`
+— see [the shared vocabulary](vocabulary.md#subjects-and-the-tuple-notation).
 
 ## The relation store
 
@@ -513,3 +557,4 @@ rest.
 - [Users](users.md) — `janus({ relations })`, and user types as subject types
 - [Errors](errors.md) — `STORE_FAILED` and `PERMISSION_DEPTH`
 - [Writing an adapter](adapters.md) — `RelationStore` and its conformance suite
+- [Troubleshooting](../troubleshooting.md#definemodel-) — every `defineModel` message

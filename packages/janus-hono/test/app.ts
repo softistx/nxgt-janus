@@ -62,13 +62,13 @@ export function setup() {
 		subjects: auth.types,
 		types: {
 			record: {
-				relations: {
-					owner: ['patient'],
-					doctor: fromField('doctorId', 'staff'),
+				related: {
+					owners: ['patient'],
+					doctors: fromField('doctorId', 'staff'),
 				},
-				permissions: {
-					view: ['owner', 'doctor'],
-					edit: [when('owner', (ctx: { locked: boolean }) => !ctx.locked)],
+				permits: {
+					view: ['owners', 'doctors'],
+					edit: [when('owners', (ctx: { locked: boolean }) => !ctx.locked)],
 				},
 			},
 		},

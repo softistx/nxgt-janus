@@ -12,9 +12,9 @@ const user = { type: 'staff', id: mintId(), username: 'grace' };
 subjectOf(user); // { type: 'staff', id: '…' }: the user IS the subject
 formatTuple({
 	object: { type: 'record', id: 'r1' },
-	relation: 'viewer',
-	subject: { type: 'team', id: 't1', relation: 'member' },
-}); // 'record:r1#viewer@team:t1#member'
+	relation: 'teams',
+	subject: { type: 'team', id: 't1' },
+}); // 'record:r1#teams@team:t1'
 parseDuration('8h', 'session.lifespan'); // 28800000
 ```
 
@@ -59,16 +59,16 @@ either finds this row.
 | **object** | What a permission is about: `{ type: 'document', id }` | "resource" |
 | **subject** | Who a permission is about: a user, an object, or a subject set | "principal", "actor" |
 | **entity** | `{ type, id }`: a user or an object — a subject that is not a set (`Entity`, `deleteEntity`) | |
-| **subject set** | Everyone holding one relation on one object: `team:t1#member` | "group" — a group is an object with a `member` relation |
-| **relation** | A named link, stored as tuples or read from a field (`fromField`) | |
-| **holder** | What a relation admits: `'staff'`, or the subject set `'team#member'` | |
-| **permission** | A name computed from relations and other permissions by its rules | |
-| **rule** | One entry of a permission: a relation, another permission, an arrow, or one of them under a condition — a string, or a **reference** | |
-| **reference** | What a rule function is given and answers: `related.owners`, `permits.manage`, `related.parents.permits.view` — a typed object `defineModel` spells out into the string rule | "selector", "path" |
-| **related**, **permits**, **rules** | The keys of the reference form: `related` holds the relations, `permits` the permission names, on the type; `rules` the rule functions, beside the types. `relations` and `permissions` are the string form's, and stay | |
-| **arrow** | A rule that follows a relation to another object's permission: `'team->view'` | |
+| **subject set** | Everyone holding one relation on one object: `team:t1#members` | "group" — a group is an object with a `members` relation |
+| **relation** | A named link, stored as tuples or read from a field (`fromField`). Declared under `related`, named in the plural: `members`, `doctors` | |
+| **`related`** | The key of an object type that declares its relations: `related: { members: ['staff'] }`. It was `relations` before 0.2, and the old key is refused | "relations" as a key — the word stays for the idea, and for `janus({ relations })` |
+| **holder** | What a relation admits: `'staff'`, or the subject set `'team#members'` | |
+| **permission** | A name computed from relations and other permissions by its rules. Declared under `permits` | |
+| **`permits`** | The key of an object type that declares its permissions, each a list of rules: `permits: { view: ['members'] }`. It was `permissions` before 0.2, and the old key is refused | "permissions" as a key — the word stays for the idea, and for `permissions()` |
+| **rule** | One entry of a permission: a relation, another permission, an arrow, or one of them under a condition | |
+| **arrow** | A rule that follows a relation to another object's permission or relation: `'teams->view'` | |
 | **condition** | A predicate on a rule, written with `when`, run on the `ctx` passed to `can()` and `list()` | |
-| **tuple** | One stored fact — object, relation, subject: `document:d1#viewer@user:u1` | "grant", "ACL entry" |
+| **tuple** | One stored fact — object, relation, subject: `team:t1#members@staff:u1` | "grant", "ACL entry" |
 | **guarded route** | A route that runs only when its subject holds a permission on the object it serves — `permission()` in `@nxgt/janus-hono` | |
 
 ### Stores
@@ -103,7 +103,7 @@ interface RelationTuple { readonly object: Entity; readonly relation: string; re
 ```
 
 **Subjects are typed**: `{ type, id }` for one entity, `{ type, id, relation }`
-for a subject set — every `member` of `team:t1`. `type` is the same word as a
+for a subject set — everyone holding `members` on `team:t1`. `type` is the same word as a
 user's own, so a user id and a subject id are the same thing, and
 `subjectOf(user)` is the one-line join between the two sides of the package.
 It copies `type` and `id` only, so none of the user's own fields ever reaches
@@ -114,25 +114,25 @@ a tuple.
 | `subjectOf(user)` | `{ type, id }` of any object carrying both |
 | `isSubjectSet(subject)` | whether `relation` is a string |
 | `formatEntity(entity)` | `'record:r1'` |
-| `formatSubject(subject)` | `'staff:u1'`, or `'team:t1#member'` |
-| `formatTuple(tuple)` | `'record:r1#viewer@team:t1#member'` |
+| `formatSubject(subject)` | `'staff:u1'`, or `'team:t1#members'` |
+| `formatTuple(tuple)` | `'team:t1#members@team:t2#members'` |
 | `parseSubject(text)` | the `Subject` back |
 | `parseTuple(text)` | the `RelationTuple` back |
 
 ```ts
 import { isSubjectSet, parseSubject, parseTuple } from '@nxgt/janus';
 
-parseTuple('record:r1#viewer@staff:u1');
-// { object: { type: 'record', id: 'r1' }, relation: 'viewer', subject: { type: 'staff', id: 'u1' } }
+parseTuple('team:t1#members@staff:u1');
+// { object: { type: 'team', id: 't1' }, relation: 'members', subject: { type: 'staff', id: 'u1' } }
 
-const subject = parseSubject('team:t1#member');
-if (isSubjectSet(subject)) subject.relation; // 'member'
+const subject = parseSubject('team:t1#members');
+if (isSubjectSet(subject)) subject.relation; // 'members'
 ```
 
 The notation is for messages, logs and tests, not a wire format. No part may
 hold `@`, `#` or a parenthesis, and a type may not hold a `:`, so every string
 reads one way. `parseTuple` and `parseSubject` refuse anything else with a
-**bare `TypeError`** — including Keto's untyped subject, `record:r1#viewer@alice`,
+**bare `TypeError`** — including Keto's untyped subject, `team:t1#members@grace`,
 and the message says what a subject is. Nothing in this package reads a tuple
 off the network, so a malformed string came from your own code.
 

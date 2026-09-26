@@ -14,36 +14,36 @@ const modelOver = (rows: Rows) => {
 		subjects: ['patient', 'staff'],
 		types: {
 			team: {
-				relations: { member: ['staff', 'team#member'], lead: ['staff'] },
-				permissions: { manage: ['lead'], view: ['member', 'manage'] },
+				related: { members: ['staff', 'team#members'], leads: ['staff'] },
+				permits: { manage: ['leads'], view: ['members', 'manage'] },
 			},
 			folder: {
-				relations: { parent: ['folder'], owner: ['staff'] },
-				permissions: { view: ['owner', 'parent->view'] },
+				related: { parents: ['folder'], owners: ['staff'] },
+				permits: { view: ['owners', 'parents->view'] },
 			},
 			record: {
-				relations: {
-					patient: fromField('patientId', 'patient', {
+				related: {
+					patients: fromField('patientId', 'patient', {
 						lookup: naming('patientId'),
 					}),
-					doctor: fromField('doctorId', 'staff', {
+					doctors: fromField('doctorId', 'staff', {
 						lookup: naming('doctorId'),
 					}),
-					team: ['team'],
-					folder: ['folder'],
-					viewer: ['staff', 'team#member'],
+					teams: ['team'],
+					folders: ['folder'],
+					viewers: ['staff', 'team#members'],
 				},
-				permissions: {
-					view: ['patient', 'viewer', 'team->view', 'folder->view', 'edit'],
-					edit: [when('doctor', (ctx: { onShift: boolean }) => ctx.onShift)],
+				permits: {
+					view: ['patients', 'viewers', 'teams->view', 'folders->view', 'edit'],
+					edit: [when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)],
 				},
 			},
 			// An arrow through a fromField: list() reverses it with the lookup.
 			note: {
-				relations: {
-					team: fromField('teamId', 'team', { lookup: naming('teamId') }),
+				related: {
+					teams: fromField('teamId', 'team', { lookup: naming('teamId') }),
 				},
-				permissions: { view: ['team->view'] },
+				permits: { view: ['teams->view'] },
 			},
 		},
 	});
@@ -139,50 +139,50 @@ describe('list() is can() over every object', () => {
 			const members = (id: string) => ({
 				type: 'team' as const,
 				id,
-				relation: 'member' as const,
+				relation: 'members' as const,
 			});
 			const record = (id: string) => ({ type: 'record' as const, id });
 
 			for (let n = 0; n < 30; n += 1) {
 				switch (Math.floor(random() * 8)) {
 					case 0:
-						await grant(team(pick(teamIds)), 'member', staff(pick(staffIds)));
+						await grant(team(pick(teamIds)), 'members', staff(pick(staffIds)));
 						break;
 					case 1:
 						// Cycles included: a team may end up a member of itself.
-						await grant(team(pick(teamIds)), 'member', members(pick(teamIds)));
+						await grant(team(pick(teamIds)), 'members', members(pick(teamIds)));
 						break;
 					case 2:
-						await grant(team(pick(teamIds)), 'lead', staff(pick(staffIds)));
+						await grant(team(pick(teamIds)), 'leads', staff(pick(staffIds)));
 						break;
 					case 3:
 						await grant(
 							folder(pick(folderIds)),
-							'parent',
+							'parents',
 							folder(pick(folderIds)),
 						);
 						break;
 					case 4:
 						await grant(
 							folder(pick(folderIds)),
-							'owner',
+							'owners',
 							staff(pick(staffIds)),
 						);
 						break;
 					case 5:
-						await grant(record(pick(recordIds)), 'team', team(pick(teamIds)));
+						await grant(record(pick(recordIds)), 'teams', team(pick(teamIds)));
 						break;
 					case 6:
 						await grant(
 							record(pick(recordIds)),
-							'folder',
+							'folders',
 							folder(pick(folderIds)),
 						);
 						break;
 					default:
 						await grant(
 							record(pick(recordIds)),
-							'viewer',
+							'viewers',
 							random() < 0.5 ? staff(pick(staffIds)) : members(pick(teamIds)),
 						);
 				}
@@ -197,26 +197,26 @@ describe('list() is can() over every object', () => {
 			for (let n = 0; n < 12; n += 1) {
 				const kind = Math.floor(random() * 6);
 				if (kind === 0)
-					await stale(record(pick(recordIds)), 'viewer', team(pick(teamIds)));
+					await stale(record(pick(recordIds)), 'viewers', team(pick(teamIds)));
 				if (kind === 1)
-					await stale(record(pick(recordIds)), 'team', members(pick(teamIds)));
+					await stale(record(pick(recordIds)), 'teams', members(pick(teamIds)));
 				if (kind === 2)
-					await stale(record(pick(recordIds)), 'folder', team(pick(teamIds)));
+					await stale(record(pick(recordIds)), 'folders', team(pick(teamIds)));
 				if (kind === 3)
-					await stale(team(pick(teamIds)), 'member', {
+					await stale(team(pick(teamIds)), 'members', {
 						...members(pick(teamIds)),
-						relation: 'lead',
+						relation: 'leads',
 					});
 				if (kind === 4)
-					await stale(folder(pick(folderIds)), 'owner', {
+					await stale(folder(pick(folderIds)), 'owners', {
 						type: 'patient',
 						id: pick(patientIds),
 					});
 				if (kind === 5)
-					await stale(record(pick(recordIds)), 'viewer', {
+					await stale(record(pick(recordIds)), 'viewers', {
 						type: 'folder',
 						id: pick(folderIds),
-						relation: 'owner',
+						relation: 'owners',
 					});
 			}
 
@@ -228,14 +228,22 @@ describe('list() is can() over every object', () => {
 				...folderIds.map(folder),
 			];
 			const questions = [
-				['team', teamIds, ['member', 'lead', 'manage', 'view']],
-				['folder', folderIds, ['parent', 'owner', 'view']],
+				['team', teamIds, ['members', 'leads', 'manage', 'view']],
+				['folder', folderIds, ['parents', 'owners', 'view']],
 				[
 					'record',
 					recordIds,
-					['patient', 'doctor', 'team', 'folder', 'viewer', 'view', 'edit'],
+					[
+						'patients',
+						'doctors',
+						'teams',
+						'folders',
+						'viewers',
+						'view',
+						'edit',
+					],
 				],
-				['note', noteIds, ['team', 'view']],
+				['note', noteIds, ['teams', 'view']],
 			] as const;
 
 			for (const onShift of [true, false]) {
@@ -298,21 +306,21 @@ describe('list()', () => {
 	it('pages in ascending id order, from a cursor that need not name an object', async () => {
 		const access = setup();
 		for (const id of ['t3', 't1', 't4', 't2']) {
-			await access.grant({ type: 'team', id }, 'member', ada);
+			await access.grant({ type: 'team', id }, 'members', ada);
 		}
 
-		expect(await access.list(ada, 'member', 'team', { limit: 3 })).toEqual({
+		expect(await access.list(ada, 'members', 'team', { limit: 3 })).toEqual({
 			items: ['t1', 't2', 't3'],
 			nextCursor: 't3',
 		});
-		expect(await access.list(ada, 'member', 'team', { after: 't3' })).toEqual({
+		expect(await access.list(ada, 'members', 'team', { after: 't3' })).toEqual({
 			items: ['t4'],
 			nextCursor: null,
 		});
 		expect(
-			await access.list(ada, 'member', 'team', { after: 't2x', limit: 1 }),
+			await access.list(ada, 'members', 'team', { after: 't2x', limit: 1 }),
 		).toEqual({ items: ['t3'], nextCursor: 't3' });
-		expect(await access.list(ada, 'lead', 'team')).toEqual({
+		expect(await access.list(ada, 'leads', 'team')).toEqual({
 			items: [],
 			nextCursor: null,
 		});
@@ -325,11 +333,11 @@ describe('list()', () => {
 			(_, n) => `t${String(n).padStart(3, '0')}`,
 		);
 		for (const id of ids) {
-			await access.grant({ type: 'team', id }, 'member', ada);
+			await access.grant({ type: 'team', id }, 'members', ada);
 		}
 
 		const listed = await everyPage((after) =>
-			access.list(ada, 'member', 'team', { after, limit: 100 }),
+			access.list(ada, 'members', 'team', { after, limit: 100 }),
 		);
 		expect(listed).toEqual(ids);
 	});
@@ -358,9 +366,9 @@ describe('list()', () => {
 			type: 'folder' as const,
 			id: `f${String(n).padStart(2, '0')}`,
 		});
-		await deep.grant(folder(0), 'owner', ada);
+		await deep.grant(folder(0), 'owners', ada);
 		for (let n = 1; n < 12; n += 1) {
-			await deep.grant(folder(n), 'parent', folder(n - 1));
+			await deep.grant(folder(n), 'parents', folder(n - 1));
 		}
 
 		expect((await deep.list(ada, 'view', 'folder')).items).toHaveLength(12);
@@ -383,7 +391,7 @@ describe('list()', () => {
 				throw new Error('primary stepped down');
 			},
 		});
-		const error = (await rejection(failing.list(ada, 'member', 'team'))) as {
+		const error = (await rejection(failing.list(ada, 'members', 'team'))) as {
 			code: string;
 		};
 		expect(error.code).toBe('STORE_FAILED');
@@ -394,8 +402,8 @@ describe('list()', () => {
 				subjects: ['staff'],
 				types: {
 					record: {
-						relations: {
-							doctor: fromField('doctorId', 'staff', {
+						related: {
+							doctors: fromField('doctorId', 'staff', {
 								lookup: async () => {
 									throw outage;
 								},
@@ -406,20 +414,20 @@ describe('list()', () => {
 			}),
 			store: createMemoryRelations(),
 		});
-		expect(await rejection(access.list(ada, 'doctor', 'record'))).toBe(outage);
+		expect(await rejection(access.list(ada, 'doctors', 'record'))).toBe(outage);
 	});
 
 	const unreversible = defineModel({
 		subjects: ['staff'],
 		types: {
 			record: {
-				relations: {
-					doctor: fromField('doctorId', 'staff'),
-					viewer: ['staff'],
+				related: {
+					doctors: fromField('doctorId', 'staff'),
+					viewers: ['staff'],
 				},
-				permissions: {
-					view: ['viewer', 'doctor'],
-					edit: [when('viewer', (ctx: { onShift: boolean }) => ctx.onShift)],
+				permits: {
+					view: ['viewers', 'doctors'],
+					edit: [when('viewers', (ctx: { onShift: boolean }) => ctx.onShift)],
 				},
 			},
 		},
@@ -432,7 +440,7 @@ describe('list()', () => {
 					model: unreversible,
 					store: createMemoryRelations(),
 				}).list(ada, 'view' as never, 'record'),
-			'record.doctor is read from a field, and has no lookup',
+			'record.doctors is read from a field, and has no lookup',
 		],
 		[
 			'a condition with no ctx',
@@ -455,7 +463,7 @@ describe('list()', () => {
 		],
 		[
 			'a limit under 1',
-			() => setup().list(ada, 'member', 'team', { limit: 0 }),
+			() => setup().list(ada, 'members', 'team', { limit: 0 }),
 			'limit must be an integer',
 		],
 	];

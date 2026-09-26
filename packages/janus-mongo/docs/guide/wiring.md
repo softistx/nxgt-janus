@@ -28,8 +28,8 @@ export const model = defineModel({
 	subjects: auth.types,
 	types: {
 		document: {
-			relations: { owner: ['user'], viewer: ['user'] },
-			permissions: { view: ['owner', 'viewer'] },
+			related: { owners: ['user'], viewers: ['user'] },
+			permits: { view: ['owners', 'viewers'] },
 		},
 	},
 });

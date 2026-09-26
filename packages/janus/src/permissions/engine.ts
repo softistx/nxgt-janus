@@ -60,7 +60,7 @@ export interface PermissionsOptions<C extends ModelConfig> {
  *
  * ```ts
  * const access = permissions({ model, store: createMemoryRelations() });
- * await access.grant({ type: 'team', id: 't1' }, 'member', staff);
+ * await access.grant({ type: 'team', id: 't1' }, 'members', staff);
  * await access.can(staff, 'view', { type: 'record', ...record }, { ctx: { onShift } });
  * ```
  */

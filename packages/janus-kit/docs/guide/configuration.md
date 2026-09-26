@@ -186,8 +186,8 @@ access: ({ relations, auth }) =>
 			subjects: auth.types, // 'patient' | 'staff'
 			types: {
 				record: {
-					relations: { doctor: ['staff'], patient: ['patient'] },
-					permissions: { view: ['doctor', 'patient'] },
+					related: { doctors: ['staff'], patients: ['patient'] },
+					permits: { view: ['doctors', 'patients'] },
 				},
 			},
 		}),
