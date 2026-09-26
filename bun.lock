@@ -14,7 +14,7 @@
     },
     "packages/janus": {
       "name": "@nxgt/janus",
-      "version": "0.1.3",
+      "version": "0.2.0",
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "zod": "^4",
@@ -47,7 +47,7 @@
     },
     "packages/janus-hono": {
       "name": "@nxgt/janus-hono",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@types/bun": "^1.4.2",
@@ -108,7 +108,7 @@
     },
     "packages/janus-mongo": {
       "name": "@nxgt/janus-mongo",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@nxgt/mongo": "^0.17.1",

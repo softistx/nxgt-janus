@@ -1,5 +1,44 @@
 # @nxgt/janus
 
+## 0.2.0
+
+### Minor Changes
+
+- [#49](https://github.com/softistx/nxgt-janus/pull/49) [`579ff03`](https://github.com/softistx/nxgt-janus/commit/579ff03d84809d7f1e1bf8f4c32ce5fe76b0aa9a) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **Breaking: an object type's keys are `related` and `permits`**, Keto's OPL words — `relations` and `permissions` are renamed, nothing else changes. Rules stay strings, typed and completed by your editor as before.
+  
+  ```ts
+  defineModel({
+    subjects: auth.types,
+    types: {
+      team: {
+        related: { members: ['staff', 'team#members'], leads: ['staff'] },
+        permits: { manage: ['leads'], view: ['members', 'manage'] },
+      },
+      record: {
+        related: { doctors: fromField('doctorId', 'staff'), teams: ['team'] },
+        permits: {
+          view: ['doctors', 'teams->view'],
+          edit: [when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)],
+        },
+      },
+    },
+  });
+  ```
+  
+  **Migrating**: rename the two keys on every object type — `relations:` → `related:`, `permissions:` → `permits:`. The old keys are refused, at compile time (`team.relations is now related: rename the key`) and with a `TypeError` from JavaScript (`defineModel: types.team.relations is now related: rename the key`). Plural relation names — `members`, `owners`, `teams` — are the convention of the docs, not a rule; `can`, `list`, `grant` and `revoke` take the names you declare.
+  
+  An unknown key now reads `types.<type>.<key> is not a key of an object type: related or permits`. Run-time messages name the new keys: `types.<type>.related.<relation>`, `types.<type>.permits.<permission>`. An arrow through a relation that can hold a subject set (`teams: ['team', 'team#members']`, then `'teams->view'`) was refused by `defineModel` when it ran; it is now a compile error too.
+
+### Patch Changes
+
+- [#41](https://github.com/softistx/nxgt-janus/pull/41) [`db8bcaf`](https://github.com/softistx/nxgt-janus/commit/db8bcafb4284fda9a6609207658e17f80c16a5aa) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `@nxgt/janus/conformance`: `sessions.deleteUser` asks the store first whether it still holds the session that lapsed, and expects `deleteUserSessions` to count it only then — 3, or 2 when the store already expired it. A store with its own expiry, a Redis key TTL, drops a lapsed session as soon as it lapses, which the port already allowed. A store that holds it and miscounts still fails.
+
+- [#45](https://github.com/softistx/nxgt-janus/pull/45) [`67106ed`](https://github.com/softistx/nxgt-janus/commit/67106ed205eaa8725e18b08f928288ff03d867a0) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `LOGIN_TAKEN`: the message no longer quotes the login — `insertUser: the login is taken by another patient` — as a message never carries a value, and an e-mail in a log line is personal data. `error.login` and `error.userType` still name it.
+  
+  **For adapter authors:** `@nxgt/janus/conformance` now checks that a login conflict's message does not quote the login. An adapter that copied the old wording fails `users` until its message drops the value.
+
+- [#44](https://github.com/softistx/nxgt-janus/pull/44) [`506075f`](https://github.com/softistx/nxgt-janus/commit/506075ff9eb11f7bb49bcde5cfd5dfe2ddf11e5d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the vocabulary names a **kit** — a package that opens the connections and wires adapters and integrations into one object, as `@nxgt/janus-kit` does.
+
 ## 0.1.3
 
 ### Patch Changes
