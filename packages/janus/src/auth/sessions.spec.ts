@@ -140,6 +140,23 @@ describe('signing out', () => {
 		expect(await auth.signOutEverywhere('not-an-id')).toBe(0);
 	});
 
+	it('reads an except that is no session id as none, without handing it to the store', async () => {
+		const { auth, store } = setup();
+		const here = await auth.signUp({ ...ada, password });
+		await auth.signIn({ email: ada.email, password });
+		const handed: unknown[] = [];
+		const { revokeUserSessions } = store.sessions;
+		store.sessions.revokeUserSessions = async (...args) => {
+			handed.push(args[2]);
+			return revokeUserSessions(...args);
+		};
+
+		expect(await auth.signOutEverywhere(here.user, { except: 'x\u0000' })).toBe(
+			2,
+		);
+		expect(handed).toEqual([undefined]);
+	});
+
 	it('collects lapsed sessions when the store can, and says UNSUPPORTED when it cannot', async () => {
 		const { createMemoryStores } = await import('./port/memory');
 		const { deleteExpiredSessions: _, ...withoutCollect } =

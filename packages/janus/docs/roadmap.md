@@ -107,6 +107,10 @@ The first public release, v0.1.
 - **The conformance suite accepts a store with its own expiry** — a store
   that drops a lapsed session at once, as a Redis TTL does, passes
   `sessions.deleteUser`; one that still holds it must count it. — next patch
+- **A NUL character or a lone surrogate never reaches a store** — refused in
+  fields with `USER_INVALID` on every adapter, rather than `STORE_FAILED` on
+  PostgreSQL alone; a login holding one is nobody's. The conformance suite
+  holds every adapter to round-tripping every other character. — next patch
 
 - **A Hono integration** — [`@nxgt/janus-hono`](https://www.npmjs.com/package/@nxgt/janus-hono):
   the session middleware, the cookie, a route guarded by a permission,

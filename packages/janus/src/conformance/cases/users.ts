@@ -42,6 +42,30 @@ export const userStoreCases: readonly ConformanceCase[] = [
 		},
 	},
 	{
+		id: 'users.edgeCharacters',
+		group,
+		name: 'round-trips every character the core lets through: control characters, U+FFFF and a surrogate pair',
+		async run({ stores }) {
+			const edge = 'a\u0001\u001f\u007f\uFFFF 😀 z';
+			const record = userRecord({
+				logins: [edge],
+				fields: { email: 'ada@example.test', [edge]: [edge, { [edge]: edge }] },
+			});
+
+			await stores.users.insertUser(record);
+			equal(
+				await stores.users.findUser(record.id),
+				record,
+				'findUser should answer every edge character exactly as written',
+			);
+			equal(
+				(await stores.users.findUserByLogin('user', edge))?.id,
+				record.id,
+				'findUserByLogin should find a login made of edge characters',
+			);
+		},
+	},
+	{
 		id: 'users.absence',
 		group,
 		name: 'answers null for an absence, never undefined, and an empty page for an empty store',

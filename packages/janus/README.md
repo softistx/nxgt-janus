@@ -488,8 +488,9 @@ describeJanusStores({
 });
 ```
 
-There are 37 cases. They cover:
-- round-trip, byte for byte;
+There are 38 cases. They cover:
+- round-trip, byte for byte — including every edge character the core lets
+  through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
   exactly one is accepted — and a login is unique per user type; the refusal
   carries the login in `error.login`, never in its message;

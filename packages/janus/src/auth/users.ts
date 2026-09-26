@@ -6,6 +6,7 @@ import {
 } from '../errors/janus-error';
 import { isId, mintId } from '../ids/id';
 import { invalidCursor, pageLimit } from '../pagination/cursor-page';
+import { isStorable } from '../stores/storable';
 import { normalizeEmail, type ResolvedType } from './config';
 import {
 	type AnyUser,
@@ -47,6 +48,14 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 	const at = (operation: string) =>
 		context.config.single ? operation : `${type.name}.${operation}`;
 
+	/**
+	 * The user holding this normalised login, or `null`. A login no store can
+	 * keep is nobody's: answered as an absence, without asking a store that
+	 * would fail on it.
+	 */
+	const byLogin = async (login: string): Promise<UserRecord | null> =>
+		isStorable(login) ? store.users.findUserByLogin(type.name, login) : null;
+
 	/** Validates, hashes, writes once. What `create` and `signUp` share. */
 	const insert = async (input: Input, where: string): Promise<UserRecord> => {
 		const { password, active, ...rest } = input ?? {};
@@ -68,7 +77,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			schemaVersion: type.schemaVersion,
 			active: active === undefined ? true : active === true,
 			fields,
-			logins: loginsOf(type, fields),
+			logins: loginsOf(type, fields, where),
 			password: hash,
 			emailVerifiedAt: null,
 			version: 0,
@@ -234,7 +243,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 					return {
 						fields,
-						logins: loginsOf(type, fields),
+						logins: loginsOf(type, fields, where),
 						schemaVersion: type.schemaVersion,
 						// A new e-mail is an unproven one.
 						...(emailChanged ? { emailVerifiedAt: null } : {}),
@@ -291,9 +300,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			const password = (input as Input)?.password;
 
 			const record =
-				typeof login === 'string'
-					? await store.users.findUserByLogin(type.name, rule.normalize(login))
-					: null;
+				typeof login === 'string' ? await byLogin(rule.normalize(login)) : null;
 			const refuse = (
 				reason: 'unknownLogin' | 'noPassword' | 'wrongPassword',
 			) =>
@@ -332,10 +339,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 		async findByLogin(login) {
 			const rule = passwordRule(at('findByLogin'));
-			const record = await store.users.findUserByLogin(
-				type.name,
-				rule.normalize(login),
-			);
+			const record = await byLogin(rule.normalize(login));
 			return record === null ? null : toUser(record);
 		},
 
@@ -422,7 +426,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				const where = at('resetPassword.request');
 				passwordRule(where);
 				const wanted = normalizeEmail(String(email));
-				const record = await store.users.findUserByLogin(type.name, wanted);
+				const record = await byLogin(wanted);
 
 				// Found by a login that is not their e-mail — a username that looks
 				// like one — is nobody's e-mail: no token.

@@ -18,7 +18,6 @@ How PostgreSQL's errors become the port's:
 | A row with this id already there | Nothing: the insert was a retry, and returns what is stored — or `NOT_FOUND` if the user was deleted between the two |
 | A unique violation on any other constraint | `STORE_FAILED` |
 | A check or foreign key refusing a row | `STORE_FAILED` |
-| A NUL character (`\u0000`) in a field or a login | `STORE_FAILED`: PostgreSQL stores none |
 | Anything else | `STORE_FAILED`, with the driver's error as `cause` (see below) |
 
 ## Index
@@ -44,7 +43,6 @@ How PostgreSQL's errors become the port's:
 - [`NOT_FOUND` / `VERSION_CONFLICT`: `updateUser: …`](#not_found--version_conflict-updateuser-)
 - [The `sessions` table keeps growing](#the-sessions-table-keeps-growing)
 - [`NOT_FOUND`: `insertUser: the user was deleted meanwhile`](#not_found-insertuser-the-user-was-deleted-meanwhile)
-- [`STORE_FAILED` for a sign-up whose fields hold `\u0000`](#store_failed-for-a-sign-up-whose-fields-hold-u0000)
 
 ---
 
@@ -324,24 +322,3 @@ retry, and then found no user to return. Nothing was written by the retry.
 
 **Fix:** treat it as the deletion it raced: the user is gone. Sign up again
 if that is what the caller wants.
-
-### `STORE_FAILED` for a sign-up whose fields hold `\u0000`
-
-The code is `22P05` for a field (`jsonb`) and `22021` for a login (`text`);
-a lone UTF-16 surrogate in a field gives `22P02`.
-
-**When:** a sign-up, `create` or `update` whose fields or login contain a NUL
-character, which your schema accepted.
-
-**Why:** PostgreSQL stores no NUL in `text` or `jsonb`. The record reaches the
-store valid, and the store cannot write it: that is reported as a failure,
-never as the caller's fault, because the store cannot tell. MongoDB and the
-memory store keep it.
-
-**Fix:** refuse it in your schema, so the caller gets `USER_INVALID`, a 400:
-
-```ts
-const noNul = z.string().refine((value) => !value.includes('\u0000'), 'no NUL character');
-
-const User = z.strictObject({ email: z.email(), name: noNul });
-```

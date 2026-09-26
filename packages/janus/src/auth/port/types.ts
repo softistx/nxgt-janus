@@ -29,7 +29,9 @@
  * 4. **Bytes round-trip.** Logins, hashes and fields come back exactly as they
  *    were written: no normalisation, no trimming, no `1` turned into `'1'`. The
  *    core normalises a login before a store ever sees it, so uniqueness is
- *    uniqueness of bytes and no adapter needs a collation.
+ *    uniqueness of bytes and no adapter needs a collation. The core never
+ *    hands a store `\u0000` or a lone surrogate — PostgreSQL keeps neither —
+ *    and every other character must come back as it went in.
  * 5. **Every method is atomic on its own.** Nothing composes into a
  *    transaction, and the core never opens one. An adapter may open one
  *    *inside* a method — a normalised SQL schema writes several rows per

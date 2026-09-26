@@ -135,7 +135,6 @@ copy of it.
 | A row with this id already there | Nothing: the insert was a retry, and returns what is stored — or `NOT_FOUND` if the user was deleted between the two |
 | A unique violation on **any other constraint** | `StoreFailure`: an adapter bug, never reported as a taken login |
 | A check or foreign key refusing a row | `StoreFailure`: the core validated the record already, so it is never the caller's fault |
-| A NUL character in a field or a login | `StoreFailure`: PostgreSQL stores none — refuse it in your schema |
 | Anything else: a refused connection, a timeout, a missing table | `StoreFailure`, with the driver's error as `cause` |
 
 A login is claimed with `on conflict do nothing`, so no conflict is ever told
