@@ -461,7 +461,8 @@ or an empty page, before any store call.
 exist, a rule naming nothing, an arrow to a permission its target lacks, a
 permission asked of the wrong type, an object missing a field, a missing
 `ctx`, a `grant` of a relation read from a field or to a holder it does not
-admit, a `list()` through a `fromField` without a `lookup`: each is a compile
+admit, a subject set naming a relation its type lacks or a user type not
+declared under `types`, a `list()` through a `fromField` without a `lookup`: each is a compile
 error, on the offending argument. So are the keys before 0.2, `relations` and
 `permissions`: the error names the new one — `team.relations is now related:
 rename the key` — and `defineModel` refuses them the same way at run time. `defineModel` refuses with a `TypeError`

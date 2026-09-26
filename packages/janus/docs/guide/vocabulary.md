@@ -120,7 +120,7 @@ a tuple.
 | `formatEntity(entity)` | `'record:r1'` |
 | `formatSubject(subject)` | `'staff:u1'`, or `'team:t1#members'` |
 | `formatTuple(tuple)` | `'team:t1#members@team:t2#members'` |
-| `parseSubject(text)` | the `Subject` back — a set as `setOf` makes it |
+| `parseSubject(text)` | the `Entity` back, or a `SetOf` — a set as `setOf` makes it |
 | `parseTuple(text)` | the `RelationTuple` back |
 
 ```ts
