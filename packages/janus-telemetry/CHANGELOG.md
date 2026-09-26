@@ -1,5 +1,13 @@
 # @nxgt/janus-telemetry
 
+## 0.1.1
+
+### Patch Changes
+
+- [#58](https://github.com/softistx/nxgt-janus/pull/58) [`93c1530`](https://github.com/softistx/nxgt-janus/commit/93c1530a5a1ae406dbc345e1c20a81da4f074272) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The audit trail records a subject as `permissions()` reads it. `janus.subject.relation` was set whenever the subject had a `relation` field, so a user with such a field was logged as a subject set that was never stored. It is now set only for a real set: one `setOf()` made, or `{ type, id, relation }` on an object type. The user types come from the instance's `model`. Needs `@nxgt/janus` 0.3.0, for `isSetOf`.
+- Updated dependencies [[`9c64782`](https://github.com/softistx/nxgt-janus/commit/9c64782611e21e6e62d5cd332b48f982f2cbbc63)]:
+  - @nxgt/janus@0.3.0
+
 ## 0.1.0
 
 ### Minor Changes
