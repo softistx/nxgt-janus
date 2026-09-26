@@ -242,6 +242,35 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'"teams->manage" reaches team.manage, which reads team.leadId',
 		],
 		[
+			'several faults: the subjects are refused before the types',
+			define({ subjects: 'staff', types: {} }),
+			'subjects must be an array',
+		],
+		[
+			'several faults: a type is read whole, in order, before the next one',
+			define({
+				subjects,
+				types: {
+					team: { roles: {} },
+					record: { related: { 'bad-name': ['staff'] } },
+				},
+			}),
+			'types.team.roles is not a key of an object type',
+		],
+		[
+			'several faults: a name is checked before it can clash',
+			define({
+				subjects,
+				types: {
+					team: {
+						related: { leads: ['staff'] },
+						permits: { leads: ['leads'], 'x-y': ['leads'] },
+					},
+				},
+			}),
+			'"x-y" must be a camelCase name',
+		],
+		[
 			'a loop no relation ends',
 			define({
 				subjects,

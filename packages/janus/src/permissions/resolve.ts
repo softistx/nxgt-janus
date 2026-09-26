@@ -109,13 +109,17 @@ export function resolveModel(
 }
 
 /** The subject types: camelCase names, as `auth.types` gives them. */
-function subjectTypesOf(value: unknown, refuse: Refuse): Set<string> {
+function subjectTypesOf(
+	value: ModelConfig['subjects'],
+	refuse: Refuse,
+): Set<string> {
+	// Checked all the same: JavaScript callers pass anything.
 	if (!Array.isArray(value)) {
 		throw refuse(
 			'subjects must be an array of subject type names — auth.types from janus(), or your own',
 		);
 	}
-	for (const subject of value) {
+	for (const subject of value as readonly unknown[]) {
 		if (typeof subject !== 'string' || !NAME.test(subject)) {
 			throw refuse(
 				`the subject type "${String(subject)}" must be a camelCase name`,
@@ -127,7 +131,7 @@ function subjectTypesOf(value: unknown, refuse: Refuse): Set<string> {
 
 /** The object types' names: camelCase, at least one, none a subject type. */
 function objectTypeNamesOf(
-	value: unknown,
+	value: ModelConfig['types'],
 	subjects: ReadonlySet<string>,
 	refuse: Refuse,
 ): Set<string> {
@@ -188,7 +192,7 @@ function collectNames(
 
 /** Each object type's relations and permissions, every rule parsed once. */
 function resolveTypes(
-	config: ModelConfig['types'],
+	defs: ModelConfig['types'],
 	context: {
 		readonly refuse: Refuse;
 		readonly subjects: ReadonlySet<string>;
@@ -207,7 +211,7 @@ function resolveTypes(
 		]);
 
 	const types = new Map<string, ResolvedObjectType>();
-	for (const [name, def] of Object.entries(config)) {
+	for (const [name, def] of Object.entries(defs)) {
 		const at = `types.${name}`;
 		const relations = new Map<string, ResolvedRelation>();
 
@@ -249,11 +253,7 @@ function resolveTypes(
 	return types;
 }
 
-function namesIn(
-	value: unknown,
-	at: string,
-	refuse: (message: string) => TypeError,
-): Set<string> {
+function namesIn(value: unknown, at: string, refuse: Refuse): Set<string> {
 	if (value === undefined) return new Set();
 	if (!isRecord(value)) throw refuse(`${at} must be an object`);
 	for (const name of Object.keys(value)) {
@@ -274,7 +274,7 @@ function resolveRelation(
 		isSubjectType,
 		relationNames,
 	}: {
-		refuse: (message: string) => TypeError;
+		refuse: Refuse;
 		isSubjectType: (type: string) => boolean;
 		relationNames: ReadonlyMap<string, ReadonlySet<string>>;
 	},
@@ -334,7 +334,7 @@ function resolveRule(
 	value: unknown,
 	here: string,
 	context: {
-		refuse: (message: string) => TypeError;
+		refuse: Refuse;
 		own: ReadonlySet<string>;
 		relations: ReadonlyMap<string, ResolvedRelation>;
 		typeNames: ReadonlySet<string>;
@@ -403,7 +403,7 @@ function resolveRule(
  */
 function refuseLoops(
 	types: ReadonlyMap<string, ResolvedObjectType>,
-	refuse: (message: string) => TypeError,
+	refuse: Refuse,
 ): void {
 	for (const type of types.values()) {
 		const visiting: string[] = [];
@@ -440,7 +440,7 @@ function refuseLoops(
  */
 function refuseDataBeyondRoot(
 	types: ReadonlyMap<string, ResolvedObjectType>,
-	refuse: (message: string) => TypeError,
+	refuse: Refuse,
 ): void {
 	/** The field `name` of `type` reads, directly or through its own rules; `null` when none. */
 	const fieldRead = (type: ResolvedObjectType, name: string): string | null => {
