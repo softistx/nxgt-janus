@@ -223,6 +223,47 @@ Lua script: `HINCRBY` only when `spentAt` is empty, then `HGETALL`. Wrap the
 driver's error in `StoreFailure` as in [the six rules](#the-six-rules):
 `countAttempt` has its own outage case.
 
+### `TokenStore.spendUserTokens`
+
+Spends every **unspent** token of one user and one `kind` at `at`, and
+answers how many it spent. The core calls it before issuing a sign-in code —
+so only the last code sent works — and after a password reset, for the
+user's `secondFactor` challenges:
+
+| The stored token | Written | Counted |
+| --- | --- | --- |
+| unspent, of this user and this `kind` | `spentAt: at` | yes |
+| already spent | nothing — `spentAt` never changes once set | no |
+| another `kind`, or another user | nothing | no |
+| none at all | nothing | `0`, an absence — never a failure |
+
+Each token is spent by a **conditional write**, as `consumeToken` spends one:
+a token that a racing `consumeToken` spends at the same moment is counted by
+exactly one of the two calls, never both. An expired token is spent all the
+same, or not counted by a store that already dropped it.
+
+In MongoDB, one `updateMany` through the `userId` index `deleteUserTokens`
+already reads:
+
+```ts
+import type { TokenStore } from '@nxgt/janus';
+
+export const spendUserTokens: TokenStore['spendUserTokens'] = async (userId, kind, at) => {
+	const result = await tokens.updateMany(
+		{ userId, kind, spentAt: null },
+		{ $set: { spentAt: at } },
+	);
+	return result.modifiedCount;
+};
+```
+
+In SQL, `update … set spent_at = $3 where user_id = $1 and kind = $2 and
+spent_at is null returning token_hash`, answering the row count: PostgreSQL
+re-checks `spent_at is null` on a row a racing redemption just committed. In
+Redis, one Lua script over the user's set of tokens, `HSET spentAt` on each
+of the right `kind` whose `spentAt` is empty. `spendUserTokens` has its own
+outage case.
+
 ### `RelationStore`
 
 ```ts
@@ -316,7 +357,7 @@ stores: a case that leaks into the next is the hardest failure to debug.
 
 The suites import no test framework and no assertion library.
 
-The second factor and attempts have their own cases — skip one by its id
+The second factor, attempts and a user's tokens spent have their own cases — skip one by its id
 while you work on it, never to ship:
 
 | Case | Checks |
@@ -328,6 +369,9 @@ while you work on it, never to ship:
 | `tokens.challenge` | a second-factor challenge, whose `address` is `''`, kept, counted and spent like any token |
 | `tokens.countAttemptSpent` | a spent token answered unchanged; another kind and an unknown hash answer `null` and count nothing |
 | `outage.countAttempt` | a store that cannot answer rejects, never `null` |
+| `tokens.spendUserTokens` | spends the unspent tokens of one user and kind at `at`, keeping their attempts, and counts them; a spent token keeps its `spentAt`; another kind and another user are untouched; `0` for none |
+| `tokens.spendUserTokensRace` | racing one `consumeToken`, ten times over: exactly one of the two spends the token |
+| `outage.spendUserTokens` | a store that cannot answer rejects, never `0` |
 
 ### `faults`: prove the outage invariant
 

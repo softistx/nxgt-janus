@@ -74,6 +74,9 @@ readonly verifyEmail: {
 `send` issues a token for the user's **current** e-mail. `confirm` redeems it
 and sets `emailVerified`. A token sent to an e-mail the user has since changed
 is `TOKEN_STALE`: confirming it would verify an address nobody holds any more.
+The address is checked again on the very record the write replaces, so an
+e-mail changed while the link is being redeemed is `TOKEN_STALE` too, and
+nothing is written.
 Changing the e-mail with `update` sets `emailVerified` back to `false`.
 
 ## `resetPassword`
@@ -100,7 +103,10 @@ export async function forgotPassword(request: Request): Promise<Response> {
 ```
 
 `confirm` sets the password, marks the e-mail verified — the link proved it —
-and **signs the user out everywhere**. It opens no session: call `signIn` next
+and **signs the user out everywhere**: their sessions are revoked, and every
+second-factor challenge still open is spent, so a sign-in started with the
+old password cannot be finished. The e-mail is checked again on the record
+written, as for `verifyEmail`. It opens no session: call `signIn` next
 if that is your policy. A password refused for its length does not spend the
 token, so the visitor can try again with the same link.
 

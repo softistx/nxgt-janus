@@ -429,10 +429,20 @@ await tokens.countAttempt(tokenHash, 'signInCode'); // { …, attempts: 1 }
 await tokens.countAttempt(tokenHash, 'verifyEmail'); // null: no token of that kind
 ```
 
+`spendUserTokens(userId, kind, at)` spends the unspent tokens of one user and
+one kind, and answers how many — what a new sign-in code and a password reset
+call:
+
+```ts
+await tokens.spendUserTokens(userId, 'signInCode', now); // 2: the codes sent before
+await tokens.spendUserTokens(userId, 'signInCode', now); // 0: none left unspent
+```
+
 An adapter written against `@nxgt/janus` 0.3 does not compile against this
-port until it implements `countAttempt`, and `janus()` refuses it at wiring —
+port until it implements `countAttempt`, nor one written against 0.6 until it
+implements `spendUserTokens`, and `janus()` refuses either at wiring —
 [Writing an adapter](docs/guide/adapters.md#tokenstorecountattempt) has the
-contract.
+contracts.
 
 ### Second factor — `secondFactor`
 
@@ -712,7 +722,8 @@ the code and nothing else.
 **Answer `signInCode.request` the same whether it issued a code or not** —
 the same status, body and cookie: set a random challenge when it answered
 `null`. The code route then still tells a decoy (`TOKEN_UNKNOWN`) from a
-real challenge (`CODE_INVALID`, `attemptsLeft`): answer its refusals alike
+real challenge (`CODE_INVALID`, `attemptsLeft`, or `TOKEN_SPENT` once a later
+request spent it): answer its refusals alike
 where addresses must stay secret. And rate-limit the request: one code is
 live per user — a new `request` spends the one before — but every call sends
 an e-mail, so without a limit anyone can fill a user's inbox.
@@ -762,7 +773,8 @@ denied. `resetPassword.request` answers `null` for an unknown e-mail for the
 same reason: answer the visitor the same page either way.
 
 **`resetPassword.confirm` signs the user out everywhere, and opens no session.**
-Whoever had the old password loses their sessions; what the visitor does next is
+Whoever had the old password loses their sessions, and a sign-in they left
+waiting on its second factor is spent with them; what the visitor does next is
 your policy. A password refused for its length does not spend the token.
 
 **A sign-in can move a user's `version`.** Rewriting a stale hash is a write. A

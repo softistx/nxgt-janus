@@ -181,10 +181,10 @@ hash, like a session token, so the store cannot give it back either.
 
 A challenge belongs to the user type that issued it: confirm a patient's
 challenge with `clinic.patient.signInCode.confirm`. Another type's `confirm`
-answers `TOKEN_UNKNOWN`, compares no code and spends nothing — but it has
-already cost one of the challenge's five attempts, because the attempt is
-counted before the type is known. The challenge is left for its own type,
-with one attempt fewer.
+answers `TOKEN_UNKNOWN` and compares no code — but it has already cost one of
+the challenge's five attempts, because the attempt is counted before the type
+is known. The challenge is left for its own type, with one attempt fewer, and
+the fifth such call spends it, as a fifth wrong code would.
 
 ## Confirming the code
 
@@ -282,8 +282,8 @@ answers `SignedIn`.
 | Rejects with | When | What to do |
 | --- | --- | --- |
 | `CODE_INVALID`, with `attemptsLeft` | the code does not match, or is not six digits. Message: `signInCode.confirm: the code does not match, or was already used` | ask again while `attemptsLeft > 0`; at `0` the challenge is spent: request a new code |
-| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, one whose user was deleted, or one a store's TTL already dropped. Another type's challenge still loses one of its attempts | request a new code |
-| `TOKEN_SPENT` | the challenge already signed someone in, or its attempts ran out | request a new code |
+| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, one whose user was deleted, or one a store's TTL already dropped. Another type's challenge still loses one of its attempts, and its fifth spends it | request a new code |
+| `TOKEN_SPENT` | the challenge already signed someone in, its attempts ran out, or a newer `request` for the same user spent it — only the last code sent works | request a new code, and use the latest e-mail |
 | `TOKEN_EXPIRED` | `expiresAt` has passed | request a new code |
 | `TOKEN_STALE` | the user changed their e-mail since the code was sent. Message: `signInCode.confirm: the code was sent to an e-mail the user no longer has`. The challenge is spent | request a new code, to the current address |
 | `USER_INACTIVE` | the user was deactivated since the code was sent. The challenge is spent | answer 403 |

@@ -262,8 +262,8 @@ const signedIn = await auth.secondFactor.confirm(challenge, code);
 | Rejects with | When | What to do |
 | --- | --- | --- |
 | `CODE_INVALID`, with `attemptsLeft` | the code does not match, is not six digits, or was already accepted | ask again while `attemptsLeft > 0`; at `0` the challenge is spent: sign in again |
-| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, or one a store's TTL already dropped | sign in again |
-| `TOKEN_SPENT` | the challenge already opened a session, or its attempts ran out | sign in again |
+| `TOKEN_UNKNOWN` | no such challenge — a typo, another user type's, or one a store's TTL already dropped. Another type's challenge still loses one of its attempts, and its fifth spends it | sign in again |
+| `TOKEN_SPENT` | the challenge already opened a session, its attempts ran out, or a password reset spent it | sign in again |
 | `TOKEN_EXPIRED` | `expiresAt` has passed | sign in again |
 | `USER_INACTIVE` | the user was deactivated since `signIn`. The challenge is spent | answer 403, as `signIn` would |
 | `SECOND_FACTOR_NOT_ENROLLED` | the factor was disabled since `signIn`. The challenge is spent | sign in again: the password alone now opens a session |

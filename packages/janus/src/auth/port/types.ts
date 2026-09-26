@@ -490,7 +490,7 @@ export interface TokenStore {
 	 *
 	 * - A spent token keeps its `spentAt`: it never changes once set.
 	 * - A token of another `kind`, or of another user, is not touched.
-	 * - A lapsed token is spent all the same, or not counted by a store that
+	 * - An expired token is spent all the same, or not counted by a store that
 	 *   already dropped it.
 	 * - `0` for a user with none: an absence, not a failure.
 	 *

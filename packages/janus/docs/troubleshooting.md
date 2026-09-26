@@ -232,9 +232,11 @@ Also: `janus: store.<slot> is missing`, `janus: store must be an object with use
 
 **When:** `janus({...})`, from JavaScript or with a store typed loosely. TypeScript refuses a partial store at compile time and names the method.
 **Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. `deleteExpiredSessions` is the one optional method: absent, or a function.
-An adapter written against `@nxgt/janus` 0.3 reports
-`store.tokens has no method countAttempt` until it implements the method 0.4
-added.
+An adapter written for an earlier `@nxgt/janus` reports the method a later
+release added to the port: `store.tokens has no method countAttempt` for one
+written against 0.3 (the method came in 0.4), and
+`store.tokens has no method spendUserTokens` for one written against 0.6 (the
+method came in 0.7).
 
 **Fix:** pass the three stores, whole:
 
@@ -244,17 +246,17 @@ import { createMemoryStores, janus } from '@nxgt/janus';
 janus({ ..., store: createMemoryStores() });
 ```
 
-For `countAttempt`, upgrade the published adapter to the release that
-implements it — `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3,
-`@nxgt/janus-redis` 0.2:
+Upgrade the published adapter to the release that implements both —
+`@nxgt/janus-drizzle` 0.3, `@nxgt/janus-mongo` 0.4, `@nxgt/janus-redis` 0.3:
 
 ```bash
-bun add @nxgt/janus@^0.4 @nxgt/janus-drizzle@^0.2 # or @nxgt/janus-mongo@^0.3, @nxgt/janus-redis@^0.2
+bun add @nxgt/janus@^0.7 @nxgt/janus-drizzle@^0.3 # or @nxgt/janus-mongo@^0.4, @nxgt/janus-redis@^0.3
 ```
 
-Your own adapter implements it as
-[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt) sets
-out, then runs the conformance suite.
+Your own adapter implements them as
+[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt) and
+[`TokenStore.spendUserTokens`](guide/adapters.md#tokenstorespendusertokens)
+set out, then runs the conformance suite.
 
 ### `janus: relations must be a relation store — relations.deleteEntity is missing`
 
@@ -549,8 +551,8 @@ the same user: only the last code sent works, so a visitor who asked twice
 and typed the first code gets `TOKEN_SPENT`. `TOKEN_UNKNOWN` also covers a
 challenge whose user was deleted, one confirmed through another user type's
 `signInCode`, the decoy challenge of a `request` that answered `null`, and
-the two arguments swapped. Another type's `confirm` compares no code and
-spends nothing, but it has already cost one of the challenge's five
+the two arguments swapped. Another type's `confirm` compares no code, but it
+has already cost one of the challenge's five
 attempts: the attempt is counted before the type is known. The challenge is
 left for its own type, with one attempt fewer — and the fifth such call
 spends it, as a fifth wrong code would.
@@ -856,8 +858,8 @@ form field now holds the second challenge, so the first code does not
 match it — and costs an attempt.
 **Fix:** tell the visitor that only the last code sent works, and put the
 time it was sent in the e-mail's subject or text so they can tell the
-e-mails apart. The earlier challenge is not revoked: it still expires on its
-own.
+e-mails apart. The earlier challenge is spent by the new `request`: the
+first code, even with its own challenge, answers `TOKEN_SPENT`.
 
 ### `signInCode.request` answers `null` for a user who exists
 
