@@ -17,6 +17,7 @@
 		"changeset:version": "changeset version && bun install --lockfile-only",
 		"changeset:publish": "bun run build && bun run verify:artifacts && bun run scripts/publish.ts",
 		"verify:artifacts": "bun run scripts/verify-artifacts.ts",
+		"changeset:private": "bun run scripts/check-changesets.ts",
 		"changeset:status": "changeset status --since=origin/develop"
 	},
 	"devDependencies": {

@@ -121,6 +121,13 @@ jobs:
       # changesets 3.0.3 it exits 0, so it cannot fail there — but it cannot
       # catch anything either, and a step that can only pass is one a reader
       # has to work out.
+      # A changeset naming a private package is consumed by `changeset
+      # version` and published by nothing: the release stays in version mode
+      # (#51 → #53). A typo in a package name is the same release that never
+      # happens. Checked everywhere — the release branch has no changesets
+      # left, so it passes there.
+      - name: Changesets name published packages
+        run: bun run changeset:private
       - name: Changeset present
         if: >-
           github.event_name == 'pull_request' &&
