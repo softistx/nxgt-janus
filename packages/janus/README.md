@@ -554,7 +554,7 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 **On a user type, only `setOf` makes a set.** A user passed as it is — or
 `{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
 even with a field named `relation`. The compiler refuses the written-out set
-where the relation admits one. From JavaScript it grants that user, silently,
+in `grant()` and `revoke()` where the relation admits one. From JavaScript it grants that user, silently,
 where the relation also admits the user — and is refused where it does not.
 `grant(note, 'readers', setOf(bob, 'managers'))`. A spread of a set is still
 the set; **through `JSON` or `structuredClone` it comes back as the user** —

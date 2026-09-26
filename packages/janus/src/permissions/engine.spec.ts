@@ -541,6 +541,11 @@ describe('a user type that is also an object type', () => {
 
 		expect(await access.can(ada, 'read', doc)).toBe(true);
 		expect(await access.can(boss, 'read', doc)).toBe(false);
+		// can() reads it the same way: a question about ada, not her managers.
+		expect(await access.can(withRelation, 'read', doc)).toBe(true);
+		expect(
+			await access.can({ ...boss, relation: 'managers' }, 'read', doc),
+		).toBe(false);
 	});
 
 	it('revoke removes the set, from setOf(), a spread of it or its notation', async () => {
