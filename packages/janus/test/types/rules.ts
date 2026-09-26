@@ -3,7 +3,7 @@
  * refuses at COMPILE time, and what it must keep typing exactly as the
  * string form does. Checked by `tsc --noEmit`, never run.
  *
- * **Twenty-three plausible mistakes, twenty-three refused**, each verified to fail for the
+ * **Twenty-four plausible mistakes, twenty-four refused**, each verified to fail for the
  * reason its comment names. Add a case whenever the form gains something it
  * should refuse; never delete one to make a change pass.
  */
@@ -379,6 +379,28 @@ defineModel({
 			related: { owners: ['staff'] },
 			// @ts-expect-error 23. a key an object type does not have — `permit`, singular
 			permit: ['view'],
+		},
+	},
+});
+
+defineModel({
+	subjects,
+	types: {
+		a: { related: { owners: ['staff'] }, permits: ['x', 'view'] },
+		b: { related: { x: ['staff'] }, permits: ['view'] },
+		doc: { related: { parents: ['a', 'b'] }, permits: ['view', 'edit'] },
+	},
+	rules: {
+		a: {
+			x: ({ related }) => [related.owners],
+			view: ({ permits }) => [permits.x],
+		},
+		b: { view: ({ related }) => [related.x] },
+		doc: {
+			// Must compile: `view` is a permit of both parents.
+			view: ({ related }) => [related.parents.permits.view],
+			// @ts-expect-error 24. `x` is a permit of a and a relation of b: common to both, but not as one kind
+			edit: ({ related }) => [related.parents.permits.x],
 		},
 	},
 });

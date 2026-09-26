@@ -75,8 +75,13 @@ interface ModelConfig {
 		};
 	};
 	readonly rules?: { readonly [objectType: string]: { readonly [permit: string]: (param) => readonly [RuleRef, ...RuleRef[]] } };
+	// A rule answers a non-empty list: references, or when() on one — or on a name its type declares.
 }
 ```
+
+`model.definition` holds the model in the string form, whichever form it
+was written in — a reference-form type reads `relations` and `permissions`
+there, its rules spelled out — and its top level is frozen.
 
 A model is written in one of two spellings, or both: the **string form**
 below, and the **[reference form](#the-reference-form)** — `related`,
@@ -195,7 +200,7 @@ not exist on type '{ readonly owners: RelationRef<"folder", "owners">; }'`,
 `related.owners.permits` through a relation held by a user type is
 `Property 'permits' does not exist on type 'RelationRef<…>'`; a rule
 answering a boolean is `Type 'boolean' is not assignable to type 'readonly
-[RuleRef, ...RuleRef[]]'`, on the rule, and a rule answering `[]` is `Type
+[RuleOf<…>, ...RuleOf<…>[]]'`, on the rule, and a rule answering `[]` is `Type
 '[]' is not assignable to …` there too; a rule for a permit the type does not
 declare is refused on that key, `rules.folder.edit is not in
 types.folder.permits`. On the type itself:
@@ -206,7 +211,9 @@ types.folder.permits`. On the type itself:
 | a permit named like a relation, `permits: ['owners']` | that name | `"owners" names a relation and a permission of folder; rename one` |
 | a permit declared twice, `permits: ['view', 'view']` | each copy | `folder.permits names "view" twice` |
 | `permits` and no `rules` | the call | `Property 'rules' is missing …` |
-| `rules` for a type that does not exist, or that is written with strings | that key | `Object literal may only specify known properties` |
+| `rules` for a type that does not exist | that key | `Object literal may only specify known properties`, then `rules.box: no object type named box` |
+| `rules` for a type written with strings | that key | `Object literal may only specify known properties`, then `rules.note: types.note declares no permits` |
+| an arrow to a name that is a permit of one holder type and a relation of another | the reference | `Property 'x' does not exist on type …`: an arrow reaches a name every holder declares as the same kind |
 
 A `when` on a string inside a rule is checked as in the string form:
 `when('bogus', test)`, or `when('view', test)` inside `view`, is `Type
@@ -309,6 +316,8 @@ with its own error. **Never answer `[]` for a database that could not answer**
 
 ```ts
 function when<const Rule extends string, Ctx>(rule: Rule, test: (ctx: Ctx) => boolean): When<Rule, Ctx>;
+// In the reference form, on a reference: when(related.doctors, test) is when('doctors', test).
+function when<const R extends Ref, Ctx>(ref: R, test: (ctx: Ctx) => boolean): When<NameOfRef<R>, Ctx>;
 ```
 
 Puts a condition written in TypeScript on a rule — any rule of the same type:

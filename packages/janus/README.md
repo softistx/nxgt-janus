@@ -661,7 +661,7 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**A hundred and eleven plausible mistakes, a hundred and eleven refused at
+**A hundred and twelve plausible mistakes, a hundred and twelve refused at
 compile time — and one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -671,7 +671,7 @@ mistake — two for the three whose refusal also costs the rules their types —
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
 `janus()`, from the point of view of the application),
 `test/types/permissions.ts` (thirty-nine, on the permission model and the
-questions asked of it) and `test/types/rules.ts` (twenty-three, on the model
+questions asked of it) and `test/types/rules.ts` (twenty-four, on the model
 written with references). The rule comes from `nxgt-data`, and so does the
 reason to
 distrust the claim without the files: when it was last measured on
@@ -682,7 +682,7 @@ Refusing a wrong name is half of it; offering the right ones is the other.
 `src/permissions/completions.spec.ts` asks the TypeScript language service —
 the one every editor asks — what it completes inside `defineModel`: subject
 types and subject sets in a relation, subject types in `fromField`, `related.`,
-`permits.` and an arrow's `permits.` inside a rule function, relations,
+`permits.` and an arrow's `permits.` and `related.` inside a rule function, relations,
 permissions and arrows in a rule and in `when`; and in the questions, what
 `can`, `list` and `grant` accept for the object's type. It also checks that a wrong
 name's error lists the names it could have been.

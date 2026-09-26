@@ -29,4 +29,4 @@ In the string form, one check moves earlier: an arrow through a relation that ca
 
 One message changes text for everyone: an unknown key on an object type now reads `types.<type>.<key> is not a key of an object type: relations or permissions — related or permits`.
 
-`model.definition` is the model in the string form, as its type always said: for a model written with references, its rules spelled out (`permissions: { view: ['owners'] }`), never `related`, `permits` or `rules`. It is a frozen copy — for a string-form model too, which no longer answers the very object passed in.
+`model.definition` is the model in the string form, as its type always said: for a model written with references, its rules spelled out (`permissions: { view: ['owners'] }`), never `related`, `permits` or `rules`. It is a copy whose top level is frozen — `types` beneath it is not — for a string-form model too, which no longer answers the very object passed in.

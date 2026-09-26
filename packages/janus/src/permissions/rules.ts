@@ -104,18 +104,28 @@ export type NameOfRef<R> =
 // are model.ts's: one reading of `types` for the string form and this one.
 type PermitsOf<Ts, T> = PermissionsOf<Ts, T>;
 
-/** The names every one of `Targets` declares — what an arrow may reach. */
-type Common<Ts, Targets, N> = N extends string
-	? [Targets] extends [
-			{
-				[X in keyof Ts]: N extends PermitsOf<Ts, X> | RelationsOf<Ts, X>
-					? X
-					: never;
-			}[keyof Ts],
-		]
-		? N
-		: never
-	: never;
+/** The names of one kind a type declares: its permits, or its relations. */
+type NamesOfKind<Ts, X, Kind> = Kind extends 'permits'
+	? PermitsOf<Ts, X>
+	: RelationsOf<Ts, X>;
+
+/**
+ * The names every one of `Targets` declares **as that kind** — what an arrow
+ * may reach. A permit of one target and a relation of another is neither: the
+ * references a rule is given at run time intersect each kind on its own.
+ */
+type Common<Ts, Targets, Kind extends 'permits' | 'related'> =
+	NamesOfKind<Ts, Targets, Kind> extends infer N
+		? N extends string
+			? [Targets] extends [
+					{
+						[X in keyof Ts]: N extends NamesOfKind<Ts, X, Kind> ? X : never;
+					}[keyof Ts],
+				]
+				? N
+				: never
+			: never
+		: never;
 
 /** `related.x.permits.p` and `related.x.related.r`, when every holder of `x` is an object type. */
 type Through<Ts, T, R extends string> = [ArrowTargets<Ts, T, R>] extends [never]
@@ -126,14 +136,14 @@ type Through<Ts, T, R extends string> = [ArrowTargets<Ts, T, R>] extends [never]
 					readonly [P in Common<
 						Ts,
 						ArrowTargets<Ts, T, R>,
-						PermitsOf<Ts, ArrowTargets<Ts, T, R>>
+						'permits'
 					>]: ArrowRef<R, P>;
 				};
 				readonly related: {
 					readonly [X in Common<
 						Ts,
 						ArrowTargets<Ts, T, R>,
-						RelationsOf<Ts, ArrowTargets<Ts, T, R>>
+						'related'
 					>]: ArrowRef<R, X>;
 				};
 			}

@@ -82,6 +82,13 @@ describe('defineModel, the reference form', () => {
 		]);
 		expect('rules' in references.definition).toBe(false);
 		expect(Object.isFrozen(references.definition)).toBe(true);
+		// `permits: []` is `permissions: {}`, as the type says.
+		const empty = defineModel({
+			subjects,
+			types: { tag: { related: { owners: ['staff'] }, permits: [] } },
+			rules: { tag: {} },
+		});
+		expect(Object.keys(empty.definition.types.tag.permissions)).toEqual([]);
 	});
 
 	it('answers the same checks, and keeps its condition', async () => {
