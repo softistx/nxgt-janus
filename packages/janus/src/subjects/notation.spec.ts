@@ -6,7 +6,7 @@ import {
 	parseSubject,
 	parseTuple,
 } from './notation';
-import type { RelationTuple } from './subject';
+import { isSetOf, type RelationTuple, setOf } from './subject';
 
 const direct: RelationTuple = {
 	object: { type: 'record', id: 'r1' },
@@ -37,7 +37,18 @@ describe('formatTuple', () => {
 describe('parseTuple', () => {
 	it('reads back what formatTuple wrote, both shapes', () => {
 		expect(parseTuple(formatTuple(direct))).toEqual(direct);
-		expect(parseTuple(formatTuple(inherited))).toEqual(inherited);
+		expect(parseTuple(formatTuple(inherited))).toEqual({
+			...inherited,
+			subject: setOf({ type: 'team', id: 't1' }, 'member'),
+		});
+	});
+
+	it('answers a set as setOf() makes it, so a set on a user type stays a set', () => {
+		const set = parseSubject('staff:u1#managers');
+
+		expect(isSetOf(set)).toBe(true);
+		expect(isSetOf(parseSubject('staff:u1'))).toBe(false);
+		expect(set).toEqual(setOf({ type: 'staff', id: 'u1' }, 'managers'));
 	});
 
 	it('splits a type from its id at the first colon, so an id may hold one', () => {

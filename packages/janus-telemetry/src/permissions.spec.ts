@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { setOf } from '@nxgt/janus';
 import {
 	createMemoryRelations,
 	defineModel,
@@ -83,6 +84,75 @@ describe('instrumentPermissions()', () => {
 				'janus.allowed'
 			],
 		).toBe(true);
+	});
+
+	it('records a subject as permissions() reads it: a set only when it is one', async () => {
+		const access = instrumentPermissions(
+			permissions({
+				model: defineModel({
+					subjects: ['staff'],
+					types: {
+						staff: { related: { managers: ['staff'] } },
+						note: { related: { readers: ['staff', 'staff#managers'] } },
+					},
+				}),
+				store: createMemoryRelations(),
+			}),
+		);
+		const note = { type: 'note', id: 'n1' } as const;
+		const withRelation = { ...ada, relation: 'managers' };
+		const { logs } = await collect(async () => {
+			await access.grant(note, 'readers', withRelation);
+			await access.grant(note, 'readers', setOf(ada, 'managers'));
+		});
+
+		const subjects = logs
+			.filter((log) => log.name === 'janus.tuple.granted')
+			.map((log) => log.attributes['janus.subject.relation']);
+		expect(subjects).toEqual([undefined, 'managers']);
+	});
+
+	it('records { type, id, relation } on an object type as the set it is', async () => {
+		const access = instrumentPermissions(
+			permissions({
+				model: defineModel({
+					subjects: ['staff'],
+					types: {
+						team: { related: { members: ['staff'] } },
+						record: { related: { viewers: ['team#members'] } },
+					},
+				}),
+				store: createMemoryRelations(),
+			}),
+		);
+		const { logs } = await collect(async () => {
+			await access.grant(record, 'viewers', {
+				type: 'team',
+				id: 't1',
+				relation: 'members',
+			});
+		});
+
+		expect(
+			logs.find((log) => log.name === 'janus.tuple.granted')?.attributes,
+		).toMatchObject({ 'janus.subject.relation': 'members' });
+	});
+
+	it('records every { type, id, relation } as a set on an instance without a model', async () => {
+		const grant = async (..._args: unknown[]) => undefined;
+		const access = instrumentPermissions({
+			can: async () => false,
+			list: async () => ({ items: [], nextCursor: null }),
+			grant,
+			revoke: grant,
+		});
+		const { logs } = await collect(async () => {
+			await access.grant(record, 'owners', { ...ada, relation: 'managers' });
+		});
+
+		expect(
+			logs.find((log) => log.name === 'janus.tuple.granted')?.attributes,
+		).toMatchObject({ 'janus.subject.relation': 'managers' });
 	});
 
 	it('counts what list() found', async () => {

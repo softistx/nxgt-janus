@@ -93,7 +93,7 @@ export function resolveModel(
 
 	if (!isRecord(config)) throw refuse('pass { subjects, types }');
 	const subjects = subjectTypesOf(config.subjects, refuse);
-	const typeNames = objectTypeNamesOf(config.types, subjects, refuse);
+	const typeNames = objectTypeNamesOf(config.types, refuse);
 	const declared = collectNames(config.types, refuse);
 	const types = resolveTypes(config.types, {
 		refuse,
@@ -129,10 +129,12 @@ function subjectTypesOf(
 	return new Set<string>(value);
 }
 
-/** The object types' names: camelCase, at least one, none a subject type. */
+/**
+ * The object types' names: camelCase, and at least one. A user type may be
+ * one too — its users are then objects the model grants relations on.
+ */
 function objectTypeNamesOf(
 	value: ModelConfig['types'],
-	subjects: ReadonlySet<string>,
 	refuse: Refuse,
 ): Set<string> {
 	if (!isRecord(value) || Object.keys(value).length === 0) {
@@ -143,11 +145,6 @@ function objectTypeNamesOf(
 		if (!NAME.test(name)) {
 			throw refuse(
 				`the object type "${name}" must be a camelCase name — letters and digits, starting with a lowercase letter`,
-			);
-		}
-		if (subjects.has(name)) {
-			throw refuse(
-				`"${name}" names a user type and an object type; a subject of type "${name}" would be ambiguous`,
 			);
 		}
 	}

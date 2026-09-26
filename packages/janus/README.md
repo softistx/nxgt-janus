@@ -202,9 +202,10 @@ request handler should ever answer one, so no handler needs to tell it apart.
 ### Subjects
 
 ```ts
-import { type Subject, subjectOf, formatTuple, parseTuple, isSubjectSet } from '@nxgt/janus';
+import { type Subject, subjectOf, setOf, formatTuple, parseTuple, isSubjectSet } from '@nxgt/janus';
 
 subjectOf(user);                        // { type: 'staff', id: '…' }: the user IS the subject
+setOf(user, 'managers');                // { type: 'staff', id: '…', relation: 'managers' }: everyone who manages them
 formatTuple({
   object: { type: 'record', id: 'r1' },
   relation: 'members',
@@ -215,8 +216,20 @@ parseTuple('team:t1#members@staff:u1'); // the RelationTuple back
 ```
 
 `formatEntity`, `formatSubject` and `parseSubject` do the same for one part,
-and `isSubjectSet` tells `{ type, id, relation }` from `{ type, id }`. The
-types are `Entity`, `SubjectSet`, `Subject` (either) and `RelationTuple`.
+and `isSubjectSet` tells `{ type, id, relation }` from `{ type, id }` by
+shape alone: pass a user through `subjectOf` first, so a field named
+`relation` does not read as a set. `isSetOf` answers whether `setOf` made a
+value — what `can()` and `grant()` read on a user type. The types are
+`Entity`, `SubjectSet`, `Subject` (either), `SetOf` (what `setOf` answers) and
+`RelationTuple`.
+
+A user passed as it is, is that user, even with a field named `relation`:
+**`setOf` is the one way to write a set on a user type** the model also
+declares as an object type — `grant(note, 'readers', setOf(bob, 'managers'))`.
+On an object type, `{ type, id, relation }` written out is a set too.
+`parseSubject` and `parseTuple` answer a set as `setOf` makes it — frozen, and
+marked — so compare a parsed set with `setOf(…)` or through `formatSubject`,
+not with a plain `{ type, id, relation }`.
 
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
@@ -448,13 +461,18 @@ or an empty page, before any store call.
 exist, a rule naming nothing, an arrow to a permission its target lacks, a
 permission asked of the wrong type, an object missing a field, a missing
 `ctx`, a `grant` of a relation read from a field or to a holder it does not
-admit, a `list()` through a `fromField` without a `lookup`: each is a compile
+admit, a subject set naming a relation its type lacks or a user type not
+declared under `types`, a `list()` through a `fromField` without a `lookup`: each is a compile
 error, on the offending argument. So are the keys before 0.2, `relations` and
 `permissions`: the error names the new one — `team.relations is now related:
 rename the key` — and `defineModel` refuses them the same way at run time. `defineModel` refuses with a `TypeError`
 what only running it can see: names that are not camelCase, a permission that
 reaches itself without crossing a relation, a subject set or an arrow that
 would have to read another object's field.
+
+**A user type may also be an object type**: declare `staff` under `types`, and
+a staff member is an object too — who may edit them is a relation on them. See
+[permissions on a user](docs/guide/permissions.md#permissions-on-a-user).
 
 **Wire the relation store into `janus()` too** — `janus({ …, relations })` —
 and deleting a user deletes every tuple naming them. Deleting an object's
@@ -532,6 +550,15 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 `runRelationCase` are the runner-less layer.
 
 ## Traps
+
+**On a user type, only `setOf` makes a set.** A user passed as it is — or
+`{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
+even with a field named `relation`. The compiler refuses the written-out set
+in `grant()` and `revoke()` where the relation admits one. From JavaScript it grants that user, silently,
+where the relation also admits the user — and is refused where it does not.
+`grant(note, 'readers', setOf(bob, 'managers'))`. A spread of a set is still
+the set; **through `JSON` or `structuredClone` it comes back as the user** —
+call `setOf` again, or `parseSubject` on its notation (`staff:u1#managers`).
 
 **Narrowing a model hides stored tuples; it does not delete them.** A tuple
 the model no longer admits grants nothing, and `revoke()` refuses it — remove
@@ -628,15 +655,15 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Ninety plausible mistakes, ninety refused at compile time — and
-one gap, named.**
+**Ninety-seven plausible mistakes, ninety-seven refused at compile time — and
+two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
-`janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-one, on the
+`janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-eight, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on
@@ -651,10 +678,20 @@ permissions and arrows in a rule and in `when`; and in the questions, what
 `can`, `list` and `grant` accept for the object's type. It also checks that a wrong
 name's error lists the names it could have been.
 
-The gap, since a measurement that only reports wins is not a measurement:
-`'30 m'` **satisfies `Duration`**, because TypeScript's `${number}` placeholder
-tolerates trailing whitespace inside the number. `parseDuration` refuses it, and
-`duration.spec.ts` asserts that. It is written down rather than omitted.
+The gaps, since a measurement that only reports wins is not a measurement:
+
+- `'30 m'` **satisfies `Duration`**, because TypeScript's `${number}`
+  placeholder tolerates trailing whitespace inside the number.
+  `parseDuration` refuses it, and `duration.spec.ts` asserts that.
+- **`can()` and `list()` accept `{ type: 'staff', id, relation: 'managers' }`
+  written out** on a user type that is also an object type, and ask about that
+  one user — `grant()` and `revoke()` refuse it (case 42). The anonymous
+  `null` their subject also takes turns off TypeScript's check of the object
+  literal, and a check of its own would refuse a user whose schema has a
+  `relation` field. `engine.spec.ts` asserts the run time reads it as the
+  user. Write the set with `setOf`.
+
+Each is written down rather than omitted.
 
 ## Licence
 

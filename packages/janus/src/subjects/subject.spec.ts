@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { isSubjectSet, type Subject, subjectOf } from './subject';
+import {
+	isSetOf,
+	isSubjectSet,
+	type Subject,
+	setOf,
+	subjectOf,
+} from './subject';
 
 describe('isSubjectSet', () => {
 	it('tells one entity from everyone who holds a relation on one', () => {
@@ -39,4 +45,80 @@ describe('subjectOf', () => {
 		expect(subject).toEqual({ type: 'staff', id: 'u1' });
 		expect(isSubjectSet(subject)).toBe(false);
 	});
+});
+
+describe('setOf', () => {
+	const ada = { type: 'staff', id: 'u1', email: 'ada@example.com' } as const;
+
+	it('keeps type and id only, and is frozen', () => {
+		const set = setOf(ada, 'managers');
+
+		expect(Object.keys(set).sort()).toEqual(['id', 'relation', 'type']);
+		expect(Object.isFrozen(set)).toBe(true);
+		expect(isSetOf(set)).toBe(true);
+	});
+
+	it('is kept by a spread, and lost through JSON or structuredClone', () => {
+		const set = setOf(ada, 'managers');
+
+		expect(isSetOf({ ...set })).toBe(true);
+		expect(isSetOf(Object.assign({}, set))).toBe(true);
+		expect(isSetOf(JSON.parse(JSON.stringify(set)))).toBe(false);
+		expect(isSetOf(structuredClone(set))).toBe(false);
+	});
+
+	it('is read from the registered symbol, so two copies of the module agree', () => {
+		const fromAnotherCopy = {
+			type: 'staff',
+			id: 'u1',
+			relation: 'managers',
+			[Symbol.for('@nxgt/janus/setOf')]: true,
+		};
+
+		expect(isSetOf(fromAnotherCopy)).toBe(true);
+		expect(isSetOf({ ...ada, [Symbol('@nxgt/janus/setOf')]: true })).toBe(
+			false,
+		);
+	});
+
+	it('is never read from a user, whatever its fields', () => {
+		expect(isSetOf({ ...ada, relation: 'managers' })).toBe(false);
+		expect(isSetOf(null)).toBe(false);
+		expect(isSetOf('staff:u1#managers')).toBe(false);
+	});
+
+	const refused = [
+		[
+			'no entity',
+			null,
+			'managers',
+			'setOf: pass a user or { type, id }, then a relation',
+		],
+		[
+			'an entity without id',
+			{ type: 'staff' },
+			'managers',
+			'setOf: pass a user or { type, id }, then a relation',
+		],
+		[
+			'an empty relation',
+			{ type: 'staff', id: 'u1' },
+			'',
+			'setOf: the relation must be a non-empty string',
+		],
+		[
+			'a relation that is no string',
+			{ type: 'staff', id: 'u1' },
+			42,
+			'setOf: the relation must be a non-empty string',
+		],
+	] as const;
+	for (const [name, entity, relation, message] of refused) {
+		it(`refuses ${name}`, () => {
+			const call = () => setOf(entity as never, relation as never);
+
+			expect(call).toThrow(TypeError);
+			expect(call).toThrow(message);
+		});
+	}
 });

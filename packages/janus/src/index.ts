@@ -61,11 +61,14 @@ export {
 } from './subjects/notation';
 export {
 	type Entity,
+	isSetOf,
 	isSubjectSet,
 	type RelationTuple,
+	type SetOf,
 	type Subject,
 	type SubjectId,
 	type SubjectSet,
+	setOf,
 	subjectOf,
 } from './subjects/subject';
 export { type Clock, fixedClock, systemClock } from './time/clock';

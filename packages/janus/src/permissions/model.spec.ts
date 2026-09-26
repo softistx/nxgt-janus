@@ -87,6 +87,32 @@ describe('defineModel', () => {
 	});
 });
 
+describe('a user type that is also an object type', () => {
+	it('is defined like any object type, and stays a subject type', () => {
+		const model = defineModel({
+			subjects,
+			types: {
+				staff: {
+					related: { managers: ['staff', 'staff#managers'] },
+					permits: { edit: ['managers'] },
+				},
+			},
+		});
+
+		expect(model.subjects).toEqual(['patient', 'staff']);
+		expect(model.types).toEqual(['staff']);
+		expect(
+			resolvedOf(model).types.get('staff')?.relations.get('managers'),
+		).toEqual({
+			kind: 'stored',
+			holders: [
+				{ kind: 'type', type: 'staff' },
+				{ kind: 'set', type: 'staff', relation: 'managers' },
+			],
+		});
+	});
+});
+
 describe('refuses, with a TypeError, what only running it can see', () => {
 	const team = { related: { leads: ['staff'] } };
 	const cases: [string, () => unknown, string][] = [
@@ -100,11 +126,6 @@ describe('refuses, with a TypeError, what only running it can see', () => {
 			'an object type that is not camelCase',
 			define({ subjects, types: { 'care-team': team } }),
 			'"care-team" must be a camelCase name',
-		],
-		[
-			'an object type named like a user type',
-			define({ subjects, types: { staff: team } }),
-			'"staff" names a user type and an object type',
 		],
 		[
 			'a relation name with the notation’s separator',

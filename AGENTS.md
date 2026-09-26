@@ -291,6 +291,11 @@ That third one is the lesson of the sweep that produced guard rail 2: **the
 probe says what breaks, the scan says whether it is present, and both are
 needed** — a runtime probe passes happily on inert duplication.
 
+The same holds for the mark `setOf()` puts on a subject set, read by
+`@nxgt/janus/permissions` on a value made by `@nxgt/janus`. It is a
+`Symbol.for` property rather than a module-level `WeakSet` for that reason:
+two copies of the module still agree on a registered symbol.
+
 `build.ts` shares the module across entry points with `splitting: true`.
 Without that flag `Bun.build` inlines a shared module into every entry bundle,
 which is the same hazard arriving from the build rather than from the

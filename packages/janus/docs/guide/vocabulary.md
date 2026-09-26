@@ -37,7 +37,7 @@ either finds this row.
 | Word | Means | Not |
 | --- | --- | --- |
 | **user** | One stored person or machine, of one user type | "account" — kept only in *account takeover* and *account enumeration*, the names of those attacks |
-| **user type** | A kind of user with its own schema and login: `staff`, `patient`. Wired to permissions, its name is a subject type | "role": a role is a relation in the model |
+| **user type** | A kind of user with its own schema and login: `staff`, `patient`. Wired to permissions, its name is a subject type — and may also be an object type, whose users are then objects too | "role": a role is a relation in the model |
 | **schema** | A user type's Standard Schema: the fields a user carries | the model |
 | **login** | The value a user signs in with: an e-mail, a username. **sign in** is the verb, **sign-in** the noun | "identifier" |
 | **credential** | What a caller presents to prove who they are: a login and a password at sign-in (`CredentialError`, `CREDENTIALS_INVALID`), or a token on a request — always written *session credential* | |
@@ -57,10 +57,11 @@ either finds this row.
 | --- | --- | --- |
 | **model** | What `defineModel()` answers: the subject types, the object types, their relations and permissions | "schema", "policy" |
 | **subject type** | A name listed in `subjects`: `auth.types` when wired to `janus()`, your own names otherwise | |
-| **object** | What a permission is about: `{ type: 'document', id }` | "resource" |
+| **object** | What a permission is about: `{ type: 'document', id }`, or a user whose type the model also declares under `types` | "resource" |
 | **subject** | Who a permission is about: a user, an object, or a subject set | "principal", "actor" |
 | **entity** | `{ type, id }`: a user or an object — a subject that is not a set (`Entity`, `deleteEntity`) | |
-| **subject set** | Everyone holding one relation on one object: `team:t1#members` | "group" — a group is an object with a `members` relation |
+| **subject set** | Everyone holding one relation on one object: `team:t1#members`. On a user type the model also declares as an object type, only `setOf()` makes one | "group" — a group is an object with a `members` relation |
+| **`setOf`** | The function that makes a subject set from a user or an object and a relation: `setOf(bob, 'managers')`. What it answers is a `SetOf`, and `isSetOf` tells it from a user | |
 | **relation** | A named link, stored as tuples or read from a field (`fromField`). Declared under `related`, named in the plural: `members`, `doctors` | |
 | **`related`** | The key of an object type that declares its relations: `related: { members: ['staff'] }`. It was `relations` before 0.2, and the old key is refused | "relations" as a key — the word stays for the idea, and for `janus({ relations })` |
 | **holder** | What a relation admits: `'staff'`, or the subject set `'team#members'` | |
@@ -114,10 +115,12 @@ a tuple.
 | --- | --- |
 | `subjectOf(user)` | `{ type, id }` of any object carrying both |
 | `isSubjectSet(subject)` | whether `relation` is a string |
+| `setOf(entity, relation)` | the subject set `{ type, id, relation }`, marked: on a user type, the only way to write one |
+| `isSetOf(value)` | whether `setOf` made it, or a spread of it |
 | `formatEntity(entity)` | `'record:r1'` |
 | `formatSubject(subject)` | `'staff:u1'`, or `'team:t1#members'` |
 | `formatTuple(tuple)` | `'team:t1#members@team:t2#members'` |
-| `parseSubject(text)` | the `Subject` back |
+| `parseSubject(text)` | the `Entity` back, or a `SetOf` — a set as `setOf` makes it |
 | `parseTuple(text)` | the `RelationTuple` back |
 
 ```ts

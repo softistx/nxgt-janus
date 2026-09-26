@@ -19,6 +19,7 @@ import type {
 } from '../errors/janus-error';
 import { mintId } from '../ids/id';
 import { createMemoryRelations } from '../permissions/port/memory';
+import type { Subject } from '../subjects/subject';
 import { scryptHasher } from './hashers';
 import { janus } from './janus';
 import { createMemoryStores } from './port/memory';
@@ -612,7 +613,7 @@ describe('delete', () => {
 				birthDate: '1815-12-10',
 				password,
 			});
-		const viewer = (subject: { type: string; id: string }) => ({
+		const viewer = (subject: Subject) => ({
 			object: { type: 'record', id: mintId() },
 			relation: 'viewer',
 			subject,
@@ -639,6 +640,28 @@ describe('delete', () => {
 			expect(await relations.has(through)).toBe(false);
 			expect(await relations.has(namesake)).toBe(true);
 			expect(await relations.has(other)).toBe(true);
+		});
+
+		it('deletes the tuples on the user as an object, and on sets of them', async () => {
+			const relations = createMemoryRelations();
+			const { auth } = clinic({ relations });
+			const [ada, bob] = [await signUp(auth), await signUp(auth)];
+			const managed = {
+				object: { type: 'patient', id: ada.user.id },
+				relation: 'managers',
+				subject: { type: 'patient', id: bob.user.id },
+			};
+			const theirs = viewer({
+				type: 'patient',
+				id: ada.user.id,
+				relation: 'managers',
+			});
+			await relations.write({ add: [managed, theirs] });
+
+			expect(await auth.patient.delete(ada.user)).toBe(true);
+
+			expect(await relations.has(managed)).toBe(false);
+			expect(await relations.has(theirs)).toBe(false);
 		});
 
 		it('rejects STORE_FAILED when the tuples cannot be deleted, and a replay deletes them', async () => {

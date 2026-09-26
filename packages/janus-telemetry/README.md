@@ -31,7 +31,7 @@ bun add @nxgt/janus-telemetry @nxgt/janus @nxgt/telemetry
 bun add -d typescript
 ```
 
-Every peer is required: `@nxgt/janus`, `@nxgt/telemetry` (0.2.1 or later) and
+Every peer is required: `@nxgt/janus` (0.3.0 or later), `@nxgt/telemetry` (0.2.1 or later) and
 `typescript` (6). `@nxgt/janus` and `@nxgt/telemetry` are **peers**: one copy of `@nxgt/janus`, so
 `instanceof JanusError` holds, and one of `@nxgt/telemetry`, so there is one
 current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
@@ -42,7 +42,7 @@ current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 | --- | --- |
 | `instrumentJanus(auth)` | The same `janus()` instance, frozen, with every flow traced under its call path — `auth.signIn` as `janus.signIn`, `auth.patient.signIn` as `janus.patient.signIn` — and the security events written as logs. `cookie` stays synchronous and untraced |
 | `instrumentPermissions(access)` | The same `permissions()` instance, frozen, with `can`, `list`, `grant` and `revoke` traced, and one audit event per tuple written |
-| `JanusLike`, `PermissionsLike` | What each accepts: `instrumentJanus(access)` and `instrumentPermissions(auth)` do not compile |
+| `JanusLike`, `PermissionsLike` | What each accepts: `instrumentJanus(access)` and `instrumentPermissions(auth)` do not compile. `PermissionsLike.model.subjects`, which `permissions()` answers, tells a user from a subject set; an instance without it has every `{ type, id, relation }` recorded as a set |
 
 ## What is written
 
@@ -53,7 +53,7 @@ current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 | `janus.<flow>`, `janus.<type>.<flow>` | `janus.user.type`; `user.id` once the answer names a user; `janus.session.renewed` for `authenticate` |
 | `janus.can` | `janus.subject.type`, `janus.subject.id`, `janus.permission`, `janus.object.type`, `janus.object.id`, and the answer, `janus.allowed` |
 | `janus.list` | the subject, `janus.permission`, `janus.object.type`, and `janus.page.items`, how many it found |
-| `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set |
+| `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set, read as `permissions()` reads it: a user with a field named `relation` is that user, and a set on a user type is one only when `setOf()` made it |
 
 **A refusal is an answer, not a failure.** A wrong password, a taken login, a
 spent token, a denial: the span is `ok`, and a refusal carries
