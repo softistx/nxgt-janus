@@ -170,7 +170,7 @@ type UserEventType = 'user.created' | 'user.emailVerified' | 'user.passwordReset
 interface UserEvent {
 	readonly id: Id;           // a UUIDv7, the key to deliver it once
 	readonly type: UserEventType;
-	readonly occurredAt: Date; // when the write landed: the createdAt or updatedAt written
+	readonly occurredAt: Date; // when the write landed: the createdAt or updatedAt written, or the time read just before a deletion
 	readonly userId: Id;
 	readonly userType: string;
 }

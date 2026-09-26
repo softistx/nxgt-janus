@@ -934,7 +934,7 @@ A process warning, not a thrown error: the flow that sent the event answered as 
 
 **When:** the function given to `janus({ events })` threw or rejected — a queue that was down, a bug in the listener.
 **Why:** the write the event reports has landed. Failing the flow would tell the visitor it did not happen, and their retry would hit `LOGIN_TAKEN`. So the failure is warned about, with the event's type, its id and the user's id, and the failure's name — never its message, which may hold anything.
-**Fix:** make the listener only store the event (a queue, an outbox table) and fix whatever refused it. To send the lost event again, rebuild it from the warning — the user is read by id:
+**Fix:** make the listener only store the event (a queue, an outbox table) and fix whatever refused it. To send the lost event again, rebuild it from the warning — its type, its `id`, the user's id; the warning has no `occurredAt`, so take the user's `updatedAt` (or the warning's own time) as an approximation:
 
 ```ts
 process.on('warning', (warning) => {
@@ -948,7 +948,7 @@ process.on('warning', (warning) => {
 **Why:** one of these, in order of likelihood:
 - the e-mail was already verified: nothing changed, so nothing is sent;
 - `delete` deleted nobody — a replay, or an id of another user type;
-- the flow was refused, and wrote nothing;
+- the flow was refused, or the store failed during the write itself — the call threw, and nothing was written or sent;
 - the process stopped between the write and the listener — events are sent at most once, from memory;
 - the listener threw: look for `JANUS_EVENT_FAILED` in the process's warnings.
 
