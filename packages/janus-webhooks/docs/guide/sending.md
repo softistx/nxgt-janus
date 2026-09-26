@@ -281,7 +281,8 @@ close(): Promise<void>;
 `close()` cancels the retries still waiting and gives up their deliveries as `closed`,
 waits for the requests in flight — and for the reports of those that fail —
 then resolves. After it, the listener sends nothing: an event it receives is
-given up as `closed`, with `attempts: 0`.
+given up as `closed`, with `attempts: 0` — one that is not a user event is
+still thrown, as before `close()`.
 
 Call it on `SIGTERM`, after the server has stopped taking requests, so no
 flow sends an event to a closed listener:
