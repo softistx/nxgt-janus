@@ -37,7 +37,7 @@ either finds this row.
 | Word | Means | Not |
 | --- | --- | --- |
 | **user** | One stored person or machine, of one user type | "account" — kept only in *account takeover* and *account enumeration*, the names of those attacks |
-| **user type** | A kind of user with its own schema and login: `staff`, `patient`. Wired to permissions, its name is a subject type | "role": a role is a relation in the model |
+| **user type** | A kind of user with its own schema and login: `staff`, `patient`. Wired to permissions, its name is a subject type — and may also be an object type, whose users are then objects too | "role": a role is a relation in the model |
 | **schema** | A user type's Standard Schema: the fields a user carries | the model |
 | **login** | The value a user signs in with: an e-mail, a username. **sign in** is the verb, **sign-in** the noun | "identifier" |
 | **credential** | What a caller presents to prove who they are: a login and a password at sign-in (`CredentialError`, `CREDENTIALS_INVALID`), or a token on a request — always written *session credential* | |
@@ -57,7 +57,7 @@ either finds this row.
 | --- | --- | --- |
 | **model** | What `defineModel()` answers: the subject types, the object types, their relations and permissions | "schema", "policy" |
 | **subject type** | A name listed in `subjects`: `auth.types` when wired to `janus()`, your own names otherwise | |
-| **object** | What a permission is about: `{ type: 'document', id }` | "resource" |
+| **object** | What a permission is about: `{ type: 'document', id }`, or a user whose type the model also declares under `types` | "resource" |
 | **subject** | Who a permission is about: a user, an object, or a subject set | "principal", "actor" |
 | **entity** | `{ type, id }`: a user or an object — a subject that is not a set (`Entity`, `deleteEntity`) | |
 | **subject set** | Everyone holding one relation on one object: `team:t1#members`. On a user type the model also declares as an object type, only `setOf()` makes one | "group" — a group is an object with a `members` relation |

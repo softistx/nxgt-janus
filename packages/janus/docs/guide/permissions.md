@@ -387,10 +387,10 @@ await people.list(ada, 'edit', 'staff');         // herself, and bob
 
 **A user passed as it is, is that user** — never a set, even when one of its
 fields is named `relation`. A set on a user type is made by **`setOf`**: every
-staff member who manages bob reads the note, and so does whoever manages them,
-as the data stands:
+staff member who manages bob reads the note, as the data stands:
 
 ```ts
+const note = { type: 'note', id: 'n1' } as const;
 await people.grant(note, 'readers', setOf(bob, 'managers'));
 await people.can(ada, 'read', note); // true: she manages bob
 await people.can(bob, 'read', note); // false: bob is not his own manager
@@ -403,7 +403,7 @@ the model does not also declare under `types`, `setOf` is refused: there is no
 relation to hold.
 
 The `lookup` of `self` answers the one staff member whose id is the subject's,
-so `list()` finds a user themself too.
+so `list()` finds ada herself too.
 
 ## `permissions()`
 

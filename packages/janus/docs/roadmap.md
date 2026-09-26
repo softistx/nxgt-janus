@@ -85,8 +85,9 @@ Nothing yet.
 Each entry names the version it came in.
 
 - **Permissions on a user, v0.3.0** — a user type may also be an object type:
-  a staff member is asked `can()` and granted relations like a record, and
-  `setOf(bob, 'managers')` grants everyone who manages bob at once. A user
+  a staff member is the object `can()` asks about and is granted relations
+  on, like a record, and `grant(note, 'readers', setOf(bob, 'managers'))`
+  grants everyone who manages bob at once. A user
   passed as it is stays that user, even with a field named `relation`.
 - **The adapters and the kit, each at its first release, v0.1.0, beside
   `@nxgt/janus` 0.2.2** —

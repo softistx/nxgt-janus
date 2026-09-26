@@ -216,7 +216,9 @@ parseTuple('team:t1#members@staff:u1'); // the RelationTuple back
 ```
 
 `formatEntity`, `formatSubject` and `parseSubject` do the same for one part,
-and `isSubjectSet` tells `{ type, id, relation }` from `{ type, id }`. The
+and `isSubjectSet` tells `{ type, id, relation }` from `{ type, id }` by
+shape alone — on a user type, pass the value through `subjectOf` first, which
+reads it as `can()` and `grant()` do. The
 types are `Entity`, `SubjectSet`, `Subject` (either), `SetOf` (what `setOf`
 answers) and `RelationTuple`.
 
@@ -463,6 +465,10 @@ what only running it can see: names that are not camelCase, a permission that
 reaches itself without crossing a relation, a subject set or an arrow that
 would have to read another object's field.
 
+**A user type may also be an object type**: declare `staff` under `types`, and
+a staff member is an object too — who may edit them is a relation on them. See
+[permissions on a user](docs/guide/permissions.md#permissions-on-a-user).
+
 **Wire the relation store into `janus()` too** — `janus({ …, relations })` —
 and deleting a user deletes every tuple naming them. Deleting an object's
 tuples is `store.deleteEntity({ type, id })`, from your own code.
@@ -539,6 +545,12 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 `runRelationCase` are the runner-less layer.
 
 ## Traps
+
+**On a user type, only `setOf` makes a set.** A user passed as it is — or
+`{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
+even with a field named `relation`. The compiler refuses the written-out set
+where the relation admits one; from JavaScript it grants that user, silently.
+`grant(note, 'readers', setOf(bob, 'managers'))`.
 
 **Narrowing a model hides stored tuples; it does not delete them.** A tuple
 the model no longer admits grants nothing, and `revoke()` refuses it — remove
