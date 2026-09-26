@@ -6,22 +6,13 @@ in.
 
 ## Now
 
-- **The first release**: PostgreSQL through `@nxgt/janus-drizzle`, at
-  `@nxgt/janus-kit/drizzle`, and MongoDB through `@nxgt/janus-mongo`, at
-  `@nxgt/janus-kit/mongo`; sessions and
-  one-time tokens in Redis through `@nxgt/janus-redis`, telemetry through
-  `@nxgt/janus-telemetry`, a health check and a close. It stays unpublished
-  until its adapters are released.
+Nothing yet.
 
 ## Next
 
 Nothing yet.
 
 ## Later
-
-Nothing yet.
-
-## Shipped
 
 Nothing yet.
 
@@ -36,3 +27,11 @@ Nothing yet.
   them.
 - **Node.** The kit opens PostgreSQL over Bun's `SQL` and Redis over Bun's
   `RedisClient`. On Node, wire the adapters yourself.
+
+## Shipped
+
+- **The first release, v0.1.0**: PostgreSQL through `@nxgt/janus-drizzle`, at
+  `@nxgt/janus-kit/drizzle`, and MongoDB through `@nxgt/janus-mongo`, at
+  `@nxgt/janus-kit/mongo`; sessions and one-time tokens in Redis through
+  `@nxgt/janus-redis`, telemetry through `@nxgt/janus-telemetry`, a health
+  check and a close.
