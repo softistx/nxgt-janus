@@ -54,19 +54,30 @@ await access.can(grace, 'view', team);   // false
 function defineModel<
 	const Subjects extends readonly string[], // auth.types
 	const Ts extends ModelConfig['types'] & ModelTypesOf<Subjects[number], Ts>, // what your editor completes
->(config: { readonly subjects: Subjects; readonly types: Ts }): PermissionModel<{ readonly subjects: Subjects; readonly types: Ts }>;
+	const Rs extends RulesOf<Ts> & RulesOnly<Ts, Rs>, // the reference form's rules, typed from the names on the types
+>(config: { readonly subjects: Subjects; readonly types: Ts; readonly rules?: Rs }): PermissionModel<…>;
 // ModelTypesOf<S, Ts>: the names each relation and rule of each type may take
 
 interface ModelConfig {
 	readonly subjects: readonly string[]; // pass auth.types
 	readonly types: {
 		readonly [objectType: string]: {
+			// The string form:
 			readonly relations?: { readonly [name: string]: readonly string[] | FromField };
 			readonly permissions?: { readonly [name: string]: readonly (string | When)[] };
+			// The reference form — the same holders, and the permission names; the rules are in `rules`:
+			readonly related?: { readonly [name: string]: readonly string[] | FromField };
+			readonly permits?: readonly string[];
 		};
 	};
+	readonly rules?: { readonly [objectType: string]: { readonly [permit: string]: (param) => readonly RuleRef[] } };
 }
 ```
+
+A model is written in one of two spellings, or both: the **string form**
+below, and the **[reference form](#the-reference-form)** — `related`,
+`permits`, `rules` — which reads like Keto's OPL and which your editor
+completes as you type.
 
 **A relation** lists who may hold it:
 
@@ -95,6 +106,73 @@ edit: ['view']`) is refused by `defineModel` when it runs.
 A permission may be asked of `can` and `list` like a relation, and a relation
 like a permission.
 
+### The reference form
+
+The same model, the way Keto's OPL reads: the relations under `related` and
+the permission **names** under `permits`, on the type; the rules beside the
+types, under `rules`, as one function per permit given **typed references**:
+
+```ts
+import { defineModel, fromField, when } from '@nxgt/janus/permissions';
+
+export const model = defineModel({
+	subjects: clinic.types,
+	types: {
+		team: {
+			related: { members: ['staff', 'team#members'], leads: ['staff'] },
+			permits: ['manage', 'view'],
+		},
+		record: {
+			related: { doctors: fromField('doctorId', 'staff', { lookup }), teams: ['team'] },
+			permits: ['view', 'edit'],
+		},
+	},
+	rules: {
+		team: {
+			manage: ({ related }) => [related.leads],
+			view: ({ related, permits }) => [related.members, permits.manage],
+		},
+		record: {
+			view: ({ related }) => [related.doctors, related.teams.permits.view],
+			edit: ({ related }) => [when(related.doctors, (ctx: { onShift: boolean }) => ctx.onShift)],
+		},
+	},
+});
+```
+
+| Reference | The string it spells | Means |
+| --- | --- | --- |
+| `related.members` | `'members'` | a relation of the same object |
+| `permits.manage` | `'manage'` | another permission of the same object — never the one being defined |
+| `related.teams.permits.view` | `'teams->view'` | an arrow to a permission of the object `teams` reaches |
+| `related.teams.related.leads` | `'teams->leads'` | an arrow to a relation of it |
+| `when(related.doctors, (ctx) => …)` | `when('doctors', …)` | a rule under a condition |
+
+**A rule declares; it never runs a check.** `defineModel` calls each rule
+function **once**, when the model is defined, with frozen references, and
+spells what it answers into the string form — so `can`, `list`, `grant`,
+`ConfigOf` and everything reading the model see one form. A function that
+answers a boolean, `related.owners.includes(subject)` as Keto's literal
+OPL would, is a compile error: nothing could turn it into a `list()`. A rule
+that throws stops `defineModel` with its own error, as it threw it.
+
+Holders stay strings — `['staff', 'team#members']`: they name types and
+relations of *other* types, which the string form already types and
+completes. A `when` on a string is accepted inside a rule function too.
+
+**Why the names are declared on the type and the rules beside it.** A rule
+function is context-sensitive: TypeScript infers nothing from a literal that
+holds one until it knows the parameter's type, so a function inside `types`
+would type its own `related` as `any` — measured, with the self-referential
+constraint and with an intersection alike. Declared first, the names type the
+rules: `permits.manage` inside `view`, and `related.teams.permits.view`
+through `teams: ['team']`, are completed from what `team` declares.
+
+The two spellings share one model: a type written with `relations` and
+`permissions` beside one written with `related`, `permits` and its `rules`.
+One type takes one spelling — `relations` beside `related`, or `permissions`
+beside `permits`, is refused when the model is defined.
+
 ### What the compiler refuses
 
 A relation naming a type that does not exist, a rule naming nothing, an arrow
@@ -104,6 +182,15 @@ singular — on an object type: each is a compile error **on the offending name*
 `fromField(…)` or `when(…)` call for those two. Except for that last one,
 which says to rename one, the error lists what you could have written, with
 "Did you mean" when one is close.
+
+In the reference form, the same mistakes are refused **on the reference**:
+`related.viewers` on a type without `viewers` is `Property 'viewers' does
+not exist on type '{ readonly owners: RelationRef<"folder", "owners">; }'`,
+`related.owners.permits` through a relation held by a user type is
+`Property 'permits' does not exist on type 'RelationRef<…>'`; a rule
+answering a boolean is `Type 'boolean' is not assignable to type 'readonly
+RuleRef[]'`, on the rule; a rule for a permit the type does not declare is
+refused on that key, `rules.folder.edit is not in types.folder.permits`.
 
 Your editor offers those names as you type — subject types and subject sets
 in a relation, subject types in `fromField`, relations, permissions and arrows
@@ -133,7 +220,11 @@ With a `TypeError`, when the model is defined — never at a check:
   ['edit'], edit: ['view']`) — no data could ever end that loop;
 - a subject set or an arrow that would have to read **another** object's
   `fromField` — only the object passed to `can()` carries its data. Store that
-  relation instead.
+  relation instead;
+- in the reference form: a type with both spellings of a key, a permit
+  declared twice or without a rule, a rule for a permit the type does not
+  declare or for a type written with strings, a rule that answers nothing, or answers something that is not a reference — `related.viewers`
+  on a type without `viewers` is `undefined`, and named as such.
 
 A loop that crosses a relation — a folder viewable through its parent — is
 fine: the data ends it.

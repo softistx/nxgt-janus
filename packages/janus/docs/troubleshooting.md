@@ -597,6 +597,22 @@ most common:
 | `defineModel: … "<rule>" names "<target>", which <type> does not declare` | Arrow to a relation or permission of the target type. |
 | `defineModel: … reads <type>.<field>, and a subject set reaches <type>s nobody passed to can() — store that relation instead of reading it` | Only the object passed to `can()` carries data: a `fromField` there cannot be reached through a subject set or an arrow. Store it as a tuple. |
 
+In the reference form — `related`, `permits`, `rules`:
+
+| Message | Fix |
+| --- | --- |
+| `defineModel: types.<type> has both relations and related. Pass one.` — also `permissions` and `permits` | One type, one spelling. Two types of one model may differ. |
+| `defineModel: types.<type>.permits must be an array of permission names` | `permits: ['view', 'edit']`; the rules go under `rules.<type>`. |
+| `defineModel: types.<type>.permits names "<name>" twice` | Declare each permit once. |
+| `defineModel: rules.<type>.<permit> is missing — a function ({ related, permits }) => [related.…, permits.…]` | Every permit declared on a type needs its rule — a function, not an array. |
+| `defineModel: rules.<type>.<permit>: "<permit>" is not in types.<type>.permits — declare it there first` | The names live on the type; add it to `permits`. |
+| `defineModel: rules.<type>: no object type named "<type>"` | Match a key of `types`. |
+| `defineModel: rules.<type>: types.<type> writes its permissions as strings; rules is for a type that declares permits` | That type is in the string form: its rules are its `permissions` arrays. |
+| `defineModel: rules.<type>.<permit> must answer a non-empty array of references` | Answer `[related.…]`, never a boolean: a rule declares, it does not check. |
+| `defineModel: rules.<type>.<permit>[<i>] is undefined — related.x, permits.p, related.x.permits.p, or when(one of those, test)` | `related.viewers` on a type without `viewers`: the compiler refuses it first; from JavaScript, it is `undefined`. |
+| `defineModel: rules.<type>.<permit>[<i>] is not a reference — …` | A string among the references: use `related.<name>`, or `when('<name>', test)`. |
+| `defineModel: types.<type>.<key> is not a key of an object type: related or permits` | In the reference form a type has `related` and `permits`; its rules are under `rules`. |
+
 ---
 
 ## Subjects

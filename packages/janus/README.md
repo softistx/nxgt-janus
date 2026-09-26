@@ -415,6 +415,39 @@ await access.list(staff, 'view', 'record', { limit: 50 });                      
 await access.revoke({ type: 'team', id: 't1' }, 'member', staff);                // idempotent
 ```
 
+**Or with references, the way Keto's OPL reads** — the names declared on the
+type, the rules beside it as functions given typed references. The two
+spellings are one model, and can share one:
+
+```ts
+export const model = defineModel({
+	subjects: clinic.types,
+	types: {
+		team: { related: { members: ['staff', 'team#members'], leads: ['staff'] }, permits: ['manage', 'view'] },
+		record: {
+			related: { doctors: fromField('doctorId', 'staff', { lookup }), teams: ['team'] },
+			permits: ['view', 'edit'],
+		},
+	},
+	rules: {
+		team: {
+			manage: ({ related }) => [related.leads],
+			view: ({ related, permits }) => [related.members, permits.manage],
+		},
+		record: {
+			view: ({ related }) => [related.doctors, related.teams.permits.view],
+			edit: ({ related }) => [when(related.doctors, (ctx: { onShift: boolean }) => ctx.onShift)],
+		},
+	},
+});
+```
+
+A rule **declares**: `defineModel` calls it once, with references, and never
+during a check — a rule that answers a boolean is a compile error. Your editor
+completes `related.`, `permits.` and `related.teams.permits.` from the names
+declared on the types; that is why the names are declared there and not
+inferred from the rules.
+
 Zanzibar's model — relations between objects and subjects, permissions
 computed from them — **without its infrastructure**: the tuples live in your
 database, so a read follows a write and there is nothing to cache or to
@@ -442,8 +475,9 @@ or an empty page, before any store call.
 exist, a rule naming nothing, an arrow to a permission its target lacks, a
 permission asked of the wrong type, an object missing a field, a missing
 `ctx`, a `grant` of a relation read from a field or to a holder it does not
-admit, a `list()` through a `fromField` without a `lookup`: each is a compile
-error, on the offending argument. `defineModel` refuses with a `TypeError`
+admit, a `list()` through a `fromField` without a `lookup`, a rule function
+naming a relation its type lacks or answering anything but references: each
+is a compile error, on the offending argument. `defineModel` refuses with a `TypeError`
 what only running it can see: names that are not camelCase, a permission that
 reaches itself without crossing a relation, a subject set or an arrow that
 would have to read another object's field.
@@ -619,7 +653,7 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Eighty-seven plausible mistakes, eighty-seven refused at compile time — and
+**Ninety-nine plausible mistakes, ninety-nine refused at compile time — and
 one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -627,8 +661,9 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
-`janus()`, from the point of view of the application) and `test/types/permissions.ts` (thirty-eight, on the
-permission model and the questions asked of it). The rule
+`janus()`, from the point of view of the application), `test/types/permissions.ts` (thirty-nine, on the
+permission model and the questions asked of it) and `test/types/rules.ts`
+(eleven, on the model written with references). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on
 `@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
@@ -637,7 +672,8 @@ that goes down is a visible regression.
 Refusing a wrong name is half of it; offering the right ones is the other.
 `src/permissions/completions.spec.ts` asks the TypeScript language service —
 the one every editor asks — what it completes inside `defineModel`: subject
-types and subject sets in a relation, subject types in `fromField`, relations,
+types and subject sets in a relation, subject types in `fromField`, `related.`,
+`permits.` and an arrow's `permits.` inside a rule function, relations,
 permissions and arrows in a rule and in `when`; and in the questions, what
 `can`, `list` and `grant` accept for the object's type. It also checks that a wrong
 name's error lists the names it could have been.
