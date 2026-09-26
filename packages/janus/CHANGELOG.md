@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.8.2
+
+### Patch Changes
+
+- [#72](https://github.com/softistx/nxgt-janus/pull/72) [`14fd30c`](https://github.com/softistx/nxgt-janus/commit/14fd30cde0a96dd93c1a199418196443ccde24df) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The roadmap lists `@nxgt/janus-webhooks` v0.1.0 as shipped, and the events guide, the README and the JSDoc of `events` point to it as released.
+
 ## 0.8.1
 
 ### Patch Changes
