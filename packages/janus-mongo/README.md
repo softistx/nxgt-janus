@@ -70,11 +70,22 @@ encoded. A document read in a shell reads like the record in the code.
 | `tokens` | `_id` is the token's hash · `userId` · `expiry`, a TTL index |
 | `relations` | `_id` **is the tuple**, `{ object: { type, id }, relation, subject: { type, id, relation? } }` — unique by construction · `objectRelation` for one hop forwards · `subjectObjects` for `findObjects`, which it serves with no in-memory sort (measured: 11 keys examined for a page of 10) |
 
-No secret is stored: sessions and tokens hold `sha256` of the secret, and
-passwords a self-describing hash.
+No secret is stored: sessions and tokens hold `sha256` of the secret,
+passwords a self-describing hash, and a user's `secondFactor.secret` a TOTP
+secret `@nxgt/janus` sealed with your application's key.
+
+`countAttempt` counts an attempt at a code in one `findOneAndUpdate` with
+`$inc`, so twenty concurrent attempts answer twenty distinct counts.
 
 ## Traps
 
+- **Upgrading to 0.3: run the sync before deploying.** No document is
+  rewritten — a user without `secondFactor` reads as having none, a token
+  without `codeHash` and `attempts` as `null` and `0` — but the validators the
+  previous sync wrote refuse the new fields. Until `syncMongoAdapter(db)` has
+  run, every sign-up and every one-time token fails with `STORE_FAILED`,
+  caused by `Document failed validation`.
+  [Upgrading](docs/guide/sync.md#upgrading-sync-before-you-deploy) has the steps.
 - **The TTL indexes are storage hygiene, not the expiry.** MongoDB's TTL monitor
   runs every sixty seconds, so a lapsed session can stay readable for up to a
   minute. The core compares `expiresAt` on every read, and that is what expires

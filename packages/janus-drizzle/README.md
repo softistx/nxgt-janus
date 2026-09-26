@@ -101,10 +101,10 @@ tables.
 
 | Table | Keys and indexes |
 | --- | --- |
-| `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither |
+| `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither · a check that a second factor (`second_factor_method`, `_secret`, `_confirmed_at`, `_last_step`) has its method and its secret, or none of the four |
 | `logins` | primary key `(type, login)`: **a login is unique per user type** · `(user_id, type)` references the user, `on delete cascade` |
 | `sessions` | `id` · `token_hash` unique · `user_id` · `expires_at`, for `collectExpired()` |
-| `tokens` | `token_hash` · `user_id` · a check on `kind` |
+| `tokens` | `token_hash` · `user_id` · a check on `kind` · `code_hash`, and `attempts`, `not null default 0` |
 | `relations` | one row per tuple, unique `nulls not distinct` over all six columns, subject first: the index `findObjects` pages · `(object_type, object_id, relation)` for one hop forwards |
 
 `logins` is also a `text[]` on `users`, which the store reads back in order.
@@ -113,10 +113,18 @@ table plays that role, written in the same transaction as the user.
 
 Every key column is `text collate "C"`, compared byte for byte as the port
 requires. No secret is stored: sessions and tokens hold `sha256` of the secret,
-and passwords a self-describing hash.
+passwords a self-describing hash, and `second_factor_secret` a TOTP secret
+`@nxgt/janus` sealed with your application's key before the store saw it.
 
 ## Traps
 
+- **Upgrading to 0.2 needs a migration.** The tables gained columns for the
+  second factor and for attempts at a code. Deployed without them, every
+  query on `users` and `tokens` fails with `STORE_FAILED`, caused by
+  `column "second_factor_method" does not exist` (or `"code_hash"`).
+  Run `bunx drizzle-kit generate`, then `bunx drizzle-kit migrate`, before
+  deploying — with `--config` naming Janus's config if it has its own.
+  [Upgrading](docs/guide/migrations.md#upgrading) shows what it writes.
 - **Your migrations create the tables, not this package.** The core never
   manages a schema, and the stores create nothing per request. Without the
   exports in your schema file, the first sign-up fails with `STORE_FAILED`,

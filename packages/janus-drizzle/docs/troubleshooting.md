@@ -32,6 +32,7 @@ How PostgreSQL's errors become the port's:
 
 **Setup**
 - [`STORE_FAILED` caused by `relation "users" does not exist`](#store_failed-caused-by-relation-users-does-not-exist)
+- [`STORE_FAILED` caused by `column "second_factor_method" does not exist`](#store_failed-caused-by-column-second_factor_method-does-not-exist)
 - [`STORE_FAILED` caused by `column "type" does not exist`](#store_failed-caused-by-column-type-does-not-exist)
 - [`schema "janus" does not exist` while migrating](#schema-janus-does-not-exist-while-migrating)
 - [`syntax error at or near "NULLS"` while migrating](#syntax-error-at-or-near-nulls-while-migrating)
@@ -181,6 +182,26 @@ With a PostgreSQL schema, pass the adapter the tables built in it:
 
 ```ts
 createDrizzleAdapter(db, { tables: janusTables }); // from the schema file
+```
+
+### `STORE_FAILED` caused by `column "second_factor_method" does not exist`
+
+Also `column "code_hash" does not exist`, or `column "attempts" does not
+exist`. The code is `42703`.
+
+**When:** after upgrading to 0.2, on the first sign-up, sign-in or one-time
+token.
+
+**Why:** the tables gained six columns — four `second_factor_*` on `users`,
+`code_hash` and `attempts` on `tokens` — and the migration that adds them was
+not generated, or not applied.
+
+**Fix:** generate and apply it with Janus's own drizzle-kit config, before the
+new version serves requests. See [upgrading](guide/migrations.md#upgrading).
+
+```sh
+bunx drizzle-kit generate --config drizzle.janus.config.ts
+bunx drizzle-kit migrate --config drizzle.janus.config.ts
 ```
 
 ### `STORE_FAILED` caused by `column "type" does not exist`

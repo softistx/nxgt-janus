@@ -58,7 +58,7 @@ export function toToken(
 		kind,
 		userId: read.text('userId'),
 		address: read.text('address'),
-		// Absent on a token written before 0.3: read as none, and no attempt.
+		// Absent on a token an earlier version wrote: read as none, and no attempt.
 		codeHash: read.optional('codeHash') || null,
 		attempts: read.count('attempts'),
 		expiresAt: read.date('expiresAt'),

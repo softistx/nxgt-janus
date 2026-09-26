@@ -208,6 +208,10 @@ Also: `janus: store.<slot> is missing`, `janus: store must be an object with use
 
 **When:** `janus({...})`, from JavaScript or with a store typed loosely. TypeScript refuses a partial store at compile time and names the method.
 **Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. `deleteExpiredSessions` is the one optional method: absent, or a function.
+An adapter written for 0.3 reports `store.tokens has no method countAttempt`
+until it implements the method 0.4 added — see
+[adapters](guide/adapters.md).
+
 **Fix:** pass the three stores, whole:
 
 ```ts

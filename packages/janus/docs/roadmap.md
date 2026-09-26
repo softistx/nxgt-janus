@@ -5,14 +5,18 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing yet.
-
-## Next
-
 - **One-time codes** — a one-time token short enough to type, sent by e-mail
   to sign in without a password, or to confirm a sensitive action, issued
   and redeemed by `janus` like the verification and reset tokens today; and
-  TOTP, the one-time codes of an authenticator app, as a second factor.
+  TOTP, the one-time codes of an authenticator app, as a second factor, its
+  secret sealed with a key your application holds. `signIn` will answer
+  `{ status: 'signedIn' }` or `{ status: 'secondFactor', challenge }`. The
+  first step is in: the store port holds a user's second factor, and a
+  token's code hash and attempts, counted by `TokenStore.countAttempt` so a
+  six-digit code cannot be guessed for free; the three adapters implement it.
+
+## Next
+
 - **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`, built
   on a general mail toolkit shared with applications that are not about
   sign-in: a `Mailer` port you plug your transport into (SMTP, Resend, SES…) —

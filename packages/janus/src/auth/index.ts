@@ -20,6 +20,7 @@ export type {
 	Json,
 	JsonObject,
 	PasswordRecord,
+	SecondFactorRecord,
 	SessionId,
 	SessionRecord,
 	SessionStore,

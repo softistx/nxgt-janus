@@ -396,6 +396,37 @@ adapter. `assertStores(store, where)` is the check `janus()` runs on it, for an
 adapter that wants to fail as early. The six rules an adapter keeps are
 written on the port's types.
 
+The port already holds what one-time codes need, before any flow uses it: a
+user's `secondFactor` (a TOTP secret the core seals before a store sees it, or
+`null`), a token's `codeHash` and `attempts`, and `TokenStore.countAttempt`,
+which counts one guess in one conditional write:
+
+```ts
+import { createMemoryStores, mintId } from '@nxgt/janus';
+
+const { tokens } = createMemoryStores();
+const tokenHash = 'a'.repeat(64); // the core stores sha256 of the secret
+await tokens.insertToken({
+	tokenHash,
+	kind: 'signInCode',
+	userId: mintId(),
+	address: 'ada@example.test',
+	codeHash: 'c'.repeat(64),
+	attempts: 0,
+	expiresAt: new Date(Date.now() + 10 * 60_000),
+	spentAt: null,
+	createdAt: new Date(),
+});
+
+await tokens.countAttempt(tokenHash, 'signInCode'); // { …, attempts: 1 }
+await tokens.countAttempt(tokenHash, 'verifyEmail'); // null: no token of that kind
+```
+
+An adapter written for 0.3 does not compile against this port until it
+implements `countAttempt`, and `janus()` refuses it at wiring —
+[Writing an adapter](docs/guide/adapters.md#tokenstorecountattempt) has the
+contract.
+
 ### Permissions — `@nxgt/janus/permissions`
 
 ```ts
@@ -506,7 +537,7 @@ describeJanusStores({
 });
 ```
 
-There are 38 cases. They cover:
+There are 43 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -517,6 +548,9 @@ There are 38 cases. They cover:
 - pagination;
 - sessions;
 - one-time tokens: of twenty concurrent redemptions, exactly one succeeds;
+  of twenty concurrent `countAttempt` calls, each answers a distinct count;
+- a user's second factor: round-trip, kept by a patch that does not name it,
+  removed by one that names `null`;
 - deletion: a user's logins are freed, and every session and token of theirs
   goes, with a replay answering `false` or `0` rather than failing;
 - **outages**, one case for each of the twelve methods whose honest answer can
@@ -655,13 +689,13 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Ninety-seven plausible mistakes, ninety-seven refused at compile time — and
+**One hundred plausible mistakes, one hundred refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
-`test/types/port.ts` (fifteen, on the identity stores' port, from the point
+`test/types/port.ts` (eighteen, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
 `janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-eight, on the
 permission model and the questions asked of it). The rule
