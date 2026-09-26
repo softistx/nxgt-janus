@@ -101,6 +101,12 @@ export function defineJanusTables(options: JanusTablesOptions = {}) {
 			logins: text('logins').array().notNull(),
 			passwordHash: text('password_hash'),
 			passwordUpdatedAt: at('password_updated_at'),
+			/** `'totp'`, or `null` for a user with no second factor. */
+			secondFactorMethod: text('second_factor_method', { enum: ['totp'] }),
+			/** Sealed by the core with the application's key: never the plain secret. */
+			secondFactorSecret: text('second_factor_secret'),
+			secondFactorConfirmedAt: at('second_factor_confirmed_at'),
+			secondFactorLastStep: integer('second_factor_last_step'),
 			emailVerifiedAt: at('email_verified_at'),
 			version: integer('version').notNull(),
 			createdAt: at('created_at').notNull(),
@@ -115,6 +121,14 @@ export function defineJanusTables(options: JanusTablesOptions = {}) {
 			check(
 				'users_password_whole',
 				sql`(${t.passwordHash} is null) = (${t.passwordUpdatedAt} is null)`,
+			),
+			/**
+			 * A second factor is a method and a secret, or neither; its
+			 * confirmation and last step exist only beside them.
+			 */
+			check(
+				'users_second_factor_whole',
+				sql`(${t.secondFactorMethod} is null) = (${t.secondFactorSecret} is null) and (${t.secondFactorMethod} is not null or (${t.secondFactorConfirmedAt} is null and ${t.secondFactorLastStep} is null))`,
 			),
 		],
 	);
@@ -174,15 +188,24 @@ export function defineJanusTables(options: JanusTablesOptions = {}) {
 		'tokens',
 		{
 			tokenHash: key('token_hash').primaryKey(),
-			kind: text('kind', { enum: ['verifyEmail', 'resetPassword'] }).notNull(),
+			kind: text('kind', {
+				enum: ['verifyEmail', 'resetPassword', 'secondFactor', 'signInCode'],
+			}).notNull(),
 			userId: key('user_id').notNull(),
 			address: text('address').notNull(),
+			/** A sign-in code's hash, keyed by the token's secret. */
+			codeHash: text('code_hash'),
+			/** Codes tried against it. The default fills the rows a migration finds. */
+			attempts: integer('attempts').notNull().default(0),
 			expiresAt: at('expires_at').notNull(),
 			spentAt: at('spent_at'),
 			createdAt: at('created_at').notNull(),
 		},
 		(t) => [
-			check('tokens_kind', sql`${t.kind} in ('verifyEmail', 'resetPassword')`),
+			check(
+				'tokens_kind',
+				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode')`,
+			),
 			index('tokens_user_id').on(t.userId),
 		],
 	);

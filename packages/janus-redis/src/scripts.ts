@@ -166,7 +166,8 @@ return deleted
 
 /**
  * `ARGV`: prefix, tokenHash, kind, userId, address, expiresAt, spentAt,
- * createdAt. The hash is the key, so a token already there is a retry.
+ * createdAt, codeHash, attempts. The hash is the key, so a token already
+ * there is a retry.
  */
 export const INSERT_TOKEN = `${EXTEND_SET}${PRUNE}
 local p, tokenHash, userId = ARGV[1], ARGV[2], ARGV[4]
@@ -174,7 +175,8 @@ local key = p .. 'token:' .. tokenHash
 if redis.call('EXISTS', key) == 1 then return 0 end
 redis.call('HSET', key,
 	'kind', ARGV[3], 'userId', userId, 'address', ARGV[5],
-	'expiresAt', ARGV[6], 'spentAt', ARGV[7], 'createdAt', ARGV[8])
+	'expiresAt', ARGV[6], 'spentAt', ARGV[7], 'createdAt', ARGV[8],
+	'codeHash', ARGV[9], 'attempts', ARGV[10])
 redis.call('PEXPIREAT', key, ARGV[6])
 local tokens = p .. 'user:' .. userId .. ':tokens'
 prune(tokens, p .. 'token:')
@@ -196,6 +198,21 @@ if redis.call('HGET', key, 'spentAt') == '' then
 	redis.call('HSET', key, 'spentAt', ARGV[4])
 end
 return before
+`;
+
+/**
+ * `ARGV`: prefix, tokenHash, kind. **Counts one attempt and answers the token
+ * as it is after**: an unspent token's `attempts` goes up by one, in the same
+ * step as the read, so twenty concurrent calls answer twenty counts. A spent
+ * token is answered as it is; `nil` for no token of this kind.
+ */
+export const COUNT_ATTEMPT = `
+local key = ARGV[1] .. 'token:' .. ARGV[2]
+if redis.call('HGET', key, 'kind') ~= ARGV[3] then return false end
+if redis.call('HGET', key, 'spentAt') == '' then
+	redis.call('HINCRBY', key, 'attempts', 1)
+end
+return redis.call('HGETALL', key)
 `;
 
 /** `ARGV`: prefix, userId. Deletes every token of the user, and answers how many. */

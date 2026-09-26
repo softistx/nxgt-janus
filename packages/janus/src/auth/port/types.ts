@@ -94,6 +94,32 @@ export interface PasswordRecord {
 }
 
 /**
+ * A second factor, as the store holds it: a TOTP secret the core sealed.
+ *
+ * **The secret is opaque to a store.** The core seals it with a key the
+ * application holds — `v1.<key id>.<iv>.<ciphertext>` — before a store ever
+ * sees it, so a dump of the users cannot produce a code. A store keeps the
+ * string byte for byte, like a password hash.
+ */
+export interface SecondFactorRecord {
+	/** How the codes are made. `'totp'`, the codes of an authenticator app, is the only one. */
+	readonly method: 'totp';
+	/** The sealed secret. Never the plain one. */
+	readonly secret: string;
+	/**
+	 * When the user proved their app holds the secret, with a first code — or
+	 * `null` while the enrolment waits for it. A second factor is asked for at
+	 * sign-in only once confirmed.
+	 */
+	readonly confirmedAt: Date | null;
+	/**
+	 * The time step of the last code accepted, or `null` before the first. A
+	 * code of this step or an earlier one is refused, so a code works once.
+	 */
+	readonly lastStep: number | null;
+}
+
+/**
  * A user, as a store holds it.
  *
  * Everything is `readonly`: the core hands records to application code, and a
@@ -131,6 +157,8 @@ export interface UserRecord {
 	readonly logins: readonly string[];
 	/** `null` when the user has no password. */
 	readonly password: PasswordRecord | null;
+	/** `null` when the user has no second factor. */
+	readonly secondFactor: SecondFactorRecord | null;
 	/**
 	 * When the user proved they hold their current e-mail, or `null`. The core
 	 * sets it back to `null` in the same write that changes the e-mail.
@@ -176,6 +204,7 @@ export interface UserPatch {
 	readonly fields?: JsonObject;
 	readonly logins?: readonly string[];
 	readonly password?: PasswordRecord | null;
+	readonly secondFactor?: SecondFactorRecord | null;
 	readonly emailVerifiedAt?: Date | null;
 }
 
@@ -355,8 +384,20 @@ export interface SessionStore {
 	deleteExpiredSessions?(before: Date): Promise<number>;
 }
 
-/** What a one-time token is for. A token redeemed for the other purpose is unknown. */
-export type TokenKind = 'verifyEmail' | 'resetPassword';
+/**
+ * What a one-time token is for. A token redeemed for another purpose is
+ * unknown.
+ *
+ * - `verifyEmail`, `resetPassword`: a link sent by e-mail.
+ * - `secondFactor`: the challenge a sign-in answers when the user has a second
+ *   factor, redeemed with a code from their app.
+ * - `signInCode`: a code sent by e-mail to sign in without a password.
+ */
+export type TokenKind =
+	| 'verifyEmail'
+	| 'resetPassword'
+	| 'secondFactor'
+	| 'signInCode';
 
 /** A one-time token, as a store holds it: its hash, never its secret. */
 export interface TokenRecord {
@@ -366,6 +407,18 @@ export interface TokenRecord {
 	readonly userId: Id;
 	/** The e-mail the token was sent to — the one a verification marks verified. */
 	readonly address: string;
+	/**
+	 * For a token redeemed with a code — `signInCode` — the code's hash, keyed
+	 * by the token's secret, so the tokens alone do not reveal it. `null` for
+	 * every other kind.
+	 */
+	readonly codeHash: string | null;
+	/**
+	 * How many codes were tried against it: `0` at insertion, and one more on
+	 * every {@link TokenStore.countAttempt}. What bounds guessing a six-digit
+	 * code.
+	 */
+	readonly attempts: number;
 	readonly expiresAt: Date;
 	/** `null` until spent. Once set, never changes. */
 	readonly spentAt: Date | null;
@@ -404,6 +457,22 @@ export interface TokenStore {
 		kind: TokenKind,
 		at: Date,
 	): Promise<TokenRecord | null>;
+
+	/**
+	 * Counts one attempt at a code against a token, and answers the token **as
+	 * it is after this call**.
+	 *
+	 * - An **unspent** token of this `kind` has `attempts` one higher, and is
+	 *   answered with it. Twenty concurrent calls answer twenty distinct
+	 *   counts: one conditional write, never a read followed by a write — a
+	 *   count two guesses both read is a guess for free.
+	 * - A **spent** token is answered as it is, and nothing is written.
+	 * - `null` means no token of this `kind` has this hash.
+	 *
+	 * Whether the count is past the limit, and whether the code matches, is the
+	 * core's decision, after the call; spending the token is `consumeToken`.
+	 */
+	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
 
 	/**
 	 * Deletes every token of one user, spent or not, and answers how many.

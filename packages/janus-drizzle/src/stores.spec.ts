@@ -19,6 +19,7 @@ function user(logins: readonly string[]): UserRecord {
 		fields: {},
 		logins,
 		password: null,
+		secondFactor: null,
 		emailVerifiedAt: null,
 		version: 0,
 		createdAt: at,

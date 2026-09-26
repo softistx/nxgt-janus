@@ -95,6 +95,99 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 		},
 	},
 	{
+		id: 'tokens.countAttempt',
+		group,
+		name: 'counts an attempt at a code, and answers the token as it is after the call',
+		async run({ stores }) {
+			const record = tokenRecord({
+				kind: 'signInCode',
+				codeHash: 'c'.repeat(64),
+			});
+			await stores.tokens.insertToken(record);
+
+			equal(
+				await stores.tokens.countAttempt(record.tokenHash, 'signInCode'),
+				{ ...record, attempts: 1 },
+				'countAttempt the first time should answer the token with attempts 1, codeHash as written',
+			);
+			equal(
+				await stores.tokens.countAttempt(record.tokenHash, 'signInCode'),
+				{ ...record, attempts: 2 },
+				'countAttempt the second time should answer attempts 2',
+			);
+			equal(
+				await stores.tokens.consumeToken(
+					record.tokenHash,
+					'signInCode',
+					at('2026-02-01T00:00:00.000Z'),
+				),
+				{ ...record, attempts: 2 },
+				'consumeToken should answer the attempts counted, and spend the token',
+			);
+		},
+	},
+	{
+		id: 'tokens.countAttemptConcurrency',
+		group,
+		name: 'gives twenty concurrent attempts twenty distinct counts — one conditional write, never a read then a write',
+		async run({ stores }) {
+			const record = tokenRecord({ kind: 'secondFactor' });
+			await stores.tokens.insertToken(record);
+
+			const answers = await Promise.all(
+				Array.from({ length: 20 }, () =>
+					stores.tokens.countAttempt(record.tokenHash, 'secondFactor'),
+				),
+			);
+
+			equal(
+				answers
+					.map((answer) => answer?.attempts)
+					.sort((a, b) => (a ?? 0) - (b ?? 0)),
+				Array.from({ length: 20 }, (_, index) => index + 1),
+				'countAttempt: twenty concurrent calls should answer 1 to 20, each once — two guesses reading one count is a guess for free',
+			);
+		},
+	},
+	{
+		id: 'tokens.countAttemptSpent',
+		group,
+		name: 'does not count an attempt at a spent token, nor at a token of another kind, nor at none',
+		async run({ stores }) {
+			const spent = tokenRecord({
+				kind: 'signInCode',
+				attempts: 3,
+				spentAt: at('2026-01-02T00:00:00.000Z'),
+			});
+			const other = tokenRecord({ kind: 'resetPassword' });
+			await stores.tokens.insertToken(spent);
+			await stores.tokens.insertToken(other);
+
+			equal(
+				await stores.tokens.countAttempt(spent.tokenHash, 'signInCode'),
+				spent,
+				'countAttempt on a spent token should answer it as it is, attempts unchanged',
+			);
+			isNull(
+				await stores.tokens.countAttempt(other.tokenHash, 'signInCode'),
+				'countAttempt for a resetPassword token counted as signInCode',
+			);
+			equal(
+				await stores.tokens.consumeToken(
+					other.tokenHash,
+					'resetPassword',
+					at('2026-02-01T00:00:00.000Z'),
+				),
+				other,
+				'countAttempt of the other kind should not have counted: attempts still 0',
+			);
+			isNull(
+				await stores.tokens.countAttempt('0'.repeat(64), 'signInCode'),
+				'countAttempt for an unknown hash',
+			);
+		},
+	},
+	{
 		id: 'tokens.lapsed',
 		group,
 		name: 'spends a lapsed token all the same: expiry is compared by the core, after the call',

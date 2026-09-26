@@ -8,7 +8,7 @@
  * surface as a conformance failure at best, and at worst as an outage reported
  * as "no such account".
  *
- * **Fifteen plausible mistakes, fifteen refused.** Add a case whenever the port
+ * **Eighteen plausible mistakes, eighteen refused.** Add a case whenever the port
  * gains something it should refuse; never delete one to make a change pass.
  */
 
@@ -162,10 +162,36 @@ const nestedFields: UserRecord = {
 	fields: { name: { first: 'Ada' }, tags: ['a', 1, true, null] },
 };
 
+// ── 16. countAttempt answering a count ────────────────────────────────────
+// A bare number cannot say the token was already spent, nor whose it is: the
+// core needs the record as it is after the call.
+const numberCount: TokenStore = {
+	...tokens,
+	// @ts-expect-error countAttempt answers the token after the call, or null
+	countAttempt: async () => 1,
+};
+
+// ── 17. An attempt counted without saying what the token is for ────────────
+// Without `kind`, a guess at a sign-in code counts against a reset link.
+// @ts-expect-error kind is required
+tokens.countAttempt('hash');
+
+// ── 18. A second factor left undefined rather than null ─────────────────────
+// Rule 2 again: a store that forgot the field would read as "no second
+// factor", and a sign-in would skip it.
+const missingSecondFactor: UserRecord = {
+	...record,
+	// @ts-expect-error a user with no second factor holds null
+	secondFactor: undefined,
+};
+
 // A class implements the port as well as an object literal does.
 class ClassStore implements TokenStore {
 	async insertToken(): Promise<void> {}
 	async consumeToken(): Promise<null> {
+		return null;
+	}
+	async countAttempt(): Promise<null> {
 		return null;
 	}
 	async deleteUserTokens(): Promise<number> {
@@ -187,6 +213,8 @@ export const checked = {
 		dateField,
 		patchType,
 		missingPassword,
+		numberCount,
+		missingSecondFactor,
 	],
 	allowed: [
 		minimalSessions,

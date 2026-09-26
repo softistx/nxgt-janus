@@ -58,6 +58,9 @@ export function toToken(
 		kind,
 		userId: read.text('userId'),
 		address: read.text('address'),
+		// Absent on a token written before 0.3: read as none, and no attempt.
+		codeHash: read.optional('codeHash') || null,
+		attempts: read.count('attempts'),
 		expiresAt: read.date('expiresAt'),
 		spentAt: read.dateOrNull('spentAt'),
 		createdAt: read.date('createdAt'),
@@ -92,6 +95,16 @@ function readerOf(reply: unknown, call: Call) {
 	return {
 		text,
 		date,
+		optional: (name: string): string => fields.get(name) ?? '',
+		count: (name: string): number => {
+			const value = fields.get(name);
+			if (value === undefined) return 0;
+			const counted = Number(value);
+			if (!Number.isSafeInteger(counted) || counted < 0) {
+				throw unreadable(call, `a count in \`${name}\``);
+			}
+			return counted;
+		},
 		dateOrNull: (name: string): Date | null =>
 			text(name) === '' ? null : date(name),
 	};

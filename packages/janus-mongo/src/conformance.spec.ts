@@ -28,6 +28,7 @@ const COMMAND_OF: Record<string, readonly string[]> = {
 	revokeSession: ['update'],
 	revokeUserSessions: ['update'],
 	consumeToken: ['findAndModify'],
+	countAttempt: ['findAndModify', 'find'],
 	deleteUser: ['delete'],
 	deleteUserSessions: ['delete'],
 	deleteUserTokens: ['delete'],

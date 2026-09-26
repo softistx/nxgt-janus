@@ -194,6 +194,8 @@ describe('createRedisStores(), beyond the port suite', () => {
 				kind: 'verifyEmail' as const,
 				userId,
 				address: 'ada@example.test',
+				codeHash: null,
+				attempts: 0,
 				expiresAt: at,
 				spentAt: null,
 				createdAt: new Date(),

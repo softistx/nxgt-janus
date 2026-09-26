@@ -192,6 +192,10 @@ function applyPatch(stored: UserRecord, patch: UserPatch): UserRecord {
 		fields: patch.fields ?? stored.fields,
 		logins: patch.logins ?? stored.logins,
 		password: patch.password === undefined ? stored.password : patch.password,
+		secondFactor:
+			patch.secondFactor === undefined
+				? stored.secondFactor
+				: patch.secondFactor,
 		emailVerifiedAt:
 			patch.emailVerifiedAt === undefined
 				? stored.emailVerifiedAt
@@ -312,6 +316,18 @@ function memoryTokenStore(): TokenStore {
 			}
 
 			return before;
+		},
+
+		async countAttempt(tokenHash, kind) {
+			// The same single conditional write as consumeToken: no `await`
+			// between the read and the write.
+			const stored = byTokenHash.get(tokenHash);
+			if (stored === undefined || stored.kind !== kind) return null;
+			if (stored.spentAt !== null) return copy(stored);
+
+			const counted = { ...stored, attempts: stored.attempts + 1 };
+			byTokenHash.set(tokenHash, counted);
+			return copy(counted);
 		},
 
 		async deleteUserTokens(userId) {

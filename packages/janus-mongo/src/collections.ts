@@ -33,6 +33,19 @@ export const users = defineCollection({
 		fields: jsonObject,
 		logins: z.array(z.string()),
 		password: z.object({ hash: z.string(), updatedAt: at }).nullable(),
+		/**
+		 * Absent on a user written before 0.3 — read as `null`, so no
+		 * migration is needed.
+		 */
+		secondFactor: z
+			.object({
+				method: z.literal('totp'),
+				secret: z.string(),
+				confirmedAt: at.nullable(),
+				lastStep: z.int().nonnegative().nullable(),
+			})
+			.nullable()
+			.optional(),
 		emailVerifiedAt: at.nullable(),
 		version: z.int().nonnegative(),
 		createdAt: at,
@@ -95,9 +108,17 @@ export const tokens = defineCollection({
 	schema: z.object({
 		/** The token's `sha256`. Unique by construction, so it is the key itself. */
 		_id: z.string(),
-		kind: z.enum(['verifyEmail', 'resetPassword']),
+		kind: z.enum([
+			'verifyEmail',
+			'resetPassword',
+			'secondFactor',
+			'signInCode',
+		]),
 		userId: z.string(),
 		address: z.string(),
+		/** Absent on a token written before 0.3 — read as `null` and `0`. */
+		codeHash: z.string().nullable().optional(),
+		attempts: z.int().nonnegative().optional(),
 		expiresAt: at,
 		spentAt: at.nullable(),
 		createdAt: at,

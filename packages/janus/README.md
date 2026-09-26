@@ -519,7 +519,7 @@ There are 38 cases. They cover:
 - one-time tokens: of twenty concurrent redemptions, exactly one succeeds;
 - deletion: a user's logins are freed, and every session and token of theirs
   goes, with a replay answering `false` or `0` rather than failing;
-- **outages**, one case for each of the eleven methods whose honest answer can
+- **outages**, one case for each of the twelve methods whose honest answer can
   be "nothing".
 
 The suite imports no test framework and no assertion library. It runs under

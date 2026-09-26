@@ -24,7 +24,7 @@ const REQUIRED = {
 		'revokeUserSessions',
 		'deleteUserSessions',
 	],
-	tokens: ['insertToken', 'consumeToken', 'deleteUserTokens'],
+	tokens: ['insertToken', 'consumeToken', 'countAttempt', 'deleteUserTokens'],
 } as const satisfies Record<keyof JanusStores, readonly string[]>;
 
 /**
