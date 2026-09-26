@@ -26,10 +26,10 @@ dates here, and the version something shipped in is the only number.
 - **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`: a
   `Mailer` port you plug your transport into (SMTP, Resend, SES…) — a
   transport that fails throws, like a store — and default templates for
-  verification, password reset and one-time codes. The templates are built with Maizzle and Tailwind CSS 4 when the package is built — CSS
-  inlined for mail clients — and ship as typed functions:
-  `templates.verifyEmail({ link })` answers `{ subject, html, text }`,
-  every value escaped, a missing or misspelled variable a compile error. No
+  verification, password reset and one-time codes. The templates are built
+  with Maizzle and Tailwind CSS 4 when the package is built — CSS inlined for
+  mail clients — and ship as typed functions: `templates.verifyEmail({ link })`
+  answers `{ subject, html, text }`, every value escaped, a missing or misspelled variable a compile error. No
   template engine at run time. The defaults are a starting point, not a
   requirement: replace any one template with your own function of the same
   shape — built with your own Maizzle project, React Email or a plain string —
