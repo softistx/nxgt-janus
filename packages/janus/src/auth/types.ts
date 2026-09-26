@@ -367,6 +367,57 @@ export interface SecondFactorApi<U> {
 	};
 }
 
+/** An e-mailed sign-in code: send `code`, keep `challenge` for the confirmation. */
+export interface IssuedCode<U> {
+	/** Six digits, for the visitor to type. Put it in the e-mail, and nowhere else. */
+	readonly code: string;
+	/**
+	 * The secret the code is checked against. **Keep it with the visitor** —
+	 * a short-lived cookie, or the code form's body — never in the e-mail,
+	 * a URL or a log.
+	 */
+	readonly challenge: string;
+	/** The address to send the code to. */
+	readonly email: string;
+	readonly expiresAt: Date;
+	readonly user: U;
+}
+
+/**
+ * What a user type with an e-mail answers besides: signing in with a code
+ * sent to it, no password needed.
+ *
+ * `Answer` is {@link SignInResult} when the type may have a second factor:
+ * the code proves the e-mail, and an active factor is still asked for.
+ */
+export interface SignInCodeApi<U, Answer = SignedIn<U>> {
+	readonly signInCode: {
+		/**
+		 * Issues a code for the user of this type holding this e-mail, or
+		 * answers `null` when there is none, or they are inactive. **Never tell
+		 * the visitor which**: answer the same page either way, and in the same
+		 * time — send the e-mail off the request's path.
+		 *
+		 * **Rate-limit it, per e-mail and per client.** Every call issues a new
+		 * challenge with five attempts of its own, and the earlier ones stay
+		 * valid until they lapse: the five attempts bound one challenge, not
+		 * one account.
+		 */
+		request(email: string): Promise<IssuedCode<U> | null>;
+		/**
+		 * Checks the code against its challenge, marks the e-mail verified —
+		 * the code reached the inbox — and signs the user in.
+		 *
+		 * A challenge takes **five attempts**: a code that does not match is
+		 * `CODE_INVALID` with `attemptsLeft`, and the fifth spends it. An
+		 * unknown, spent or lapsed challenge is `TOKEN_UNKNOWN`, `TOKEN_SPENT`
+		 * or `TOKEN_EXPIRED`; an e-mail the user changed since is `TOKEN_STALE`;
+		 * an inactive user is `USER_INACTIVE`.
+		 */
+		confirm(challenge: string, code: string): Promise<Answer>;
+	};
+}
+
 /** What a user type with an e-mail answers besides. */
 export interface VerifyEmailApi<U> {
 	readonly verifyEmail: {
@@ -422,7 +473,15 @@ export type TypeApi<
 			: PasswordApi<UserOfType<Name, Def>, FieldsInput<Def>, LoginOf<Def>>) &
 	([EmailOf<Def>] extends [never]
 		? unknown
-		: VerifyEmailApi<UserOfType<Name, Def>>) &
+		: VerifyEmailApi<UserOfType<Name, Def>> &
+				SignInCodeApi<
+					UserOfType<Name, Def>,
+					TwoFactor extends true
+						? [LoginOf<Def>] extends [never]
+							? SignedIn<UserOfType<Name, Def>>
+							: SignInResult<UserOfType<Name, Def>>
+						: SignedIn<UserOfType<Name, Def>>
+				>) &
 	([LoginOf<Def>] extends [never]
 		? unknown
 		: [EmailOf<Def>] extends [never]

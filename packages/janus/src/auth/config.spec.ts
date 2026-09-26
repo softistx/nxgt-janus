@@ -29,6 +29,7 @@ describe('the defaults', () => {
 		expect(resolved.tokenTtlMs).toEqual({
 			verifyEmail: 86_400_000,
 			resetPassword: 3_600_000,
+			signInCode: 600_000,
 		});
 		expect(resolved.cookie).toEqual({
 			name: 'janus-session',

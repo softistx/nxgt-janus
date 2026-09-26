@@ -51,6 +51,9 @@ clinic.patient.verifyEmail.send; // exists: `email` names the field
 clinic.staff.verifyEmail;
 ```
 
+A type with an e-mail can also sign in with a code sent to it, with or
+without a password — see [sign-in codes](sign-in-code.md).
+
 ## Options
 
 | Option | Type | Default | Effect |
@@ -142,5 +145,6 @@ never the token, and no refusal's message contains it.
 ## See also
 
 - [Users](users.md) — `email`, `update`, and the other per-type methods
+- [Sign-in codes](sign-in-code.md) — the third flow that sends an e-mail: a code, not a link
 - [Sessions](sessions.md) — `signOutEverywhere`, which `resetPassword.confirm` calls for you
 - [Errors](errors.md) — every code, and the status it deserves

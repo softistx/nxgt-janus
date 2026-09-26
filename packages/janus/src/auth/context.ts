@@ -438,3 +438,20 @@ export async function writeUser(
 		record.version,
 	);
 }
+
+/**
+ * The user of this type whose e-mail this is, or `null`. Looked up as a
+ * login — every e-mail is one — and then compared, so a username that only
+ * looks like an e-mail is nobody's.
+ */
+export async function holderOfEmail(
+	context: Context,
+	type: ResolvedType,
+	email: string,
+): Promise<UserRecord | null> {
+	const wanted = normalizeEmail(email);
+	if (!isStorable(wanted)) return null;
+	const record = await context.store.users.findUserByLogin(type.name, wanted);
+	const held = record === null ? null : emailOf(type, record.fields);
+	return held !== null && normalizeEmail(held) === wanted ? record : null;
+}

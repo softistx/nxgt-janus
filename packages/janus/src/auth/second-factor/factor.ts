@@ -1,5 +1,4 @@
-import { TokenError } from '../../errors/janus-error';
-import type { ResolvedConfig, ResolvedType } from '../config';
+import type { ResolvedConfig } from '../config';
 import type { Context } from '../context';
 import type { SecondFactorRecord, UserRecord } from '../port/types';
 import { seal, unseal } from '../sealing';
@@ -67,23 +66,4 @@ export function acceptCode(
 				? factor.secret
 				: seal(configured.sealer, plain, record.id),
 	};
-}
-
-/** A code that does not match. `attemptsLeft` only when a challenge counted it. */
-export function codeInvalid(
-	type: ResolvedType,
-	where: string,
-	userId: string,
-	attemptsLeft?: number,
-): TokenError {
-	return new TokenError(
-		'CODE_INVALID',
-		`${where}: the code does not match, or was already used`,
-		{
-			operation: where,
-			userId,
-			userType: type.name,
-			...(attemptsLeft === undefined ? {} : { attemptsLeft }),
-		},
-	);
 }

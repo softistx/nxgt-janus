@@ -29,7 +29,7 @@ for what causes each.
 - [`401` with an empty body, for a signed-in user](#401-with-an-empty-body-for-a-signed-in-user)
 - [`503 {"code":"STORE_FAILED"}` on every route](#503-codestore_failed-on-every-route)
 - [`400 {"code":"HASH_UNSUPPORTED"}` on sign-in](#400-codehash_unsupported-on-sign-in)
-- [`401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form](#401-codecode_invalidattemptsleftn-on-the-code-form)
+- [`401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form](#401-codecode_invalidattemptsleftn-on-the-code-form) — a second factor's, or the code sent by e-mail
 - [`409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`](#409-codesecond_factor_active-or-409-codesecond_factor_not_enrolled)
 - [The browser never sends the cookie back](#the-browser-never-sends-the-cookie-back)
 - [A bearer client holds an expiry earlier than the session's](#a-bearer-client-holds-an-expiry-earlier-than-the-sessions)
@@ -318,7 +318,8 @@ Also `401 {"code":"CODE_INVALID"}`, with no `attemptsLeft`, from
 
 **When:** a route calling `secondFactor.confirm(challenge, code)` or
 `secondFactor.activate(user, code)`, with a code that does not match or was
-already used.
+already used — or a route calling `signInCode.confirm(challenge, code)`, the
+code sent by e-mail, with a code that does not match or is not six digits.
 
 **Why:** `janusErrors()` answers a wrong code 401, like a wrong password. On
 `confirm`, `attemptsLeft` is what the challenge has left of its five attempts;
@@ -326,6 +327,9 @@ at `0` it is spent, and the next call with it answers
 `400 {"code":"TOKEN_SPENT"}`. If the code is the one the app shows, the cause
 is a clock off by more than about 30 seconds, or a code used already — see
 [`@nxgt/janus`'s troubleshooting](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#the-code-the-authenticator-app-shows-is-refused-with-code_invalid).
+
+On `signInCode.confirm`, `attemptsLeft` counts the same five attempts, and
+at `0` the challenge is spent too: the right code no longer works with it.
 
 **Fix:** read `attemptsLeft` in the client: ask again while it is above `0`,
 and go back to the sign-in form once it is `0`.
@@ -335,6 +339,18 @@ const response = await fetch('/sign-in/code', { method: 'POST', body: JSON.strin
 if (response.status === 401) {
 	const { attemptsLeft } = await response.json();
 	if (attemptsLeft === 0) showSignInForm();
+	else showCodeForm(`Wrong code — ${attemptsLeft} attempts left`);
+}
+```
+
+For the code sent by e-mail, request a new code once it is `0` — a new
+challenge, with five attempts of its own:
+
+```ts
+const response = await fetch('/sign-in/email/code', { method: 'POST', body: JSON.stringify({ code }) });
+if (response.status === 401) {
+	const { attemptsLeft } = await response.json();
+	if (attemptsLeft === 0) showEmailForm(); // POST /sign-in/email again: a new code
 	else showCodeForm(`Wrong code — ${attemptsLeft} attempts left`);
 }
 ```
