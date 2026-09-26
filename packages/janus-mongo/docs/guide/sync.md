@@ -100,8 +100,9 @@ encoded: a document read in a shell reads like the record in the code.
 
 - **No secret is stored.** Sessions and tokens hold the `sha256` of the
   secret; passwords a self-describing hash (`$scrypt$…`, `$argon2id$…`); a
-  second factor's `secret` the TOTP secret `@nxgt/janus` sealed with your
-  application's key (`v1.<key id>.…`), never the plain one.
+  second factor's `secret` a TOTP secret kept byte for byte, which
+  `@nxgt/janus` will seal with your application's key before the store sees
+  it, once the second factor ships.
 - **Documents written by an earlier version need no migration.** A user
   without `secondFactor` reads as having none; a token without `codeHash` or
   `attempts` reads as `null` and `0`.

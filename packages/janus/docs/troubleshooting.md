@@ -208,9 +208,9 @@ Also: `janus: store.<slot> is missing`, `janus: store must be an object with use
 
 **When:** `janus({...})`, from JavaScript or with a store typed loosely. TypeScript refuses a partial store at compile time and names the method.
 **Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. `deleteExpiredSessions` is the one optional method: absent, or a function.
-An adapter written for 0.3 reports `store.tokens has no method countAttempt`
-until it implements the method 0.4 added — see
-[adapters](guide/adapters.md).
+An adapter written against `@nxgt/janus` 0.3 reports
+`store.tokens has no method countAttempt` until it implements the method 0.4
+added.
 
 **Fix:** pass the three stores, whole:
 
@@ -219,6 +219,18 @@ import { createMemoryStores, janus } from '@nxgt/janus';
 
 janus({ ..., store: createMemoryStores() });
 ```
+
+For `countAttempt`, upgrade the published adapter to the release that
+implements it — `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3,
+`@nxgt/janus-redis` 0.2:
+
+```bash
+bun add @nxgt/janus@^0.4 @nxgt/janus-drizzle@^0.2 # or @nxgt/janus-mongo@^0.3, @nxgt/janus-redis@^0.2
+```
+
+Your own adapter implements it as
+[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt) sets
+out, then runs the conformance suite.
 
 ### `janus: relations must be a relation store — relations.deleteEntity is missing`
 

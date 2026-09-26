@@ -150,6 +150,51 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 		},
 	},
 	{
+		id: 'tokens.countAttemptRace',
+		group,
+		name: 'never counts an attempt once the token is spent, when attempts and a redemption race',
+		async run({ stores }) {
+			const record = tokenRecord({ kind: 'signInCode' });
+			await stores.tokens.insertToken(record);
+			const now = at('2026-02-01T00:00:00.000Z');
+			const count = () =>
+				stores.tokens.countAttempt(record.tokenHash, 'signInCode');
+
+			const answers = await Promise.all([
+				...Array.from({ length: 10 }, count),
+				stores.tokens.consumeToken(record.tokenHash, 'signInCode', now),
+				...Array.from({ length: 10 }, count),
+			]);
+			const final = await stores.tokens.consumeToken(
+				record.tokenHash,
+				'signInCode',
+				now,
+			);
+			if (final === null) {
+				throw new Error('consumeToken after the race should answer the token');
+			}
+			const counted = answers
+				.slice(0, 10)
+				.concat(answers.slice(11))
+				.filter((answer) => answer !== null && answer.spentAt === null)
+				.map((answer) => answer?.attempts ?? 0)
+				.sort((a, b) => a - b);
+
+			equal(
+				counted,
+				Array.from({ length: final.attempts }, (_, index) => index + 1),
+				'countAttempt: the attempts answered unspent should be 1 to the final count, each once',
+			);
+			equal(
+				answers
+					.filter((answer) => answer !== null && answer.spentAt !== null)
+					.every((answer) => answer?.attempts === final.attempts),
+				true,
+				'countAttempt: every answer after the spend should carry the final count — an attempt counted on a spent token is one the limit never saw',
+			);
+		},
+	},
+	{
 		id: 'tokens.countAttemptSpent',
 		group,
 		name: 'does not count an attempt at a spent token, nor at a token of another kind, nor at none',
@@ -163,11 +208,13 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 			await stores.tokens.insertToken(spent);
 			await stores.tokens.insertToken(other);
 
-			equal(
-				await stores.tokens.countAttempt(spent.tokenHash, 'signInCode'),
-				spent,
-				'countAttempt on a spent token should answer it as it is, attempts unchanged',
-			);
+			for (const call of ['first', 'second']) {
+				equal(
+					await stores.tokens.countAttempt(spent.tokenHash, 'signInCode'),
+					spent,
+					`countAttempt on a spent token, the ${call} time, should answer it as it is: attempts still 3, nothing written`,
+				);
+			}
 			isNull(
 				await stores.tokens.countAttempt(other.tokenHash, 'signInCode'),
 				'countAttempt for a resetPassword token counted as signInCode',

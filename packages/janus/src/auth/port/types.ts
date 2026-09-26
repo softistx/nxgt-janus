@@ -94,17 +94,17 @@ export interface PasswordRecord {
 }
 
 /**
- * A second factor, as the store holds it: a TOTP secret the core sealed.
+ * A second factor, as the store holds it: a TOTP secret.
  *
- * **The secret is opaque to a store.** The core seals it with a key the
- * application holds — `v1.<key id>.<iv>.<ciphertext>` — before a store ever
- * sees it, so a dump of the users cannot produce a code. A store keeps the
- * string byte for byte, like a password hash.
+ * **The secret is opaque to a store.** Once the second factor ships, the core
+ * will seal it with a key the application holds before a store ever sees it,
+ * so a dump of the users cannot produce a code. A store keeps the string byte
+ * for byte, like a password hash, and never parses it.
  */
 export interface SecondFactorRecord {
 	/** How the codes are made. `'totp'`, the codes of an authenticator app, is the only one. */
 	readonly method: 'totp';
-	/** The sealed secret. Never the plain one. */
+	/** The secret, opaque to a store: kept byte for byte. */
 	readonly secret: string;
 	/**
 	 * When the user proved their app holds the secret, with a first code — or
@@ -410,7 +410,8 @@ export interface TokenRecord {
 	/**
 	 * For a token redeemed with a code — `signInCode` — the code's hash, keyed
 	 * by the token's secret, so the tokens alone do not reveal it. `null` for
-	 * every other kind.
+	 * every other kind: the core writes it so, and a store keeps what it is
+	 * given.
 	 */
 	readonly codeHash: string | null;
 	/**
@@ -468,6 +469,10 @@ export interface TokenStore {
 	 *   count two guesses both read is a guess for free.
 	 * - A **spent** token is answered as it is, and nothing is written.
 	 * - `null` means no token of this `kind` has this hash.
+	 *
+	 * A **lapsed** token is counted all the same, or answered `null` by a store
+	 * that already dropped it — as for `consumeToken`, comparing `expiresAt` is
+	 * the core's job, after the call.
 	 *
 	 * Whether the count is past the limit, and whether the code matches, is the
 	 * core's decision, after the call; spending the token is `consumeToken`.

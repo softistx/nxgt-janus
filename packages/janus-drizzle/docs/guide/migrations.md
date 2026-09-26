@@ -75,7 +75,8 @@ CREATE TABLE "users" (
 	"updated_at" timestamp(3) with time zone NOT NULL,
 	CONSTRAINT "users_id_type_unique" UNIQUE("id","type"),
 	CONSTRAINT "users_password_whole" CHECK (("password_hash" is null) = ("password_updated_at" is null)),
-	CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null)))
+	CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null))),
+	CONSTRAINT "users_second_factor_values" CHECK ("second_factor_method" in ('totp') and "second_factor_last_step" >= 0)
 );
 CREATE TABLE "logins" (
 	"type" text collate "C",
@@ -83,7 +84,20 @@ CREATE TABLE "logins" (
 	"user_id" text collate "C" NOT NULL,
 	CONSTRAINT "logins_pkey" PRIMARY KEY("type","login")
 );
--- sessions, tokens, relations, the indexes, and the foreign key from
+CREATE TABLE "tokens" (
+	"token_hash" text collate "C" PRIMARY KEY,
+	"kind" text NOT NULL,
+	"user_id" text collate "C" NOT NULL,
+	"address" text NOT NULL,
+	"code_hash" text,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"expires_at" timestamp(3) with time zone NOT NULL,
+	"spent_at" timestamp(3) with time zone,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode')),
+	CONSTRAINT "tokens_attempts" CHECK ("attempts" >= 0)
+);
+-- sessions, relations, the indexes, and the foreign key from
 -- logins to users, on delete cascade.
 ```
 
@@ -118,11 +132,13 @@ migration creates is what the conformance suites ran on.
   key is the per-type uniqueness. PostgreSQL has no unique index over the
   elements of an array.
 - **A second factor in four columns, checked whole.** A method and a secret,
-  or neither; a confirmation date and a last step only beside them. The
-  secret is sealed by `@nxgt/janus` before the store sees it, so a dump of
-  `users` cannot produce a code.
-- **`attempts` is `not null default 0`**, so the rows an upgrade finds read
-  as tokens nobody has guessed at yet.
+  or neither; a confirmation date and a last step only beside them; `totp`
+  the only method, and a last step never negative. The
+  secret is opaque to the store and kept byte for byte: once the second
+  factor ships, `@nxgt/janus` will seal it before the store sees it, so a
+  dump of `users` cannot produce a code.
+- **`attempts` is `not null default 0`**, checked `>= 0`, so the rows an upgrade finds read
+  as tokens with no attempt counted yet.
 - **No foreign key from sessions and tokens to users.** Deleting a user
   deletes the user; the core deletes the sessions and tokens next, as it does
   when they live in another store.
@@ -154,7 +170,9 @@ ALTER TABLE "users" ADD COLUMN "second_factor_confirmed_at" timestamp(3) with ti
 ALTER TABLE "users" ADD COLUMN "second_factor_last_step" integer;
 ALTER TABLE "tokens" ADD COLUMN "code_hash" text;
 ALTER TABLE "tokens" ADD COLUMN "attempts" integer DEFAULT 0 NOT NULL;
-ALTER TABLE "users" ADD CONSTRAINT "users_second_factor_whole" CHECK (…);
+ALTER TABLE "users" ADD CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null)));
+ALTER TABLE "users" ADD CONSTRAINT "users_second_factor_values" CHECK ("second_factor_method" in ('totp') and "second_factor_last_step" >= 0);
+ALTER TABLE "tokens" ADD CONSTRAINT "tokens_attempts" CHECK ("attempts" >= 0);
 ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode'));
 ```
 
@@ -195,6 +213,6 @@ const patients = row?.patients ?? 0;
 ```
 
 **Read, never write.** A row written behind the store's back skips its
-invariants: the logins' uniqueness, `version`, the password check, the
-sealing of a second factor's secret. Write
-through `auth` and `access`.
+invariants: the logins' uniqueness, `version`, the password check, and,
+once the second factor ships, the sealing of its secret. Write through
+`auth` and `access`.

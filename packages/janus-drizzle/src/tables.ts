@@ -130,6 +130,11 @@ export function defineJanusTables(options: JanusTablesOptions = {}) {
 				'users_second_factor_whole',
 				sql`(${t.secondFactorMethod} is null) = (${t.secondFactorSecret} is null) and (${t.secondFactorMethod} is not null or (${t.secondFactorConfirmedAt} is null and ${t.secondFactorLastStep} is null))`,
 			),
+			/** `'totp'` is the one method; a step counts up from the epoch. */
+			check(
+				'users_second_factor_values',
+				sql`${t.secondFactorMethod} in ('totp') and ${t.secondFactorLastStep} >= 0`,
+			),
 		],
 	);
 
@@ -206,6 +211,7 @@ export function defineJanusTables(options: JanusTablesOptions = {}) {
 				'tokens_kind',
 				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode')`,
 			),
+			check('tokens_attempts', sql`${t.attempts} >= 0`),
 			index('tokens_user_id').on(t.userId),
 		],
 	);

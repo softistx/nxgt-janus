@@ -101,10 +101,10 @@ tables.
 
 | Table | Keys and indexes |
 | --- | --- |
-| `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither · a check that a second factor (`second_factor_method`, `_secret`, `_confirmed_at`, `_last_step`) has its method and its secret, or none of the four |
+| `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither · a check that a second factor (`second_factor_method`, `_secret`, `_confirmed_at`, `_last_step`) has its method and its secret, or none of the four · a check that the method is `totp` and the last step not negative |
 | `logins` | primary key `(type, login)`: **a login is unique per user type** · `(user_id, type)` references the user, `on delete cascade` |
 | `sessions` | `id` · `token_hash` unique · `user_id` · `expires_at`, for `collectExpired()` |
-| `tokens` | `token_hash` · `user_id` · a check on `kind` · `code_hash`, and `attempts`, `not null default 0` |
+| `tokens` | `token_hash` · `user_id` · a check on `kind` · `code_hash`, and `attempts`, `not null default 0`, checked `>= 0` |
 | `relations` | one row per tuple, unique `nulls not distinct` over all six columns, subject first: the index `findObjects` pages · `(object_type, object_id, relation)` for one hop forwards |
 
 `logins` is also a `text[]` on `users`, which the store reads back in order.
@@ -113,8 +113,9 @@ table plays that role, written in the same transaction as the user.
 
 Every key column is `text collate "C"`, compared byte for byte as the port
 requires. No secret is stored: sessions and tokens hold `sha256` of the secret,
-passwords a self-describing hash, and `second_factor_secret` a TOTP secret
-`@nxgt/janus` sealed with your application's key before the store saw it.
+passwords a self-describing hash, and `second_factor_secret` a TOTP secret the
+store keeps byte for byte, which `@nxgt/janus` will seal with your
+application's key before the store sees it, once the second factor ships.
 
 ## Traps
 

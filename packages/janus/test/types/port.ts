@@ -8,7 +8,7 @@
  * surface as a conformance failure at best, and at worst as an outage reported
  * as "no such account".
  *
- * **Eighteen plausible mistakes, eighteen refused.** Add a case whenever the port
+ * **Twenty-one plausible mistakes, twenty-one refused.** Add a case whenever the port
  * gains something it should refuse; never delete one to make a change pass.
  */
 
@@ -16,6 +16,7 @@ import { createMemoryStores } from '../../src/auth/port/memory';
 import type {
 	JanusStores,
 	SessionStore,
+	TokenRecord,
 	TokenStore,
 	UserPatch,
 	UserRecord,
@@ -176,12 +177,32 @@ const numberCount: TokenStore = {
 // @ts-expect-error kind is required
 tokens.countAttempt('hash');
 
-// ── 18. A second factor left undefined rather than null ─────────────────────
-// Rule 2 again: a store that forgot the field would read as "no second
-// factor", and a sign-in would skip it.
-const missingSecondFactor: UserRecord = {
-	...record,
-	// @ts-expect-error a user with no second factor holds null
+// ── 18. A second factor left out of a record ──────────────────────────────
+// Rule 2 again: a store that forgot the field — a document written before it
+// existed, forwarded unmapped — would read as "no second factor", and a
+// sign-in would skip it.
+const { secondFactor: _forgotten, ...withoutSecondFactor } = record;
+// @ts-expect-error a user with no second factor holds null, never nothing
+const missingSecondFactor: UserRecord = withoutSecondFactor;
+
+// ── 19. A token forwarded without its attempts ─────────────────────────────
+// A toToken that passes an old document through would answer no count, and
+// the limit on guesses would compare against undefined.
+declare const token: TokenRecord;
+const { attempts: _uncounted, ...withoutAttempts } = token;
+// @ts-expect-error a token carries its attempts, 0 when none
+const uncountedToken: TokenRecord = withoutAttempts;
+
+// ── 20. A token forwarded without its code hash ────────────────────────────
+const { codeHash: _unhashed, ...withoutCodeHash } = token;
+// @ts-expect-error a token carries its code hash, null when it has none
+const unhashedToken: TokenRecord = withoutCodeHash;
+
+// ── 21. A patch that writes undefined over the second factor ───────────────
+// The same trap as 10, on the field whose erasure disables a second factor.
+// @ts-expect-error secondFactor is named with a value or null, or not at all
+const patchSecondFactor: UserPatch = {
+	updatedAt: now,
 	secondFactor: undefined,
 };
 
@@ -215,6 +236,9 @@ export const checked = {
 		missingPassword,
 		numberCount,
 		missingSecondFactor,
+		uncountedToken,
+		unhashedToken,
+		patchSecondFactor,
 	],
 	allowed: [
 		minimalSessions,

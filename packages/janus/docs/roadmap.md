@@ -11,9 +11,7 @@ dates here, and the version something shipped in is the only number.
   TOTP, the one-time codes of an authenticator app, as a second factor, its
   secret sealed with a key your application holds. `signIn` will answer
   `{ status: 'signedIn' }` or `{ status: 'secondFactor', challenge }`. The
-  first step is in: the store port holds a user's second factor, and a
-  token's code hash and attempts, counted by `TokenStore.countAttempt` so a
-  six-digit code cannot be guessed for free; the three adapters implement it.
+  store port that holds them shipped in v0.4.0, below.
 
 ## Next
 
@@ -88,6 +86,13 @@ dates here, and the version something shipped in is the only number.
 
 Each entry names the version it came in.
 
+- **The store port holds a second factor and counts attempts on a token,
+  v0.4.0** — `UserRecord.secondFactor`, a token's `codeHash` and `attempts`,
+  the token kinds `'secondFactor'` and `'signInCode'`, and
+  `TokenStore.countAttempt`, one conditional write per attempt, with six new
+  conformance cases. No flow uses them yet; the published adapters implement
+  them in `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3 and
+  `@nxgt/janus-redis` 0.2.
 - **Permissions on a user, v0.3.0** — a user type may also be an object type:
   a staff member is the object `can()` asks about and is granted relations
   on, like a record, and `grant(note, 'readers', setOf(bob, 'managers'))`

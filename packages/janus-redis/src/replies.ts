@@ -99,8 +99,10 @@ function readerOf(reply: unknown, call: Call) {
 		count: (name: string): number => {
 			const value = fields.get(name);
 			if (value === undefined) return 0;
-			const counted = Number(value);
-			if (!Number.isSafeInteger(counted) || counted < 0) {
+			// Only what this adapter writes: `String(n)` or `HINCRBY`'s answer.
+			// `Number()` would also take '', '0x10' and '1e1'.
+			const counted = /^(0|[1-9]\d*)$/.test(value) ? Number(value) : Number.NaN;
+			if (!Number.isSafeInteger(counted)) {
 				throw unreadable(call, `a count in \`${name}\``);
 			}
 			return counted;

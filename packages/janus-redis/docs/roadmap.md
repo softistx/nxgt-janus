@@ -33,6 +33,10 @@ Nothing yet.
 
 ## Shipped
 
+- **Attempts counted on a one-time token, v0.2.0** — for `@nxgt/janus` 0.4:
+  a token keeps its `codeHash` and `attempts`, and `countAttempt` counts an
+  attempt at a code in one Lua script. No migration: a token written before
+  reads as no code and no attempt.
 - **The first release, v0.1.0.** Sessions and one-time tokens in Redis,
   expired by Redis itself; the adapter passes the conformance suite for both
   stores on Redis 7.4.
