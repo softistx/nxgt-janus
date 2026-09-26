@@ -13,9 +13,9 @@ dates here, and the version something shipped in is the only number.
   security events worth keeping, never a login, a password, a session token
   or a one-time token. Built, not yet published.
 - **A Redis adapter for sessions and one-time tokens** — in a package of its
-  own, `@nxgt/janus-redis`: both are read on every request and ephemeral, so they
-  live in Redis, expired by Redis itself, while users stay in another store.
-  Built, not yet published.
+  own, `@nxgt/janus-redis`: both are read on every request and ephemeral, so
+  they live in Redis, expired by Redis itself, while users stay in another
+  store. Built, not yet published.
 
 ## Next
 
@@ -38,8 +38,8 @@ dates here, and the version something shipped in is the only number.
   never an e-mail sent with `{link}` in it. No template engine at run time.
   The defaults are a starting point, not a requirement: add a language with a
   catalogue, or replace any one template with your own function of the same
-  shape — built with the same tool, React Email or a plain string — and keep
-  the defaults for the rest.
+  shape — built with the same toolkit, React Email or a plain string — and
+  keep the defaults for the rest.
 - **Webhooks** — signed HTTP events when something happens to a user
   (created, e-mail verified, password reset, deleted), so another service can
   follow without polling: a signature it can check, retries on failure, and
