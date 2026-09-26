@@ -187,8 +187,8 @@ With a `password`, besides:
 | `signUp(fields & { password })` | `{ status: 'signedIn', user, session, token }` | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN` |
 | `signIn({ [login]: string, password })` | `{ status: 'signedIn', user, session, token }` — or, with `secondFactor` configured and the user's factor active, `{ status: 'secondFactor', challenge, expiresAt, userId }`: switch on `status` | `CREDENTIALS_INVALID`, `USER_INACTIVE`, `HASH_UNSUPPORTED` |
 | `findByLogin(login)` | the user, or `null`; the login is normalised first, and one holding a NUL or a lone surrogate is nobody's | |
-| `setPassword(user, password, { ifVersion? })` | the user — an admin's call | `PASSWORD_TOO_SHORT` |
-| `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
+| `setPassword(user, password, { ifVersion? })` | the user — an admin's call; spends the user's second-factor challenges still waiting, and signs nobody out | `PASSWORD_TOO_SHORT` |
+| `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call; spends the user's second-factor challenges still waiting | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
 
 With `secondFactor` configured, a type with a password also answers
 `secondFactor.enroll`, `activate`, `disable` and `confirm` — see

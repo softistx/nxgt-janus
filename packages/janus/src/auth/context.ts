@@ -264,6 +264,16 @@ export function loginsOf(
 	return [...logins];
 }
 
+/** The type's password rule, or a wiring refusal for a JavaScript caller. */
+export function passwordRule(type: ResolvedType, where: string) {
+	if (type.password === null) {
+		throw new TypeError(
+			`${where}: the ${type.name} type does not sign in with a password — add password: { login } to it`,
+		);
+	}
+	return type.password;
+}
+
 /** Refuses a password shorter than the policy. Reports the policy, never the password. */
 export function checkPassword(
 	type: ResolvedType,

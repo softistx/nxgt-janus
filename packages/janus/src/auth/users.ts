@@ -13,6 +13,7 @@ import {
 	idOf,
 	loginsOf,
 	passwordMatches,
+	passwordRule,
 	rehashed,
 	requireHasher,
 	toUser,
@@ -20,11 +21,7 @@ import {
 	writeUser,
 } from './context';
 import { emailFlows } from './email-flows';
-import {
-	endSignInsWaiting,
-	heldByPassword,
-	passwordRule,
-} from './password-written';
+import { endSignInsWaiting, heldByPassword } from './password-written';
 import type { UserRecord } from './port/types';
 import { secondFactorFlows } from './second-factor/flows';
 import { openSession } from './sessions';

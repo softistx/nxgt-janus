@@ -35,7 +35,11 @@
  * 5. **Every method is atomic on its own.** Nothing composes into a
  *    transaction, and the core never opens one. An adapter may open one
  *    *inside* a method — a normalised SQL schema writes several rows per
- *    user — but the port exposes none.
+ *    user — but the port exposes none. And **a read sees every write that
+ *    completed before it**: never a secondary or a read replica. A sign-in
+ *    that re-reads the user after answering, and a new code spending the
+ *    ones issued before it, both count on it — the one promise here no suite
+ *    can check.
  * 6. **Schema management is not on this interface.** An adapter exposes its own
  *    `sync()`; the core never calls it.
  *

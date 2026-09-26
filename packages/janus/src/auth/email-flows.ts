@@ -9,6 +9,7 @@ import {
 	getRecord,
 	holderOfEmail,
 	idOf,
+	passwordRule,
 	requireHasher,
 	toUser,
 	writeUser,
@@ -19,7 +20,7 @@ import {
 	spendOneTime,
 	unknownOneTime,
 } from './one-time';
-import { endSignInsWaiting, passwordRule } from './password-written';
+import { endSignInsWaiting } from './password-written';
 import type { TokenKind, TokenRecord, UserRecord } from './port/types';
 import type { IssuedToken, ResetPasswordApi, VerifyEmailApi } from './types';
 

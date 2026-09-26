@@ -102,7 +102,7 @@ twenty concurrent redemptions of one token, exactly one sees `spentAt: null`.
 under the row's lock, followed by a plain read only when it matched nothing — a spent token, or none:
 twenty concurrent attempts answer twenty distinct counts.
 `spendUserTokens` is one `update … set spent_at = … where user_id = … and kind = …
-and spent_at is null returning`: PostgreSQL re-checks `spent_at is null` on
+and spent_at is null returning` — with `and token_hash <> …` when `except` is given: PostgreSQL re-checks `spent_at is null` on
 a row a racing redemption just committed, so the two never both spend it.
 All three are measured on PostgreSQL 17 on every CI run.
 

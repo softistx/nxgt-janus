@@ -133,7 +133,7 @@ interface TokenStore {
 	insertToken(record: TokenRecord): Promise<void>;
 	consumeToken(tokenHash: string, kind: TokenKind, at: Date): Promise<TokenRecord | null>;
 	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
-	spendUserTokens(userId: Id, kind: TokenKind, at: Date): Promise<number>; // the unspent ones only
+	spendUserTokens(userId: Id, kind: TokenKind, at: Date, except?: string): Promise<number>; // the unspent ones, but except
 	deleteUserTokens(userId: Id): Promise<number>;
 }
 ```
@@ -259,10 +259,12 @@ export const spendUserTokens: TokenStore['spendUserTokens'] = async (userId, kin
 ```
 
 In SQL, `update … set spent_at = $3 where user_id = $1 and kind = $2 and
-spent_at is null and token_hash <> $4 returning token_hash`, answering the row count: PostgreSQL
+spent_at is null returning token_hash`, with `and token_hash <> $4` added
+only when `except` is given — bound to `NULL`, `<>` matches no row — answering the row count: PostgreSQL
 re-checks `spent_at is null` on a row a racing redemption just committed. In
 Redis, one Lua script over the user's set of tokens, `HSET spentAt` on each
-of the right `kind` whose `spentAt` is empty. `spendUserTokens` has its own
+of the right `kind` whose `spentAt` is empty, skipping the one named by
+`except`. `spendUserTokens` has its own
 outage case.
 
 ### `RelationStore`
@@ -300,7 +302,11 @@ Written on the port's types, and checked by the suites:
    normalises logins before a store sees them, and never hands a store
    `\u0000` or a lone surrogate; every other character comes back as written.
 5. **Every method is atomic on its own.** The core opens no transaction; an
-   adapter may open one inside a method.
+   adapter may open one inside a method. And **a read sees every write that
+   completed before it** — never a secondary or a read replica: a sign-in
+   re-reads the user to see a password written while it ran, and a new
+   sign-in code spends the ones issued before it. No suite can check this
+   one; a `readPreference: 'secondaryPreferred'` breaks it silently.
 6. **Schema management is not on the port.** Expose your own `sync`; the core
    never calls it.
 

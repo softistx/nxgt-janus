@@ -10,16 +10,6 @@ import { burnOneTime } from './one-time';
 import type { UserRecord } from './port/types';
 import type { SignInResult } from './types';
 
-/** The type's password rule, or a wiring refusal for a JavaScript caller. */
-export function passwordRule(type: ResolvedType, where: string) {
-	if (type.password === null) {
-		throw new TypeError(
-			`${where}: the ${type.name} type does not sign in with a password — add password: { login } to it`,
-		);
-	}
-	return type.password;
-}
-
 /**
  * What writing a password ends besides: every second-factor challenge of the
  * user still open, so a sign-in started with the old password cannot be

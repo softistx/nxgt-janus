@@ -549,7 +549,8 @@ janus({ ..., secondFactor: { issuer: 'Acme', keys, challenge: '10m' } });
 the code that signs the user in, by the fifth wrong code, by a refusal
 that ends it (`TOKEN_STALE`, `USER_INACTIVE`), and by the next `request` for
 the same user: only the last code sent works, so a visitor who asked twice
-and typed the first code gets `TOKEN_SPENT`. `TOKEN_UNKNOWN` also covers a
+and typed the first code gets `TOKEN_SPENT` — and when two requests race,
+even the last code can be spent: at most one survives, sometimes none. `TOKEN_UNKNOWN` also covers a
 challenge whose user was deleted, one confirmed through another user type's
 `signInCode`, the decoy challenge of a `request` that answered `null`, and
 the two arguments swapped. Another type's `confirm` compares no code, but it
