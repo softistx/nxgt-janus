@@ -5,17 +5,7 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **A PostgreSQL adapter** — in a package of its own, `@nxgt/janus-drizzle`,
-  on Drizzle: both sides over one database, the tables in your own drizzle-kit
-  migrations. Built, not yet published.
-- **Tracing and an audit trail** — in a package of its own,
-  `@nxgt/janus-telemetry`: a span per flow and per permission check, and the
-  security events worth keeping, never a login, a password, a session token
-  or a one-time token. Built, not yet published.
-- **A Redis adapter for sessions and one-time tokens** — in a package of its
-  own, `@nxgt/janus-redis`: both are read on every request and ephemeral, so
-  they live in Redis, expired by Redis itself, while users stay in another
-  store. Built, not yet published.
+Nothing yet.
 
 ## Next
 
@@ -94,23 +84,34 @@ dates here, and the version something shipped in is the only number.
 
 The first public release, v0.1.
 
+- **The adapters and the kit, each at its first release, v0.1.0** —
+  [`@nxgt/janus-drizzle`](https://www.npmjs.com/package/@nxgt/janus-drizzle),
+  both sides over one PostgreSQL database on Drizzle;
+  [`@nxgt/janus-redis`](https://www.npmjs.com/package/@nxgt/janus-redis),
+  sessions and one-time tokens in Redis, expired by Redis itself;
+  [`@nxgt/janus-telemetry`](https://www.npmjs.com/package/@nxgt/janus-telemetry),
+  a span per flow and per permission check, and the security events worth an
+  audit trail, never a login, a password, a session token or a one-time token;
+  and [`@nxgt/janus-kit`](https://www.npmjs.com/package/@nxgt/janus-kit), all
+  of it wired in one call.
+
 - **The model's keys read `related` and `permits`** — Keto's OPL words: an
   object type declares `related: { members: ['staff', 'team#members'] }` and
   `permits: { view: ['members'] }`, and relation names are plural by convention. Breaking:
   `relations` and `permissions` as keys are refused, by the compiler and by
   `defineModel`, with a message naming the new key —
   `types.team.relations is now related: rename the key`. The `permissions()`
-  function and `janus({ relations })` keep their names. — next minor
+  function and `janus({ relations })` keep their names. — v0.2.0
 - **`LOGIN_TAKEN` no longer quotes the login in its message**, in the memory
   store and in both adapters; `error.login` still names it, and the
-  conformance suite checks it. — next patch
+  conformance suite checks it. — v0.2.0
 - **The conformance suite accepts a store with its own expiry** — a store
   that drops a lapsed session at once, as a Redis TTL does, passes
-  `sessions.deleteUser`; one that still holds it must count it. — next patch
+  `sessions.deleteUser`; one that still holds it must count it. — v0.2.0
 - **A NUL character or a lone surrogate never reaches a store** — refused in
   fields with `USER_INVALID` on every adapter, rather than `STORE_FAILED` on
   PostgreSQL alone; a login holding one is nobody's. The conformance suite
-  holds every adapter to round-tripping every other character. — next patch
+  holds every adapter to round-tripping every other character. — v0.2.1
 
 - **A Hono integration** — [`@nxgt/janus-hono`](https://www.npmjs.com/package/@nxgt/janus-hono):
   the session middleware, the cookie, a route guarded by a permission,
