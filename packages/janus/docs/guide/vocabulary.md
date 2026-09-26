@@ -60,7 +60,8 @@ either finds this row.
 | **object** | What a permission is about: `{ type: 'document', id }` | "resource" |
 | **subject** | Who a permission is about: a user, an object, or a subject set | "principal", "actor" |
 | **entity** | `{ type, id }`: a user or an object — a subject that is not a set (`Entity`, `deleteEntity`) | |
-| **subject set** | Everyone holding one relation on one object: `team:t1#members` | "group" — a group is an object with a `members` relation |
+| **subject set** | Everyone holding one relation on one object: `team:t1#members`. On a user type the model also declares as an object type, only `setOf()` makes one | "group" — a group is an object with a `members` relation |
+| **`setOf`** | The function that makes a subject set from a user or an object and a relation: `setOf(bob, 'managers')`. What it answers is a `SetOf` | "groupOf", "setFor" |
 | **relation** | A named link, stored as tuples or read from a field (`fromField`). Declared under `related`, named in the plural: `members`, `doctors` | |
 | **`related`** | The key of an object type that declares its relations: `related: { members: ['staff'] }`. It was `relations` before 0.2, and the old key is refused | "relations" as a key — the word stays for the idea, and for `janus({ relations })` |
 | **holder** | What a relation admits: `'staff'`, or the subject set `'team#members'` | |

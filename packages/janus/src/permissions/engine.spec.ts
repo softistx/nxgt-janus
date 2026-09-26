@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { mintId } from '../ids/id';
+import { setOf } from '../subjects/subject';
 import { permissions } from './engine';
 import { defineModel, fromField, when } from './model';
 import { createMemoryRelations } from './port/memory';
@@ -477,4 +478,122 @@ describe('wiring', () => {
 			permissions({ model, store: createMemoryRelations(), maxDepth: 0 }),
 		).toThrow('maxDepth must be a positive integer');
 	});
+});
+
+describe('a user type that is also an object type', () => {
+	const people = defineModel({
+		subjects: ['staff'],
+		types: {
+			staff: {
+				related: { managers: ['staff', 'staff#managers'] },
+				permits: { edit: ['managers'] },
+			},
+			note: {
+				related: { readers: ['staff', 'staff#managers'] },
+				permits: { read: ['readers'] },
+			},
+		},
+	});
+	const note = () => ({ type: 'note' as const, id: mintId() });
+
+	it('a user is checked as an object, and relations chain through users', async () => {
+		const access = permissions({
+			model: people,
+			store: createMemoryRelations(),
+		});
+		const [ada, bob, cyd] = [staff(), staff(), staff()];
+		await access.grant(ada, 'managers', bob);
+		await access.grant(bob, 'managers', setOf(cyd, 'managers'));
+		const dee = staff();
+		await access.grant(cyd, 'managers', dee);
+
+		expect(await access.can(bob, 'edit', ada)).toBe(true);
+		expect(await access.can(ada, 'edit', bob)).toBe(false);
+		expect(await access.can(dee, 'edit', bob)).toBe(true);
+		expect(await access.can(cyd, 'edit', bob)).toBe(false);
+	});
+
+	it('setOf() grants everyone holding the relation on that user', async () => {
+		const access = permissions({
+			model: people,
+			store: createMemoryRelations(),
+		});
+		const [ada, boss] = [staff(), staff()];
+		const doc = note();
+		await access.grant(ada, 'managers', boss);
+		await access.grant(doc, 'readers', setOf(ada, 'managers'));
+
+		expect(await access.can(boss, 'read', doc)).toBe(true);
+		expect(await access.can(ada, 'read', doc)).toBe(false);
+	});
+
+	it('a user whose fields include relation stays that user', async () => {
+		const access = permissions({
+			model: people,
+			store: createMemoryRelations(),
+		});
+		const [ada, boss] = [staff(), staff()];
+		const doc = note();
+		const withRelation = { ...ada, relation: 'managers' };
+		await access.grant(ada, 'managers', boss);
+		await access.grant(doc, 'readers', withRelation);
+
+		expect(await access.can(ada, 'read', doc)).toBe(true);
+		expect(await access.can(boss, 'read', doc)).toBe(false);
+	});
+
+	it('setOf() on a user type that is no object type is refused', async () => {
+		const access = setup();
+		// The compiler refuses it too: record.viewers admits no set on staff.
+		const call = () =>
+			access.grant(record(), 'viewers', setOf(staff(), 'members') as never);
+
+		expect(call).toThrow(TypeError);
+		expect(call).toThrow(
+			'staff is a user type the model does not declare as an object type',
+		);
+	});
+
+	it('setOf() on an object type is the set it writes', async () => {
+		const access = setup();
+		const [ada, crew] = [staff(), team()];
+		const doc = record();
+		await access.grant(crew, 'members', ada);
+		await access.grant(doc, 'viewers', setOf(crew, 'members'));
+
+		expect(await access.can(ada, 'view', doc, offShift)).toBe(true);
+	});
+});
+
+describe('setOf', () => {
+	it('keeps type and id only, and is frozen', () => {
+		const ada = { ...staff(), email: 'ada@example.com' };
+		const set = setOf(ada, 'managers');
+
+		expect(Object.keys(set).sort()).toEqual(['id', 'relation', 'type']);
+		expect(Object.isFrozen(set)).toBe(true);
+	});
+
+	const refused = [
+		['no entity', null, 'setOf: pass a user or { type, id }, then a relation'],
+		[
+			'an entity without id',
+			{ type: 'staff' },
+			'setOf: pass a user or { type, id }, then a relation',
+		],
+		[
+			'an empty relation',
+			staff(),
+			'setOf: the relation must be a non-empty string',
+		],
+	] as const;
+	for (const [name, entity, message] of refused) {
+		it(`refuses ${name}`, () => {
+			const relation = name === 'an empty relation' ? '' : 'managers';
+			const call = () => setOf(entity as never, relation);
+
+			expect(call).toThrow(TypeError);
+			expect(call).toThrow(message);
+		});
+	}
 });

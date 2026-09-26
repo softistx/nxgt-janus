@@ -182,8 +182,6 @@ the key you wrote, `types.record.permits.view` or `types.team.related.members`:
 - `relations` or `permissions` — the keys before 0.2 — and any key other than
   `related` and `permits`;
 - a name that is not camelCase;
-- an object type named like a user type — see
-  [permissions on a user](#permissions-on-a-user);
 - a permission that reaches itself without crossing a relation (`view:
   ['edit'], edit: ['view']`) — no data could ever end that loop;
 - a subject set or an arrow that would have to read **another** object's
@@ -196,8 +194,8 @@ fine: the data ends it. See [a hierarchy](#a-hierarchy).
 ## Use cases
 
 Each case below runs against the clinic above, in order — except the two that
-say otherwise: a folder tree for a hierarchy, and an `account` for
-permissions on a user.
+say otherwise: a folder tree for a hierarchy, and staff members who manage
+each other for permissions on a user.
 
 ### A direct relation
 
@@ -230,6 +228,10 @@ await access.grant(cardiology, 'members', grace);
 await access.grant(team, 'members', { type: 'team', id: 't2', relation: 'members' });
 await access.can(grace, 'view', team); // true: grace is a member of t2, whose members are members of t1
 ```
+
+`setOf(cardiology, 'members')`, from `@nxgt/janus`, writes the same set. On an
+object type the two are the same; on a user type only `setOf` makes a set —
+see [permissions on a user](#permissions-on-a-user).
 
 The set is followed as the data stands: revoke grace from `t2`, and she no
 longer views `t1`. A team member of itself — a cycle in the data — is cut, and
@@ -347,22 +349,28 @@ await access.list(grace, 'edit', 'record', { ctx: { onShift: true } });
 
 ### Permissions on a user
 
-A user type cannot also be an object type: `defineModel` refuses `staff` in
-`types` — `"staff" names a user type and an object type`. To decide who may
-edit a staff member's account, declare an object type **whose id is the
-user's id**, and read it with `fromField('id', …)`:
+A user type may also be an object type: declare `staff` under `types`, and a
+staff member is an object like a record — asked `can()`, granted relations,
+listed. To decide who may edit a staff member, give `staff` the relations that
+say so:
 
 ```ts
-const accounts = permissions({
+import { setOf } from '@nxgt/janus';
+
+const people = permissions({
 	model: defineModel({
 		subjects: auth.types,
 		types: {
-			account: {
+			staff: {
 				related: {
 					self: fromField('id', 'staff', { lookup: async (staffId) => [staffId] }),
-					managers: ['staff'],
+					managers: ['staff', 'staff#managers'],
 				},
 				permits: { edit: ['self', 'managers'] },
+			},
+			note: {
+				related: { readers: ['staff', 'staff#managers'] },
+				permits: { read: ['readers'] },
 			},
 		},
 	}),
@@ -370,15 +378,32 @@ const accounts = permissions({
 });
 
 const bob = await auth.staff.create({ username: 'bob' });
-await accounts.can(bob, 'edit', { type: 'account', id: bob.id }); // true: his own account
-await accounts.can(ada, 'edit', { type: 'account', id: bob.id }); // false
-await accounts.grant({ type: 'account', id: bob.id }, 'managers', ada);
-await accounts.can(ada, 'edit', { type: 'account', id: bob.id }); // true: she manages it
-await accounts.list(ada, 'edit', 'account');                      // her own account, and bob's
+await people.can(bob, 'edit', bob);              // true: himself, read from his id
+await people.can(ada, 'edit', bob);              // false
+await people.grant(bob, 'managers', ada);
+await people.can(ada, 'edit', bob);              // true: she manages him
+await people.list(ada, 'edit', 'staff');         // herself, and bob
 ```
 
-The `lookup` answers the one account whose id is the subject's, so `list()`
-finds a user's own account too.
+**A user passed as it is, is that user** — never a set, even when one of its
+fields is named `relation`. A set on a user type is made by **`setOf`**: every
+staff member who manages bob reads the note, and so does whoever manages them,
+as the data stands:
+
+```ts
+await people.grant(note, 'readers', setOf(bob, 'managers'));
+await people.can(ada, 'read', note); // true: she manages bob
+await people.can(bob, 'read', note); // false: bob is not his own manager
+```
+
+`{ type: 'staff', id: bob.id, relation: 'managers' }` written out is a compile
+error, and at run time still bob himself: only `setOf` marks a set. It copies
+`type` and `id` only, so none of bob's fields reaches a tuple. On a user type
+the model does not also declare under `types`, `setOf` is refused: there is no
+relation to hold.
+
+The `lookup` of `self` answers the one staff member whose id is the subject's,
+so `list()` finds a user themself too.
 
 ## `permissions()`
 

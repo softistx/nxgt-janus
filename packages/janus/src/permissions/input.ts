@@ -1,6 +1,6 @@
 /** Reading what a caller passed to `can()`, `list()`, `grant()` and `revoke()`. */
 
-import type { Subject } from '../subjects/subject';
+import { madeBySetOf, type Subject } from '../subjects/subject';
 import { admits, type ResolvedModel, type ResolvedObjectType } from './resolve';
 
 /** What no part of an id may hold: the notation would read it two ways. */
@@ -59,8 +59,10 @@ export function objectOf(
  * object, and `{ type, id, relation }` for a subject set.
  *
  * Decided by the type, not the shape: a user's fields are flat on it, and one
- * named `relation` must not make a user read as a set. A user type is never a
- * set; an object type is one when `relation` is given.
+ * named `relation` must not make a user read as a set. A value of a user type
+ * is that user — unless `setOf()` made it, the one way to write a set on a user
+ * type the model also declares as an object type. A value of an object type is
+ * a set when `relation` is given.
  */
 export function subjectOf(
 	model: ResolvedModel,
@@ -73,7 +75,15 @@ export function subjectOf(
 		);
 	}
 	const id = idOf(value.id, 'the subject id', where);
-	if (model.subjects.has(value.type)) return { type: value.type, id };
+	const isSet = madeBySetOf(value);
+	if (model.subjects.has(value.type) && !isSet) {
+		return { type: value.type, id };
+	}
+	if (isSet && !model.types.has(value.type)) {
+		throw new TypeError(
+			`${where}: ${value.type} is a user type the model does not declare as an object type, so ${value.type}:${id}#${String(value.relation)} is no subject set`,
+		);
+	}
 
 	const type = typeOf(model, value.type, where);
 	if (typeof value.relation !== 'string') return { type: type.name, id };

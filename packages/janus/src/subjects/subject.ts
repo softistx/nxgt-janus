@@ -82,3 +82,65 @@ export function subjectOf(user: {
 }): Entity {
 	return { type: user.type, id: user.id };
 }
+
+declare const madeBySetOfBrand: unique symbol;
+
+/**
+ * A subject set `setOf()` made: everyone who holds `relation` on `type:id`.
+ *
+ * Marked, because a user is passed to `can()` and `grant()` as it is, fields
+ * flat on it: a user whose fields include `relation` must stay that user, and
+ * never read as the set of whoever holds that relation on them. For an object
+ * type, `{ type, id, relation }` is a set as written; for a user type — one
+ * the model also declares as an object type — only `setOf()` makes one.
+ */
+export type SetOf<
+	Type extends string = string,
+	Relation extends string = string,
+> = SubjectSet & {
+	readonly type: Type;
+	readonly relation: Relation;
+	readonly [madeBySetOfBrand]: true;
+};
+
+/**
+ * A user or an object, never a set `setOf()` made: where a relation admits
+ * `staff` but not `staff#managers`, a set passed there is refused at compile
+ * time as it is at run time.
+ */
+export type NotASet = { readonly [madeBySetOfBrand]?: never };
+
+const MADE = new WeakSet<object>();
+
+/**
+ * Everyone who holds `relation` on this user or object — `staff:s1#managers`.
+ *
+ * ```ts
+ * await access.grant(record, 'viewers', setOf(ada, 'managers'));
+ * ```
+ *
+ * Copies `type` and `id` only, like {@link subjectOf}: none of a user's own
+ * fields reaches a tuple.
+ */
+export function setOf<const Type extends string, const Relation extends string>(
+	entity: { readonly type: Type; readonly id: SubjectId },
+	relation: Relation,
+): SetOf<Type, Relation> {
+	if (
+		typeof entity !== 'object' ||
+		entity === null ||
+		typeof entity.type !== 'string' ||
+		typeof entity.id !== 'string'
+	) {
+		throw new TypeError('setOf: pass a user or { type, id }, then a relation');
+	}
+	if (typeof relation !== 'string' || relation === '') {
+		throw new TypeError('setOf: the relation must be a non-empty string');
+	}
+	const set = Object.freeze({ type: entity.type, id: entity.id, relation });
+	MADE.add(set);
+	return set as unknown as SetOf<Type, Relation>;
+}
+
+/** Whether `setOf()` made this value. */
+export const madeBySetOf = (value: object): boolean => MADE.has(value);

@@ -202,9 +202,10 @@ request handler should ever answer one, so no handler needs to tell it apart.
 ### Subjects
 
 ```ts
-import { type Subject, subjectOf, formatTuple, parseTuple, isSubjectSet } from '@nxgt/janus';
+import { type Subject, subjectOf, setOf, formatTuple, parseTuple, isSubjectSet } from '@nxgt/janus';
 
 subjectOf(user);                        // { type: 'staff', id: '…' }: the user IS the subject
+setOf(user, 'managers');                // { type: 'staff', id: '…', relation: 'managers' }: everyone who manages them
 formatTuple({
   object: { type: 'record', id: 'r1' },
   relation: 'members',
@@ -216,7 +217,13 @@ parseTuple('team:t1#members@staff:u1'); // the RelationTuple back
 
 `formatEntity`, `formatSubject` and `parseSubject` do the same for one part,
 and `isSubjectSet` tells `{ type, id, relation }` from `{ type, id }`. The
-types are `Entity`, `SubjectSet`, `Subject` (either) and `RelationTuple`.
+types are `Entity`, `SubjectSet`, `Subject` (either), `SetOf` (what `setOf`
+answers) and `RelationTuple`.
+
+A user passed as it is, is that user, even with a field named `relation`:
+**`setOf` is the one way to write a set on a user type** the model also
+declares as an object type — `grant(note, 'readers', setOf(bob, 'managers'))`.
+On an object type, `{ type, id, relation }` written out is a set too.
 
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
@@ -628,7 +635,7 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Ninety plausible mistakes, ninety refused at compile time — and
+**Ninety-three plausible mistakes, ninety-three refused at compile time — and
 one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -636,7 +643,7 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
-`janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-one, on the
+`janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-four, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

@@ -576,6 +576,7 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: the subject must be a user, or { type, id }` | Pass the user from `janus()`, or `{ type, id }`. `null` is anonymous and answers `false`. |
 | `<call>: the object id must be a non-empty string without @, # or parentheses` | Also for `the subject id`. Those characters belong to the tuple notation. |
 | `<call>: "<relation>" is not a relation of <type>, so <type>:<id>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'members' }`. |
+| `<call>: <type> is a user type the model does not declare as an object type, so <type>:<id>#<relation> is no subject set` | `setOf(user, relation)` names a relation the user holds as an object: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
 | `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. |
 | `list: the type must be an object type of the model` | The third argument is a type name: `'record'`. |
 | `list: after must be the nextCursor of a page, or null` | Pass `nextCursor` back as it came. |
@@ -594,7 +595,6 @@ most common:
 | `defineModel: types declares no object type` | Declare at least one type under `types`. |
 | `defineModel: types.<type> must be an object` | Also `types.<type>.related must be an object` and `types.<type>.permits must be an object`: each is keyed by name — `related: { members: ['staff'] }`. |
 | `defineModel: the object type "<name>" must be a camelCase name — letters and digits, starting with a lowercase letter` | Also `types.<type>.related: "<name>" must be a camelCase name — …` for a relation, and `types.<type>.permits: …` for a permission. |
-| `defineModel: "<name>" names a user type and an object type; a subject of type "<name>" would be ambiguous` | Rename the object type. For permissions on a user, see [the guide](guide/permissions.md#permissions-on-a-user). |
 | `defineModel: types.<type>: "<name>" names a relation and a permission; rename one` | One name, one meaning. |
 | `defineModel: types.<type>.related.<relation> must be a non-empty array of subject types, or fromField()` | `members: ['staff']`, or `doctors: fromField('doctorId', 'staff')`. |
 | `defineModel: types.<type>.related.<relation>: "<holder>" is not a subject type` | Also `"<holder>" is not a subject set — it must name an object type and one of its relations`: `'team#members'`, a declared type and one of its relations. |
@@ -632,6 +632,21 @@ import { parseTuple } from '@nxgt/janus';
 
 parseTuple('record:r1#teams@team:t1');
 parseTuple('team:t1#members@team:t2#members');
+```
+
+### `setOf: pass a user or { type, id }, then a relation`
+
+Also `setOf: the relation must be a non-empty string`.
+
+**When:** `setOf(...)`, a `TypeError`.
+**Why:** a set is everyone holding one relation on one user or object: it needs both.
+**Fix:**
+
+```ts
+import { setOf } from '@nxgt/janus';
+
+setOf(bob, 'managers');                          // a user from janus()
+setOf({ type: 'team', id: 't1' }, 'members');    // an object
 ```
 
 ---

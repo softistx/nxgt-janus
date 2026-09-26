@@ -22,6 +22,7 @@
  */
 
 import type { CursorPage } from '../pagination/cursor-page';
+import type { NotASet, SetOf } from '../subjects/subject';
 import { type ResolvedModel, resolveModel } from './resolve';
 
 // ─── The two building blocks ──────────────────────────────────────────────
@@ -482,17 +483,21 @@ export type GrantableOf<
 
 /**
  * Who may be granted relation `R` on an object of type `T`: an entity of each
- * subject type it names, and a subject set for each set it names.
+ * subject type it names, and a subject set for each set it names — made by
+ * `setOf()` when the set is on a user type, since a user passed as it is stays
+ * that user.
  */
 export type HolderOf<C extends ModelConfig, T extends ObjectTypeOf<C>, R> =
 	RelationDefOf<TypesOf<C>, T, R> extends readonly (infer E)[]
 		? E extends `${infer SetType}#${infer SetRelation}`
-			? {
-					readonly type: SetType;
-					readonly id: string;
-					readonly relation: SetRelation;
-				}
-			: { readonly type: E; readonly id: string }
+			? SetType extends UserTypeOf<C>
+				? SetOf<SetType, SetRelation>
+				: {
+						readonly type: SetType;
+						readonly id: string;
+						readonly relation: SetRelation;
+					}
+			: { readonly type: E; readonly id: string } & NotASet
 		: never;
 
 /** Writes one tuple, or removes it: typed like `can()`. */
@@ -637,8 +642,9 @@ const RESOLVED = new WeakMap<object, ResolvedModel>();
  * ```
  *
  * Refuses with a `TypeError` what only running it can see: a name that is not
- * camelCase, an object type named like a user type, a permission that reaches
- * itself without crossing a relation — which no data could ever end.
+ * camelCase, a permission that reaches itself without crossing a relation —
+ * which no data could ever end. A user type may also be an object type: its
+ * users are then objects too, and a set on it is written with `setOf()`.
  */
 export function defineModel<
 	const Subjects extends readonly string[],
