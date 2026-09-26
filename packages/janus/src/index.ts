@@ -61,6 +61,7 @@ export {
 } from './subjects/notation';
 export {
 	type Entity,
+	isSetOf,
 	isSubjectSet,
 	type RelationTuple,
 	type SetOf,

@@ -83,7 +83,13 @@ export function subjectOf(user: {
 	return { type: user.type, id: user.id };
 }
 
-declare const madeBySetOfBrand: unique symbol;
+/**
+ * The mark `setOf()` puts on a set: a symbol property, so it survives a spread
+ * and `Object.assign`, and no value read from a database or from JSON can
+ * carry it. Registered with `Symbol.for`, so two copies of this module — two
+ * bundles, two entry points — still agree on it.
+ */
+const SET_OF: unique symbol = Symbol.for('@nxgt/janus/setOf');
 
 /**
  * A subject set `setOf()` made: everyone who holds `relation` on `type:id`.
@@ -93,6 +99,10 @@ declare const madeBySetOfBrand: unique symbol;
  * never read as the set of whoever holds that relation on them. For an object
  * type, `{ type, id, relation }` is a set as written; for a user type — one
  * the model also declares as an object type — only `setOf()` makes one.
+ *
+ * A spread keeps the mark. `JSON.stringify` and `structuredClone` drop it:
+ * through either, a set comes back as a user — call `setOf()` again, or
+ * `parseSubject()` on its notation.
  */
 export type SetOf<
 	Type extends string = string,
@@ -100,7 +110,7 @@ export type SetOf<
 > = SubjectSet & {
 	readonly type: Type;
 	readonly relation: Relation;
-	readonly [madeBySetOfBrand]: true;
+	readonly [SET_OF]: true;
 };
 
 /**
@@ -108,9 +118,7 @@ export type SetOf<
  * `staff` but not `staff#managers`, a set passed there is refused at compile
  * time as it is at run time.
  */
-export type NotASet = { readonly [madeBySetOfBrand]?: never };
-
-const MADE = new WeakSet<object>();
+export type NotASet = { readonly [SET_OF]?: never };
 
 /**
  * Everyone who holds `relation` on this user or object — `staff:s1#managers`.
@@ -137,10 +145,22 @@ export function setOf<const Type extends string, const Relation extends string>(
 	if (typeof relation !== 'string' || relation === '') {
 		throw new TypeError('setOf: the relation must be a non-empty string');
 	}
-	const set = Object.freeze({ type: entity.type, id: entity.id, relation });
-	MADE.add(set);
-	return set as unknown as SetOf<Type, Relation>;
+	return Object.freeze({
+		type: entity.type,
+		id: entity.id,
+		relation,
+		[SET_OF]: true as const,
+	});
 }
 
-/** Whether `setOf()` made this value. */
-export const madeBySetOf = (value: object): boolean => MADE.has(value);
+/**
+ * Whether `setOf()` made this value, or a spread of one — what `can()` and
+ * `grant()` read to tell a set on a user type from a user.
+ */
+export function isSetOf(value: unknown): value is SetOf {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		(value as { readonly [SET_OF]?: unknown })[SET_OF] === true
+	);
+}

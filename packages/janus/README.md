@@ -217,16 +217,17 @@ parseTuple('team:t1#members@staff:u1'); // the RelationTuple back
 
 `formatEntity`, `formatSubject` and `parseSubject` do the same for one part,
 and `isSubjectSet` tells `{ type, id, relation }` from `{ type, id }` by
-shape alone — on a user type, pass the value through `subjectOf` first, which
-reads it as `can()` and `grant()` do. The
-types are `Entity`, `SubjectSet`, `Subject` (either), `SetOf` (what `setOf`
-answers) and `RelationTuple`.
+shape alone: pass a user through `subjectOf` first, so a field named
+`relation` does not read as a set. `isSetOf` answers whether `setOf` made a
+value — what `can()` and `grant()` read on a user type. The types are
+`Entity`, `SubjectSet`, `Subject` (either), `SetOf` (what `setOf` answers) and
+`RelationTuple`.
 
 A user passed as it is, is that user, even with a field named `relation`:
 **`setOf` is the one way to write a set on a user type** the model also
 declares as an object type — `grant(note, 'readers', setOf(bob, 'managers'))`.
 On an object type, `{ type, id, relation }` written out is a set too.
-
+`parseSubject` and `parseTuple` answer a set as `setOf` makes it.
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
 Here it is a type and a one-line function — and that shared vocabulary is the
@@ -550,7 +551,9 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 `{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
 even with a field named `relation`. The compiler refuses the written-out set
 where the relation admits one; from JavaScript it grants that user, silently.
-`grant(note, 'readers', setOf(bob, 'managers'))`.
+`grant(note, 'readers', setOf(bob, 'managers'))`. A spread of a set is still
+the set; **through `JSON` or `structuredClone` it comes back as the user** —
+call `setOf` again, or `parseSubject` on its notation (`staff:u1#managers`).
 
 **Narrowing a model hides stored tuples; it does not delete them.** A tuple
 the model no longer admits grants nothing, and `revoke()` refuses it — remove
@@ -647,7 +650,7 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**Ninety-three plausible mistakes, ninety-three refused at compile time — and
+**Ninety-four plausible mistakes, ninety-four refused at compile time — and
 one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -655,7 +658,7 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (fifteen, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
-`janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-four, on the
+`janus()`, from the point of view of the application) and `test/types/permissions.ts` (forty-five, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

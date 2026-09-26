@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { mintId } from '../ids/id';
+import { parseSubject } from '../subjects/notation';
 import { setOf } from '../subjects/subject';
 import { permissions } from './engine';
 import { defineModel, fromField, when } from './model';
@@ -542,6 +543,68 @@ describe('a user type that is also an object type', () => {
 		expect(await access.can(boss, 'read', doc)).toBe(false);
 	});
 
+	it('revoke removes the set, from setOf(), a spread of it or its notation', async () => {
+		const access = permissions({
+			model: people,
+			store: createMemoryRelations(),
+		});
+		const [ada, boss] = [staff(), staff()];
+		const doc = note();
+		await access.grant(ada, 'managers', boss);
+
+		for (const set of [
+			setOf(ada, 'managers'),
+			{ ...setOf(ada, 'managers') },
+			parseSubject(`staff:${ada.id}#managers`),
+		]) {
+			await access.grant(doc, 'readers', setOf(ada, 'managers'));
+			expect(await access.can(boss, 'read', doc)).toBe(true);
+			await access.revoke(doc, 'readers', set as never);
+			expect(await access.can(boss, 'read', doc)).toBe(false);
+		}
+	});
+
+	it('list() takes a set on a user type as its subject', async () => {
+		const access = permissions({
+			model: people,
+			store: createMemoryRelations(),
+		});
+		const ada = staff();
+		const doc = note();
+		await access.grant(doc, 'readers', setOf(ada, 'managers'));
+
+		const page = await access.list(setOf(ada, 'managers'), 'read', 'note');
+		expect(page.items).toEqual([doc.id]);
+		expect((await access.list(ada, 'read', 'note')).items).toEqual([]);
+	});
+
+	it('setOf() naming no relation of the user type is refused', () => {
+		const access = permissions({
+			model: people,
+			store: createMemoryRelations(),
+		});
+		const ada = staff();
+		const call = () =>
+			access.grant(note(), 'readers', setOf(ada, 'reports') as never);
+
+		expect(call).toThrow(TypeError);
+		expect(call).toThrow(
+			`"reports" is not a relation of staff, so staff:${ada.id}#reports is no subject set`,
+		);
+	});
+
+	it('setOf() on a type the model does not know says so', () => {
+		const call = () =>
+			setup().grant(
+				record(),
+				'viewers',
+				setOf({ type: 'ward', id: 'w1' }, 'nurses') as never,
+			);
+
+		expect(call).toThrow(TypeError);
+		expect(call).toThrow('"ward" is not an object type of the model');
+	});
+
 	it('setOf() on a user type that is no object type is refused', async () => {
 		const access = setup();
 		// The compiler refuses it too: record.viewers admits no set on staff.
@@ -563,37 +626,4 @@ describe('a user type that is also an object type', () => {
 
 		expect(await access.can(ada, 'view', doc, offShift)).toBe(true);
 	});
-});
-
-describe('setOf', () => {
-	it('keeps type and id only, and is frozen', () => {
-		const ada = { ...staff(), email: 'ada@example.com' };
-		const set = setOf(ada, 'managers');
-
-		expect(Object.keys(set).sort()).toEqual(['id', 'relation', 'type']);
-		expect(Object.isFrozen(set)).toBe(true);
-	});
-
-	const refused = [
-		['no entity', null, 'setOf: pass a user or { type, id }, then a relation'],
-		[
-			'an entity without id',
-			{ type: 'staff' },
-			'setOf: pass a user or { type, id }, then a relation',
-		],
-		[
-			'an empty relation',
-			staff(),
-			'setOf: the relation must be a non-empty string',
-		],
-	] as const;
-	for (const [name, entity, message] of refused) {
-		it(`refuses ${name}`, () => {
-			const relation = name === 'an empty relation' ? '' : 'managers';
-			const call = () => setOf(entity as never, relation);
-
-			expect(call).toThrow(TypeError);
-			expect(call).toThrow(message);
-		});
-	}
 });

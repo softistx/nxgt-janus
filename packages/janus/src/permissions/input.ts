@@ -1,6 +1,6 @@
 /** Reading what a caller passed to `can()`, `list()`, `grant()` and `revoke()`. */
 
-import { madeBySetOf, type Subject } from '../subjects/subject';
+import { isSetOf, type Subject } from '../subjects/subject';
 import { admits, type ResolvedModel, type ResolvedObjectType } from './resolve';
 
 /** What no part of an id may hold: the notation would read it two ways. */
@@ -75,11 +75,10 @@ export function subjectOf(
 		);
 	}
 	const id = idOf(value.id, 'the subject id', where);
-	const isSet = madeBySetOf(value);
-	if (model.subjects.has(value.type) && !isSet) {
-		return { type: value.type, id };
-	}
-	if (isSet && !model.types.has(value.type)) {
+	const isUserType = model.subjects.has(value.type);
+	const isSet = isSetOf(value);
+	if (isUserType && !isSet) return { type: value.type, id };
+	if (isUserType && isSet && !model.types.has(value.type)) {
 		throw new TypeError(
 			`${where}: ${value.type} is a user type the model does not declare as an object type, so ${value.type}:${id}#${String(value.relation)} is no subject set`,
 		);

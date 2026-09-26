@@ -166,7 +166,8 @@ export class Reverse {
 			return found;
 		}
 		for (const holder of through.holders) {
-			// An arrow follows entities; a user type holds no permission.
+			// An arrow follows entities of an object type — a user type too, when
+			// the model also declares it under types.
 			if (holder.kind !== 'type' || !this.model.types.has(holder.type)) {
 				continue;
 			}

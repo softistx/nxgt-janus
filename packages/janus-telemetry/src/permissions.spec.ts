@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { setOf } from '@nxgt/janus';
 import {
 	createMemoryRelations,
 	defineModel,
@@ -83,6 +84,32 @@ describe('instrumentPermissions()', () => {
 				'janus.allowed'
 			],
 		).toBe(true);
+	});
+
+	it('records a subject as permissions() reads it: a set only when it is one', async () => {
+		const access = instrumentPermissions(
+			permissions({
+				model: defineModel({
+					subjects: ['staff'],
+					types: {
+						staff: { related: { managers: ['staff'] } },
+						note: { related: { readers: ['staff', 'staff#managers'] } },
+					},
+				}),
+				store: createMemoryRelations(),
+			}),
+		);
+		const note = { type: 'note', id: 'n1' } as const;
+		const withRelation = { ...ada, relation: 'managers' };
+		const { logs } = await collect(async () => {
+			await access.grant(note, 'readers', withRelation);
+			await access.grant(note, 'readers', setOf(ada, 'managers'));
+		});
+
+		const subjects = logs
+			.filter((log) => log.name === 'janus.tuple.granted')
+			.map((log) => log.attributes['janus.subject.relation']);
+		expect(subjects).toEqual([undefined, 'managers']);
 	});
 
 	it('counts what list() found', async () => {

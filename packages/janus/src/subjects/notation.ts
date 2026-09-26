@@ -3,6 +3,7 @@ import {
 	isSubjectSet,
 	type RelationTuple,
 	type Subject,
+	setOf,
 } from './subject';
 
 /**
@@ -73,7 +74,11 @@ export function parseTuple(text: string): RelationTuple {
 	return { object: { type, id }, relation, subject: parseSubject(subject) };
 }
 
-/** Reads one subject back: `staff:u1`, or `team:t1#member`. */
+/**
+ * Reads one subject back: `staff:u1`, or `team:t1#member`. A set is answered
+ * as `setOf()` makes it, so `can()` and `grant()` read it as the set it names
+ * on a user type too.
+ */
 export function parseSubject(text: string): Subject {
 	const match = SUBJECT.exec(text);
 
@@ -90,5 +95,5 @@ export function parseSubject(text: string): Subject {
 		string | undefined,
 	];
 
-	return relation === undefined ? { type, id } : { type, id, relation };
+	return relation === undefined ? { type, id } : setOf({ type, id }, relation);
 }

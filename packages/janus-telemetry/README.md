@@ -53,7 +53,7 @@ current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 | `janus.<flow>`, `janus.<type>.<flow>` | `janus.user.type`; `user.id` once the answer names a user; `janus.session.renewed` for `authenticate` |
 | `janus.can` | `janus.subject.type`, `janus.subject.id`, `janus.permission`, `janus.object.type`, `janus.object.id`, and the answer, `janus.allowed` |
 | `janus.list` | the subject, `janus.permission`, `janus.object.type`, and `janus.page.items`, how many it found |
-| `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set |
+| `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set, read as `permissions()` reads it: a user with a field named `relation` is that user, and a set on a user type is one only when `setOf()` made it |
 
 **A refusal is an answer, not a failure.** A wrong password, a taken login, a
 spent token, a denial: the span is `ok`, and a refusal carries

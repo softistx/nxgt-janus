@@ -397,7 +397,10 @@ await people.can(bob, 'read', note); // false: bob is not his own manager
 ```
 
 `{ type: 'staff', id: bob.id, relation: 'managers' }` written out is a compile
-error, and at run time still bob himself: only `setOf` marks a set. It copies
+error, and at run time still bob himself: only `setOf` marks a set. A spread
+of a set keeps the mark; `JSON` and `structuredClone` drop it, so a set read
+back from either is bob again — call `setOf` on it, or keep its notation
+(`staff:…#managers`), which `parseSubject` reads back as the set. It copies
 `type` and `id` only, so none of bob's fields reaches a tuple. On a user type
 the model does not also declare under `types`, `setOf` is refused: there is no
 relation to hold.

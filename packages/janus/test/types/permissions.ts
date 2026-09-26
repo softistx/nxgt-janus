@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Forty-four plausible mistakes, forty-four refused**, each verified to fail for
+ * **Forty-five plausible mistakes, forty-five refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -467,6 +467,9 @@ people.grant(note, 'readers', setOf(staff, 'manager'));
 
 // @ts-expect-error 44. note.owners admits a staff member, not the set of their managers
 people.grant(note, 'owners', setOf(staff, 'managers'));
+
+// @ts-expect-error 45. patient is a user type the model does not declare under types: no set on it
+people.grant(note, 'readers', setOf({ type: 'patient', id: 'p1' }, 'managers'));
 
 async function usersAsObjects() {
 	return [
