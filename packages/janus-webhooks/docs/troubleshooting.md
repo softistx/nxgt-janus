@@ -34,6 +34,7 @@ How the messages are shaped:
 - [`webhooks: retries: a duration in milliseconds must be a finite number above zero`](#webhooks-retries-a-duration-in-milliseconds-must-be-a-finite-number-above-zero)
 - [`webhooks: retries is a list of durations`](#webhooks-retries-is-a-list-of-durations)
 - [`webhooks: retries wait at most 24 days each`](#webhooks-retries-wait-at-most-24-days-each)
+- [`webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.deleted, a userId and a userType`](#webhooks-the-listener-takes-a-user-event--an-id-one-of-usercreated-useremailverified-userpasswordreset-userdeleted-a-userid-and-a-usertype)
 - [`webhooks: an event's occurredAt is a valid Date`](#webhooks-an-events-occurredat-is-a-valid-date)
 - [`verifyWebhook: pass the endpoint's secrets — at least one`](#verifywebhook-pass-the-endpoints-secrets--at-least-one)
 - [`verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more`](#verifywebhook-toleranceseconds-is-a-finite-number-of-seconds-0-or-more)
@@ -225,6 +226,18 @@ durable queue, not in memory — see [the roadmap](roadmap.md#next):
 ```ts
 webhooks({ endpoints, retries: ['1h', '1d', '7d'] });
 ```
+
+### `webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.deleted, a userId and a userType`
+
+**When:** calling the listener yourself, from JavaScript or through a cast,
+with something that is not a user event — a type `janus` never sends
+(`'user.signedIn'`), or an event without its `id`, `userId` or `userType`.
+`janus` itself never hands one over, and TypeScript refuses one.
+**Why:** every receiver's `verifyWebhook` would answer `null` for it, so the
+delivery could only fail on every retry. It is refused at once instead:
+nothing is sent, retried or given up.
+**Fix:** hand the listener only the events `janus({ events })` gives it, or
+rebuild one whole — see the next entry for its `occurredAt`.
 
 ### `webhooks: an event's occurredAt is a valid Date`
 

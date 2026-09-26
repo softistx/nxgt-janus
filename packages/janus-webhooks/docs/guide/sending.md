@@ -100,10 +100,12 @@ variable first, as the first example does. `types` takes the four
 | `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
 | `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, which `setTimeout` would fire at once |
 
-The listener refuses one mistake of its own, the same way: an event whose
-`occurredAt` is not a valid `Date` — only an event rebuilt by hand can be one —
-is `webhooks: an event's occurredAt is a valid Date`, thrown at once. Nothing
-is sent, retried or given up.
+The listener refuses a mistake of its own the same way, thrown at once — only
+an event rebuilt by hand can be one, and every receiver would refuse it:
+`webhooks: the listener takes a user event — …` for a type `janus` never sends
+or a missing `id`, `userId` or `userType`; `webhooks: an event's occurredAt is
+a valid Date` for an `occurredAt` that is not one. Nothing is sent, retried or
+given up.
 
 [Troubleshooting](../troubleshooting.md) has each with its fix.
 

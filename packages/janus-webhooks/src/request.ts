@@ -75,12 +75,24 @@ export function targetOf(endpoint: WebhookEndpoint, where: string): Target {
 }
 
 /**
- * The body of an event, or a `TypeError`: an event rebuilt by hand with an
- * `occurredAt` that is not a date is the caller's mistake, never a failure
- * worth a retry.
+ * The body of an event, or a `TypeError`: an event rebuilt by hand that is
+ * not one — a type janus never sends, a missing id, an `occurredAt` that is
+ * not a date — is the caller's mistake, never a failure worth a retry: every
+ * receiver would refuse it.
  */
 export function bodyFor(event: UserEvent, where: string): string {
-	const at: unknown = event?.occurredAt;
+	const { id, type, userId, userType } = (event ?? {}) as Partial<UserEvent>;
+	if (
+		!isUserEventType(type) ||
+		typeof id !== 'string' ||
+		typeof userId !== 'string' ||
+		typeof userType !== 'string'
+	) {
+		throw new TypeError(
+			`${where}: the listener takes a user event — an id, one of ${USER_EVENT_TYPES.join(', ')}, a userId and a userType`,
+		);
+	}
+	const at: unknown = event.occurredAt;
 	if (!(at instanceof Date) || Number.isNaN(at.getTime())) {
 		throw new TypeError(`${where}: an event's occurredAt is a valid Date`);
 	}

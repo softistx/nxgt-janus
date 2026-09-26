@@ -333,6 +333,16 @@ describe('an event whose body cannot be built', () => {
 		expect(() =>
 			listener({ ...event, occurredAt: new Date(Number.NaN) }),
 		).toThrow("webhooks: an event's occurredAt is a valid Date");
+		for (const wrong of [
+			{ type: 'user.signedIn' },
+			{ id: undefined },
+			{ userId: undefined },
+			{ userType: 42 },
+		]) {
+			expect(() => listener({ ...event, ...wrong } as never)).toThrow(
+				'webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.deleted, a userId and a userType',
+			);
+		}
 		await new Promise((resolve) => setTimeout(resolve, 20));
 		await listener.close();
 
