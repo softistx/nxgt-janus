@@ -14,7 +14,7 @@
     },
     "packages/janus": {
       "name": "@nxgt/janus",
-      "version": "0.8.1",
+      "version": "0.8.2",
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "zod": "^4",
@@ -158,7 +158,7 @@
     },
     "packages/janus-webhooks": {
       "name": "@nxgt/janus-webhooks",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@types/bun": "^1.4.2",
