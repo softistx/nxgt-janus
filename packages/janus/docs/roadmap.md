@@ -28,12 +28,13 @@ dates here, and the version something shipped in is the only number.
   transport that fails throws, like a store — and default templates for
   verification, password reset and one-time codes. The templates are built
   with Maizzle and Tailwind CSS 4 when the package is built — CSS inlined for
-  mail clients — and ship as typed functions: `templates.verifyEmail({ link })`
-  answers `{ subject, html, text }`, every value escaped, a missing or
-  misspelled variable a compile error. No template engine at run time. The
-  defaults are a starting point, not a requirement: replace any one template with your own function of the same
-  shape — built with your own Maizzle project, React Email or a plain string —
-  and keep the defaults for the rest.
+  mail clients — and ship as typed functions:
+  `templates.verifyEmail({ link })` answers `{ subject, html, text }`, every
+  value escaped, a missing or misspelled variable a compile error. No template
+  engine at run time. The defaults are a starting point, not a requirement:
+  replace any one template with your own function of the same shape — built
+  with your own Maizzle project, React Email or a plain string — and keep the
+  defaults for the rest.
 - **Webhooks** — signed HTTP events when something happens to a user
   (created, e-mail verified, password reset, deleted), so another service can
   follow without polling: a signature it can check, retries on failure, and
