@@ -255,11 +255,20 @@ export type ObjectRef<C extends ModelConfig, T extends ObjectTypeOf<C>> = {
 	readonly id: string;
 } & { readonly [F in FieldsOf<C, T>]: string | null };
 
-/** A subject: a user from `janus()` as it is, or an object. */
-export interface SubjectRef<C extends ModelConfig> {
-	readonly type: UserTypeOf<C> | ObjectTypeOf<C>;
-	readonly id: string;
-}
+/**
+ * A subject: a user from `janus()` as it is, an object, or a subject set —
+ * one `setOf()` made on an object type and one of its relations. A set on a
+ * user type the model does not also declare under `types` has no relation to
+ * name, and is refused here as at run time.
+ */
+export type SubjectRef<C extends ModelConfig> =
+	| ({
+			readonly type: UserTypeOf<C> | ObjectTypeOf<C>;
+			readonly id: string;
+	  } & NotASet)
+	| {
+			[T in ObjectTypeOf<C>]: SetOf<T, RelationsOf<TypesOf<C>, T> & string>;
+	  }[ObjectTypeOf<C>];
 
 // ─── The context a check requires ─────────────────────────────────────────
 

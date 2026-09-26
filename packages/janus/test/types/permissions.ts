@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Forty-five plausible mistakes, forty-five refused**, each verified to fail for
+ * **Forty-eight plausible mistakes, forty-eight refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -468,8 +468,17 @@ people.grant(note, 'readers', setOf(staff, 'manager'));
 // @ts-expect-error 44. note.owners admits a staff member, not the set of their managers
 people.grant(note, 'owners', setOf(staff, 'managers'));
 
-// @ts-expect-error 45. patient is a user type the model does not declare under types: no set on it
+// @ts-expect-error 45. note.readers admits a set on staff, never on patient, which the model does not declare under types
 people.grant(note, 'readers', setOf({ type: 'patient', id: 'p1' }, 'managers'));
+
+// @ts-expect-error 46. can() is asked for a set on patient, which the model does not declare under types
+people.can(setOf({ type: 'patient', id: 'p1' }, 'managers'), 'edit', staff);
+
+// @ts-expect-error 47. list() takes the same subjects as can(): no set on patient
+people.list(setOf({ type: 'patient', id: 'p1' }, 'managers'), 'edit', 'staff');
+
+// @ts-expect-error 48. staff has managers, and no relation named nope
+people.can(setOf(staff, 'nope'), 'edit', staff);
 
 async function usersAsObjects() {
 	return [
@@ -479,6 +488,15 @@ async function usersAsObjects() {
 		await people.grant(staff, 'managers', setOf(staff, 'managers')),
 		await people.grant(note, 'readers', setOf(staff, 'managers')),
 		await people.grant(note, 'owners', staff),
+		// A set is a subject of can() and list() too.
+		await people.can(setOf(staff, 'managers'), 'edit', staff),
+		await people.list(setOf(staff, 'managers'), 'edit', 'staff'),
+		await access.can(
+			{ type: 'team', id: 't', relation: 'members' },
+			'view',
+			record,
+			{ ctx: { onShift: true } },
+		),
 		// On an object type, setOf() writes the set a plain object would.
 		await access.grant(
 			record,

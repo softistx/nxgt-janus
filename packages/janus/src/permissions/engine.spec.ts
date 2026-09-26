@@ -589,7 +589,7 @@ describe('a user type that is also an object type', () => {
 
 		expect(call).toThrow(TypeError);
 		expect(call).toThrow(
-			`"reports" is not a relation of staff, so staff:${ada.id}#reports is no subject set`,
+			'"reports" is not a relation of staff, so staff#reports is no subject set',
 		);
 	});
 

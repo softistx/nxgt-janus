@@ -2,6 +2,7 @@ import {
 	type Entity,
 	isSubjectSet,
 	type RelationTuple,
+	type SetOf,
 	type Subject,
 	setOf,
 } from './subject';
@@ -79,7 +80,7 @@ export function parseTuple(text: string): RelationTuple {
  * as `setOf()` makes it, so `can()` and `grant()` read it as the set it names
  * on a user type too.
  */
-export function parseSubject(text: string): Subject {
+export function parseSubject(text: string): Entity | SetOf {
 	const match = SUBJECT.exec(text);
 
 	if (!match) {

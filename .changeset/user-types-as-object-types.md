@@ -10,3 +10,5 @@ A user type may also be an object type. `defineModel` no longer refuses `staff` 
 - A set on a user type the model does not declare under `types` is refused by `can()`, `list()`, `grant()` and `revoke()`, and by the compiler first.
 - `parseSubject` and `parseTuple` now answer a set as `setOf` makes it: frozen and marked. Compare one with `setOf(…)` or through `formatSubject`, not with a plain `{ type, id, relation }`.
 - A set passed where a relation admits only the entity is now refused at compile time, as it already was at run time.
+- `parseSubject` is typed `Entity | SetOf`.
+- The `… is no subject set` messages name the type and the relation, no longer the id: `staff#managers`, never `staff:<id>#managers`, as a message reports a shape and never a value.

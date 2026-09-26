@@ -80,7 +80,7 @@ export function subjectOf(
 	if (isUserType && !isSet) return { type: value.type, id };
 	if (isUserType && isSet && !model.types.has(value.type)) {
 		throw new TypeError(
-			`${where}: ${value.type} is a user type the model does not declare as an object type, so ${value.type}:${id}#${String(value.relation)} is no subject set`,
+			`${where}: ${value.type} is a user type the model does not declare as an object type, so ${value.type}#${String(value.relation)} is no subject set`,
 		);
 	}
 
@@ -88,7 +88,7 @@ export function subjectOf(
 	if (typeof value.relation !== 'string') return { type: type.name, id };
 	if (!type.relations.has(value.relation)) {
 		throw new TypeError(
-			`${where}: "${value.relation}" is not a relation of ${type.name}, so ${type.name}:${id}#${value.relation} is no subject set`,
+			`${where}: "${value.relation}" is not a relation of ${type.name}, so ${type.name}#${value.relation} is no subject set`,
 		);
 	}
 	return { type: type.name, id, relation: value.relation };

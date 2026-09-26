@@ -575,8 +575,8 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: the object must be { type, id, …its fields }` | `{ type: 'record', ...record }`. |
 | `<call>: the subject must be a user, or { type, id }` | Pass the user from `janus()`, or `{ type, id }`. `null` is anonymous and answers `false`. |
 | `<call>: the object id must be a non-empty string without @, # or parentheses` | Also for `the subject id`. Those characters belong to the tuple notation. |
-| `<call>: "<relation>" is not a relation of <type>, so <type>:<id>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'members' }`. |
-| `<call>: <type> is a user type the model does not declare as an object type, so <type>:<id>#<relation> is no subject set` | `setOf(user, relation)` names a relation on that user: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
+| `<call>: "<relation>" is not a relation of <type>, so <type>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'members' }`. |
+| `<call>: <type> is a user type the model does not declare as an object type, so <type>#<relation> is no subject set` | `setOf(user, relation)` names a relation on that user: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
 | `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. |
 | `list: the type must be an object type of the model` | The third argument is a type name: `'record'`. |
 | `list: after must be the nextCursor of a page, or null` | Pass `nextCursor` back as it came. |

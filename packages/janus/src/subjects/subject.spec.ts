@@ -67,6 +67,20 @@ describe('setOf', () => {
 		expect(isSetOf(structuredClone(set))).toBe(false);
 	});
 
+	it('is read from the registered symbol, so two copies of the module agree', () => {
+		const fromAnotherCopy = {
+			type: 'staff',
+			id: 'u1',
+			relation: 'managers',
+			[Symbol.for('@nxgt/janus/setOf')]: true,
+		};
+
+		expect(isSetOf(fromAnotherCopy)).toBe(true);
+		expect(isSetOf({ ...ada, [Symbol('@nxgt/janus/setOf')]: true })).toBe(
+			false,
+		);
+	});
+
 	it('is never read from a user, whatever its fields', () => {
 		expect(isSetOf({ ...ada, relation: 'managers' })).toBe(false);
 		expect(isSetOf(null)).toBe(false);
