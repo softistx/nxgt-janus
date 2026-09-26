@@ -139,7 +139,9 @@ export function sharedApi(context: Context): InternalSharedApi {
 		async signOutEverywhere(user, options) {
 			const id = idOf(user);
 			if (!isId(id)) return 0;
-			return options?.except === undefined
+			// An `except` that is no id this package minted names no session:
+			// every session goes, as it would for an unknown one.
+			return options?.except === undefined || !isId(options.except)
 				? store.sessions.revokeUserSessions(id, clock.now())
 				: store.sessions.revokeUserSessions(id, clock.now(), options.except);
 		},

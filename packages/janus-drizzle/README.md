@@ -139,9 +139,10 @@ and passwords a self-describing hash.
   retried for you. A sign-up and a relation write are idempotent, so retry
   them; an update after a timeout answers `VERSION_CONFLICT` if the first
   attempt landed, so read the user again.
-- **PostgreSQL stores no NUL character, and never sees one.** `@nxgt/janus`
-  refuses `\u0000` and a lone surrogate in fields with `USER_INVALID`, and
-  answers a login holding one as nobody's, before any store is asked.
+- **PostgreSQL stores no NUL character, and a user's fields never hold one.**
+  `@nxgt/janus` refuses `\u0000` and a lone surrogate in fields with
+  `USER_INVALID`, and answers a login holding one as nobody's, before any
+  store is asked.
 - **Columns are `snake_case`.** This follows PostgreSQL's own convention and
   `@nxgt/drizzle`'s columns, so hand-written SQL needs no quotes. The records
   the stores return are camelCase, as everywhere in Janus.

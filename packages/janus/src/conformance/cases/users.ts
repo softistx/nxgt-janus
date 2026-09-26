@@ -44,7 +44,7 @@ export const userStoreCases: readonly ConformanceCase[] = [
 	{
 		id: 'users.edgeCharacters',
 		group,
-		name: 'round-trips every character the core lets through: control characters, U+FFFF and a surrogate pair — a NUL or a lone surrogate never reaches a store',
+		name: 'round-trips every character the core lets through: control characters, U+FFFF and a surrogate pair',
 		async run({ stores }) {
 			const edge = 'a\u0001\u001f\u007f\uFFFF 😀 z';
 			const record = userRecord({

@@ -16,6 +16,7 @@ import {
 } from '../errors/janus-error';
 import { isId, mintId } from '../ids/id';
 import type { RelationStore } from '../permissions/port/types';
+import { isStorable, UNSTORABLE } from '../stores/storable';
 import type { Clock } from '../time/clock';
 import {
 	normalizeEmail,
@@ -121,7 +122,7 @@ export async function validateFields(
 		result.issues === undefined
 			? []
 			: result.issues.map((issue) => ({
-					path: (issue.path ?? []).map(segmentKey),
+					path: storablePrefix((issue.path ?? []).map(segmentKey)),
 					message: issue.message,
 				}));
 
@@ -151,19 +152,6 @@ export async function validateFields(
 	return withoutUndefined((result as { value: unknown }).value) as JsonObject;
 }
 
-/**
- * Whether every store can keep this string. PostgreSQL refuses `\u0000` in
- * `text` and `jsonb`, and a lone surrogate in `jsonb`; MongoDB and the memory
- * store keep both. Refused here, once, so a request that sends one is told
- * `USER_INVALID` on every adapter — not `STORE_FAILED` on one of them, a 503
- * for a database that is up.
- */
-export const isStorable = (value: string): boolean =>
-	!value.includes('\u0000') && value.isWellFormed();
-
-const UNSTORABLE =
-	'holds a NUL character or a lone surrogate, which no store can keep';
-
 /** Pushes an issue for every key and every string no store can keep. */
 function unstorableIn(
 	value: unknown,
@@ -191,6 +179,17 @@ function unstorableIn(
 			}
 		}
 	}
+}
+
+/**
+ * A path up to its first key no store can keep: the path reaches the message,
+ * and a NUL has no business in a log line.
+ */
+function storablePrefix(path: (string | number)[]): (string | number)[] {
+	const cut = path.findIndex(
+		(segment) => typeof segment === 'string' && !isStorable(segment),
+	);
+	return cut === -1 ? path : path.slice(0, cut);
 }
 
 function segmentKey(
@@ -225,7 +224,11 @@ export function emailOf(type: ResolvedType, fields: JsonObject): string | null {
  * and the e-mail, by the e-mail rule — so a user whose login is a username can
  * still be found by the e-mail a reset is requested for.
  */
-export function loginsOf(type: ResolvedType, fields: JsonObject): string[] {
+export function loginsOf(
+	type: ResolvedType,
+	fields: JsonObject,
+	where: string,
+): string[] {
 	const logins = new Set<string>();
 
 	if (type.password !== null) {
@@ -235,7 +238,23 @@ export function loginsOf(type: ResolvedType, fields: JsonObject): string[] {
 				`janus: password.login "${type.password.login}" did not name a string in validated ${type.name} fields — it must name a required string field`,
 			);
 		}
-		logins.add(type.password.normalize(login));
+		const normalized = type.password.normalize(login);
+		// The fields were checked; a function normaliser can still cut a
+		// surrogate pair in half. Refused here, or the user is written with a
+		// login nobody can sign in with — or not written at all, on PostgreSQL.
+		if (!isStorable(normalized)) {
+			const path = [type.password.login];
+			throw new UserInvalidError(
+				`${where}: the fields do not match the ${type.name} schema (1 issue, at ${path.join('.')})`,
+				{
+					issues: [
+						{ path, message: `normalises to a login that ${UNSTORABLE}` },
+					],
+					userType: type.name,
+				},
+			);
+		}
+		logins.add(normalized);
 	}
 
 	const email = emailOf(type, fields);

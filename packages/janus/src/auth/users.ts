@@ -6,6 +6,7 @@ import {
 } from '../errors/janus-error';
 import { isId, mintId } from '../ids/id';
 import { invalidCursor, pageLimit } from '../pagination/cursor-page';
+import { isStorable } from '../stores/storable';
 import { normalizeEmail, type ResolvedType } from './config';
 import {
 	type AnyUser,
@@ -15,7 +16,6 @@ import {
 	findRecord,
 	getRecord,
 	idOf,
-	isStorable,
 	loginsOf,
 	passwordMatches,
 	rehashed,
@@ -77,7 +77,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			schemaVersion: type.schemaVersion,
 			active: active === undefined ? true : active === true,
 			fields,
-			logins: loginsOf(type, fields),
+			logins: loginsOf(type, fields, where),
 			password: hash,
 			emailVerifiedAt: null,
 			version: 0,
@@ -243,7 +243,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 					return {
 						fields,
-						logins: loginsOf(type, fields),
+						logins: loginsOf(type, fields, where),
 						schemaVersion: type.schemaVersion,
 						// A new e-mail is an unproven one.
 						...(emailChanged ? { emailVerifiedAt: null } : {}),
