@@ -24,11 +24,11 @@ dates here, and the version something shipped in is the only number.
   and redeemed by `janus` like the verification and reset tokens today; and
   TOTP, the codes of an authenticator app, as a second factor.
 - **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`: a
-  `Mailer` port you plug your transport into (SMTP, Resend, SES…), and default
-  templates for verification, password reset and one-time codes. The templates
-  are built with Maizzle and Tailwind CSS 4 when the package is built — CSS
+  `Mailer` port you plug your transport into (SMTP, Resend, SES…) — a
+  transport that fails throws, like a store — and default templates for
+  verification, password reset and one-time codes. The templates are built with Maizzle and Tailwind CSS 4 when the package is built — CSS
   inlined for mail clients — and ship as typed functions:
-  `templates.verifyEmail({ name, link })` answers `{ subject, html, text }`,
+  `templates.verifyEmail({ link })` answers `{ subject, html, text }`,
   every value escaped, a missing or misspelled variable a compile error. No
   template engine at run time. The defaults are a starting point, not a
   requirement: replace any one template with your own function of the same
@@ -37,8 +37,9 @@ dates here, and the version something shipped in is the only number.
 - **Webhooks** — signed HTTP events when something happens to a user
   (created, e-mail verified, password reset, deleted), so another service can
   follow without polling: a signature it can check, retries on failure, and
-  the same rule as the audit trail — never a login, a password, a session
-  token or a one-time token in a payload.
+  the same rule as the audit trail — the user named by id, never a login, a
+  password, a session token or a one-time token in a payload, and every key
+  camelCase. Retries that run out are reported, never dropped in silence.
 
 ## Later
 
