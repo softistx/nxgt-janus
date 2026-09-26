@@ -221,8 +221,20 @@ try {
 Five attempts at a million values is a one-in-200,000 chance per challenge.
 Codes sent at once past the fifth attempt are all refused, the right one
 included: the store counts, and nothing reads the count before writing it.
-A new challenge takes a new `request` and a new e-mail — which is why that
-route is the one to rate-limit.
+
+**One code is live per user.** A new `request` spends the challenges sent
+before it, so the code in an earlier e-mail answers `TOKEN_SPENT` — only the
+last one works, and guesses never run against two challenges at once:
+
+```ts
+const first = await auth.signInCode.request(email);
+const second = await auth.signInCode.request(email); // the visitor asked again
+await auth.signInCode.confirm(first.challenge, first.code);   // TOKEN_SPENT
+await auth.signInCode.confirm(second.challenge, second.code); // signed in
+```
+
+A new challenge still takes only a new `request`, and every one sends an
+e-mail — which is why that route is the one to rate-limit.
 
 ### Lifetime
 

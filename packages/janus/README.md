@@ -468,7 +468,7 @@ every user type with a password.
 
 - **`signIn` answers a union once `secondFactor` is configured**:
   `{ status: 'signedIn', user, session, token }`, or
-  `{ status: 'secondFactor', challenge, expiresAt }` for a user whose factor
+  `{ status: 'secondFactor', challenge, expiresAt, userId }` for a user whose factor
   is active. Switch on `status`: reading `token` before that is a compile
   error. Without `secondFactor`, `signIn` answers a session, as before.
 - **A factor is enrolled, then active.** `enroll` answers the secret and its
@@ -642,7 +642,7 @@ describeJanusStores({
 });
 ```
 
-There are 45 cases. They cover:
+There are 48 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -655,12 +655,15 @@ There are 45 cases. They cover:
 - one-time tokens: of twenty concurrent redemptions, exactly one succeeds;
   of twenty concurrent `countAttempt` calls, each answers a distinct count,
   and none is counted once a racing redemption spent the token;
+- spending a user's tokens of one kind — `spendUserTokens` — spends only the
+  unspent ones of that user and kind, and never the same token as a racing
+  redemption;
 - a second-factor challenge, whose address is `''`, kept, counted and spent;
 - a user's second factor: round-trip, kept by a patch that does not name it,
   removed by one that names `null`;
 - deletion: a user's logins are freed, and every session and token of theirs
   goes, with a replay answering `false` or `0` rather than failing;
-- **outages**, one case for each of the twelve methods whose honest answer can
+- **outages**, one case for each of the thirteen methods whose honest answer can
   be "nothing".
 
 The suite imports no test framework and no assertion library. It runs under
@@ -694,8 +697,10 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 
 **Once `secondFactor` is configured, switch on `signIn`'s `status`** — and
 on `signInCode.confirm`'s. A user whose factor is active gets
-`{ status: 'secondFactor', challenge }`, with no `token` and no `session`: an
-e-mailed code proves the e-mail, not the factor.
+`{ status: 'secondFactor', challenge, expiresAt, userId }`, with no `token`
+and no `session`: an e-mailed code proves the e-mail, not the factor.
+`userId` is for your logs and rate limits — answer the visitor the
+challenge alone.
 `if (result.status === 'secondFactor') …` before anything reads them.
 
 **A challenge is a secret, like a session token** — `signIn`'s and
@@ -708,8 +713,9 @@ the code and nothing else.
 the same status, body and cookie: set a random challenge when it answered
 `null`. The code route then still tells a decoy (`TOKEN_UNKNOWN`) from a
 real challenge (`CODE_INVALID`, `attemptsLeft`): answer its refusals alike
-where addresses must stay secret. And rate-limit the request: `janus` issues
-a new code on every call, so without a limit anyone can fill a user's inbox.
+where addresses must stay secret. And rate-limit the request: one code is
+live per user — a new `request` spends the one before — but every call sends
+an e-mail, so without a limit anyone can fill a user's inbox.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`
@@ -829,13 +835,13 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**One hundred and fourteen plausible mistakes, one hundred and fourteen refused at compile time — and
+**One hundred and fifteen plausible mistakes, one hundred and fifteen refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
-`test/types/port.ts` (twenty-one, on the identity stores' port, from the point
+`test/types/port.ts` (twenty-two, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (thirty-one, on
 `janus()`, from the point of view of the application — eight of them on the
 second factor, three on sign-in codes) and `test/types/permissions.ts` (forty-eight, on the

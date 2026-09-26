@@ -77,6 +77,10 @@ secret `@nxgt/janus` has already sealed with your application's key —
 
 `countAttempt` counts an attempt at a code in one `findOneAndUpdate` with
 `$inc`, so twenty concurrent attempts answer twenty distinct counts.
+`spendUserTokens` is one `updateMany` on `{ userId, kind, spentAt: null }`,
+through the index `deleteUserTokens` already reads: each token it spends is
+matched and written in one step, so a racing redemption and it never both
+spend the same one.
 
 ## Traps
 

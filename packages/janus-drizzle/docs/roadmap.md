@@ -36,6 +36,11 @@ Nothing yet.
 
 ## Shipped
 
+- **A user's tokens spent in one statement, v0.3.0** — for `@nxgt/janus`
+  0.7: `spendUserTokens(userId, kind, at)` spends the unspent tokens of one
+  user and kind in one `update`, and passes the three new conformance
+  cases. No migration: it reads the `user_id` column `deleteUserTokens`
+  already filters on.
 - **A second factor on a user, and attempts counted on a token, v0.2.0** —
   for `@nxgt/janus` 0.4: `users` gains the four `second_factor_*` columns,
   `tokens` gains `code_hash` and `attempts`, and `countAttempt` counts an

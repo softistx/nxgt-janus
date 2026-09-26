@@ -522,10 +522,13 @@ answered: `secondFactor.confirm: no such challenge`,
 
 **When:** `secondFactor.confirm(challenge, code)`.
 **Why:** a challenge lives five minutes and takes five codes. It is spent by
-the code that opens the session, by the fifth wrong code, and by a refusal
-that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`). `TOKEN_UNKNOWN`
-also covers a challenge whose user was deleted, and a challenge passed where a
-code was expected — the two arguments swapped.
+the code that opens the session, by the fifth wrong code, by a refusal
+that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`), and by a
+password reset, which ends every sign-in left waiting on its code.
+`TOKEN_UNKNOWN` also covers a challenge whose user was deleted, one
+confirmed through another user type's `secondFactor`, and a challenge passed
+where a code was expected — the two arguments swapped. Another type's
+`confirm` still costs an attempt, and the fifth spends the challenge.
 **Fix:** answer 400 and send the visitor back to sign in, which asks for a new
 code. To give slower visitors more time:
 
@@ -540,15 +543,19 @@ janus({ ..., secondFactor: { issuer: 'Acme', keys, challenge: '10m' } });
 
 **When:** `signInCode.confirm(challenge, code)`.
 **Why:** a challenge lives ten minutes and takes five codes. It is spent by
-the code that signs the user in, by the fifth wrong code, and by a refusal
-that ends it (`TOKEN_STALE`, `USER_INACTIVE`). `TOKEN_UNKNOWN` also covers a
+the code that signs the user in, by the fifth wrong code, by a refusal
+that ends it (`TOKEN_STALE`, `USER_INACTIVE`), and by the next `request` for
+the same user: only the last code sent works, so a visitor who asked twice
+and typed the first code gets `TOKEN_SPENT`. `TOKEN_UNKNOWN` also covers a
 challenge whose user was deleted, one confirmed through another user type's
 `signInCode`, the decoy challenge of a `request` that answered `null`, and
 the two arguments swapped. Another type's `confirm` compares no code and
 spends nothing, but it has already cost one of the challenge's five
 attempts: the attempt is counted before the type is known. The challenge is
-left for its own type, with one attempt fewer.
-**Fix:** answer 400 and offer to send a new code. To give slower inboxes
+left for its own type, with one attempt fewer — and the fifth such call
+spends it, as a fifth wrong code would.
+**Fix:** answer 400 and offer to send a new code — and tell the visitor to
+use the latest e-mail. To give slower inboxes
 more time:
 
 ```ts
@@ -557,8 +564,8 @@ janus({ ..., tokens: { signInCode: '15m' } });
 
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
 
-**When:** `verifyEmail.confirm` or `resetPassword.confirm`, after the user changed their e-mail.
-**Why:** confirming it would verify an address nobody holds any more. The token is spent.
+**When:** `verifyEmail.confirm` or `resetPassword.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
+**Why:** confirming it would verify an address nobody holds any more, or reset a password through one. The token is spent, and nothing is written.
 **Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)`.
 
 ### `INVALID_CURSOR` — `<call>: this cursor was not minted by this store, or was minted for another ordering (<n> characters)`
@@ -626,7 +633,7 @@ each of those entries has a paragraph for it.
 The same for `session` and `user`.
 
 **When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor` — and `signInCode.confirm`'s, on a user type with a password.
-**Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
+**Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt, userId }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
 **Fix:** switch on `status`:
 
 ```ts

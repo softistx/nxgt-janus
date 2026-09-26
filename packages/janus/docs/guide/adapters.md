@@ -133,6 +133,7 @@ interface TokenStore {
 	insertToken(record: TokenRecord): Promise<void>;
 	consumeToken(tokenHash: string, kind: TokenKind, at: Date): Promise<TokenRecord | null>;
 	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
+	spendUserTokens(userId: Id, kind: TokenKind, at: Date): Promise<number>; // the unspent ones only
 	deleteUserTokens(userId: Id): Promise<number>;
 }
 ```
@@ -298,7 +299,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 45: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — twelve of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 48: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — thirteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty

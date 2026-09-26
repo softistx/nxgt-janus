@@ -203,6 +203,7 @@ interface SecondFactorRequired {
 	readonly status: 'secondFactor';
 	readonly challenge: string; // a secret, like a session token
 	readonly expiresAt: Date;   // five minutes from now, by default
+	readonly userId: Id;        // for your logs and rate limits — not for the visitor
 }
 ```
 
@@ -291,6 +292,21 @@ try {
 Five attempts at a million values is a one-in-200,000 chance per password
 guessed right. A new challenge takes a new sign-in, with the password, so the
 attempts are bounded by your sign-in rate limit too.
+
+A call made through **another user type's** API — `auth.staff.secondFactor.confirm`
+for a patient's challenge — answers `TOKEN_UNKNOWN` and compares nothing, but
+its attempt counts all the same: the fifth spends the challenge, as a wrong
+code would.
+
+**A password reset ends the sign-ins left waiting.** `resetPassword.confirm`
+spends every challenge of the user still open, so whoever had the old
+password cannot finish a sign-in they started with it:
+
+```ts
+const result = await auth.signIn({ email, password: oldPassword }); // a challenge
+await auth.resetPassword.confirm(resetToken, newPassword);
+await auth.secondFactor.confirm(result.challenge, code); // TOKEN_SPENT
+```
 
 ### Lifetime
 

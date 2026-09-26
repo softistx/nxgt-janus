@@ -94,17 +94,17 @@ two spans and two events. The `signIn` span says which answer it gave, in
 ```
 POST /sign-in                            server
 └─ janus.signIn                          janus.user.type=user  janus.signIn.status=secondFactor
-     log  janus.signIn.secondFactor      janus.user.type=user
+     log  janus.signIn.secondFactor      janus.user.type=user  user.id=0199…
 
 POST /sign-in/code                       server
 └─ janus.secondFactor.confirm            janus.user.type=user  user.id=0199…
      log  janus.signIn                   user.id=0199…  janus.signIn.secondFactor=true
 ```
 
-The first event carries the user type alone: a challenge names no user, and
-the log would otherwise need the login to say whose it is. The `janus.signIn`
-written by `confirm` names the user, and `janus.signIn.secondFactor: true`
-tells it from a sign-in by password alone.
+The first event names the user by id — the `userId` the challenge answer
+carries — never by the login that was typed. The `janus.signIn` written by
+`confirm` names the user too, and `janus.signIn.secondFactor: true` tells it
+from a sign-in by password alone.
 
 A wrong code is a refusal, so the span stays `ok`, and a warning names the
 user and what the challenge has left:
@@ -162,7 +162,7 @@ is `secondFactor`, the event is `janus.signIn.secondFactor`, and the
 ```
 POST /sign-in/email/code                 server
 └─ janus.signInCode.confirm              janus.user.type=user  janus.signIn.status=secondFactor
-     log  janus.signIn.secondFactor      janus.user.type=user
+     log  janus.signIn.secondFactor      janus.user.type=user  user.id=0199…
 ```
 
 A refused code is the same warning as a second factor's — the attribute

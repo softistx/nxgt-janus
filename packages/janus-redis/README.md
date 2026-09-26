@@ -102,7 +102,9 @@ script.** Redis runs nothing else while a script runs, so `consumeToken`
 spends a token and returns it as it was in one step. Of twenty concurrent
 redemptions, exactly one sees `spentAt: null`. `countAttempt` is one script
 too, `HINCRBY attempts` on an unspent token of the right kind, so twenty
-concurrent attempts at a code answer twenty distinct counts. The scripts are
+concurrent attempts at a code answer twenty distinct counts. `spendUserTokens`
+is one script over the user's set of tokens, so a redemption runs wholly
+before or after it. The scripts are
 sent by SHA (`EVALSHA`), and in full only when Redis has forgotten them after
 a restart, a failover or a `SCRIPT FLUSH`.
 
