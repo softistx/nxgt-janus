@@ -66,7 +66,9 @@ time. A schema is any [Standard Schema](https://standardschema.dev) (Zod 4,
 Valibot, ArkType), and its output must be JSON: a schema that produces a
 `Date` is refused at compile time, because a `Date` round-trips through one
 database and not the next. An optional field left `undefined` is dropped
-before the store sees it.
+before the store sees it. A string or a key holding a NUL character (`\u0000`)
+or a lone surrogate is refused with `USER_INVALID`, on every adapter: no store
+can keep both, PostgreSQL keeps neither.
 
 ## Options
 
@@ -179,7 +181,7 @@ With a `password`, besides:
 | --- | --- | --- |
 | `signUp(fields & { password })` | `{ user, session, token }` | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN` |
 | `signIn({ [login]: string, password })` | `{ user, session, token }` | `CREDENTIALS_INVALID`, `USER_INACTIVE`, `HASH_UNSUPPORTED` |
-| `findByLogin(login)` | the user, or `null`; the login is normalised first | |
+| `findByLogin(login)` | the user, or `null`; the login is normalised first, and one holding a NUL or a lone surrogate is nobody's | |
 | `setPassword(user, password, { ifVersion? })` | the user — an admin's call | `PASSWORD_TOO_SHORT` |
 | `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
 

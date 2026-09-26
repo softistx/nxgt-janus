@@ -185,7 +185,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 37: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 38: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
