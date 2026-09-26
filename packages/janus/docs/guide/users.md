@@ -230,7 +230,7 @@ Deletes the user **with every session and one-time token they had**, and
 every tuple naming them when `relations` is wired. The user goes first, so an
 outage half-way leaves only sessions and tokens that authenticate nobody. It is
 idempotent: calling it again finishes the job. When it deleted the user, it
-sends a [`user.deleted` event](events.md) — once, after the sessions and tokens are gone, and even when an outage interrupts removing them;
+sends a [`user.deleted` event](events.md) — once, after the sessions, tokens and relation tuples are gone, and even when an outage interrupts removing them;
 `create` and `signUp` send `user.created`.
 
 ### Paging every user

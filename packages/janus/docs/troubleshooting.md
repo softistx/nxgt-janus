@@ -954,7 +954,7 @@ process.on('warning', (warning) => {
 
 **Fix:** for the last two, reconcile against the users themselves and treat events as the fast path, not the record: page through `auth.list()` and compare with the receiver's copy — a user it lacks is a missed `user.created`, a user the receiver has that `auth.find` answers `null` for is a missed `user.deleted`, and a user whose `emailVerified` differs is a missed `user.emailVerified`.
 
-A store outage **after** the write does not lose the event: the steps that follow it — the sessions `delete` removes, the sessions a reset revokes — run in a `try`, and the event is sent from its `finally`, whether they succeeded or not.
+A store outage **after** the write does not lose the event. `create`, `signUp` and `signInCode.confirm` send it before the steps that follow; `delete` and `resetPassword.confirm` run theirs — removing the sessions, tokens and tuples; revoking the sessions — in a `try`, and send it from its `finally`, whether they succeeded or not.
 
 ---
 

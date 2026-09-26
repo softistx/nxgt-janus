@@ -90,13 +90,20 @@ const auth = janus({
 });
 ```
 
-**After the flow's own steps**, and **even when one of them fails**: `delete`
-removes the user's sessions and tokens, and `resetPassword.confirm` revokes
-the sessions opened with the old password, before the listener runs — so a
-listener that takes its time never leaves an old session alive. Those steps
-run in a `try`; the event is sent from its `finally`. A store outage there
-fails the call, but the event is sent all the same — a retry could not send
-it, since `delete` then finds nobody and the reset link is spent.
+Where the listener runs within a flow, and what an outage does to it:
+
+| Flow | The listener runs | A store outage after the write |
+| --- | --- | --- |
+| `create`, `signUp` | after the insert, **before** `signUp` opens the session | fails the call; the event is already sent |
+| `verifyEmail.confirm` | after the write — the flow's last step | — |
+| `signInCode.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
+| `resetPassword.confirm` | **after** the sessions opened with the old password are revoked and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
+| `delete` | **after** the user's sessions, one-time tokens and relation tuples are removed | fails the call; the event is sent all the same, from a `finally` |
+
+So a listener that takes its time never leaves an old session alive after a
+reset, and one that checks permissions on `user.deleted` finds the tuples
+gone. A retry could not send a lost event either way: `delete` then finds
+nobody, and the reset link is spent.
 
 `occurredAt` is the write's own time: the `createdAt` or `updatedAt` it
 wrote, the time read just before the deletion — not when the listener ran.

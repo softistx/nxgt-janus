@@ -59,9 +59,10 @@ export function resolveEvents(
 }
 
 /**
- * Hands one event to the listener, once the flow's steps are done — from a
- * `finally` where a step after the write can fail, so an outage there does
- * not lose it for good. Its failure is the application's, not the flow's: warned about, with what
+ * Hands one event to the listener after the write it reports. A flow whose
+ * steps after the write matter to the listener — a reset's revocation, a
+ * deletion's cleanup — runs them in a `try` and emits from its `finally`, so
+ * an outage there does not lose the event for good. Its failure is the application's, not the flow's: warned about, with what
  * it takes to send the event again — never thrown, since the write has landed.
  */
 export async function emit(
