@@ -782,7 +782,7 @@ mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (twenty-one, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth.ts` (twenty-eight, on
-`janus()`, from the point of view of the application — five of them on the
+`janus()`, from the point of view of the application — eight of them on the
 second factor) and `test/types/permissions.ts` (forty-eight, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to

@@ -139,7 +139,7 @@ second factor's challenge, a code or its TOTP secret, the
 sign in with, or use to tell who holds an account. A refused sign-in by
 an unknown login says `janus.refusal.reason: 'unknownLogin'`, not which login
 was tried; only a refusal after the password was right — `USER_INACTIVE`, a second
-factor's `CODE_INVALID` — names the user.
+factor's `CODE_INVALID` or `SECOND_FACTOR_NOT_ENROLLED` — names the user.
 The spec that holds this runs every flow — `enroll`, `activate`, a refused
 and an accepted `confirm` among them — and searches every signal for each of
 them.

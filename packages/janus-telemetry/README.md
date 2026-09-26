@@ -73,7 +73,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.signUp` | info | a user signed up |
 | `janus.signIn` | info | a user signed in — by `signIn`, or by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true` |
 | `janus.signIn.secondFactor` | info | the password was right and a code was asked for: `signIn` answered a challenge. `janus.user.type` only — the answer names no user; the `janus.signIn` of the `confirm` that follows does |
-| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft`, a `TOKEN_*` code, or `SECOND_FACTOR_NOT_ENROLLED` |
+| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft`, a `TOKEN_*` code, `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for one code sent twice at once |
 | `janus.secondFactor.enrolled`, `janus.secondFactor.activated`, `janus.secondFactor.disabled` | info | `enroll`, `activate` and `disable`, with the `user.id` they were called for |
 | `janus.signOut` | info | a session was signed out |
 | `janus.signOutEverywhere` | info | every session of a user was revoked |
@@ -97,7 +97,8 @@ when the flow knows them — `janus.signOut` carries neither:
   with `CREDENTIALS_INVALID` carries the reason and the user type, never the
   login that was tried: rate limiting per login is the application's, from the
   request. Only a refusal after the password was right carries `user.id`:
-  `USER_INACTIVE`, and a second factor's `CODE_INVALID`.
+  `USER_INACTIVE`, and a second factor's `CODE_INVALID` or
+  `SECOND_FACTOR_NOT_ENROLLED`.
 - **A wrong second-factor code is a warning, not a failure.** `CODE_INVALID`
   leaves the `janus.secondFactor.confirm` span `ok`, and writes
   `janus.signIn.refused` with `janus.secondFactor.attemptsLeft`: alert on a

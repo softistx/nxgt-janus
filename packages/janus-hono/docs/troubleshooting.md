@@ -335,7 +335,7 @@ const response = await fetch('/sign-in/code', { method: 'POST', body: JSON.strin
 if (response.status === 401) {
 	const { attemptsLeft } = await response.json();
 	if (attemptsLeft === 0) showSignInForm();
-	else showCodeForm(`Wrong code — ${attemptsLeft} tries left`);
+	else showCodeForm(`Wrong code — ${attemptsLeft} attempts left`);
 }
 ```
 

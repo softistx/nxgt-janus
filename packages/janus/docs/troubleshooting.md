@@ -639,7 +639,7 @@ If the code the user typed is the one their app shows, see the next entry.
 **When:** `activate` or `confirm`, with the code on screen, typed correctly.
 **Why**, in the order to check:
 
-1. **A clock is off.** A code is accepted in its own 30-second step and one step either side. A phone or a server whose clock is more than about 30 seconds away from the real time produces codes outside that window. The window is not configurable.
+1. **A clock is off.** A code is accepted in its own 30-second step and one step either side. A phone or a server whose clock is more than about 30 seconds away from the real time produces codes outside those three steps. How many steps are accepted is not configurable.
 2. **The code was already used** — and so were the codes before it. Once a code is accepted, that code and every earlier one are refused: the user who activates and then signs in within the same 30 seconds, or who signs in twice in a row, must wait for the next code.
 3. **The app holds an older secret.** `enroll` called again before `activate` replaces the secret: an entry scanned from the first `enroll` shows codes for a secret nobody holds any more.
 

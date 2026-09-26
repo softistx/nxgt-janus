@@ -1,7 +1,7 @@
 # The second factor
 
 This page is for turning on a TOTP second factor — the six-digit codes of an
-authenticator app — and wiring its four flows: enrol, activate, confirm at
+authenticator app — and wiring its four flows: enroll, activate, confirm at
 sign-in, disable.
 
 ```ts
@@ -287,7 +287,7 @@ try {
 }
 ```
 
-Five tries at a million values is a one-in-200,000 chance per password
+Five attempts at a million values is a one-in-200,000 chance per password
 guessed right. A new challenge takes a new sign-in, with the password, so the
 attempts are bounded by your sign-in rate limit too.
 
@@ -388,7 +388,7 @@ it (`v1.<key id>.…`), so a rotation is a change of order, not a migration:
    ```
 
    Those users have not signed in since the rotation. Wait longer, or
-   `disable` their factor and have them enrol again.
+   `disable` their factor and have them enroll again.
 
 A key removed too early, or changed under the same id, is a wiring mistake,
 and it surfaces the next time one of those users signs in — as a bare
@@ -488,7 +488,7 @@ export async function confirmSecondFactor(request: Request): Promise<Response> {
 }
 ```
 
-The code route answers `attemptsLeft` so the form can say how many tries are
+The code route answers `attemptsLeft` so the form can say how many attempts are
 left, and nothing else: which of the causes of `CODE_INVALID` it was — a wrong
 code, a reused one — is not the visitor's business.
 

@@ -123,7 +123,7 @@ async function signIn(email: string, password: string): Promise<Response> {
 - **`VERSION_CONFLICT` is a retry**: read the user again, reapply, write with
   the new `version`.
 - **`CODE_INVALID`'s `attemptsLeft`** belongs in the body — the form can say
-  how many tries are left. `0` means the challenge is spent: send the visitor
+  how many attempts are left. `0` means the challenge is spent: send the visitor
   back to the password.
 - **`USER_INVALID`'s `issues`** have the schema's own paths
   (`['address', 'city']`), so a form can show each next to its field.
