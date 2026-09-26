@@ -38,9 +38,6 @@ process.on('SIGTERM', async () => {
 
 ## Install
 
-Not on npm yet: the first release comes once it is reviewed — see
-[the roadmap](docs/roadmap.md).
-
 ```sh
 bun add @nxgt/janus-webhooks @nxgt/janus
 bun add zod # the schema of the examples; any Standard Schema library will do
