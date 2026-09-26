@@ -656,7 +656,7 @@ could not answer: that is a denial made of an outage.
 ## Type safety, counted
 
 **Ninety-seven plausible mistakes, ninety-seven refused at compile time — and
-one gap, named.**
+two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
@@ -678,10 +678,20 @@ permissions and arrows in a rule and in `when`; and in the questions, what
 `can`, `list` and `grant` accept for the object's type. It also checks that a wrong
 name's error lists the names it could have been.
 
-The gap, since a measurement that only reports wins is not a measurement:
-`'30 m'` **satisfies `Duration`**, because TypeScript's `${number}` placeholder
-tolerates trailing whitespace inside the number. `parseDuration` refuses it, and
-`duration.spec.ts` asserts that. It is written down rather than omitted.
+The gaps, since a measurement that only reports wins is not a measurement:
+
+- `'30 m'` **satisfies `Duration`**, because TypeScript's `${number}`
+  placeholder tolerates trailing whitespace inside the number.
+  `parseDuration` refuses it, and `duration.spec.ts` asserts that.
+- **`can()` and `list()` accept `{ type: 'staff', id, relation: 'managers' }`
+  written out** on a user type that is also an object type, and ask about that
+  one user — `grant()` and `revoke()` refuse it (case 42). The anonymous
+  `null` their subject also takes turns off TypeScript's check of the object
+  literal, and a check of its own would refuse a user whose schema has a
+  `relation` field. `engine.spec.ts` asserts the run time reads it as the
+  user. Write the set with `setOf`.
+
+Each is written down rather than omitted.
 
 ## Licence
 

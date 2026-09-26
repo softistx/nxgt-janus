@@ -480,6 +480,11 @@ people.list(setOf({ type: 'patient', id: 'p1' }, 'managers'), 'edit', 'staff');
 // @ts-expect-error 48. staff has managers, and no relation named nope
 people.can(setOf(staff, 'nope'), 'edit', staff);
 
+// A gap, named in the README: can() and list() take null as well, and a union
+// with null turns off the check of an object literal, so this compiles — and
+// asks about the user staff:u1, not the set. grant() and revoke() refuse it (42).
+people.can({ type: 'staff', id: 'u1', relation: 'managers' }, 'edit', staff);
+
 async function usersAsObjects() {
 	return [
 		// A user is the object: its managers edit it.

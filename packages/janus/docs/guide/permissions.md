@@ -396,9 +396,11 @@ await people.can(ada, 'read', note); // true: she manages bob
 await people.can(bob, 'read', note); // false: bob is not his own manager
 ```
 
-`{ type: 'staff', id: bob.id, relation: 'managers' }` written out is a compile
-error, and at run time still bob himself — granted silently where the relation
-admits a staff member, refused where it does not: only `setOf` marks a set. A spread
+Only `setOf` marks a set. `{ type: 'staff', id: bob.id, relation: 'managers' }`
+written out is bob himself at run time: granted silently where the relation
+admits a staff member, refused where it does not. The compiler refuses it in
+`grant()` and `revoke()`; `can()` and `list()` accept it and ask about bob, a
+gap the README names. A spread
 of a set keeps the mark; `JSON` and `structuredClone` drop it, so a set read
 back from either is bob again — call `setOf` on it, or keep its notation
 (`staff:…#managers`), which `parseSubject` reads back as the set. It copies
