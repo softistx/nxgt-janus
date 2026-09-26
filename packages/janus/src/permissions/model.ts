@@ -538,7 +538,7 @@ type Refusal<Text extends string, Expected> = {
 
 /**
  * The same names, spelled out: a union the compiler prints as its members —
- * `"patient" | "staff" | "team#member"` — rather than as the alias that
+ * `"patient" | "staff" | "team#members"` — rather than as the alias that
  * computed it, so an error lists what the name could have been.
  */
 type Spelled<U> = [U] extends [infer V extends string]
@@ -604,7 +604,7 @@ export interface PermissionModel<C extends ModelConfig = ModelConfig> {
 	readonly subjects: readonly UserTypeOf<C>[];
 	/** The object types it declares. */
 	readonly types: readonly ObjectTypeOf<C>[];
-	/** The definition, as written. Frozen. */
+	/** The definition, as written — the very object passed to defineModel. */
 	readonly definition: C;
 }
 

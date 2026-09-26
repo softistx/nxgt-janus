@@ -70,7 +70,7 @@ The first public release, v0.1.
 
 - **The model's keys read `related` and `permits`** — Keto's OPL words: an
   object type declares `related: { members: ['staff', 'team#members'] }` and
-  `permits: { view: ['members'] }`, and relation names are plural. Breaking:
+  `permits: { view: ['members'] }`, and relation names are plural by convention. Breaking:
   `relations` and `permissions` as keys are refused, by the compiler and by
   `defineModel`, with a message naming the new key —
   `types.team.relations is now related: rename the key`. The `permissions()`

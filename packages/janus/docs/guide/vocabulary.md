@@ -103,7 +103,7 @@ interface RelationTuple { readonly object: Entity; readonly relation: string; re
 ```
 
 **Subjects are typed**: `{ type, id }` for one entity, `{ type, id, relation }`
-for a subject set — every `members` of `team:t1`. `type` is the same word as a
+for a subject set — everyone holding `members` on `team:t1`. `type` is the same word as a
 user's own, so a user id and a subject id are the same thing, and
 `subjectOf(user)` is the one-line join between the two sides of the package.
 It copies `type` and `id` only, so none of the user's own fields ever reaches

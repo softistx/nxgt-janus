@@ -599,10 +599,18 @@ most common:
 | `defineModel: types.<type>.related.<relation> must be a non-empty array of subject types, or fromField()` | `members: ['staff']`, or `doctors: fromField('doctorId', 'staff')`. |
 | `defineModel: types.<type>.related.<relation>: "<holder>" is not a subject type` | Also `"<holder>" is not a subject set — it must name an object type and one of its relations`: `'team#members'`, a declared type and one of its relations. |
 | `defineModel: types.<type>.permits.<permission> must be a non-empty array of rules` | `view: ['members']`. |
+| `defineModel: pass { subjects, types }` | From JavaScript: `defineModel` was given something other than an object. |
+| `defineModel: the subject type "<name>" must be a camelCase name` | A user type from `janus()` is always one; check a list of your own. |
+| `defineModel: types.<type>.related.<relation>: fromField names "<name>", which is not a subject type` | `fromField('doctorId', 'staff')`: the second argument is a user type or an object type of the model. |
+| `defineModel: types.<type>.related.<relation>: fromField must name a top-level field` | `fromField('doctorId', …)`, never `'doctor.id'`: the field is read from the object passed to `can()`. |
+| `defineModel: types.<type>.related.<relation>: fromField's lookup must be a function` | `{ lookup: (staffId) => db.records.idsByDoctor(staffId) }`. |
+| `defineModel: types.<type>.related.<relation>: a holder must be a string` | `members: ['staff', 'team#members']`. |
+| `defineModel: types.<type>.permits.<permission>[<i>]: a rule is a name, an arrow, or when()` | `view: ['doctors', 'teams->view', when('doctors', test)]`. |
+| `defineModel: types.<type>.permits.<permission>[<i>]: when() takes a function as its test` | `when('doctors', (ctx: { onShift: boolean }) => ctx.onShift)`. |
 | `defineModel: types.<type>.permits.<permission>[<i>]: "<rule>" is not a relation or a permission of <type>` | Name a relation or a permission the type declares — `'members'`, `'manage'`. |
 | `defineModel: types.<type>.permits: <a> → <b> → <a> is a loop no relation ends` | A permission must cross a relation before it reaches itself again. |
 | `defineModel: … "<rule>" goes through "<relation>", which is not a relation of <type>` | An arrow starts from a relation of the same type: `'teams->view'` needs `teams` under `related`. |
-| `defineModel: … "<rule>" goes through "<relation>", which can hold a subject set; an arrow follows object types only` | An arrow's relation must hold object types: `teams: ['team']`. The compiler refuses it first. |
+| `defineModel: … "<rule>" goes through "<relation>", which can hold a subject set; an arrow follows object types only` — also `which can hold a <user type>` | An arrow's relation must hold object types: `teams: ['team']`. A user has no permissions to follow. The compiler refuses it first. |
 | `defineModel: … "<rule>" names "<target>", which <type> does not declare` | Arrow to a relation or permission of the target type. |
 | `defineModel: … reads <type>.<field>, and a subject set reaches <type>s nobody passed to can() — store that relation instead of reading it` | Only the object passed to `can()` carries data: a `fromField` there cannot be reached through a subject set or an arrow. Store it as a tuple. |
 | `defineModel: types.<type>.permits.<permission>: "<relation>-><target>" reaches <type>.<target>, which reads <type>.<field>, and only the object passed to can() carries its data — store that relation instead of reading it` | The same through an arrow: `'teams->leads'` where the team's `leads` is a `fromField`. Store it as a tuple. |

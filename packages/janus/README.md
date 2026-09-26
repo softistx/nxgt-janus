@@ -410,6 +410,7 @@ export const model = defineModel({
 	},
 });
 
+// staff: a user from clinic.staff; record: a row carrying doctorId and patientId.
 const access = permissions({ model, store: createMemoryRelations() });
 await access.grant({ type: 'team', id: 't1' }, 'members', staff);
 await access.can(staff, 'edit', { type: 'record', ...record }, { ctx: { onShift } }); // boolean
@@ -421,7 +422,8 @@ Zanzibar's model — relations between objects and subjects, permissions
 computed from them — **without its infrastructure**: the tuples live in your
 database, so a read follows a write and there is nothing to cache or to
 sequence. An object type declares its relations under `related` and its
-permissions under `permits` — Keto's words — and relation names are plural.
+permissions under `permits` — Keto's words — and relation names are plural by convention (`defineModel`
+does not enforce it).
 Subject sets (`'team#members'`), arrows (`'teams->view'`: whoever can view one
 of the record's teams; `'teams->leads'`: whoever leads one) and permissions
 naming permissions are Zanzibar's. Two things are not:

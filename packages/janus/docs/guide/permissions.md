@@ -19,7 +19,7 @@ need something else and say so: a [folder tree](#a-hierarchy) and
 
 ```ts
 import { z } from 'zod';
-import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
+import { createMemoryStores, type CursorPage, janus, scryptHasher } from '@nxgt/janus';
 import { createMemoryRelations, defineModel, fromField, permissions, when } from '@nxgt/janus/permissions';
 
 const relations = createMemoryRelations();
@@ -195,7 +195,9 @@ fine: the data ends it. See [a hierarchy](#a-hierarchy).
 
 ## Use cases
 
-Each case below runs against the clinic above, in order.
+Each case below runs against the clinic above, in order — except the two that
+say otherwise: a folder tree for a hierarchy, and an `account` for
+permissions on a user.
 
 ### A direct relation
 
@@ -258,7 +260,7 @@ error.
 
 ### A hierarchy
 
-A folder tree, the one model on this page besides the clinic: a folder is
+A folder tree, one of the two models on this page besides the clinic: a folder is
 viewable by its owners and by whoever views one of its parents. The arrow
 names the folder's own `view` — a loop in the model, which **the data ends**:
 the walk stops at a folder with no parents.
