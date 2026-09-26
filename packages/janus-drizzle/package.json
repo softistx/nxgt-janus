@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus-drizzle",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "The PostgreSQL adapter for @nxgt/janus on Drizzle and @nxgt/drizzle: users, sessions, one-time tokens and permission tuples",
 	"license": "MIT",
 	"type": "module",

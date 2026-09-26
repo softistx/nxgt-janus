@@ -1,5 +1,13 @@
 # @nxgt/janus-drizzle
 
+## 0.2.1
+
+### Patch Changes
+
+- [#62](https://github.com/softistx/nxgt-janus/pull/62) [`6ecc391`](https://github.com/softistx/nxgt-janus/commit/6ecc391abfddef55fd4426fd96ecabeb3295308d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The second factor's secret is described as it now is: sealed by `@nxgt/janus` with AES-256-GCM before the store sees it. The docs add a query to find secrets still sealed with a key you are rotating out.
+- Updated dependencies [[`daa00a1`](https://github.com/softistx/nxgt-janus/commit/daa00a196bd1935d8d53cdb6481367e41e65ee4d)]:
+  - @nxgt/janus@0.5.0
+
 ## 0.2.0
 
 ### Minor Changes
