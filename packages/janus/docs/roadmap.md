@@ -36,12 +36,13 @@ Nothing between releases.
   catalogue, or replace any one template with your own function of the same
   shape — built with the same toolkit, React Email or a plain string — and
   keep the defaults for the rest.
-- **Webhooks** — signed HTTP events when something happens to a user
-  (created, e-mail verified, password reset, deleted), so another service can
-  follow without polling: a signature it can check, retries on failure, and
-  the same rule as the audit trail — the user named by id, never a login, a
-  password, a session token or a one-time token in a payload, and every key
-  camelCase. Retries that run out are reported, never dropped in silence.
+- **Webhooks** — in a package of its own, `@nxgt/janus-webhooks`: the user
+  events `janus({ events })` already hands over, signed and sent over HTTP,
+  so another service can follow without polling. A signature it can check —
+  the Standard Webhooks headers, HMAC-SHA256, secrets that rotate — retries
+  with backoff on failure, and retries that run out reported to a function
+  you give, never dropped in silence. The payload is the event: the user
+  named by id, every key camelCase.
 
 ## Later
 
@@ -93,6 +94,12 @@ Nothing between releases.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **User events, v0.8.0** — `janus({ events })` takes one listener, called
+  with `user.created`, `user.emailVerified`, `user.passwordReset` and
+  `user.deleted` once the write landed, and awaited before the flow answers.
+  An event names the user by id alone, with a UUIDv7 of its own to deliver
+  it once; a listener that throws fails no flow and is a
+  `JANUS_EVENT_FAILED` warning.
 - **At most one sign-in code live per user, and challenges that end when
   they should, v0.7.0** — `signInCode.request` spends the codes sent before,
   even when requests race, so only the last e-mail's works; writing a
@@ -158,6 +165,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
 - **`LOGIN_TAKEN` no longer quotes the login in its message**, in the memory
   store and in both adapters; `error.login` still names it, and the
   conformance suite checks it. — v0.2.0
-- **The conformance suite accepts a store with its own expiry** — a store
-  that drops a lapsed session at once, as a Redis TTL does, passes
-  `sessions.deleteUser`; one that still holds it must count it. — v0.2.0
