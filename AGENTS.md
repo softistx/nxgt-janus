@@ -272,7 +272,10 @@ together, for v0.1, when the repository went public.
 version` would consume it and `publish.ts` skip the package, keeping the
 release in version mode (#51 → #53). `bun run changeset:private`
 (`scripts/check-changesets.ts`, run by CI) refuses a changeset naming a private
-package, or one that does not exist.
+package or one that does not exist, and a changeset whose front matter
+changesets cannot read. The check is janus-only for now: nxgt-data, nxgt-http
+and nxgt-core hold no private package, so their copies of the skeleton owe
+nothing.
 
 ---
 
@@ -358,8 +361,8 @@ The scripts have specs of their own, run by the root `test`:
 `scripts/verify-artifacts.spec.ts` covers the pure checks. Among them is the
 one-class-per-entry scan, proven against a real `Bun.build` both with and
 without `splitting`. `scripts/publish.spec.ts` covers the publish order and the
-skipping of a `private` package. `scripts/check-changesets.spec.ts` covers the changeset
-check — read with `@changesets/parse`, the parser `changeset version` uses, so a
-shape it accepts is never let through unread. Their first run found that `newestMtime`
-threw `ENOENT` on a missing `dist/`, where it should have reported the
-package as unbuilt.
+skipping of a `private` package. The first run of those two found that
+`newestMtime` threw `ENOENT` on a missing `dist/`, where it should have
+reported the package as unbuilt. `scripts/check-changesets.spec.ts` covers the
+changeset check — read with `@changesets/parse`, the parser `changeset version`
+uses, so a shape it accepts is never let through unread.

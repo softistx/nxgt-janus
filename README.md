@@ -41,6 +41,7 @@ hoped for.
 bun install
 bun run check && bun run typecheck && bun run build && bun run test
 bun run verify:artifacts
+bun run changeset:private
 ```
 
 Read [AGENTS.md](./AGENTS.md) before changing anything — it carries the
