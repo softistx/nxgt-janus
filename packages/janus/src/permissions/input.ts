@@ -1,5 +1,6 @@
 /** Reading what a caller passed to `can()`, `list()`, `grant()` and `revoke()`. */
 
+import { isStorable, UNSTORABLE } from '../stores/storable';
 import { isSetOf, type Subject } from '../subjects/subject';
 import { admits, type ResolvedModel, type ResolvedObjectType } from './resolve';
 
@@ -117,6 +118,14 @@ export function tupleOf(
 	}
 
 	const who = subjectOf(model, subject, where);
+	// A tuple no store can keep is refused before one is asked: the same
+	// answer on every adapter, not STORE_FAILED on PostgreSQL alone.
+	for (const [what, id] of [
+		['the object id', target.id],
+		['the subject id', who.id],
+	] as const) {
+		if (!isStorable(id)) throw new TypeError(`${where}: ${what} ${UNSTORABLE}`);
+	}
 	if (!admits(def.holders, who)) {
 		throw new TypeError(
 			`${where}: ${type.name}.${relation} is not held by ${'relation' in who ? `${who.type}#${who.relation}` : who.type}`,

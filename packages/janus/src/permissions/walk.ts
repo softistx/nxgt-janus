@@ -1,6 +1,7 @@
 /** The walk behind `can()`: from an object, through its rules, to a subject. */
 
 import { PermissionDepthError } from '../errors/janus-error';
+import { isStorable } from '../stores/storable';
 import { formatEntity } from '../subjects/notation';
 import type { Entity, Subject } from '../subjects/subject';
 import type { RelationStore } from './port/types';
@@ -161,7 +162,10 @@ export class Walk {
 	}
 }
 
-/** The id a `fromField` reads, or `null` for nobody. A missing field is the caller's bug. */
+/**
+ * The id a `fromField` reads, or `null` for nobody — an id no store can keep
+ * included, so none is asked about it. A missing field is the caller's bug.
+ */
 function fieldOf(node: Node, field: string, what: string): string | null {
 	if (node.data === null) {
 		// resolveModel refuses a model that could get here.
@@ -176,5 +180,5 @@ function fieldOf(node: Node, field: string, what: string): string | null {
 			`can: ${what} reads ${field}, which the object ${value === undefined ? 'does not carry — pass the loaded object, spread' : 'holds as something other than a string id'}`,
 		);
 	}
-	return value;
+	return isStorable(value) ? value : null;
 }

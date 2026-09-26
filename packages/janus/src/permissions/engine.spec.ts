@@ -231,6 +231,74 @@ describe('the Keto behaviours', () => {
 	});
 });
 
+describe('an id no store can keep', () => {
+	// PostgreSQL refuses a NUL, and a lone surrogate in jsonb; a URL param
+	// `%00` is enough to send one. Answered the same on every adapter.
+	const untouchable = () =>
+		new Proxy(createMemoryRelations(), {
+			get: (target, method) =>
+				typeof target[method as keyof RelationStore] === 'function'
+					? () => {
+							throw new Error(`called ${String(method)}`);
+						}
+					: undefined,
+		});
+	const unstorable = ['a\u0000b', 'a\uD800b', '\uDFFF'];
+
+	it('is held by nobody: can answers false, and no store is asked', async () => {
+		const access = setup(untouchable());
+		for (const id of unstorable) {
+			expect(
+				await access.can({ type: 'staff', id }, 'view', record(), offShift),
+			).toBe(false);
+			expect(
+				await access.can(staff(), 'view', { ...record(), id }, offShift),
+			).toBe(false);
+		}
+	});
+
+	it('holds nothing: list answers an empty page, and no store is asked', async () => {
+		const access = setup(untouchable());
+		for (const id of unstorable) {
+			expect(await access.list({ type: 'staff', id }, 'view', 'team')).toEqual({
+				items: [],
+				nextCursor: null,
+			});
+		}
+	});
+
+	it('read from a field, names nobody, and no store is asked about it', async () => {
+		const access = setup(untouchable());
+		const holder = patient();
+		expect(
+			await access.can(holder, 'patients', record({ patientId: 'x\u0000' })),
+		).toBe(false);
+	});
+
+	it('is refused by grant and revoke before a store is asked, as a wiring mistake', async () => {
+		const access = setup(untouchable());
+		for (const operation of ['grant', 'revoke'] as const) {
+			expect(() =>
+				access[operation]({ ...record(), id: 'r\u0000' }, 'viewers', staff()),
+			).toThrow(
+				`${operation}: the object id holds a NUL character or a lone surrogate, which no store can keep`,
+			);
+			expect(() =>
+				access[operation](record(), 'viewers', { type: 'staff', id: '\uD800' }),
+			).toThrow(
+				`${operation}: the subject id holds a NUL character or a lone surrogate, which no store can keep`,
+			);
+		}
+	});
+
+	it('still refuses what is wrong with the question itself first', async () => {
+		const access = setup(untouchable());
+		expect(() =>
+			access.can({ type: 'staff', id: 'a\u0000' }, 'nope' as 'view', team()),
+		).toThrow('can: "nope" is not a relation or a permission of team');
+	});
+});
+
 describe('fromField and when', () => {
 	it('reads a relation from the object itself, and null holds nobody', async () => {
 		const access = setup();

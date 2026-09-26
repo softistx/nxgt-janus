@@ -27,6 +27,7 @@
 import type { CursorPage } from '../pagination/cursor-page';
 import { pageLimit } from '../pagination/cursor-page';
 import { guardRelations } from '../stores/guard';
+import { isStorable } from '../stores/storable';
 import { objectOf, subjectOf, tupleOf, typeOf } from './input';
 import type { ModelConfig, PermissionModel, Permissions } from './model';
 import { resolvedOf } from './model';
@@ -98,6 +99,11 @@ export function permissions<C extends ModelConfig>(
 			);
 		}
 
+		const who = subjectOf(model, subject, 'can');
+		// An id no store can keep is held by nobody, and no store is asked:
+		// the same answer on every adapter, as for an anonymous subject.
+		if (!isStorable(root.id) || !isStorable(who.id)) return false;
+
 		return new Walk(
 			model,
 			store,
@@ -105,7 +111,7 @@ export function permissions<C extends ModelConfig>(
 			options?.ctx,
 			`${type.name}#${permission}`,
 		).holds(
-			subjectOf(model, subject, 'can'),
+			who,
 			{ entity: { type: root.type, id: root.id }, data: root.data },
 			permission,
 			0,
@@ -144,12 +150,16 @@ export function permissions<C extends ModelConfig>(
 			);
 		}
 
+		const who = subjectOf(model, subject, 'list');
+		// A subject no store can keep holds nothing, and no store is asked.
+		if (!isStorable(who.id)) return { items: [], nextCursor: null };
+
 		const ids = await new Reverse(
 			model,
 			store,
 			maxDepth,
 			options?.ctx,
-			subjectOf(model, subject, 'list'),
+			who,
 			`${type.name}#${permission}`,
 		).objects(type.name, permission);
 

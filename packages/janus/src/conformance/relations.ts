@@ -119,6 +119,35 @@ export const relationStoreCases: readonly RelationCase[] = [
 		},
 	},
 	{
+		id: 'relations.edgeCharacters',
+		group,
+		name: 'round-trips every character the core lets through in an id: control characters, U+FFFF and a surrogate pair',
+		async run({ store }) {
+			// The core refuses a NUL and a lone surrogate before a store is
+			// asked; everything else must come back exactly as written.
+			const edge = 'a\u0001\u001f\u007f\uFFFF 😀 z';
+			const written = tuple(
+				entity('record', edge),
+				'viewer',
+				set('team', edge, 'member'),
+			);
+			await store.write({ add: [written] });
+
+			equal(await store.has(written), true, 'has for ids of edge characters');
+			equal(
+				await store.has(
+					tuple(
+						entity('record', edge.replace('😀', '😁')),
+						'viewer',
+						written.subject,
+					),
+				),
+				false,
+				'has for an id differing in one astral character',
+			);
+		},
+	},
+	{
 		id: 'relations.undefinedRelation',
 		group,
 		name: 'reads a subject whose relation is undefined as its entity, not as a set',
