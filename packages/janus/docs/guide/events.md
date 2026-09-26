@@ -94,11 +94,12 @@ Where the listener runs within a flow, and what an outage does to it:
 
 | Flow | The listener runs | A store outage after the write |
 | --- | --- | --- |
-| `create`, `signUp` | after the insert, **before** `signUp` opens the session | fails the call; the event is already sent |
+| `create` | after the insert — its last step | — |
+| `signUp` | after the insert, **before** the session is opened | fails the call; the event is already sent |
 | `verifyEmail.confirm` | after the write — the flow's last step | — |
 | `signInCode.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
 | `resetPassword.confirm` | **after** the sessions opened with the old password are revoked and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
-| `delete` | **after** the user's sessions, one-time tokens and relation tuples are removed | fails the call; the event is sent all the same, from a `finally` |
+| `delete` | **after** the user's sessions and one-time tokens are removed, and the relation tuples naming them when `relations` is wired | fails the call; the event is sent all the same, from a `finally` |
 
 So a listener that takes its time never leaves an old session alive after a
 reset, and one that checks permissions on `user.deleted` finds the tuples
