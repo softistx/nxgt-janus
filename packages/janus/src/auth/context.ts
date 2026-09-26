@@ -25,6 +25,7 @@ import {
 	type ResolvedConfig,
 	type ResolvedType,
 } from './config';
+import type { UserEventListener } from './events';
 import { required, unlessVersionConflict } from './outage';
 import type {
 	JanusStores,
@@ -50,6 +51,8 @@ export interface Context {
 	readonly verifiers: readonly PasswordHasher[];
 	/** Hashed once, lazily: what a missing user's password is compared against. */
 	dummyHash(): Promise<string>;
+	/** What `janus({ events })` was given, or `null`. */
+	readonly events: UserEventListener | null;
 }
 
 export function createContext(
@@ -60,6 +63,7 @@ export function createContext(
 	clock: Clock,
 	hasher: PasswordHasher | null,
 	verifiers: readonly PasswordHasher[],
+	events: UserEventListener | null = null,
 ): Context {
 	let dummy: Promise<string> | null = null;
 
@@ -71,6 +75,7 @@ export function createContext(
 		clock,
 		hasher,
 		verifiers,
+		events,
 		dummyHash: () => {
 			if (hasher === null) {
 				throw new TypeError('janus: no hasher to compare a dummy hash with');

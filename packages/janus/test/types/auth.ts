@@ -7,7 +7,7 @@
  * a user who can never sign in, a field read off the wrong kind of user, a
  * password hash handed to a request handler.
  *
- * **Thirty-one plausible mistakes, thirty-one refused.** Add a case whenever the
+ * **Thirty-four plausible mistakes, thirty-four refused.** Add a case whenever the
  * surface gains something it should refuse; never delete one to make a change
  * pass.
  */
@@ -285,7 +285,56 @@ async function flows() {
 	void issued.code;
 }
 
+// ── User events ─────────────────────────────────────────────────────────────
+
+function events() {
+	// ── 32. A listener that is not a function ────────────────────────────
+	janus({
+		user: Patient,
+		store,
+		// @ts-expect-error events is one function, called with every event
+		events: { 'user.created': () => {} },
+	});
+
+	janus({
+		user: Patient,
+		store,
+		events(event) {
+			// ── 33. An event type Janus never sends ──────────────────────
+			// @ts-expect-error there is no user.updated: the four are a closed set
+			if (event.type === 'user.updated') return;
+
+			// ── 34. A field an event never carries ───────────────────────
+			// @ts-expect-error an event names the user by id, never by e-mail
+			void event.email;
+		},
+	});
+}
+
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
+
+// A listener that switches on the four types, and one that is async.
+const listening = janus({
+	user: Patient,
+	store,
+	async events(event) {
+		switch (event.type) {
+			case 'user.created':
+			case 'user.emailVerified':
+			case 'user.passwordReset':
+			case 'user.deleted': {
+				const who: string = event.userId;
+				const when: Date = event.occurredAt;
+				void [who, when, event.id, event.userType];
+				return;
+			}
+			default: {
+				const never: never = event.type;
+				void never;
+			}
+		}
+	},
+});
 
 async function allowed() {
 	const { user, token, session } = await one.signUp({
@@ -358,7 +407,8 @@ async function allowed() {
 		active,
 		guestToken,
 		patientByCode,
+		listening,
 	];
 }
 
-export const checked = { flows, allowed };
+export const checked = { flows, events, allowed };

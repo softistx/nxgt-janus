@@ -2,6 +2,7 @@ import { guardRelations } from '../stores/guard';
 import { systemClock } from '../time/clock';
 import { type JanusConfig, resolveConfig } from './config';
 import { createContext } from './context';
+import { resolveEvents } from './events';
 import { guardStores } from './outage';
 import { assertStores } from './port/assert-stores';
 import { sharedApi } from './sessions';
@@ -85,6 +86,7 @@ export function janus<const C extends JanusConfig>(
 		config.clock ?? systemClock,
 		hasher,
 		verifiers,
+		resolveEvents(config.events, where),
 	);
 
 	const shared = sharedApi(context);

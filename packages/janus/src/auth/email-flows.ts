@@ -14,6 +14,7 @@ import {
 	toUser,
 	writeUser,
 } from './context';
+import { emit } from './events';
 import {
 	issueOneTime,
 	refuseStale,
@@ -90,21 +91,23 @@ export function emailFlows(
 			async confirm(secret) {
 				const where = at('verifyEmail.confirm');
 				const { token, user } = await redeem('verifyEmail', secret, where);
-				return toUser(
-					await writeUser(
-						context,
-						user.id,
-						type,
-						undefined,
-						where,
-						(record, now) => {
-							// Checked again on the record written: an e-mail changed
-							// since the read above is not the one the link proved.
-							refuseStale(type, record, token, where, 'token');
-							return { emailVerifiedAt: now };
-						},
-					),
+				let newlyVerified = false;
+				const written = await writeUser(
+					context,
+					user.id,
+					type,
+					undefined,
+					where,
+					(record, now) => {
+						// Checked again on the record written: an e-mail changed
+						// since the read above is not the one the link proved.
+						refuseStale(type, record, token, where, 'token');
+						newlyVerified = record.emailVerifiedAt === null;
+						return { emailVerifiedAt: now };
+					},
 				);
+				if (newlyVerified) await emit(context, 'user.emailVerified', written);
+				return toUser(written);
 			},
 		},
 
@@ -128,6 +131,7 @@ export function emailFlows(
 				const hash = await requireHasher(context, where).hash(password);
 
 				const { token, user } = await redeem('resetPassword', secret, where);
+				let newlyVerified = false;
 				const written = await writeUser(
 					context,
 					user.id,
@@ -137,6 +141,7 @@ export function emailFlows(
 					(record, now) => {
 						// Checked again on the record written, as for verifyEmail.
 						refuseStale(type, record, token, where, 'token');
+						newlyVerified = record.emailVerifiedAt === null;
 						return {
 							password: { hash, updatedAt: now },
 							// The link reached the inbox: that proves the e-mail.
@@ -151,6 +156,8 @@ export function emailFlows(
 				// left waiting on its second factor cannot be finished.
 				await store.sessions.revokeUserSessions(written.id, clock.now());
 				await endSignInsWaiting(context, written.id);
+				await emit(context, 'user.passwordReset', written);
+				if (newlyVerified) await emit(context, 'user.emailVerified', written);
 				return toUser(written);
 			},
 		},

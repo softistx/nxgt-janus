@@ -12,6 +12,11 @@ export type {
 	UserSchema,
 	UserTypeConfig,
 } from './config';
+export type {
+	UserEvent,
+	UserEventListener,
+	UserEventType,
+} from './events';
 export { bunHasher, scryptHasher } from './hashers';
 export { janus } from './janus';
 export { assertStores } from './port/assert-stores';

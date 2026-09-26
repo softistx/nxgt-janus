@@ -20,13 +20,16 @@ function failing(
 }
 
 /**
- * The files allowed a `catch`: the shared guard, outage.ts, and sealing.ts —
- * whose one catch wraps a decipher, never a store, and throws.
+ * The files allowed a `catch`: the shared guard, outage.ts, sealing.ts —
+ * whose one catch wraps a decipher, never a store, and throws — and
+ * events.ts, whose one catch wraps the application's listener, never a
+ * store, and warns.
  */
 const GUARD = join(import.meta.dir, '..', 'stores', 'guard.ts');
 const OUTAGE = join(import.meta.dir, 'outage.ts');
 const SEALING = join(import.meta.dir, 'sealing.ts');
-const ALLOWED = new Set([GUARD, OUTAGE, SEALING]);
+const EVENTS = join(import.meta.dir, 'events.ts');
+const ALLOWED = new Set([GUARD, OUTAGE, SEALING, EVENTS]);
 
 /** The body of every `catch` in a file, comments out, whitespace collapsed. */
 async function catchBodies(path: string): Promise<string[]> {
@@ -113,6 +116,14 @@ describe('the scan: no catch around a store call, in auth, permissions or stores
 		expect(outage[0]).toBe(
 			"if (error instanceof StoreConflict && error.on === 'version') return null; throw error;",
 		);
+
+		// emit's: the listener's failure is a warning, and nothing else — a
+		// store call moved inside that try would be caught too, so the body
+		// is held to the letter.
+		const events = await catchBodies(EVENTS);
+		expect(events).toHaveLength(1);
+		expect(events[0]).toStartWith('process.emitWarning(');
+		expect(events[0]).not.toContain('return');
 	});
 });
 

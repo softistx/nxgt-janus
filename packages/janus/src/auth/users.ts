@@ -21,6 +21,7 @@ import {
 	writeUser,
 } from './context';
 import { emailFlows } from './email-flows';
+import { emit } from './events';
 import { endSignInsWaiting, heldByPassword } from './password-written';
 import type { UserRecord } from './port/types';
 import { secondFactorFlows } from './second-factor/flows';
@@ -76,7 +77,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			};
 		}
 
-		return store.users.insertUser({
+		const inserted = await store.users.insertUser({
 			id: mintId(now.getTime()),
 			type: type.name,
 			schemaVersion: type.schemaVersion,
@@ -90,6 +91,10 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			createdAt: now,
 			updatedAt: now,
 		});
+		// Once the user exists: an outage opening signUp's session later still
+		// leaves a user created, and reported.
+		await emit(context, 'user.created', inserted);
+		return inserted;
 	};
 
 	return {
@@ -180,6 +185,8 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			await store.tokens.deleteUserTokens(id);
 			// Last, and on a replay too: the tuples naming them.
 			await context.relations?.deleteEntity({ type: type.name, id });
+			// Once, when this call deleted them: a replay deleted nobody.
+			if (deleted) await emit(context, 'user.deleted', { id, type: type.name });
 			return deleted;
 		},
 

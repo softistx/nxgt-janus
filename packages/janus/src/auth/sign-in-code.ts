@@ -8,6 +8,7 @@ import {
 	toUser,
 	writeUser,
 } from './context';
+import { emit } from './events';
 import {
 	burnOneTime,
 	CODE_ATTEMPTS,
@@ -111,17 +112,16 @@ export function signInCodeFlows(
 
 			// The code reached the inbox: that proves the e-mail — under the
 			// version read, so an address changed since is not the one proved.
-			const proved =
-				user.emailVerifiedAt === null
-					? await writeUser(
-							context,
-							user.id,
-							type,
-							{ ifVersion: user.version },
-							where,
-							(_, now) => ({ emailVerifiedAt: now }),
-						)
-					: user;
+			if (user.emailVerifiedAt !== null) return finish(user, where);
+			const proved = await writeUser(
+				context,
+				user.id,
+				type,
+				{ ifVersion: user.version },
+				where,
+				(_, now) => ({ emailVerifiedAt: now }),
+			);
+			await emit(context, 'user.emailVerified', proved);
 			return finish(proved, where);
 		},
 	};
