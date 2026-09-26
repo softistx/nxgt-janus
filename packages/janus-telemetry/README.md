@@ -5,7 +5,8 @@
 flow and per permission check, and the security events an audit reads — who
 signed up, in and out, why a sign-in was refused, which users were deleted or
 deactivated, whose password changed, and who was granted what. **Never a
-login, an e-mail, a password, a token or a session id.**
+login, an e-mail, a password, a session token, a one-time token or a
+session id.**
 
 ```ts
 import { janus } from '@nxgt/janus';

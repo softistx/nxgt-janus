@@ -1,7 +1,6 @@
 {
 	"name": "@nxgt/janus-kit",
 	"version": "0.0.0",
-	"private": true,
 	"description": "@nxgt/janus wired in one call, one subpath per database — PostgreSQL through Drizzle, MongoDB — with sessions in Redis, telemetry, a health check and a close",
 	"license": "MIT",
 	"type": "module",

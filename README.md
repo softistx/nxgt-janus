@@ -16,10 +16,10 @@ other, or both.
 packages/janus         @nxgt/janus — both sides, and the vocabulary they share
 packages/janus-mongo   @nxgt/janus-mongo — the MongoDB adapter, for either side
 packages/janus-hono    @nxgt/janus-hono — the Hono integration
-packages/janus-telemetry @nxgt/janus-telemetry — spans and security events on @nxgt/telemetry, not yet published
-packages/janus-drizzle @nxgt/janus-drizzle — the PostgreSQL adapter on Drizzle and @nxgt/drizzle, for either side, not yet published
-packages/janus-redis   @nxgt/janus-redis — sessions and one-time tokens in Redis, on @nxgt/redis, not yet published
-packages/janus-kit     @nxgt/janus-kit — Janus wired in one call, one subpath per database (/drizzle, /mongo), with Redis, telemetry, health and close; not yet published
+packages/janus-telemetry @nxgt/janus-telemetry — spans and security events on @nxgt/telemetry
+packages/janus-drizzle @nxgt/janus-drizzle — the PostgreSQL adapter on Drizzle and @nxgt/drizzle, for either side
+packages/janus-redis   @nxgt/janus-redis — sessions and one-time tokens in Redis, on @nxgt/redis
+packages/janus-kit     @nxgt/janus-kit — Janus wired in one call, one subpath per database (/drizzle, /mongo), with Redis, telemetry, health and close
 ```
 
 ## Two things it is trying to be

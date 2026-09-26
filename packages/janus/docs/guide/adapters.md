@@ -299,3 +299,5 @@ Types: `ConformanceHarness`, `OpenedStores`, `StoreFaults`, `ConformanceCase`,
 - [Errors](errors.md) — `StoreFailure`, `StoreConflict` and the rule behind them
 - [Vocabulary](vocabulary.md) — ids, cursors and `invalidCursor`
 - `@nxgt/janus-mongo` — an adapter that passes both suites against a real mongod, outages included
+- `@nxgt/janus-drizzle` — both suites on PostgreSQL 17 and PGlite
+- `@nxgt/janus-redis` — the sessions and one-time tokens cases on Redis 7.4

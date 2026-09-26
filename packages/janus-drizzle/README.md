@@ -56,6 +56,7 @@ to the adapter as `{ tables }`:
 
 ```sh
 bun add @nxgt/janus-drizzle @nxgt/janus @nxgt/drizzle drizzle-orm
+bun add pg   # the driver the example below uses — or postgres, or none on Bun's SQL
 ```
 
 Every peer is required:
