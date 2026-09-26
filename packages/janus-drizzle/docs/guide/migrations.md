@@ -3,6 +3,7 @@
 This page covers:
 - adding the five tables to the schema drizzle-kit reads;
 - what the migration creates;
+- upgrading: the migration a new version of the tables needs;
 - collecting lapsed sessions;
 - what the database holds.
 
@@ -64,12 +65,18 @@ CREATE TABLE "users" (
 	"logins" text[] NOT NULL,
 	"password_hash" text,
 	"password_updated_at" timestamp(3) with time zone,
+	"second_factor_method" text,
+	"second_factor_secret" text,
+	"second_factor_confirmed_at" timestamp(3) with time zone,
+	"second_factor_last_step" integer,
 	"email_verified_at" timestamp(3) with time zone,
 	"version" integer NOT NULL,
 	"created_at" timestamp(3) with time zone NOT NULL,
 	"updated_at" timestamp(3) with time zone NOT NULL,
 	CONSTRAINT "users_id_type_unique" UNIQUE("id","type"),
-	CONSTRAINT "users_password_whole" CHECK (("password_hash" is null) = ("password_updated_at" is null))
+	CONSTRAINT "users_password_whole" CHECK (("password_hash" is null) = ("password_updated_at" is null)),
+	CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null))),
+	CONSTRAINT "users_second_factor_values" CHECK ("second_factor_method" in ('totp') and "second_factor_last_step" >= 0)
 );
 CREATE TABLE "logins" (
 	"type" text collate "C",
@@ -77,7 +84,20 @@ CREATE TABLE "logins" (
 	"user_id" text collate "C" NOT NULL,
 	CONSTRAINT "logins_pkey" PRIMARY KEY("type","login")
 );
--- sessions, tokens, relations, the indexes, and the foreign key from
+CREATE TABLE "tokens" (
+	"token_hash" text collate "C" PRIMARY KEY,
+	"kind" text NOT NULL,
+	"user_id" text collate "C" NOT NULL,
+	"address" text NOT NULL,
+	"code_hash" text,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"expires_at" timestamp(3) with time zone NOT NULL,
+	"spent_at" timestamp(3) with time zone,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode')),
+	CONSTRAINT "tokens_attempts" CHECK ("attempts" >= 0)
+);
+-- sessions, relations, the indexes, and the foreign key from
 -- logins to users, on delete cascade.
 ```
 
@@ -111,9 +131,54 @@ migration creates is what the conformance suites ran on.
   returned verbatim and in order, and as rows in `logins`, whose primary
   key is the per-type uniqueness. PostgreSQL has no unique index over the
   elements of an array.
+- **A second factor in four columns, checked whole.** A method and a secret,
+  or neither; a confirmation date and a last step only beside them; `totp`
+  the only method, and a last step never negative. The
+  secret is opaque to the store and kept byte for byte: once the second
+  factor ships, `@nxgt/janus` will seal it before the store sees it, so a
+  dump of `users` cannot produce a code.
+- **`attempts` is `not null default 0`**, checked `>= 0`, so the rows an upgrade finds read
+  as tokens with no attempt counted yet.
 - **No foreign key from sessions and tokens to users.** Deleting a user
   deletes the user; the core deletes the sessions and tokens next, as it does
   when they live in another store.
+
+## Upgrading
+
+A new version of the tables is a migration, like a change to your own. Run
+`drizzle-kit generate` after upgrading the package, read what it wrote, and
+migrate **before** deploying the code that reads the new columns:
+
+```sh
+bun add @nxgt/janus-drizzle@latest @nxgt/janus@latest
+bunx drizzle-kit generate --config drizzle.janus.config.ts
+bunx drizzle-kit migrate --config drizzle.janus.config.ts
+```
+
+Deployed first, every query on `users` or `tokens` fails with `STORE_FAILED`,
+caused by `column "…" does not exist`.
+
+### To 0.2: the second factor and attempts
+
+Every column is added nullable or with a default, so the migration rewrites
+no row and existing users read as having no second factor:
+
+```sql
+ALTER TABLE "users" ADD COLUMN "second_factor_method" text;
+ALTER TABLE "users" ADD COLUMN "second_factor_secret" text;
+ALTER TABLE "users" ADD COLUMN "second_factor_confirmed_at" timestamp(3) with time zone;
+ALTER TABLE "users" ADD COLUMN "second_factor_last_step" integer;
+ALTER TABLE "tokens" ADD COLUMN "code_hash" text;
+ALTER TABLE "tokens" ADD COLUMN "attempts" integer DEFAULT 0 NOT NULL;
+ALTER TABLE "users" ADD CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null)));
+ALTER TABLE "users" ADD CONSTRAINT "users_second_factor_values" CHECK ("second_factor_method" in ('totp') and "second_factor_last_step" >= 0);
+ALTER TABLE "tokens" ADD CONSTRAINT "tokens_attempts" CHECK ("attempts" >= 0);
+ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode'));
+```
+
+Those are the statements drizzle-kit writes from the 0.1 tables to the 0.2
+ones, in its own order and separated by `--> statement-breakpoint`; with a
+PostgreSQL schema of its own, every name is qualified.
 
 ## Collecting lapsed sessions
 
@@ -149,5 +214,6 @@ const patients = row?.patients ?? 0;
 ```
 
 **Read, never write.** A row written behind the store's back skips its
-invariants: the logins' uniqueness, `version`, the password check. Write
-through `auth` and `access`.
+invariants: the logins' uniqueness, `version`, the password check, and,
+once the second factor ships, the sealing of its secret. Write through
+`auth` and `access`.

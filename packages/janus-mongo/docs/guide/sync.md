@@ -93,13 +93,19 @@ encoded: a document read in a shell reads like the record in the code.
 
 | Collection | Holds | Indexes |
 | --- | --- | --- |
-| `users` | one user: `type`, `fields`, `logins`, `password`, `emailVerifiedAt`, `version`, … | `loginUnique` on `{ type, logins }`, unique — a login is unique **per user type** · `typeId` on `{ type, _id }`, for listing |
+| `users` | one user: `type`, `fields`, `logins`, `password`, `secondFactor`, `emailVerifiedAt`, `version`, … | `loginUnique` on `{ type, logins }`, unique — a login is unique **per user type** · `typeId` on `{ type, _id }`, for listing |
 | `sessions` | one session, by the `sha256` of its token | `tokenHashUnique` · `userId` · `expiry`, a TTL index |
-| `tokens` | one one-time token; `_id` **is** its `sha256` | `userId` · `expiry`, a TTL index |
+| `tokens` | one one-time token; `_id` **is** its `sha256`, beside `kind`, `codeHash`, `attempts`, … | `userId` · `expiry`, a TTL index |
 | `relations` | one tuple; `_id` **is** the tuple, `{ object: { type, id }, relation, subject: { type, id, relation? } }` | `objectRelation`, one hop forwards · `subjectObjects`, the reverse index `list()` walks |
 
 - **No secret is stored.** Sessions and tokens hold the `sha256` of the
-  secret; passwords a self-describing hash (`$scrypt$…`, `$argon2id$…`).
+  secret; passwords a self-describing hash (`$scrypt$…`, `$argon2id$…`); a
+  second factor's `secret` a TOTP secret kept byte for byte, which
+  `@nxgt/janus` will seal with your application's key before the store sees
+  it, once the second factor ships.
+- **Documents written by an earlier version need no migration.** A user
+  without `secondFactor` reads as having none; a token without `codeHash` or
+  `attempts` reads as `null` and `0`.
 - **Ids are strings**, the UUIDv7s the core minted — never an `ObjectId`: the
   store mints nothing.
 - **A tuple is unique by construction**, since it is its own `_id`, so writing
@@ -110,6 +116,27 @@ encoded: a document read in a shell reads like the record in the code.
 - The collection names are fixed: `users`, `sessions`, `tokens`, `relations`.
   Give the adapter a database of its own — `client.db('janus')` — so they
   never meet a collection of your application's.
+
+## Upgrading: sync before you deploy
+
+The validators are `additionalProperties: false`, `strict`, `error`. When a
+version adds a field, the validator the previous sync wrote refuses it: from
+0.2 to 0.3, `secondFactor` on every new user and `codeHash` and `attempts` on
+every new token. Run the sync with the new version **before** the code that
+writes them:
+
+```ts
+import { syncMongoStores } from '@nxgt/janus-mongo';
+
+const reports = await syncMongoStores(db, { dryRun: true }); // look first
+for (const report of reports) console.log(report.name, report);
+await syncMongoStores(db); // then write the validators
+```
+
+The new fields are optional in the validator, so the previous version keeps
+working against it while the deployment rolls. Deployed before the sync,
+every sign-up and every one-time token fails with `STORE_FAILED`, caused by
+`Document failed validation` (code 121). No document is rewritten either way.
 
 ## The TTL indexes are not the expiry
 

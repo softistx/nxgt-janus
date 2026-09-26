@@ -58,6 +58,9 @@ export function toToken(
 		kind,
 		userId: read.text('userId'),
 		address: read.text('address'),
+		// Absent on a token an earlier version wrote: read as none, and no attempt.
+		codeHash: read.optional('codeHash') || null,
+		attempts: read.count('attempts'),
 		expiresAt: read.date('expiresAt'),
 		spentAt: read.dateOrNull('spentAt'),
 		createdAt: read.date('createdAt'),
@@ -92,6 +95,18 @@ function readerOf(reply: unknown, call: Call) {
 	return {
 		text,
 		date,
+		optional: (name: string): string => fields.get(name) ?? '',
+		count: (name: string): number => {
+			const value = fields.get(name);
+			if (value === undefined) return 0;
+			// Only what this adapter writes: `String(n)` or `HINCRBY`'s answer.
+			// `Number()` would also take '', '0x10' and '1e1'.
+			const counted = /^(0|[1-9]\d*)$/.test(value) ? Number(value) : Number.NaN;
+			if (!Number.isSafeInteger(counted)) {
+				throw unreadable(call, `a count in \`${name}\``);
+			}
+			return counted;
+		},
 		dateOrNull: (name: string): Date | null =>
 			text(name) === '' ? null : date(name),
 	};

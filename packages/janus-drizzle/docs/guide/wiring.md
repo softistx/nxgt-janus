@@ -98,7 +98,10 @@ in `logins`. It runs through `@nxgt/drizzle`'s `withTransaction`, inside
 the method; the core never opens one. Every other write is a single
 statement. `consumeToken` is one statement, `with before as (select … for update) update … from before`: of
 twenty concurrent redemptions of one token, exactly one sees `spentAt: null`.
-This is measured on PostgreSQL 17 on every CI run.
+`countAttempt` is one `update … set attempts = attempts + 1 … returning`
+under the row's lock, followed by a plain read only when it matched nothing — a spent token, or none:
+twenty concurrent attempts answer twenty distinct counts. Both are measured
+on PostgreSQL 17 on every CI run.
 
 Every method of the port is implemented, **including the optional
 `deleteExpiredSessions`**. PostgreSQL has no TTL, so

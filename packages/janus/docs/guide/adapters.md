@@ -31,7 +31,7 @@ describeJanusStores({
 
 | Port | Taken by | Methods |
 | --- | --- | --- |
-| `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 + 6 (+ 1 optional) + 3 |
+| `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 + 6 (+ 1 optional) + 4 |
 | `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 |
 
 They are separate on purpose: an application that only authenticates
@@ -77,6 +77,43 @@ interface UserStore {
 - `listUsers` pages in ascending id order; `after` is the last id of the
   previous page, already checked by the core.
 
+#### A user's password and second factor
+
+Both are one field of `UserRecord`, `null` when the user has none, and a
+patch treats both alike: **absent keeps it, `null` removes it, a value
+replaces it whole**.
+
+```ts
+interface UserRecord {
+	// …id, type, schemaVersion, active, fields, logins…
+	readonly password: { readonly hash: string; readonly updatedAt: Date } | null;
+	readonly secondFactor: {
+		readonly method: 'totp';
+		readonly secret: string; // opaque: store it byte for byte
+		readonly confirmedAt: Date | null; // null while enrolment waits for a first code
+		readonly lastStep: number | null; // the time step of the last code accepted
+	} | null;
+	// …emailVerifiedAt, version, createdAt, updatedAt
+}
+```
+
+`secret` is **opaque to a store**: once the second factor ships, the core
+will seal it with a key the application holds before a store sees it, so a
+dump of the users cannot produce a code. Keep it like a password hash — byte
+for byte, no parsing, no trimming. Store
+the second factor whole: a method without a secret, or a `lastStep` without a
+method, is a record the core never writes.
+
+```ts
+import type { UserPatch } from '@nxgt/janus';
+
+const keep: UserPatch = { updatedAt: new Date() }; // secondFactor untouched
+const remove: UserPatch = { updatedAt: new Date(), secondFactor: null };
+```
+
+An adapter that stored users before this field existed reads its absence as
+`null`, never `undefined` (rule 2): a user with no second factor holds `null`.
+
 ### `SessionStore` and `TokenStore`
 
 ```ts
@@ -93,6 +130,7 @@ interface SessionStore {
 interface TokenStore {
 	insertToken(record: TokenRecord): Promise<void>;
 	consumeToken(tokenHash: string, kind: TokenKind, at: Date): Promise<TokenRecord | null>;
+	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
 	deleteUserTokens(userId: Id): Promise<number>;
 }
 ```
@@ -103,11 +141,82 @@ Twenty concurrent calls must produce exactly one answer with `spentAt: null`;
 in MongoDB that is one `findOneAndUpdate` returning the document before the
 update. A read followed by a write lets two requests redeem one reset token.
 
+A token is its hash, never its secret, and what it is for:
+
+```ts
+type TokenKind = 'verifyEmail' | 'resetPassword' | 'secondFactor' | 'signInCode';
+
+interface TokenRecord {
+	readonly tokenHash: string;
+	readonly kind: TokenKind;
+	readonly userId: Id;
+	readonly address: string;
+	readonly codeHash: string | null; // a signInCode's code, hashed; null for every other kind
+	readonly attempts: number; // 0 at insertion
+	readonly expiresAt: Date;
+	readonly spentAt: Date | null;
+	readonly createdAt: Date;
+}
+```
+
+A token redeemed for another kind is unknown: every method that takes a
+`kind` matches on it. `codeHash` and `attempts` round-trip like every other
+field. An adapter whose stored tokens predate them reads them as `null` and
+`0`, as the three published adapters do, so no data migration is needed for
+them.
+
 Expiry is the core's decision: a read answers a stored session verbatim,
 lapsed or revoked, and never a record it has changed. A store with its own
 expiry — a TTL index, a Redis key TTL — may drop a lapsed session or token
 before anyone asks: reads then answer `null`, and `deleteUserSessions` does
 not count it. The conformance suite accepts both.
+
+### `TokenStore.countAttempt`
+
+Counts one attempt at a code against a token, and answers the token **as it
+is after the call** — what bounds the attempts at a six-digit code:
+
+| The stored token | Written | Answered |
+| --- | --- | --- |
+| unspent, of this `kind` | `attempts + 1` | the token, with the new count |
+| spent, of this `kind` | nothing | the token as it is |
+| another `kind`, or no token with this hash | nothing | `null` |
+
+Like `consumeToken`, it is **one conditional write**, never a read followed by
+a write: twenty concurrent calls answer the counts 1 to 20, each once. A count
+two attempts both read is an attempt for free. Whether the count is past the
+limit, and whether the code matches, is the core's decision after the call;
+spending the token stays `consumeToken`'s.
+
+A **lapsed** token is counted all the same, or answered `null` by a store that
+has already dropped it (a TTL index, a Redis key TTL). Do not compare
+`expiresAt` in the store: as for `consumeToken`, the core compares it after
+the call.
+
+In MongoDB, one `findOneAndUpdate` answering the document after it, then a
+plain read for the spent case:
+
+```ts
+import type { TokenStore } from '@nxgt/janus';
+
+// tokens: your collection; toToken: your document → TokenRecord
+export const countAttempt: TokenStore['countAttempt'] = async (tokenHash, kind) => {
+	const after = await tokens.findOneAndUpdate(
+		{ _id: tokenHash, kind, spentAt: null },
+		{ $inc: { attempts: 1 } },
+		{ returnDocument: 'after' },
+	);
+	if (after !== null) return toToken(after);
+	const spent = await tokens.findOne({ _id: tokenHash, kind }); // written nothing
+	return spent === null ? null : toToken(spent);
+};
+```
+
+In SQL, `update … set attempts = attempts + 1 where token_hash = $1 and kind =
+$2 and spent_at is null returning *`, then the same plain read. In Redis, one
+Lua script: `HINCRBY` only when `spentAt` is empty, then `HGETALL`. Wrap the
+driver's error in `StoreFailure` as in [the six rules](#the-six-rules):
+`countAttempt` has its own outage case.
 
 ### `RelationStore`
 
@@ -172,7 +281,7 @@ An adapter **defines no error class**. It throws `@nxgt/janus`'s own
 copy of each class and `instanceof` holds in the application. A cursor it
 cannot read is `invalidCursor(where, cursor)`. Records, patches and page
 requests are exported as types: `UserRecord`, `UserPatch`, `UserPageRequest`,
-`PasswordRecord`, `SessionRecord`, `TokenRecord`, `TokenKind`, `Json`,
+`PasswordRecord`, `SecondFactorRecord`, `SessionRecord`, `TokenRecord`, `TokenKind`, `Json`,
 `JsonObject`, and `ObjectPageRequest`, `RelationChanges` from
 `@nxgt/janus/permissions`.
 
@@ -185,7 +294,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 38: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 44: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — twelve of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
@@ -201,6 +310,18 @@ stores: a case that leaks into the next is the hardest failure to debug.
 | `skip` | `{ [caseId]: reason }` | `{}` | Skips a case, reported with the reason — never silent |
 
 The suites import no test framework and no assertion library.
+
+The second factor and attempts have their own cases — skip one by its id
+while you work on it, never to ship:
+
+| Case | Checks |
+| --- | --- |
+| `users.secondFactorSlot` | round-trip; a patch not naming it keeps it; `null` removes it |
+| `tokens.countAttempt` | two calls answer `attempts` 1 then 2, `codeHash` as written; `consumeToken` answers the count |
+| `tokens.countAttemptConcurrency` | twenty concurrent calls answer 1 to 20, each once |
+| `tokens.countAttemptRace` | attempts racing one redemption: the counts answered unspent are 1 to the final count, and every answer after the spend carries that final count |
+| `tokens.countAttemptSpent` | a spent token answered unchanged; another kind and an unknown hash answer `null` and count nothing |
+| `outage.countAttempt` | a store that cannot answer rejects, never `null` |
 
 ### `faults`: prove the outage invariant
 

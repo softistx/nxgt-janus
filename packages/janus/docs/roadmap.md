@@ -5,14 +5,16 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing yet.
-
-## Next
-
 - **One-time codes** — a one-time token short enough to type, sent by e-mail
   to sign in without a password, or to confirm a sensitive action, issued
   and redeemed by `janus` like the verification and reset tokens today; and
-  TOTP, the one-time codes of an authenticator app, as a second factor.
+  TOTP, the one-time codes of an authenticator app, as a second factor, its
+  secret sealed with a key your application holds. `signIn` will answer
+  `{ status: 'signedIn' }` or `{ status: 'secondFactor', challenge }`. The
+  store port that holds them shipped in v0.4.0, below.
+
+## Next
+
 - **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`, built
   on a general mail toolkit shared with applications that are not about
   sign-in: a `Mailer` port you plug your transport into (SMTP, Resend, SES…) —
@@ -84,6 +86,13 @@ Nothing yet.
 
 Each entry names the version it came in.
 
+- **The store port holds a second factor and counts attempts on a token,
+  v0.4.0** — `UserRecord.secondFactor`, a token's `codeHash` and `attempts`,
+  the token kinds `'secondFactor'` and `'signInCode'`, and
+  `TokenStore.countAttempt`, one conditional write per attempt, with six new
+  conformance cases. No flow uses them yet; the published adapters implement
+  them in `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3 and
+  `@nxgt/janus-redis` 0.2.
 - **Permissions on a user, v0.3.0** — a user type may also be an object type:
   a staff member is the object `can()` asks about and is granted relations
   on, like a record, and `grant(note, 'readers', setOf(bob, 'managers'))`

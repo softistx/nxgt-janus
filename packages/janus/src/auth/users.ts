@@ -79,6 +79,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			fields,
 			logins: loginsOf(type, fields, where),
 			password: hash,
+			secondFactor: null,
 			emailVerifiedAt: null,
 			version: 0,
 			createdAt: now,
@@ -151,7 +152,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 	/** Issues a one-time token for the user's current e-mail. */
 	const issue = async (
-		kind: TokenKind,
+		kind: 'verifyEmail' | 'resetPassword',
 		user: UserRecord,
 		where: string,
 	): Promise<IssuedToken> => {
@@ -173,6 +174,8 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			kind,
 			userId: user.id,
 			address: email,
+			codeHash: null,
+			attempts: 0,
 			expiresAt,
 			spentAt: null,
 			createdAt: now,

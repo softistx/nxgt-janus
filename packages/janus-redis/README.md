@@ -89,18 +89,22 @@ Each key starts with the prefix, `janus:` unless you pass another.
 | `session:<id>` | the session, as a hash | at the session's `expiresAt` |
 | `session:token:<sha256>` | the session's id | with its session |
 | `user:<userId>:sessions` | the ids of the user's sessions, as a set | with the user's longest session |
-| `token:<sha256>` | the one-time token, as a hash | at the token's `expiresAt` |
+| `token:<sha256>` | the one-time token, as a hash: `kind`, `userId`, `address`, `codeHash`, `attempts`, the dates | at the token's `expiresAt` |
 | `user:<userId>:tokens` | the hashes of the user's tokens, as a set | with the user's longest token |
 
 No secret is stored: keys hold `sha256` of a session's or a token's secret,
-never the secret. Dates are milliseconds since the epoch.
+never the secret. Dates are milliseconds since the epoch. A token written by
+an earlier version has no `codeHash` or `attempts` field, and reads as `null`
+and `0`: upgrading needs no migration.
 
 **Every method that writes, and every read of more than one key, is one Lua
 script.** Redis runs nothing else while a script runs, so `consumeToken`
 spends a token and returns it as it was in one step. Of twenty concurrent
-redemptions, exactly one sees `spentAt: null`. The scripts are sent by SHA
-(`EVALSHA`), and in full only when Redis has forgotten them after a restart,
-a failover or a `SCRIPT FLUSH`.
+redemptions, exactly one sees `spentAt: null`. `countAttempt` is one script
+too, `HINCRBY attempts` on an unspent token of the right kind, so twenty
+concurrent attempts at a code answer twenty distinct counts. The scripts are
+sent by SHA (`EVALSHA`), and in full only when Redis has forgotten them after
+a restart, a failover or a `SCRIPT FLUSH`.
 
 ## Traps
 

@@ -420,6 +420,7 @@ describe('rehash on sign-in', () => {
 			fields: ada,
 			logins: [ada.email],
 			password: { hash: await legacy.hash(password), updatedAt: createdAt },
+			secondFactor: null,
 			emailVerifiedAt: null,
 			version: 0,
 			createdAt,

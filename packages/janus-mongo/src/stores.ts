@@ -276,6 +276,21 @@ function tokenStore(db: Db): TokenStore {
 				return before === null ? null : toToken(before);
 			}),
 
+		countAttempt: (tokenHash, kind) =>
+			run$('countAttempt', async () => {
+				// **One conditional write**, answering the document after it: an
+				// unspent token gets one more attempt, atomically. A spent one is
+				// matched by the second read below, and written nothing.
+				const after = await collection.raw.findOneAndUpdate(
+					{ _id: tokenHash, kind, spentAt: null },
+					{ $inc: { attempts: 1 } },
+					{ returnDocument: 'after' },
+				);
+				if (after !== null) return toToken(after);
+				const spent = await collection.raw.findOne({ _id: tokenHash, kind });
+				return spent === null ? null : toToken(spent);
+			}),
+
 		deleteUserTokens: (userId) =>
 			run$('deleteUserTokens', async () => {
 				const result = await collection.raw.deleteMany({ userId });
@@ -299,6 +314,7 @@ function toUserDocument(record: UserRecord): UserDocument {
 		fields: record.fields,
 		logins: [...record.logins],
 		password: record.password,
+		secondFactor: record.secondFactor,
 		emailVerifiedAt: record.emailVerifiedAt,
 		version: record.version,
 		createdAt: record.createdAt,
@@ -320,6 +336,7 @@ function toUserSet(patch: UserPatch): Record<string, unknown> {
 		'fields',
 		'logins',
 		'password',
+		'secondFactor',
 		'emailVerifiedAt',
 	] as const) {
 		if (patch[field] !== undefined) set[field] = patch[field];
@@ -330,6 +347,7 @@ function toUserSet(patch: UserPatch): Record<string, unknown> {
 
 function toUser(document: UserDocument): UserRecord {
 	const password = document.password;
+	const secondFactor = document.secondFactor ?? null;
 	return {
 		id: document._id as Id,
 		type: document.type,
@@ -341,6 +359,15 @@ function toUser(document: UserDocument): UserRecord {
 			password === null
 				? null
 				: { hash: password.hash, updatedAt: password.updatedAt },
+		secondFactor:
+			secondFactor === null
+				? null
+				: {
+						method: secondFactor.method,
+						secret: secondFactor.secret,
+						confirmedAt: secondFactor.confirmedAt,
+						lastStep: secondFactor.lastStep,
+					},
 		emailVerifiedAt: document.emailVerifiedAt,
 		version: document.version,
 		createdAt: document.createdAt,
@@ -378,6 +405,8 @@ function toTokenDocument(record: TokenRecord): TokenDocument {
 		kind: record.kind,
 		userId: record.userId,
 		address: record.address,
+		codeHash: record.codeHash,
+		attempts: record.attempts,
 		expiresAt: record.expiresAt,
 		spentAt: record.spentAt,
 		createdAt: record.createdAt,
@@ -390,6 +419,8 @@ function toToken(document: TokenDocument): TokenRecord {
 		kind: document.kind,
 		userId: document.userId as Id,
 		address: document.address,
+		codeHash: document.codeHash ?? null,
+		attempts: document.attempts ?? 0,
 		expiresAt: document.expiresAt,
 		spentAt: document.spentAt,
 		createdAt: document.createdAt,

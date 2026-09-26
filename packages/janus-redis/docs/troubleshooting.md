@@ -105,13 +105,13 @@ if (error instanceof StoreFailure) console.error(error.slot, error.operation, er
 ```
 
 A Redis user restricted by ACL needs `+@scripting` and the commands the scripts
-run (`HSET`, `HGET`, `HGETALL`, `EXISTS`, `GET`, `SET`, `DEL`, `SADD`, `SREM`,
+run (`HSET`, `HGET`, `HGETALL`, `HINCRBY`, `EXISTS`, `GET`, `SET`, `DEL`, `SADD`, `SREM`,
 `SMEMBERS`, `PTTL`, `PEXPIREAT`), on the keys `~janus:*`, or `~<your prefix>*`.
 
 ### `STORE_FAILED`: `sessions.<operation>: a reply that is not … — a key under the prefix this adapter did not write`
 
 Also `tokens.<operation>: …`, and `… not a date in \`expiresAt\``, `… not a
-hash with \`userId\``, and the like.
+count in \`attempts\``, `… not a hash with \`userId\``, and the like.
 
 **When:** Redis answered, but a key under the prefix holds something this
 adapter did not write: a key set by hand, another application using the same

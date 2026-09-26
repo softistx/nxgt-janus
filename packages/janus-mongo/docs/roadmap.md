@@ -38,10 +38,17 @@ Nothing yet.
 
 ## Shipped
 
-The first public release, v0.1.
+Each entry names the version it came in; `CHANGELOG.md` holds the rest.
 
+- **A second factor on a user, and attempts counted on a token** — the stores
+  keep a user's `secondFactor` and a token's `codeHash` and `attempts`, and
+  `countAttempt` counts an attempt at a code in one conditional write, for
+  `@nxgt/janus` 0.4. Documents written before read as no second factor and no
+  attempt; run the sync before deploying. — v0.3.0
+- **The permission model written with `related` and `permits`**, the keys of
+  `@nxgt/janus` 0.2, which it requires. — v0.2.0
 - **`LOGIN_TAKEN` no longer quotes the login in its message**; `error.login`
-  still names it. — next patch
+  still names it. — v0.2.0
 - **One call for both sides** — `createMongoAdapter(db)` answers
   `{ store, relations }`, spread into `janus()` so deleting a user deletes
   their tuples without a second wiring; `syncMongoAdapter(db)` syncs the four

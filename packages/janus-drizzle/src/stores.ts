@@ -355,6 +355,8 @@ function tokenStore(db: PgDatabase, tables: IdentityTables): TokenStore {
 						kind: before.kind,
 						userId: before.userId,
 						address: before.address,
+						codeHash: before.codeHash,
+						attempts: before.attempts,
 						expiresAt: before.expiresAt,
 						spentAt: before.spentAt,
 						createdAt: before.createdAt,
@@ -362,6 +364,25 @@ function tokenStore(db: PgDatabase, tables: IdentityTables): TokenStore {
 				return spent === undefined
 					? null
 					: { ...spent, userId: spent.userId as Id };
+			}),
+
+		countAttempt: (tokenHash, kind) =>
+			run$('countAttempt', async () => {
+				// **One conditional write**: `attempts + 1` on the row, under the
+				// row's lock, so twenty concurrent calls answer twenty counts. A
+				// spent token matches nothing here, and is read as it is below.
+				const match = and(
+					eq(tables.tokens.tokenHash, tokenHash),
+					eq(tables.tokens.kind, kind),
+				);
+				const [counted] = await db
+					.update(tables.tokens)
+					.set({ attempts: sql`${tables.tokens.attempts} + 1` })
+					.where(and(match, isNull(tables.tokens.spentAt)))
+					.returning();
+				const row =
+					counted ?? (await db.select().from(tables.tokens).where(match))[0];
+				return row === undefined ? null : { ...row, userId: row.userId as Id };
 			}),
 
 		deleteUserTokens: (userId) =>
@@ -390,6 +411,7 @@ function toUserRow(record: UserRecord): UserInsert {
 		logins: [...record.logins],
 		passwordHash: record.password?.hash ?? null,
 		passwordUpdatedAt: record.password?.updatedAt ?? null,
+		...toSecondFactorColumns(record.secondFactor),
 		emailVerifiedAt: record.emailVerifiedAt,
 		version: record.version,
 		createdAt: record.createdAt,
@@ -417,7 +439,20 @@ function toUserSet(patch: UserPatch): Partial<UserInsert> {
 		set.passwordHash = patch.password?.hash ?? null;
 		set.passwordUpdatedAt = patch.password?.updatedAt ?? null;
 	}
+	if (patch.secondFactor !== undefined) {
+		Object.assign(set, toSecondFactorColumns(patch.secondFactor));
+	}
 	return set;
+}
+
+/** A second factor as its four columns, all `null` for none. */
+function toSecondFactorColumns(secondFactor: UserRecord['secondFactor']) {
+	return {
+		secondFactorMethod: secondFactor?.method ?? null,
+		secondFactorSecret: secondFactor?.secret ?? null,
+		secondFactorConfirmedAt: secondFactor?.confirmedAt ?? null,
+		secondFactorLastStep: secondFactor?.lastStep ?? null,
+	};
 }
 
 function toUser(row: UserRow): UserRecord {
@@ -432,6 +467,15 @@ function toUser(row: UserRow): UserRecord {
 			row.passwordHash === null || row.passwordUpdatedAt === null
 				? null
 				: { hash: row.passwordHash, updatedAt: row.passwordUpdatedAt },
+		secondFactor:
+			row.secondFactorMethod === null || row.secondFactorSecret === null
+				? null
+				: {
+						method: row.secondFactorMethod,
+						secret: row.secondFactorSecret,
+						confirmedAt: row.secondFactorConfirmedAt,
+						lastStep: row.secondFactorLastStep,
+					},
 		emailVerifiedAt: row.emailVerifiedAt,
 		version: row.version,
 		createdAt: row.createdAt,

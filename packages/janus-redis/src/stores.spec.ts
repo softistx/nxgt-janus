@@ -125,6 +125,64 @@ describe('createRedisStores(), beyond the port suite', () => {
 			});
 		}));
 
+	it('reads a token written before 0.2 as no code and no attempts, then counts it', () =>
+		withCase(async ({ redis, prefix }) => {
+			const { tokens } = createRedisStores(redis, { prefix });
+			await tokens.insertToken({
+				tokenHash: 'legacy',
+				kind: 'resetPassword',
+				userId: mintId(),
+				address: 'ada@example.test',
+				codeHash: null,
+				attempts: 0,
+				expiresAt,
+				spentAt: null,
+				createdAt: new Date(),
+			});
+			await redis.client.send('HDEL', [
+				`${prefix}token:legacy`,
+				'codeHash',
+				'attempts',
+			]);
+
+			expect(
+				await tokens.countAttempt('legacy', 'resetPassword'),
+			).toMatchObject({ codeHash: null, attempts: 1 });
+		}));
+
+	it('fails on an attempt count it did not write, rather than reading it as a number', () =>
+		withCase(async ({ redis, prefix }) => {
+			const { tokens } = createRedisStores(redis, { prefix });
+			await tokens.insertToken({
+				tokenHash: 'odd',
+				kind: 'resetPassword',
+				userId: mintId(),
+				address: 'ada@example.test',
+				codeHash: null,
+				attempts: 0,
+				expiresAt,
+				spentAt: null,
+				createdAt: new Date(),
+			});
+			for (const odd of ['1e1', '0x10', '', '-1', '01']) {
+				await redis.client.send('HSET', [
+					`${prefix}token:odd`,
+					'attempts',
+					odd,
+				]);
+				const outcome = await tokens
+					.consumeToken('odd', 'resetPassword', new Date())
+					.then(
+						() => 'resolved',
+						(error: unknown) => error,
+					);
+				expect(outcome).toMatchObject({
+					code: 'STORE_FAILED',
+					operation: 'consumeToken',
+				});
+			}
+		}));
+
 	it('refuses a session token hash another session holds: not a retry', () =>
 		withCase(async ({ redis, prefix }) => {
 			const { sessions } = createRedisStores(redis, { prefix });
@@ -194,6 +252,8 @@ describe('createRedisStores(), beyond the port suite', () => {
 				kind: 'verifyEmail' as const,
 				userId,
 				address: 'ada@example.test',
+				codeHash: null,
+				attempts: 0,
 				expiresAt: at,
 				spentAt: null,
 				createdAt: new Date(),

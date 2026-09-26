@@ -12,6 +12,7 @@ import {
 } from './replies';
 import {
 	CONSUME_TOKEN,
+	COUNT_ATTEMPT,
 	DELETE_USER_SESSIONS,
 	DELETE_USER_TOKENS,
 	EXTEND_SESSION,
@@ -193,6 +194,8 @@ function tokenStore(evaluate: Evaluate, prefix: string): TokenStore {
 					stamp(record.expiresAt),
 					stampOrEmpty(record.spentAt),
 					stamp(record.createdAt),
+					record.codeHash ?? '',
+					String(record.attempts),
 				],
 				ignore,
 			),
@@ -203,6 +206,11 @@ function tokenStore(evaluate: Evaluate, prefix: string): TokenStore {
 				CONSUME_TOKEN,
 				[tokenHash, kind, stamp(at)],
 				(reply, call) => toToken(reply, tokenHash, kind, call),
+			),
+
+		countAttempt: (tokenHash, kind) =>
+			run('countAttempt', COUNT_ATTEMPT, [tokenHash, kind], (reply, call) =>
+				toToken(reply, tokenHash, kind, call),
 			),
 
 		deleteUserTokens: (userId) =>

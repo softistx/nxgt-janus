@@ -18,7 +18,7 @@ describeJanusStores({
 });
 
 describe('the suite itself', () => {
-	it('covers the eleven methods whose honest answer can be nothing', () => {
+	it('covers the twelve methods whose honest answer can be nothing', () => {
 		expect(
 			allCases.filter((c) => c.group === 'outage').map((c) => c.id),
 		).toEqual([
@@ -30,6 +30,7 @@ describe('the suite itself', () => {
 			'outage.revokeSession',
 			'outage.revokeUserSessions',
 			'outage.consumeToken',
+			'outage.countAttempt',
 			'outage.deleteUser',
 			'outage.deleteUserSessions',
 			'outage.deleteUserTokens',
@@ -75,9 +76,9 @@ describe('the suite itself', () => {
 		});
 
 		expect(names[0]).toContain('WITHOUT faults');
-		expect(skipped).toHaveLength(12);
+		expect(skipped).toHaveLength(13);
 		expect(skipped.filter((n) => n.includes(SKIP_REASONS.faults))).toHaveLength(
-			11,
+			12,
 		);
 		expect(skipped).toContainEqual(
 			expect.stringContaining('skipped: our database pages by timestamp'),
