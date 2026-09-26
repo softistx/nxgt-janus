@@ -10,8 +10,8 @@ dates here, and the version something shipped in is the only number.
   migrations. Built, not yet published.
 - **Tracing and an audit trail** — in a package of its own,
   `@nxgt/janus-telemetry`: a span per flow and per permission check, and the
-  security events worth keeping, never a login, a password or a token. Built,
-  not yet published.
+  security events worth keeping, never a login, a password, a session token
+  or a one-time token. Built, not yet published.
 - **A Redis adapter for sessions and tokens** — in a package of its own,
   `@nxgt/janus-redis`: both are read on every request and ephemeral, so they
   live in Redis, expired by Redis itself, while users stay in another store.
@@ -19,10 +19,10 @@ dates here, and the version something shipped in is the only number.
 
 ## Next
 
-- **One-time codes** — a short code sent by e-mail to sign in without a
-  password, or to confirm a sensitive action, issued and redeemed by `janus`
-  like the verification and reset tokens today; and TOTP, the codes of an
-  authenticator app, as a second factor.
+- **One-time codes** — a one-time token short enough to type, sent by e-mail
+  to sign in without a password, or to confirm a sensitive action, issued
+  and redeemed by `janus` like the verification and reset tokens today; and
+  TOTP, the codes of an authenticator app, as a second factor.
 - **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`: a
   `Mailer` port you plug your transport into (SMTP, Resend, SES…), and default
   templates for verification, password reset and one-time codes. The templates
@@ -37,8 +37,8 @@ dates here, and the version something shipped in is the only number.
 - **Webhooks** — signed HTTP events when something happens to a user
   (created, e-mail verified, password reset, deleted), so another service can
   follow without polling: a signature it can check, retries on failure, and
-  the same rule as the audit trail — never a password, a token or a code in a
-  payload.
+  the same rule as the audit trail — never a login, a password, a session
+  token or a one-time token in a payload.
 
 ## Later
 
