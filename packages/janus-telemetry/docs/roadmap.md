@@ -5,9 +5,7 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **The first release** — `instrumentJanus` and `instrumentPermissions`: a span
-  per flow and per permission check, and the security events worth an audit
-  trail. Built, not yet published.
+Nothing yet.
 
 ## Next
 
@@ -32,4 +30,6 @@ Nothing yet.
 
 ## Shipped
 
-Nothing yet: the package is not published.
+- **The first release, v0.1.0** — `instrumentJanus` and
+  `instrumentPermissions`: a span per flow and per permission check, and the
+  security events worth an audit trail.
