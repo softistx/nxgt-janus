@@ -81,7 +81,8 @@ interface ModelConfig {
 
 `model.definition` holds the model in the string form, whichever form it
 was written in — a reference-form type reads `relations` and `permissions`
-there, its rules spelled out — and its top level is frozen.
+there, its rules spelled out. It is a copy, for a string-form model too, and
+its top level is frozen.
 
 A model is written in one of two spellings, or both: the **string form**
 below, and the **[reference form](#the-reference-form)** — `related`,

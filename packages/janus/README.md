@@ -661,7 +661,7 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**A hundred and twelve plausible mistakes, a hundred and twelve refused at
+**A hundred and thirteen plausible mistakes, a hundred and thirteen refused at
 compile time — and one gap, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -671,7 +671,7 @@ mistake — two for the three whose refusal also costs the rules their types —
 of view of the person implementing it), `test/types/auth.ts` (twenty, on
 `janus()`, from the point of view of the application),
 `test/types/permissions.ts` (thirty-nine, on the permission model and the
-questions asked of it) and `test/types/rules.ts` (twenty-four, on the model
+questions asked of it) and `test/types/rules.ts` (twenty-five, on the model
 written with references). The rule comes from `nxgt-data`, and so does the
 reason to
 distrust the claim without the files: when it was last measured on

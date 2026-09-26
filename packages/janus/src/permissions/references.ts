@@ -5,7 +5,12 @@
  * it is.
  */
 
-import type { Names } from './normalize';
+/** The names every type declares, in either form: what a rule's references are built from. */
+export interface Names {
+	readonly related: ReadonlyMap<string, Record<string, unknown>>;
+	readonly permits: ReadonlyMap<string, readonly string[]>;
+	readonly referenceForm: ReadonlySet<string>;
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null && !Array.isArray(value);

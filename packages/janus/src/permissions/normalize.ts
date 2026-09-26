@@ -6,7 +6,7 @@
  */
 
 import type { ModelConfig } from './model';
-import { paramFor } from './references';
+import { type Names, paramFor } from './references';
 import type { Ref } from './rules';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -89,13 +89,6 @@ export function normalizeRules(
 		config: { ...rest, types: normalizedTypes } as unknown as ModelConfig,
 		referenceForm: names.referenceForm,
 	};
-}
-
-/** The names every type declares, in either form: what a rule's references are built from. */
-export interface Names {
-	readonly related: ReadonlyMap<string, Record<string, unknown>>;
-	readonly permits: ReadonlyMap<string, readonly string[]>;
-	readonly referenceForm: ReadonlySet<string>;
 }
 
 const REFERENCE_KEYS: readonly string[] = ['related', 'permits'];
