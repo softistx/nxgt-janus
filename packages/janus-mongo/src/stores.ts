@@ -291,6 +291,18 @@ function tokenStore(db: Db): TokenStore {
 				return spent === null ? null : toToken(spent);
 			}),
 
+		spendUserTokens: (userId, kind, at) =>
+			run$('spendUserTokens', async () => {
+				// Each document is matched and written in one step, as
+				// `consumeToken` does: a token it spends at the same moment is
+				// counted by exactly one of the two.
+				const result = await collection.raw.updateMany(
+					{ userId, kind, spentAt: null },
+					{ $set: { spentAt: at } },
+				);
+				return result.modifiedCount;
+			}),
+
 		deleteUserTokens: (userId) =>
 			run$('deleteUserTokens', async () => {
 				const result = await collection.raw.deleteMany({ userId });

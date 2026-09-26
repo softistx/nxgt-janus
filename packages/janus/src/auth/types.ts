@@ -84,6 +84,12 @@ export interface SecondFactorRequired {
 	readonly challenge: string;
 	/** When the challenge lapses. Five minutes after `signIn`, by default. */
 	readonly expiresAt: Date;
+	/**
+	 * Whose sign-in waits for its code — for your logs and your rate limits.
+	 * **Not for the visitor**: they have proved a password or an e-mail, not
+	 * yet who they are, so answer them the challenge alone.
+	 */
+	readonly userId: Id;
 }
 
 /** What `signIn` answers once a second factor is configured: switch on `status`. */

@@ -17,7 +17,7 @@ import {
 	issueCode,
 	refuseStale,
 	spendOneTime,
-	unknownOneTime,
+	unknownChallenge,
 } from './one-time';
 import type { UserRecord } from './port/types';
 import type { SignInCodeApi, SignInResult } from './types';
@@ -29,9 +29,11 @@ import type { SignInCodeApi, SignInResult } from './types';
  * The code is six digits, so it is guessable where a link is not. What
  * bounds that is the same as for a second factor: the store counts every
  * attempt in one write, before the code is compared, and the fifth wrong one
- * spends the challenge. **The bound is per challenge**: anybody who knows an
- * e-mail can ask for another, so the application rate-limits `request`. The
- * code's hash is keyed by the challenge, so the tokens alone do not reveal it.
+ * spends the challenge. **One code is live per user**: `request` spends the
+ * ones sent before, so guesses never run against two challenges at once. Yet
+ * anybody who knows an e-mail can ask for another, so the application still
+ * rate-limits `request`. The code's hash is keyed by the challenge, so the
+ * tokens alone do not reveal it.
  */
 export function signInCodeFlows(
 	context: Context,
@@ -45,6 +47,13 @@ export function signInCodeFlows(
 			const record = await holderOfEmail(context, type, String(email));
 			if (record === null || !record.active) return null;
 
+			// One live code per user: the ones sent before stop working, so
+			// guesses never run against more than one challenge at a time.
+			await context.store.tokens.spendUserTokens(
+				record.id,
+				'signInCode',
+				context.clock.now(),
+			);
 			const { secret, code, expiresAt } = await issueCode(context, {
 				kind: 'signInCode',
 				userId: record.id,
@@ -72,10 +81,12 @@ export function signInCodeFlows(
 			);
 
 			// A user gone since, or of another type, is as good as no challenge:
-			// another type's API compares nothing and spends nothing — though the
-			// attempt, counted before the type is known, is gone.
+			// another type's API compares nothing — though the attempt, counted
+			// before the type is known, is gone, and the last one spends it.
 			const user = await findRecord(context, token.userId, type.name);
-			if (user === null) throw unknownOneTime(where, 'challenge');
+			if (user === null) {
+				throw await unknownChallenge(context, token, secret, where);
+			}
 
 			if (!codeMatches(token, secret, String(code))) {
 				// The last attempt, and a wrong code: the challenge is spent.

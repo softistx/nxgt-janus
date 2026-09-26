@@ -7,7 +7,7 @@ import {
 	countCodeAttempt,
 	issueOneTime,
 	spendOneTime,
-	unknownOneTime,
+	unknownChallenge,
 } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { openSession } from '../sessions';
@@ -45,7 +45,12 @@ export function challengeFlows(
 				address: '',
 				ttlMs: configured.challengeTtlMs,
 			});
-			return { status: 'secondFactor', challenge: secret, expiresAt };
+			return {
+				status: 'secondFactor',
+				challenge: secret,
+				expiresAt,
+				userId: record.id,
+			};
 		},
 
 		async confirm(challenge: string, code: string): Promise<SignedIn<AnyUser>> {
@@ -67,7 +72,9 @@ export function challengeFlows(
 
 			// A user gone since, or of another type, is as good as no challenge.
 			const record = await findRecord(context, token.userId, type.name);
-			if (record === null) throw unknownOneTime(where, 'challenge');
+			if (record === null) {
+				throw await unknownChallenge(context, token, secret, where);
+			}
 			if (!record.active) {
 				await spend(secret, where);
 				throw new UserInactiveError(`${where}: the user is inactive`, {

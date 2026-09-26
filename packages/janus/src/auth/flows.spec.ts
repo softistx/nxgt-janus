@@ -1,8 +1,51 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, bearer, password, rejection, setup } from '../../test/auth';
 import type { JanusError } from '../errors/janus-error';
+import { createMemoryStores } from './port/memory';
+import type { JanusStores } from './port/types';
 
 const HOUR = 3_600_000;
+
+/**
+ * A store where the user's e-mail changes **between the two reads** of a
+ * redemption: after the token is spent and the user read once, before the
+ * write reads them again — the gap a check made only on the first read
+ * would miss.
+ */
+function changingEmailAfterRedeem(email: string): JanusStores {
+	const store = createMemoryStores();
+	let reads = -1;
+	return {
+		...store,
+		tokens: {
+			...store.tokens,
+			async consumeToken(...args) {
+				reads = 0;
+				return store.tokens.consumeToken(...args);
+			},
+		},
+		users: {
+			...store.users,
+			async findUser(id) {
+				if (reads >= 0 && ++reads === 2) {
+					const record = await store.users.findUser(id);
+					if (record !== null) {
+						await store.users.updateUser(
+							id,
+							{
+								fields: { ...record.fields, email },
+								logins: [email],
+								updatedAt: record.updatedAt,
+							},
+							record.version,
+						);
+					}
+				}
+				return store.users.findUser(id);
+			},
+		},
+	};
+}
 
 describe('verifyEmail', () => {
 	it('sends a token for the current e-mail, and confirming it verifies the e-mail', async () => {
@@ -59,6 +102,37 @@ describe('verifyEmail', () => {
 			expect(error.message).not.toContain(used.token);
 			expect(error.message).not.toContain(lapsing.token);
 		}
+	});
+});
+
+describe('an e-mail changed while a link is redeemed', () => {
+	it('verifies nothing', async () => {
+		const store = changingEmailAfterRedeem('countess@example.test');
+		const { auth } = setup({ store });
+		const { user } = await auth.signUp({ ...ada, password });
+		const sent = await auth.verifyEmail.send(user);
+
+		expect(await rejection(auth.verifyEmail.confirm(sent.token))).toMatchObject(
+			{ code: 'TOKEN_STALE' },
+		);
+		expect((await auth.get(user.id)).emailVerified).toBe(false);
+	});
+
+	it('resets no password', async () => {
+		const store = changingEmailAfterRedeem('countess@example.test');
+		const { auth } = setup({ store });
+		const { user } = await auth.signUp({ ...ada, password });
+		const sent = await auth.resetPassword.request(ada.email);
+
+		expect(
+			await rejection(
+				auth.resetPassword.confirm(sent?.token ?? '', 'brand new password'),
+			),
+		).toMatchObject({ code: 'TOKEN_STALE' });
+		// The password is the one it was: it still signs in, under the new e-mail.
+		expect(
+			(await auth.signIn({ email: 'countess@example.test', password })).user.id,
+		).toBe(user.id);
 	});
 });
 

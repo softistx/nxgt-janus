@@ -369,7 +369,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 			async confirm(secret) {
 				const where = at('verifyEmail.confirm');
-				const { user } = await redeem('verifyEmail', secret, where);
+				const { token, user } = await redeem('verifyEmail', secret, where);
 				return toUser(
 					await writeUser(
 						context,
@@ -377,9 +377,12 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 						type,
 						undefined,
 						where,
-						(_, now) => ({
-							emailVerifiedAt: now,
-						}),
+						(record, now) => {
+							// Checked again on the record written: an e-mail changed
+							// since the read above is not the one the link proved.
+							refuseStale(type, record, token, where, 'token');
+							return { emailVerifiedAt: now };
+						},
 					),
 				);
 			},
@@ -404,24 +407,34 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				checkPassword(type, password, where);
 				const hash = await requireHasher(context, where).hash(password);
 
-				const { user } = await redeem('resetPassword', secret, where);
+				const { token, user } = await redeem('resetPassword', secret, where);
 				const written = await writeUser(
 					context,
 					user.id,
 					type,
 					undefined,
 					where,
-					(record, now) => ({
-						password: { hash, updatedAt: now },
-						// The link reached the inbox: that proves the e-mail.
-						...(record.emailVerifiedAt === null
-							? { emailVerifiedAt: now }
-							: {}),
-					}),
+					(record, now) => {
+						// Checked again on the record written, as for verifyEmail.
+						refuseStale(type, record, token, where, 'token');
+						return {
+							password: { hash, updatedAt: now },
+							// The link reached the inbox: that proves the e-mail.
+							...(record.emailVerifiedAt === null
+								? { emailVerifiedAt: now }
+								: {}),
+						};
+					},
 				);
 
-				// Whoever had the old password is signed out.
+				// Whoever had the old password is signed out, and a sign-in they
+				// left waiting on its second factor cannot be finished.
 				await store.sessions.revokeUserSessions(written.id, clock.now());
+				await store.tokens.spendUserTokens(
+					written.id,
+					'secondFactor',
+					clock.now(),
+				);
 				return toUser(written);
 			},
 		},

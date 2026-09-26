@@ -50,6 +50,21 @@ describe('signInCode.request', () => {
 		expect(await auth.signInCode.request(ada.email)).toBeNull();
 	});
 
+	it('keeps one code live: asking again spends the codes sent before', async () => {
+		const { auth } = setup();
+		await auth.signUp({ ...ada, password });
+		const first = await auth.signInCode.request(ada.email);
+		const second = await auth.signInCode.request(ada.email);
+		if (first === null || second === null) throw new Error('expected codes');
+
+		expect(
+			await rejection(auth.signInCode.confirm(first.challenge, first.code)),
+		).toMatchObject({ code: 'TOKEN_SPENT' });
+		expect(
+			(await auth.signInCode.confirm(second.challenge, second.code)).status,
+		).toBe('signedIn');
+	});
+
 	it('answers null for a login that only looks like an e-mail', async () => {
 		const auth = janus({
 			users: {
@@ -283,6 +298,33 @@ describe('signInCode.confirm', () => {
 			(await auth.patient.signInCode.confirm(issued.challenge, issued.code))
 				.status,
 		).toBe('signedIn');
+	});
+
+	it("spends the challenge once another type's API took its last attempt", async () => {
+		const auth = janus({
+			users: {
+				patient: { schema: person, password: { login: 'email' } },
+				member: { schema: person, password: { login: 'email' } },
+			},
+			store: createMemoryStores(),
+			hasher,
+		});
+		await auth.patient.signUp({ ...ada, password });
+		const issued = await auth.patient.signInCode.request(ada.email);
+		if (issued === null) throw new Error('expected a code');
+
+		for (let attempt = 0; attempt < 5; attempt += 1) {
+			expect(
+				await rejection(
+					auth.member.signInCode.confirm(issued.challenge, issued.code),
+				),
+			).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+		}
+		expect(
+			await rejection(
+				auth.patient.signInCode.confirm(issued.challenge, issued.code),
+			),
+		).toMatchObject({ code: 'TOKEN_SPENT' });
 	});
 
 	it('still asks for an active second factor', async () => {

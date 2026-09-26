@@ -215,6 +215,26 @@ end
 return redis.call('HGETALL', key)
 `;
 
+/**
+ * `ARGV`: prefix, userId, kind, at. **Spends every unspent token of the user
+ * of this kind**, and answers how many. One script, so a `consumeToken` of
+ * the same token runs wholly before or wholly after it: exactly one of the
+ * two spends it. A token Redis already expired is a member of the set no
+ * more than a key, and is not counted.
+ */
+export const SPEND_USER_TOKENS = `
+local p, userId, kind, at = ARGV[1], ARGV[2], ARGV[3], ARGV[4]
+local spent = 0
+for _, tokenHash in ipairs(redis.call('SMEMBERS', p .. 'user:' .. userId .. ':tokens')) do
+	local key = p .. 'token:' .. tokenHash
+	if redis.call('HGET', key, 'kind') == kind and redis.call('HGET', key, 'spentAt') == '' then
+		redis.call('HSET', key, 'spentAt', at)
+		spent = spent + 1
+	end
+end
+return spent
+`;
+
 /** `ARGV`: prefix, userId. Deletes every token of the user, and answers how many. */
 export const DELETE_USER_TOKENS = `
 local p, userId = ARGV[1], ARGV[2]

@@ -483,6 +483,24 @@ export interface TokenStore {
 	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
 
 	/**
+	 * Spends every **unspent** token of one user and one `kind` at `at`, and
+	 * answers how many it spent. What issuing a sign-in code calls, so only
+	 * the last code sent works, and what resetting a password calls, so no
+	 * second-factor challenge opened with the old password survives it.
+	 *
+	 * - A spent token keeps its `spentAt`: it never changes once set.
+	 * - A token of another `kind`, or of another user, is not touched.
+	 * - A lapsed token is spent all the same, or not counted by a store that
+	 *   already dropped it.
+	 * - `0` for a user with none: an absence, not a failure.
+	 *
+	 * Each token is spent by a conditional write, as `consumeToken` spends
+	 * one: a token `consumeToken` spends at the same moment is counted by
+	 * exactly one of the two calls.
+	 */
+	spendUserTokens(userId: Id, kind: TokenKind, at: Date): Promise<number>;
+
+	/**
 	 * Deletes every token of one user, spent or not, and answers how many.
 	 * What deleting a user calls: a token holds the e-mail it was sent to, which
 	 * must not outlive the user until its expiry.

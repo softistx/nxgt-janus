@@ -152,7 +152,7 @@ describe('secondFactor.enroll and activate', () => {
 describe('signIn with a second factor', () => {
 	it('answers a challenge instead of a session', async () => {
 		const context = setup();
-		await enrolled(context);
+		const { user } = await enrolled(context);
 		const now = context.clock.now().getTime();
 
 		const result = await context.auth.signIn({ email: ada.email, password });
@@ -161,6 +161,7 @@ describe('signIn with a second factor', () => {
 			status: 'secondFactor',
 			challenge: expect.any(String),
 			expiresAt: new Date(now + 5 * 60_000),
+			userId: user.id,
 		});
 		expect(Object.keys(result)).not.toContain('token');
 	});
@@ -343,6 +344,58 @@ describe('the challenge, raced and crossed', () => {
 			(await auth.patient.secondFactor.confirm(result.challenge, codeNow()))
 				.status,
 		).toBe('signedIn');
+	});
+});
+
+describe('what spends a challenge before its code', () => {
+	it("spends it once another type's API took its last attempt", async () => {
+		const clock = fixedClock(Date.UTC(2026, 8, 26));
+		const auth = janus({
+			users: {
+				patient: { schema: person, password: { login: 'email' } },
+				staff: { schema: person, password: { login: 'email' } },
+			},
+			store: createMemoryStores(),
+			hasher,
+			clock,
+			secondFactor: { issuer: 'Clinic', keys: [{ id: 'k1', key: key(1) }] },
+		});
+		const { user } = await auth.patient.signUp({ ...ada, password });
+		const { secret } = await auth.patient.secondFactor.enroll(user);
+		const codeNow = () => codeAt(fromBase32(secret), stepAt(clock.now()));
+		await auth.patient.secondFactor.activate(user, codeNow());
+		clock.advance(30_000);
+		const result = await auth.patient.signIn({ email: ada.email, password });
+		if (result.status !== 'secondFactor')
+			throw new Error('expected a challenge');
+
+		for (let attempt = 0; attempt < 5; attempt += 1) {
+			expect(
+				await rejection(
+					auth.staff.secondFactor.confirm(result.challenge, codeNow()),
+				),
+			).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+		}
+		expect(
+			await rejection(
+				auth.patient.secondFactor.confirm(result.challenge, codeNow()),
+			),
+		).toMatchObject({ code: 'TOKEN_SPENT' });
+	});
+
+	it('spends the challenges a password reset finds waiting', async () => {
+		const context = setup();
+		const { auth, codeOf } = context;
+		const { secret } = await enrolled(context);
+		const challenge = await challenged(auth);
+		const reset = await auth.resetPassword.request(ada.email);
+		if (reset === null) throw new Error('expected a reset link');
+
+		await auth.resetPassword.confirm(reset.token, 'a new password, long');
+
+		expect(
+			await rejection(auth.secondFactor.confirm(challenge, codeOf(secret))),
+		).toMatchObject({ code: 'TOKEN_SPENT' });
 	});
 });
 

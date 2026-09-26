@@ -164,6 +164,7 @@ describe('guarded stores', () => {
 		class Tokens {
 			insertToken = reference.insertToken;
 			countAttempt = reference.countAttempt;
+			spendUserTokens = reference.spendUserTokens;
 			deleteUserTokens = reference.deleteUserTokens;
 			async consumeToken(): Promise<null> {
 				throw new Error('socket hang up');

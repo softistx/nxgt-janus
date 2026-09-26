@@ -21,6 +21,7 @@ import {
 	INSERT_TOKEN,
 	REVOKE_SESSION,
 	REVOKE_USER_SESSIONS,
+	SPEND_USER_TOKENS,
 } from './scripts';
 
 /** What the stores take besides the connection. */
@@ -211,6 +212,14 @@ function tokenStore(evaluate: Evaluate, prefix: string): TokenStore {
 		countAttempt: (tokenHash, kind) =>
 			run('countAttempt', COUNT_ATTEMPT, [tokenHash, kind], (reply, call) =>
 				toToken(reply, tokenHash, kind, call),
+			),
+
+		spendUserTokens: (userId, kind, at) =>
+			run(
+				'spendUserTokens',
+				SPEND_USER_TOKENS,
+				[userId, kind, stamp(at)],
+				count,
 			),
 
 		deleteUserTokens: (userId) =>

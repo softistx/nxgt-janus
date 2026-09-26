@@ -205,6 +205,9 @@ describe('instrumentJanus()', () => {
 				'janus.secondFactor.disabled',
 			]),
 		);
+		expect(
+			logs.find((log) => log.name === 'janus.signIn.secondFactor')?.attributes,
+		).toEqual({ 'janus.user.type': 'user', 'user.id': id });
 		const refused = logs.find((log) => log.name === 'janus.signIn.refused');
 		expect(refused?.attributes).toMatchObject({
 			'janus.refusal': 'CODE_INVALID',
