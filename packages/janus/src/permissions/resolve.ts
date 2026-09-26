@@ -77,31 +77,64 @@ const RENAMED: Readonly<Record<string, string>> = {
 	permissions: 'permits',
 };
 
+type Refuse = (message: string) => TypeError;
+
+/** The names each object type declares, collected before any rule is read. */
+interface DeclaredNames {
+	readonly relationNames: ReadonlyMap<string, ReadonlySet<string>>;
+	readonly permissionNames: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
 export function resolveModel(
 	config: ModelConfig,
 	where: string,
 ): ResolvedModel {
-	const refuse = (message: string) => new TypeError(`${where}: ${message}`);
+	const refuse: Refuse = (message) => new TypeError(`${where}: ${message}`);
 
 	if (!isRecord(config)) throw refuse('pass { subjects, types }');
-	if (!Array.isArray(config.subjects)) {
+	const subjects = subjectTypesOf(config.subjects, refuse);
+	const typeNames = objectTypeNamesOf(config.types, subjects, refuse);
+	const declared = collectNames(config.types, refuse);
+	const types = resolveTypes(config.types, {
+		refuse,
+		subjects,
+		typeNames,
+		declared,
+	});
+
+	refuseLoops(types, refuse);
+	refuseDataBeyondRoot(types, refuse);
+
+	return { subjects, types };
+}
+
+/** The subject types: camelCase names, as `auth.types` gives them. */
+function subjectTypesOf(value: unknown, refuse: Refuse): Set<string> {
+	if (!Array.isArray(value)) {
 		throw refuse(
 			'subjects must be an array of subject type names — auth.types from janus(), or your own',
 		);
 	}
-	for (const subject of config.subjects) {
+	for (const subject of value) {
 		if (typeof subject !== 'string' || !NAME.test(subject)) {
 			throw refuse(
 				`the subject type "${String(subject)}" must be a camelCase name`,
 			);
 		}
 	}
-	const subjects = new Set<string>(config.subjects);
+	return new Set<string>(value);
+}
 
-	if (!isRecord(config.types) || Object.keys(config.types).length === 0) {
+/** The object types' names: camelCase, at least one, none a subject type. */
+function objectTypeNamesOf(
+	value: unknown,
+	subjects: ReadonlySet<string>,
+	refuse: Refuse,
+): Set<string> {
+	if (!isRecord(value) || Object.keys(value).length === 0) {
 		throw refuse('types declares no object type');
 	}
-	const typeNames = new Set(Object.keys(config.types));
+	const typeNames = new Set(Object.keys(value));
 	for (const name of typeNames) {
 		if (!NAME.test(name)) {
 			throw refuse(
@@ -114,12 +147,20 @@ export function resolveModel(
 			);
 		}
 	}
+	return typeNames;
+}
 
-	// The relation names first: a subject set or an arrow may name a relation
-	// of a type declared further down.
+/**
+ * Every type's relation and permission names, first: a subject set or an
+ * arrow may name a relation of a type declared further down.
+ */
+function collectNames(
+	types: ModelConfig['types'],
+	refuse: Refuse,
+): DeclaredNames {
 	const relationNames = new Map<string, Set<string>>();
 	const permissionNames = new Map<string, Set<string>>();
-	for (const [name, def] of Object.entries(config.types)) {
+	for (const [name, def] of Object.entries(types)) {
 		const at = `types.${name}`;
 		if (!isRecord(def)) throw refuse(`${at} must be an object`);
 		for (const key of Object.keys(def)) {
@@ -130,18 +171,33 @@ export function resolveModel(
 					: `${at}.${key} is not a key of an object type: related or permits`,
 			);
 		}
-		relationNames.set(name, namesIn(def.related, `${at}.related`, refuse));
+		const relations = namesIn(def.related, `${at}.related`, refuse);
 		const permissions = namesIn(def.permits, `${at}.permits`, refuse);
 		for (const permission of permissions) {
-			if (relationNames.get(name)?.has(permission)) {
+			if (relations.has(permission)) {
 				throw refuse(
 					`${at}: "${permission}" names a relation and a permission; rename one`,
 				);
 			}
 		}
+		relationNames.set(name, relations);
 		permissionNames.set(name, permissions);
 	}
+	return { relationNames, permissionNames };
+}
 
+/** Each object type's relations and permissions, every rule parsed once. */
+function resolveTypes(
+	config: ModelConfig['types'],
+	context: {
+		readonly refuse: Refuse;
+		readonly subjects: ReadonlySet<string>;
+		readonly typeNames: ReadonlySet<string>;
+		readonly declared: DeclaredNames;
+	},
+): Map<string, ResolvedObjectType> {
+	const { refuse, subjects, typeNames } = context;
+	const { relationNames, permissionNames } = context.declared;
 	const isSubjectType = (type: string) =>
 		subjects.has(type) || typeNames.has(type);
 	const namesOf = (type: string) =>
@@ -151,7 +207,7 @@ export function resolveModel(
 		]);
 
 	const types = new Map<string, ResolvedObjectType>();
-	for (const [name, def] of Object.entries(config.types)) {
+	for (const [name, def] of Object.entries(config)) {
 		const at = `types.${name}`;
 		const relations = new Map<string, ResolvedRelation>();
 
@@ -190,11 +246,7 @@ export function resolveModel(
 
 		types.set(name, { name, relations, permissions });
 	}
-
-	refuseLoops(types, refuse);
-	refuseDataBeyondRoot(types, refuse);
-
-	return { subjects, types };
+	return types;
 }
 
 function namesIn(
