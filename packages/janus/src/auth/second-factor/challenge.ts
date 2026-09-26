@@ -2,6 +2,8 @@ import { SecondFactorError, UserInactiveError } from '../../errors/janus-error';
 import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, findRecord } from '../context';
 import {
+	burnOneTime,
+	CODE_ATTEMPTS,
 	issueOneTime,
 	refuseUnusable,
 	spendOneTime,
@@ -12,13 +14,6 @@ import { hashSecret } from '../secrets';
 import { openSession } from '../sessions';
 import type { SecondFactorRequired, SignedIn } from '../types';
 import { acceptCode, codeInvalid, isActive, requireSettings } from './factor';
-
-/**
- * How many codes one challenge takes. A six-digit code has a million values:
- * five tries is a one-in-200,000 chance per password guessed right, and the
- * attempts are counted by the store in one write, never read then written.
- */
-export const CHALLENGE_ATTEMPTS = 5;
 
 /**
  * The challenge `signIn` answers instead of a session, and the code that
@@ -70,11 +65,11 @@ export function challengeFlows(
 				'secondFactor',
 			);
 			refuseUnusable(token, clock.now(), where, 'challenge');
-			if (token.attempts > CHALLENGE_ATTEMPTS) {
+			if (token.attempts > CODE_ATTEMPTS) {
 				// A call that raced the one that spent it: refused unread.
 				throw codeInvalid(type, where, token.userId, 0);
 			}
-			const attemptsLeft = CHALLENGE_ATTEMPTS - token.attempts;
+			const attemptsLeft = CODE_ATTEMPTS - token.attempts;
 
 			// A user gone since, or of another type, is as good as no challenge.
 			const record = await findRecord(context, token.userId, type.name);
@@ -106,7 +101,9 @@ export function challengeFlows(
 			);
 			if (accepted === null) {
 				// The last attempt, and a wrong code: the challenge is spent.
-				if (attemptsLeft === 0) await spend(secret, where);
+				if (attemptsLeft === 0) {
+					await burnOneTime(context, secret, 'secondFactor');
+				}
 				throw codeInvalid(type, where, record.id, attemptsLeft);
 			}
 

@@ -1,7 +1,8 @@
 import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
 import type { UserRecord } from '../port/types';
-import type { SecondFactorApi } from '../types';
+import { openSession } from '../sessions';
+import type { SecondFactorApi, SignInResult } from '../types';
 import { challengeFlows } from './challenge';
 import { isActive } from './factor';
 import { lifecycleFlows } from './lifecycle';
@@ -23,8 +24,17 @@ export function secondFactorFlows(
 
 	return {
 		api,
-		challenge: challenges.issue,
-		/** Whether `signIn` must ask for a code before opening a session. */
-		required: (record: UserRecord): boolean => isActive(record.secondFactor),
+		/**
+		 * What a sign-in answers once the user proved who they are — by
+		 * password or by an e-mail code: a session, or a challenge when their
+		 * second factor is active. The first factor alone opens nothing then.
+		 */
+		finish: (
+			record: UserRecord,
+			where: string,
+		): Promise<SignInResult<AnyUser>> =>
+			isActive(record.secondFactor)
+				? challenges.issue(record, where)
+				: openSession(context, type, record),
 	};
 }

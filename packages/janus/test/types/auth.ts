@@ -7,7 +7,7 @@
  * a user who can never sign in, a field read off the wrong kind of user, a
  * password hash handed to a request handler.
  *
- * **Twenty-eight plausible mistakes, twenty-eight refused.** Add a case whenever the
+ * **Thirty plausible mistakes, thirty refused.** Add a case whenever the
  * surface gains something it should refuse; never delete one to make a change
  * pass.
  */
@@ -266,6 +266,18 @@ async function flows() {
 	const perhaps = await maybe.signIn({ email: 'a@b.test', password: 'p' });
 	// @ts-expect-error it may be on at run time: narrow on status first
 	void perhaps.token;
+
+	// ── 29. A sign-in code for a type with no e-mail ──────────────────────
+	// @ts-expect-error staff have no e-mail to send a code to
+	await clinic.staff.signInCode.request('a@b.test');
+
+	// ── 30. A session read off a code that may still ask for a factor ─────
+	const coded = await twoFactor.patient.signInCode.confirm(
+		'challenge',
+		'123456',
+	);
+	// @ts-expect-error the code proves the e-mail; an active factor is still asked for
+	void coded.token;
 }
 
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
@@ -318,6 +330,10 @@ async function allowed() {
 	const enrolment: { secret: string; uri: string } =
 		await twoFactor.patient.secondFactor.enroll(signedIn.user);
 	const active: boolean = signedIn.user.hasSecondFactor;
+	// A guest has no password, so no second factor: a code signs them in.
+	const guestToken: string = (
+		await twoFactor.guest.signInCode.confirm('challenge', '123456')
+	).token;
 
 	return [
 		name,
@@ -331,6 +347,7 @@ async function allowed() {
 		patientToken,
 		enrolment,
 		active,
+		guestToken,
 	];
 }
 

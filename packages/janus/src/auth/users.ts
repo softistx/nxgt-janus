@@ -28,11 +28,13 @@ import { issueOneTime, spendOneTime, unknownOneTime } from './one-time';
 import type { TokenKind, TokenRecord, UserRecord } from './port/types';
 import { secondFactorFlows } from './second-factor/flows';
 import { openSession } from './sessions';
+import { signInCodeFlows } from './sign-in-code';
 import type {
 	IssuedToken,
 	PasswordApi,
 	ResetPasswordApi,
 	SecondFactorApi,
+	SignInCodeApi,
 	SignInResult,
 	UserTypeApi,
 	VerifyEmailApi,
@@ -44,6 +46,7 @@ type Input = Record<string, unknown>;
 export type AnyTypeApi = UserTypeApi<AnyUser, Input> &
 	PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> &
 	SecondFactorApi<AnyUser> &
+	SignInCodeApi<AnyUser, SignInResult<AnyUser>> &
 	VerifyEmailApi<AnyUser> &
 	ResetPasswordApi<AnyUser>;
 
@@ -52,6 +55,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 	const at = (operation: string) =>
 		context.config.single ? operation : `${type.name}.${operation}`;
 	const secondFactor = secondFactorFlows(context, type, at);
+	const signInCode = signInCodeFlows(context, type, at, secondFactor.finish);
 
 	/**
 	 * The user holding this normalised login, or `null`. A login no store can
@@ -294,11 +298,10 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				});
 			}
 
-			const signedIn = await rehashed(context, record, String(password));
-			// The password alone opens nothing for a user with an active factor.
-			return secondFactor.required(signedIn)
-				? secondFactor.challenge(signedIn, where)
-				: openSession(context, type, signedIn);
+			return secondFactor.finish(
+				await rehashed(context, record, String(password)),
+				where,
+			);
 		},
 
 		async findByLogin(login) {
@@ -361,6 +364,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 		},
 
 		secondFactor: secondFactor.api,
+		signInCode,
 
 		verifyEmail: {
 			async send(user) {

@@ -17,6 +17,7 @@ const events = {
 	signedIn: event('janus.signIn'),
 	signInRefused: event('janus.signIn.refused'),
 	secondFactorAsked: event('janus.signIn.secondFactor'),
+	signInCodeSent: event('janus.signInCode.sent'),
 	secondFactorEnrolled: event('janus.secondFactor.enrolled'),
 	secondFactorActivated: event('janus.secondFactor.activated'),
 	secondFactorDisabled: event('janus.secondFactor.disabled'),
@@ -67,6 +68,30 @@ const WRITTEN: Readonly<
 			);
 		} else {
 			log.info(events.signedIn(userFields(call, outcome.value)));
+		}
+	},
+	'signInCode.request': (call, outcome) => {
+		// Only when a code was issued: `null` is nobody, and says nothing.
+		if (outcome.ok && outcome.value !== null) {
+			log.info(events.signInCodeSent(userFields(call, outcome.value)));
+		}
+	},
+	'signInCode.confirm': (call, outcome) => {
+		if (!outcome.ok) {
+			log.warn(events.signInRefused(refusalFields(call, outcome.refusal)));
+		} else if (statusOf(outcome.value) === 'secondFactor') {
+			log.info(
+				events.secondFactorAsked(
+					fieldsOf({ 'janus.user.type': call.userType }),
+				),
+			);
+		} else {
+			log.info(
+				events.signedIn({
+					...userFields(call, outcome.value),
+					'janus.signIn.code': true,
+				}),
+			);
 		}
 	},
 	'secondFactor.confirm': (call, outcome) => {
@@ -177,7 +202,10 @@ function answered(scope: SpanScope, call: Call, outcome: Outcome): void {
 		if (typeof value === 'object' && value !== null && 'renewed' in value) {
 			scope.attribute('janus.session.renewed', value.renewed === true);
 		}
-		const status = call.flow === 'signIn' ? statusOf(value) : undefined;
+		const status =
+			call.flow === 'signIn' || call.flow === 'signInCode.confirm'
+				? statusOf(value)
+				: undefined;
 		if (status !== undefined) scope.attribute('janus.signIn.status', status);
 	}
 	WRITTEN[call.flow]?.(call, outcome);

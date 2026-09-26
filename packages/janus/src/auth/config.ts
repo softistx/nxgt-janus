@@ -157,6 +157,8 @@ interface SharedConfig {
 		readonly verifyEmail?: Duration;
 		/** `'1h'` when absent. */
 		readonly resetPassword?: Duration;
+		/** How long an e-mailed sign-in code waits. `'10m'` when absent. */
+		readonly signInCode?: Duration;
 	};
 	/**
 	 * A TOTP second factor, for every user type with a password. Absent, no
@@ -252,6 +254,7 @@ export interface ResolvedConfig {
 	readonly tokenTtlMs: {
 		readonly verifyEmail: number;
 		readonly resetPassword: number;
+		readonly signInCode: number;
 	};
 	readonly secondFactor: {
 		readonly issuer: string;
@@ -352,6 +355,10 @@ export function resolveConfig(
 			resetPassword: parseDuration(
 				config.tokens?.resetPassword ?? '1h',
 				`${where}: tokens.resetPassword`,
+			),
+			signInCode: parseDuration(
+				config.tokens?.signInCode ?? '10m',
+				`${where}: tokens.signInCode`,
 			),
 		},
 		cookie: resolveCookie(config.cookie ?? {}, where),
