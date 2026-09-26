@@ -475,7 +475,7 @@ if (error instanceof UserInvalidError) {
 Also `changePassword: the current password does not match`.
 
 **When:** `signIn`, `changePassword`.
-**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one.
+**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one.
 **Fix:** answer 401 with the same body whatever the reason:
 
 ```ts
@@ -526,7 +526,8 @@ answered: `secondFactor.confirm: no such challenge`,
 **Why:** a challenge lives five minutes and takes five codes. It is spent by
 the code that opens the session, by the fifth wrong code, by a refusal
 that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`), and by a
-password reset, which ends every sign-in left waiting on its code.
+password written — `resetPassword.confirm`, `setPassword`, `changePassword` —
+which ends every sign-in left waiting on its code.
 `TOKEN_UNKNOWN` also covers a challenge whose user was deleted, one
 confirmed through another user type's `secondFactor`, and a challenge passed
 where a code was expected — the two arguments swapped. Another type's

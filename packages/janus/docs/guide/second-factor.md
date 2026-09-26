@@ -298,15 +298,24 @@ for a patient's challenge — answers `TOKEN_UNKNOWN` and compares nothing, but
 its attempt counts all the same: the fifth spends the challenge, as a wrong
 code would.
 
-**A password reset ends the sign-ins left waiting.** `resetPassword.confirm`
-spends every challenge of the user still open, so whoever had the old
-password cannot finish a sign-in they started with it:
+**Writing a password ends the sign-ins left waiting.** `resetPassword.confirm`,
+`setPassword` and `changePassword` spend every challenge of the user still
+open, so whoever had the old password cannot finish a sign-in they started
+with it:
 
 ```ts
 const result = await auth.signIn({ email, password: oldPassword }); // a challenge
 await auth.resetPassword.confirm(resetToken, newPassword);
 await auth.secondFactor.confirm(result.challenge, code); // TOKEN_SPENT
 ```
+
+A sign-in still running when the password is written is refused too.
+`signIn` reads the user again once it answered: if the password it verified
+is no longer theirs, it spends its own challenge — or revokes the session it
+opened — and throws `CREDENTIALS_INVALID`. The writer spends after writing,
+the sign-in reads after issuing, so however the two interleave one of them
+sees the other. A hash rewritten for the same password — another sign-in
+rehashing it — is not a change.
 
 ### Lifetime
 

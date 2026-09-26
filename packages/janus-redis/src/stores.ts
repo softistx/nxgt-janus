@@ -214,11 +214,11 @@ function tokenStore(evaluate: Evaluate, prefix: string): TokenStore {
 				toToken(reply, tokenHash, kind, call),
 			),
 
-		spendUserTokens: (userId, kind, at) =>
+		spendUserTokens: (userId, kind, at, except) =>
 			run(
 				'spendUserTokens',
 				SPEND_USER_TOKENS,
-				[userId, kind, stamp(at)],
+				[userId, kind, stamp(at), except ?? ''],
 				count,
 			),
 

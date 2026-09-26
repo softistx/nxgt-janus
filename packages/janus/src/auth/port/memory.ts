@@ -330,11 +330,12 @@ function memoryTokenStore(): TokenStore {
 			return copy(counted);
 		},
 
-		async spendUserTokens(userId, kind, at) {
+		async spendUserTokens(userId, kind, at, except) {
 			let spent = 0;
 
 			for (const [tokenHash, stored] of byTokenHash) {
 				if (
+					tokenHash !== except &&
 					stored.userId === userId &&
 					stored.kind === kind &&
 					stored.spentAt === null

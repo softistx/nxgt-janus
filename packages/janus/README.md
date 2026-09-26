@@ -429,20 +429,38 @@ await tokens.countAttempt(tokenHash, 'signInCode'); // { …, attempts: 1 }
 await tokens.countAttempt(tokenHash, 'verifyEmail'); // null: no token of that kind
 ```
 
-`spendUserTokens(userId, kind, at)` spends the unspent tokens of one user and
-one kind, and answers how many — what a new sign-in code and a password reset
-call:
+`spendUserTokens(userId, kind, at, except?)` spends the unspent tokens of one
+user and one kind — but the one whose hash is `except` — and answers how many:
+what issuing a sign-in code and writing a password call:
 
 ```ts
-await tokens.spendUserTokens(userId, 'signInCode', now); // 2: the codes sent before
+const userId = mintId();
+const now = new Date();
+const code = (tokenHash: string) => ({
+	tokenHash,
+	kind: 'signInCode' as const,
+	userId,
+	address: 'ada@example.test',
+	codeHash: 'c'.repeat(64),
+	attempts: 0,
+	expiresAt: new Date(now.getTime() + 10 * 60_000),
+	spentAt: null,
+	createdAt: now,
+});
+const kept = code('d'.repeat(64));
+await tokens.insertToken(kept);
+await tokens.insertToken(code('e'.repeat(64)));
+await tokens.spendUserTokens(userId, 'signInCode', now, kept.tokenHash); // 1: the other one
+await tokens.spendUserTokens(userId, 'signInCode', now); // 1: `kept`, now
 await tokens.spendUserTokens(userId, 'signInCode', now); // 0: none left unspent
 ```
 
 An adapter written against `@nxgt/janus` 0.3 does not compile against this
 port until it implements `countAttempt`, nor one written against 0.6 until it
 implements `spendUserTokens`, and `janus()` refuses either at wiring —
-[Writing an adapter](docs/guide/adapters.md#tokenstorecountattempt) has the
-contracts.
+[Writing an adapter](docs/guide/adapters.md) has the contracts:
+[`countAttempt`](docs/guide/adapters.md#tokenstorecountattempt) and
+[`spendUserTokens`](docs/guide/adapters.md#tokenstorespendusertokens).
 
 ### Second factor — `secondFactor`
 
@@ -652,7 +670,7 @@ describeJanusStores({
 });
 ```
 
-There are 48 cases. They cover:
+There are 49 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -666,8 +684,8 @@ There are 48 cases. They cover:
   of twenty concurrent `countAttempt` calls, each answers a distinct count,
   and none is counted once a racing redemption spent the token;
 - spending a user's tokens of one kind — `spendUserTokens` — spends only the
-  unspent ones of that user and kind, and never the same token as a racing
-  redemption;
+  unspent ones of that user and kind, spares the one named by `except`, and
+  never spends the same token as a racing redemption;
 - a second-factor challenge, whose address is `''`, kept, counted and spent;
 - a user's second factor: round-trip, kept by a patch that does not name it,
   removed by one that names `null`;
@@ -724,9 +742,10 @@ the same status, body and cookie: set a random challenge when it answered
 `null`. The code route then still tells a decoy (`TOKEN_UNKNOWN`) from a
 real challenge (`CODE_INVALID`, `attemptsLeft`, or `TOKEN_SPENT` once a later
 request spent it): answer its refusals alike
-where addresses must stay secret. And rate-limit the request: one code is
-live per user — a new `request` spends the one before — but every call sends
-an e-mail, so without a limit anyone can fill a user's inbox.
+where addresses must stay secret. And rate-limit the request **per
+address**: at most one code is live per user — a new `request` spends the one
+before — so without a limit anyone who knows an address can fill its inbox,
+or cancel its owner's code before they type it.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`
@@ -774,7 +793,8 @@ same reason: answer the visitor the same page either way.
 
 **`resetPassword.confirm` signs the user out everywhere, and opens no session.**
 Whoever had the old password loses their sessions, and a sign-in they left
-waiting on its second factor is spent with them; what the visitor does next is
+waiting on its second factor is spent with them — as it is by `setPassword`
+and `changePassword`; what the visitor does next is
 your policy. A password refused for its length does not spend the token.
 
 **A sign-in can move a user's `version`.** Rewriting a stale hash is a write. A

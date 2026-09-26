@@ -93,14 +93,15 @@ Nothing between releases.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
-- **One sign-in code live per user, and challenges that end when they
-  should, v0.7.0** — `signInCode.request` spends the codes sent before, so
-  only the last e-mail's works; a password reset spends the second-factor
-  challenges left waiting; another user type's `confirm` spends a challenge
+- **At most one sign-in code live per user, and challenges that end when
+  they should, v0.7.0** — `signInCode.request` spends the codes sent before,
+  even when requests race, so only the last e-mail's works; writing a
+  password spends the second-factor challenges left waiting, and a sign-in
+  still running when it lands is refused; another user type's `confirm` spends a challenge
   at its fifth attempt; `verifyEmail.confirm` and `resetPassword.confirm`
   check the e-mail again on the record they write. `SecondFactorRequired`
   carries `userId`, for logs and rate limits. For adapters:
-  `TokenStore.spendUserTokens(userId, kind, at)`, with three new conformance
+  `TokenStore.spendUserTokens(userId, kind, at, except?)`, with four new conformance
   cases, implemented in `@nxgt/janus-drizzle`, `@nxgt/janus-mongo` and
   `@nxgt/janus-redis`.
 - **Sign in with a code sent by e-mail, v0.6.0** —

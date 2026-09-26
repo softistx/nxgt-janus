@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, bearer, password, rejection, setup } from '../../test/auth';
+import {
+	ada,
+	bearer,
+	hasher,
+	password,
+	rejection,
+	setup,
+} from '../../test/auth';
 import type { JanusError } from '../errors/janus-error';
 import { createMemoryStores } from './port/memory';
 import type { JanusStores } from './port/types';
@@ -133,6 +140,50 @@ describe('an e-mail changed while a link is redeemed', () => {
 		expect(
 			(await auth.signIn({ email: 'countess@example.test', password })).user.id,
 		).toBe(user.id);
+	});
+});
+
+describe('a password written while a sign-in runs', () => {
+	it('refuses the sign-in, and revokes the session it opened', async () => {
+		const memory = createMemoryStores();
+		const opened: string[] = [];
+		// The password is written after the session is opened, before signIn
+		// reads the user again: the order a reset can land in.
+		const store: JanusStores = {
+			...memory,
+			sessions: {
+				...memory.sessions,
+				async insertSession(record) {
+					await memory.sessions.insertSession(record);
+					opened.push(record.tokenHash);
+					const user = await memory.users.findUser(record.userId);
+					if (user?.password) {
+						await memory.users.updateUser(
+							user.id,
+							{
+								password: {
+									hash: await hasher.hash('written meanwhile'),
+									updatedAt: user.updatedAt,
+								},
+								updatedAt: user.updatedAt,
+							},
+							user.version,
+						);
+					}
+				},
+			},
+		};
+		const { auth } = setup({ store });
+		await auth.create({ ...ada, password });
+		opened.length = 0;
+
+		expect(
+			await rejection(auth.signIn({ email: ada.email, password })),
+		).toMatchObject({ code: 'CREDENTIALS_INVALID' });
+		const session = await memory.sessions.findSessionByTokenHash(
+			opened[0] ?? '',
+		);
+		expect(session?.revokedAt).not.toBeNull();
 	});
 });
 

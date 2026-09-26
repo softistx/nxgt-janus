@@ -385,7 +385,7 @@ function tokenStore(db: PgDatabase, tables: IdentityTables): TokenStore {
 				return row === undefined ? null : { ...row, userId: row.userId as Id };
 			}),
 
-		spendUserTokens: (userId, kind, at) =>
+		spendUserTokens: (userId, kind, at, except) =>
 			run$('spendUserTokens', async () => {
 				// One statement: each row is written under its lock, and
 				// re-checked after a concurrent `consumeToken` committed, so the
@@ -398,6 +398,9 @@ function tokenStore(db: PgDatabase, tables: IdentityTables): TokenStore {
 							eq(tables.tokens.userId, userId),
 							eq(tables.tokens.kind, kind),
 							isNull(tables.tokens.spentAt),
+							except === undefined
+								? undefined
+								: ne(tables.tokens.tokenHash, except),
 						),
 					)
 					.returning({ tokenHash: tables.tokens.tokenHash });

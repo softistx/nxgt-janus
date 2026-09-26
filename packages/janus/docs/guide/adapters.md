@@ -225,16 +225,17 @@ driver's error in `StoreFailure` as in [the six rules](#the-six-rules):
 
 ### `TokenStore.spendUserTokens`
 
-Spends every **unspent** token of one user and one `kind` at `at`, and
-answers how many it spent. The core calls it before issuing a sign-in code —
-so only the last code sent works — and after a password reset, for the
-user's `secondFactor` challenges:
+Spends every **unspent** token of one user and one `kind` at `at` — but the
+one whose hash is `except`, when given — and answers how many it spent. The
+core calls it right after issuing a sign-in code, with that code's hash as
+`except`, so only the last code sent works; and after writing a password,
+for the user's `secondFactor` challenges:
 
 | The stored token | Written | Counted |
 | --- | --- | --- |
 | unspent, of this user and this `kind` | `spentAt: at` | yes |
 | already spent | nothing — `spentAt` never changes once set | no |
-| another `kind`, or another user | nothing | no |
+| another `kind`, another user, or the one named by `except` | nothing | no |
 | none at all | nothing | `0`, an absence — never a failure |
 
 Each token is spent by a **conditional write**, as `consumeToken` spends one:
@@ -248,9 +249,9 @@ already reads:
 ```ts
 import type { TokenStore } from '@nxgt/janus';
 
-export const spendUserTokens: TokenStore['spendUserTokens'] = async (userId, kind, at) => {
+export const spendUserTokens: TokenStore['spendUserTokens'] = async (userId, kind, at, except) => {
 	const result = await tokens.updateMany(
-		{ userId, kind, spentAt: null },
+		{ userId, kind, spentAt: null, ...(except === undefined ? {} : { _id: { $ne: except } }) },
 		{ $set: { spentAt: at } },
 	);
 	return result.modifiedCount;
@@ -258,7 +259,7 @@ export const spendUserTokens: TokenStore['spendUserTokens'] = async (userId, kin
 ```
 
 In SQL, `update … set spent_at = $3 where user_id = $1 and kind = $2 and
-spent_at is null returning token_hash`, answering the row count: PostgreSQL
+spent_at is null and token_hash <> $4 returning token_hash`, answering the row count: PostgreSQL
 re-checks `spent_at is null` on a row a racing redemption just committed. In
 Redis, one Lua script over the user's set of tokens, `HSET spentAt` on each
 of the right `kind` whose `spentAt` is empty. `spendUserTokens` has its own
@@ -340,7 +341,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 48: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — thirteen of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 49: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — thirteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
@@ -370,6 +371,7 @@ while you work on it, never to ship:
 | `tokens.countAttemptSpent` | a spent token answered unchanged; another kind and an unknown hash answer `null` and count nothing |
 | `outage.countAttempt` | a store that cannot answer rejects, never `null` |
 | `tokens.spendUserTokens` | spends the unspent tokens of one user and kind at `at`, keeping their attempts, and counts them; a spent token keeps its `spentAt`; another kind and another user are untouched; `0` for none |
+| `tokens.spendUserTokensExcept` | spares the token named by `except`, and spends the user's others of that kind |
 | `tokens.spendUserTokensRace` | racing one `consumeToken`, ten times over: exactly one of the two spends the token |
 | `outage.spendUserTokens` | a store that cannot answer rejects, never `0` |
 

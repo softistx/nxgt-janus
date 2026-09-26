@@ -383,6 +383,102 @@ describe('what spends a challenge before its code', () => {
 		).toMatchObject({ code: 'TOKEN_SPENT' });
 	});
 
+	it('spends the challenges waiting when the password is set, or changed', async () => {
+		const context = setup();
+		const { auth, codeOf } = context;
+		const { user, secret } = await enrolled(context);
+
+		const beforeSet = await challenged(auth);
+		await auth.setPassword(user, 'a password set by an operator');
+		expect(
+			await rejection(auth.secondFactor.confirm(beforeSet, codeOf(secret))),
+		).toMatchObject({ code: 'TOKEN_SPENT' });
+
+		const signedIn = await auth.signIn({
+			email: ada.email,
+			password: 'a password set by an operator',
+		});
+		if (signedIn.status !== 'secondFactor')
+			throw new Error('expected a challenge');
+		await auth.changePassword(user, {
+			current: 'a password set by an operator',
+			next: 'a password changed by its user',
+		});
+		expect(
+			await rejection(
+				auth.secondFactor.confirm(signedIn.challenge, codeOf(secret)),
+			),
+		).toMatchObject({ code: 'TOKEN_SPENT' });
+	});
+
+	/**
+	 * A store that writes the user's password — to `next` — after a challenge
+	 * is issued, before signIn reads the user again: the order a reset can
+	 * land in.
+	 */
+	function writingPasswordAfterChallenge(next: string) {
+		const memory = createMemoryStores();
+		const issued: string[] = [];
+		const store: JanusStores = {
+			...memory,
+			tokens: {
+				...memory.tokens,
+				async insertToken(record) {
+					await memory.tokens.insertToken(record);
+					const user = await memory.users.findUser(record.userId);
+					if (record.kind !== 'secondFactor' || user === null) return;
+					issued.push(record.tokenHash);
+					await memory.users.updateUser(
+						user.id,
+						{
+							password: {
+								hash: await hasher.hash(next),
+								updatedAt: user.updatedAt,
+							},
+							updatedAt: user.updatedAt,
+						},
+						user.version,
+					);
+				},
+			},
+		};
+		return { store, memory, issued };
+	}
+
+	it('refuses a sign-in whose password was written while it ran, and spends its challenge', async () => {
+		const { store, memory, issued } =
+			writingPasswordAfterChallenge('written meanwhile');
+		const context = setup({ store });
+		await enrolled(context);
+		const { auth } = context;
+
+		expect(
+			await rejection(auth.signIn({ email: ada.email, password })),
+		).toMatchObject({ code: 'CREDENTIALS_INVALID' });
+		expect(issued).toHaveLength(1);
+		expect(
+			(
+				await memory.tokens.consumeToken(
+					issued[0] ?? '',
+					'secondFactor',
+					new Date(),
+				)
+			)?.spentAt,
+		).toBeInstanceOf(Date);
+	});
+
+	it('keeps a sign-in whose password was only rehashed while it ran', async () => {
+		// Another sign-in rewrote the hash of the same password: not a change.
+		const { store } = writingPasswordAfterChallenge(password);
+		const context = setup({ store });
+		await enrolled(context);
+		const { auth } = context;
+
+		expect((await auth.signIn({ email: ada.email, password })).status).toBe(
+			'secondFactor',
+		);
+	});
+
 	it('spends the challenges a password reset finds waiting', async () => {
 		const context = setup();
 		const { auth, codeOf } = context;

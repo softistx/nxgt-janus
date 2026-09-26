@@ -303,6 +303,52 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 		},
 	},
 	{
+		id: 'tokens.spendUserTokensExcept',
+		group,
+		name: 'spares the token named by except, and spends the rest',
+		async run({ stores }) {
+			const userId = mintId();
+			const kept = tokenRecord({ userId, kind: 'signInCode' });
+			const others = [
+				tokenRecord({ userId, kind: 'signInCode' }),
+				tokenRecord({ userId, kind: 'signInCode' }),
+			];
+			for (const record of [kept, ...others]) {
+				await stores.tokens.insertToken(record);
+			}
+			const now = at('2026-02-01T00:00:00.000Z');
+
+			equal(
+				await stores.tokens.spendUserTokens(
+					userId,
+					'signInCode',
+					now,
+					kept.tokenHash,
+				),
+				2,
+				'spendUserTokens with except: how many it spent — every token but the one named',
+			);
+			equal(
+				await stores.tokens.consumeToken(kept.tokenHash, 'signInCode', now),
+				kept,
+				'spendUserTokens should not spend the token named by except',
+			);
+			for (const record of others) {
+				equal(
+					(
+						await stores.tokens.consumeToken(
+							record.tokenHash,
+							'signInCode',
+							now,
+						)
+					)?.spentAt,
+					now,
+					'spendUserTokens with except should spend every other token',
+				);
+			}
+		},
+	},
+	{
 		id: 'tokens.spendUserTokensRace',
 		group,
 		name: "spends a token once, when spending a user's tokens races a redemption",

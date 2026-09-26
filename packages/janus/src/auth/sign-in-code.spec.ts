@@ -65,6 +65,24 @@ describe('signInCode.request', () => {
 		).toBe('signedIn');
 	});
 
+	it('leaves at most one code live when requests race', async () => {
+		const { auth } = setup();
+		await auth.signUp({ ...ada, password });
+
+		const issued = await Promise.all(
+			Array.from({ length: 4 }, () => auth.signInCode.request(ada.email)),
+		);
+		const outcomes = await Promise.allSettled(
+			issued.map((one) =>
+				auth.signInCode.confirm(one?.challenge ?? '', one?.code ?? ''),
+			),
+		);
+
+		expect(
+			outcomes.filter((outcome) => outcome.status === 'fulfilled').length,
+		).toBeLessThanOrEqual(1);
+	});
+
 	it('answers null for a login that only looks like an e-mail', async () => {
 		const auth = janus({
 			users: {

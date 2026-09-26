@@ -20,6 +20,7 @@ import {
 	unknownChallenge,
 } from './one-time';
 import type { UserRecord } from './port/types';
+import { hashSecret } from './secrets';
 import type { SignInCodeApi, SignInResult } from './types';
 
 /**
@@ -29,10 +30,11 @@ import type { SignInCodeApi, SignInResult } from './types';
  * The code is six digits, so it is guessable where a link is not. What
  * bounds that is the same as for a second factor: the store counts every
  * attempt in one write, before the code is compared, and the fifth wrong one
- * spends the challenge. **One code is live per user**: `request` spends the
- * ones sent before, so guesses never run against two challenges at once. Yet
- * anybody who knows an e-mail can ask for another, so the application still
- * rate-limits `request`. The code's hash is keyed by the challenge, so the
+ * spends the challenge. **At most one code is live per user**: `request`
+ * spends every other once it issued its own, so concurrent requests cannot
+ * each keep one. Yet anybody who knows an e-mail can ask for another — and
+ * each request cancels the code before — so the application rate-limits
+ * `request`, per address. The code's hash is keyed by the challenge, so the
  * tokens alone do not reveal it.
  */
 export function signInCodeFlows(
@@ -47,19 +49,21 @@ export function signInCodeFlows(
 			const record = await holderOfEmail(context, type, String(email));
 			if (record === null || !record.active) return null;
 
-			// One live code per user: the ones sent before stop working, so
-			// guesses never run against more than one challenge at a time.
-			await context.store.tokens.spendUserTokens(
-				record.id,
-				'signInCode',
-				context.clock.now(),
-			);
 			const { secret, code, expiresAt } = await issueCode(context, {
 				kind: 'signInCode',
 				userId: record.id,
 				address: String(record.fields[type.email]),
 				ttlMs: context.config.tokenTtlMs.signInCode,
 			});
+			// One live code per user: the ones sent before stop working. Issued
+			// first, spent after, so requests that race leave at most one live
+			// — maybe none, and the visitor asks again — never one each.
+			await context.store.tokens.spendUserTokens(
+				record.id,
+				'signInCode',
+				context.clock.now(),
+				hashSecret(secret),
+			);
 			return {
 				code,
 				challenge: secret,
