@@ -3,17 +3,16 @@ import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, findRecord } from '../context';
 import {
 	burnOneTime,
-	CODE_ATTEMPTS,
+	codeInvalid,
+	countCodeAttempt,
 	issueOneTime,
-	refuseUnusable,
 	spendOneTime,
 	unknownOneTime,
 } from '../one-time';
 import type { UserRecord } from '../port/types';
-import { hashSecret } from '../secrets';
 import { openSession } from '../sessions';
 import type { SecondFactorRequired, SignedIn } from '../types';
-import { acceptCode, codeInvalid, isActive, requireSettings } from './factor';
+import { acceptCode, isActive, requireSettings } from './factor';
 
 /**
  * The challenge `signIn` answers instead of a session, and the code that
@@ -58,18 +57,13 @@ export function challengeFlows(
 			);
 			const secret = String(challenge);
 
-			// Counted before anything is checked, and in one write: a guess that
-			// fails for any reason has still cost an attempt.
-			const token = await store.tokens.countAttempt(
-				hashSecret(secret),
+			const { token, attemptsLeft } = await countCodeAttempt(
+				context,
+				secret,
 				'secondFactor',
+				where,
+				type.name,
 			);
-			refuseUnusable(token, clock.now(), where, 'challenge');
-			if (token.attempts > CODE_ATTEMPTS) {
-				// A call that raced the one that spent it: refused unread.
-				throw codeInvalid(type, where, token.userId, 0);
-			}
-			const attemptsLeft = CODE_ATTEMPTS - token.attempts;
 
 			// A user gone since, or of another type, is as good as no challenge.
 			const record = await findRecord(context, token.userId, type.name);
@@ -104,7 +98,7 @@ export function challengeFlows(
 				if (attemptsLeft === 0) {
 					await burnOneTime(context, secret, 'secondFactor');
 				}
-				throw codeInvalid(type, where, record.id, attemptsLeft);
+				throw codeInvalid(where, record.id, type.name, attemptsLeft);
 			}
 
 			// Read, decided, then written under the version read: of two codes

@@ -131,18 +131,73 @@ with the `user.id` they were called for — `janus.secondFactor.enrolled`,
 (`SECOND_FACTOR_ACTIVE`, a wrong first code) writes no event: its span
 carries `janus.refusal`, like any refusal.
 
+## A code sent by e-mail
+
+A sign-in by e-mailed code is two calls too — `signInCode.request`, then
+`signInCode.confirm` — and each writes one event:
+
+```
+POST /sign-in/email                      server
+└─ janus.signInCode.request              janus.user.type=user  user.id=0199…
+     log  janus.signInCode.sent          janus.user.type=user  user.id=0199…
+
+POST /sign-in/email/code                 server
+└─ janus.signInCode.confirm              janus.user.type=user  user.id=0199…  janus.signIn.status=signedIn
+     log  janus.signIn                   user.id=0199…  janus.signIn.code=true
+```
+
+`janus.signInCode.sent` is written only when a code was issued. A request
+for an address nobody holds — or an inactive user's — answers `null`, and
+its span carries `janus.user.type` alone, with no event: the address that
+was typed is never written, so the trail cannot be read back as a list of
+who has an account. `janus.signIn.code: true` tells a sign-in by code from
+one by password.
+
+The `confirm` span carries `janus.signIn.status`, as `signIn`'s does. For a
+user whose second factor is active, the code opens no session: the status
+is `secondFactor`, the event is `janus.signIn.secondFactor`, and the
+`janus.signIn` comes from the `secondFactor.confirm` that follows, with
+`janus.signIn.secondFactor: true` and no `janus.signIn.code`:
+
+```
+POST /sign-in/email/code                 server
+└─ janus.signInCode.confirm              janus.user.type=user  janus.signIn.status=secondFactor
+     log  janus.signIn.secondFactor      janus.user.type=user
+```
+
+A refused code is the same warning as a second factor's — the attribute
+keeps its name, `janus.secondFactor.attemptsLeft`, for both — marked with
+`janus.signIn.code: true` so an alert can tell the two apart:
+
+```
+janus.signIn.refused   janus.refusal=CODE_INVALID  janus.secondFactor.attemptsLeft=4  janus.signIn.code=true  user.id=0199…
+```
+
+A lapsed, spent or unknown challenge is a `janus.signIn.refused` with its
+`TOKEN_*` code and no `user.id`; `TOKEN_STALE` — the e-mail changed since
+the code was sent — and `USER_INACTIVE` name the user.
+
+Two signals worth an alert: a user whose codes run out of attempts, as for a
+second factor, and a user sent codes again and again — someone filling an
+inbox, or trying their luck with a challenge at a time:
+
+```ts
+// name = 'janus.signInCode.sent', grouped by user.id, more than 10 in an hour
+```
+
 ## What is never written
 
 A login, an e-mail, a password, a session token, a one-time token, a
-second factor's challenge, a code or its TOTP secret, the
-`otpauth://` URI that holds it, a session id: nothing a log reader could
+challenge — a second factor's or a sign-in code's — a code, a TOTP secret,
+the `otpauth://` URI that holds it, a session id: nothing a log reader could
 sign in with, or use to tell who holds an account. A refused sign-in by
 an unknown login says `janus.refusal.reason: 'unknownLogin'`, not which login
-was tried; only a refusal after the password was right — `USER_INACTIVE`, a second
-factor's `CODE_INVALID` or `SECOND_FACTOR_NOT_ENROLLED` — names the user.
-The spec that holds this runs every flow — `enroll`, `activate`, a refused
-and an accepted `confirm` among them — and searches every signal for each of
-them.
+was tried; only a refusal after the password was right, or against a
+challenge — `USER_INACTIVE`, `CODE_INVALID`, `TOKEN_STALE` or
+`SECOND_FACTOR_NOT_ENROLLED` — names the user. The specs that hold this run
+every flow — `enroll`, `activate`, a sign-in code requested for nobody and
+for a user, a refused and an accepted `confirm` among them — and search
+every signal for each code, challenge and session token they handled.
 
 ## In a test
 

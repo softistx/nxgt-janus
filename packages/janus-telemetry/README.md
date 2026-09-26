@@ -3,8 +3,9 @@
 [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) on
 [`@nxgt/telemetry`](https://www.npmjs.com/package/@nxgt/telemetry): a span per
 flow and per permission check, and the security events an audit reads — who
-signed up, in and out, why a sign-in was refused, who was asked for a second
-factor and who enrolled, activated or disabled one, which users were deleted
+signed up, in and out, who was sent a sign-in code, why a sign-in was
+refused, who was asked for a second factor and who enrolled, activated or
+disabled one, which users were deleted
 or deactivated, whose password changed, and who was granted what. **Never a
 login, an e-mail, a password, a session token, a one-time token, a
 challenge, a code, a TOTP secret or a session id.**
@@ -32,7 +33,7 @@ bun add @nxgt/janus-telemetry @nxgt/janus @nxgt/telemetry
 bun add -d typescript
 ```
 
-Every peer is required: `@nxgt/janus` (0.5, the release with the second factor), `@nxgt/telemetry` (0.2.1 or later) and
+Every peer is required: `@nxgt/janus` (0.6, the release with sign-in codes), `@nxgt/telemetry` (0.2.1 or later) and
 `typescript` (6). `@nxgt/janus` and `@nxgt/telemetry` are **peers**: one copy of `@nxgt/janus`, so
 `instanceof JanusError` holds, and one of `@nxgt/telemetry`, so there is one
 current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
@@ -51,7 +52,7 @@ current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 | Span | Attributes |
 | --- | --- |
-| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm` included | `janus.user.type`; `user.id` once the answer names a user; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn` — `signedIn`, or `secondFactor` when it answered a challenge |
+| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm` and `janus.signInCode.confirm` included | `janus.user.type`; `user.id` once the answer names a user; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn` and `signInCode.confirm` — `signedIn`, or `secondFactor` when it answered a challenge |
 | `janus.can` | `janus.subject.type`, `janus.subject.id`, `janus.permission`, `janus.object.type`, `janus.object.id`, and the answer, `janus.allowed` |
 | `janus.list` | the subject, `janus.permission`, `janus.object.type`, and `janus.page.items`, how many it found |
 | `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set, read as `permissions()` reads it: a user with a field named `relation` is that user, and a set on a user type is one only when `setOf()` made it |
@@ -71,9 +72,10 @@ when the flow knows them — `janus.signOut` carries neither:
 | Event | Severity | When |
 | --- | --- | --- |
 | `janus.signUp` | info | a user signed up |
-| `janus.signIn` | info | a user signed in — by `signIn`, or by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true` |
-| `janus.signIn.secondFactor` | info | the password was right and a code was asked for: `signIn` answered a challenge. `janus.user.type` only — the answer names no user; the `janus.signIn` of the `confirm` that follows does |
-| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft`, a `TOKEN_*` code, `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for one code sent twice at once |
+| `janus.signInCode.sent` | info | `signInCode.request` issued a code, with the `user.id` it is for. A request that answered `null` writes nothing |
+| `janus.signIn` | info | a user signed in — by `signIn`; by `signInCode.confirm`, which adds `janus.signIn.code: true`; or by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true` |
+| `janus.signIn.secondFactor` | info | the password, or an e-mailed code, was right and a second factor's code was asked for: `signIn` or `signInCode.confirm` answered a challenge. `janus.user.type` only — the answer names no user; the `janus.signIn` of the `confirm` that follows does |
+| `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm` or `signInCode.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft` — the same attribute for both — a `TOKEN_*` code (`TOKEN_STALE` with `user.id`), `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for a write that raced |
 | `janus.secondFactor.enrolled`, `janus.secondFactor.activated`, `janus.secondFactor.disabled` | info | `enroll`, `activate` and `disable`, with the `user.id` they were called for |
 | `janus.signOut` | info | a session was signed out |
 | `janus.signOutEverywhere` | info | every session of a user was revoked |
@@ -96,20 +98,23 @@ when the flow knows them — `janus.signOut` carries neither:
 - **A refused sign-in for bad credentials names no user.** `janus.signIn.refused`
   with `CREDENTIALS_INVALID` carries the reason and the user type, never the
   login that was tried: rate limiting per login is the application's, from the
-  request. Only a refusal after the password was right carries `user.id`:
-  `USER_INACTIVE`, and a second factor's `CODE_INVALID` or
-  `SECOND_FACTOR_NOT_ENROLLED`.
-- **A wrong second-factor code is a warning, not a failure.** `CODE_INVALID`
-  leaves the `janus.secondFactor.confirm` span `ok`, and writes
-  `janus.signIn.refused` with `janus.secondFactor.attemptsLeft`: alert on a
-  user whose count reaches `0` again and again, not on the span.
+  request. Only a refusal after the password was right, or against a
+  challenge, carries `user.id`: `USER_INACTIVE`, a `CODE_INVALID`,
+  `TOKEN_STALE` or `SECOND_FACTOR_NOT_ENROLLED`. Nor does
+  `janus.signInCode.sent` name the address: a request for nobody writes
+  nothing at all.
+- **A wrong code is a warning, not a failure.** `CODE_INVALID` leaves the
+  `janus.secondFactor.confirm` or `janus.signInCode.confirm` span `ok`, and
+  writes `janus.signIn.refused` with `janus.secondFactor.attemptsLeft` — named
+  so for an e-mailed code too, which also carries `janus.signIn.code: true`:
+  alert on a user whose count reaches `0` again and again, not on the span.
 - **One copy of `@nxgt/janus`.** A refusal is told from a failure by
   `instanceof JanusError`: with a second copy installed, every wrong password
   fails its span.
 
 ## Documentation
 
-- [Tracing Janus](docs/guide/tracing.md) — wiring it with a Hono app, reading the spans and events, the audit trail, a sign-in with a second factor
+- [Tracing Janus](docs/guide/tracing.md) — wiring it with a Hono app, reading the spans and events, the audit trail, a sign-in with a second factor or an e-mailed code
 - [Troubleshooting](docs/troubleshooting.md) — what you see, why, and the fix
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 

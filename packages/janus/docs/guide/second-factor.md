@@ -206,8 +206,9 @@ interface SecondFactorRequired {
 }
 ```
 
-A user whose factor is active gets **no session from their password**: they
-get a **challenge**, which `secondFactor.confirm` redeems with a code. Anyone
+A user whose factor is active gets **no session from their password** — nor
+from a [code sent by e-mail](sign-in-code.md#a-second-factor-is-still-asked-for),
+whose `confirm` answers the same union: they get a **challenge**, which `secondFactor.confirm` redeems with a code. Anyone
 else gets a session, as before. `signIn`'s refusals — `CREDENTIALS_INVALID`,
 `USER_INACTIVE` — are unchanged, and come before any challenge: a wrong
 password never tells anyone that a second factor exists.
@@ -562,6 +563,7 @@ with `STORE_FAILED`.
 
 ## See also
 
+- [Sign-in codes](sign-in-code.md) — a sign-in by e-mailed code, which still asks for an active factor, with the same challenge
 - [Sessions](sessions.md) — the cookie `confirm`'s session is sent in, and `authenticatedAt`
 - [Errors](errors.md) — `CODE_INVALID`, `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` and their statuses
 - [Writing an adapter](adapters.md#a-users-password-and-second-factor) — what a store keeps of a factor

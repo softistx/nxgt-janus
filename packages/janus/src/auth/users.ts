@@ -1,7 +1,6 @@
 import {
 	CredentialError,
 	NotFoundError,
-	TokenError,
 	UserInactiveError,
 } from '../errors/janus-error';
 import { isId, mintId } from '../ids/id';
@@ -15,6 +14,7 @@ import {
 	emailOf,
 	findRecord,
 	getRecord,
+	holderOfEmail,
 	idOf,
 	loginsOf,
 	passwordMatches,
@@ -24,7 +24,12 @@ import {
 	validateFields,
 	writeUser,
 } from './context';
-import { issueOneTime, spendOneTime, unknownOneTime } from './one-time';
+import {
+	issueOneTime,
+	refuseStale,
+	spendOneTime,
+	unknownOneTime,
+} from './one-time';
 import type { TokenKind, TokenRecord, UserRecord } from './port/types';
 import { secondFactorFlows } from './second-factor/flows';
 import { openSession } from './sessions';
@@ -110,18 +115,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 		const user = await findRecord(context, token.userId, type.name);
 		if (user === null) throw unknownOneTime(where, 'token');
 
-		const email = emailOf(type, user.fields);
-		if (
-			email === null ||
-			normalizeEmail(email) !== normalizeEmail(token.address)
-		) {
-			throw new TokenError(
-				'TOKEN_STALE',
-				`${where}: the token was sent to an e-mail the user no longer has`,
-				{ operation: where, userId: user.id, userType: type.name },
-			);
-		}
-
+		refuseStale(type, user, token, where, 'token');
 		return { token, user };
 	};
 
@@ -395,19 +389,8 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			async request(email) {
 				const where = at('resetPassword.request');
 				passwordRule(where);
-				const wanted = normalizeEmail(String(email));
-				const record = await byLogin(wanted);
-
-				// Found by a login that is not their e-mail — a username that looks
-				// like one — is nobody's e-mail: no token.
-				const held = record === null ? null : emailOf(type, record.fields);
-				if (
-					record === null ||
-					held === null ||
-					normalizeEmail(held) !== wanted
-				) {
-					return null;
-				}
+				const record = await holderOfEmail(context, type, String(email));
+				if (record === null) return null;
 
 				const issued = await issue('resetPassword', record, where);
 				return { ...issued, user: toUser(record) };

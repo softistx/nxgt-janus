@@ -83,9 +83,9 @@ that wired the library, so no handler needs to tell it apart.
 | `PASSWORD_TOO_SHORT` | `CredentialError` | 400 | Below `password.minLength` | `minLength` — never the password |
 | `CREDENTIALS_INVALID` | `CredentialError` | 401 | Unknown login, no password, or the wrong one — **one code for the three** | `reason`, for your logs only |
 | `HASH_UNSUPPORTED` | `CredentialError` | 400 | A stored hash no wired hasher reads | `hashPrefix` — never the hash |
-| `USER_INACTIVE` | `UserInactiveError` | 403 | Deactivated; told only to someone who gave the right password | `userId` |
-| `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | `TokenError` | 400 | See [e-mail flows](email-flows.md#what-a-token-refusal-means). For a second factor's challenge: sign in again | |
-| `CODE_INVALID` | `TokenError` | 401 | A second factor's code that does not match, or was already accepted — see [the second factor](second-factor.md#confirming-the-code-at-sign-in) | `attemptsLeft` from `confirm`: what the challenge has left, `0` once it is spent. None from `activate` |
+| `USER_INACTIVE` | `UserInactiveError` | 403 | Deactivated; told only to someone who gave the right password, or the right code | `userId` |
+| `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | `TokenError` | 400 | See [e-mail flows](email-flows.md#what-a-token-refusal-means). For a second factor's challenge: sign in again; for a sign-in code's: request a new code — see [sign-in codes](sign-in-code.md#what-confirm-refuses) | `userId` on `TOKEN_STALE` |
+| `CODE_INVALID` | `TokenError` | 401 | A one-time code that does not match: a second factor's, or one already accepted — see [the second factor](second-factor.md#confirming-the-code-at-sign-in) — or a sign-in code sent by e-mail — see [sign-in codes](sign-in-code.md#attempts) | `attemptsLeft` from either `confirm`: what the challenge has left, `0` once it is spent. None from `activate`. `userId` |
 | `SECOND_FACTOR_NOT_ENROLLED` | `SecondFactorError` | 409 | `activate` before `enroll`, or `confirm` after the factor was disabled | `userId` |
 | `SECOND_FACTOR_ACTIVE` | `SecondFactorError` | 409 | `enroll` or `activate` on a factor already active: `disable` it first | `userId` |
 | `INVALID_CURSOR` | `InvalidCursorError` | 400 | A cursor this store did not mint. Never a silent first page | |

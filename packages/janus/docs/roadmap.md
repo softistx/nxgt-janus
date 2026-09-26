@@ -5,14 +5,17 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **One-time codes** — a one-time token short enough to type, sent by e-mail
-  to sign in without a password, or to confirm a sensitive action, issued
-  and redeemed by `janus` like the verification and reset tokens today. The
-  TOTP second factor shipped in v0.5.0, below, on the store port that
-  shipped in v0.4.0.
+Nothing between releases.
 
 ## Next
 
+- **Confirm an action with an e-mailed code (step-up)** — a signed-in user
+  proves they still read their inbox before something a stolen session should
+  not do alone: changing the e-mail, disabling the second factor, deleting
+  the account. The same six digits, challenge and five attempts as a sign-in
+  code, bound to the session that asked rather than opening one — which
+  takes a token kind of its own, so a sign-in code can never confirm an
+  action nor an action's code sign anyone in.
 - **Recovery codes** — single-use codes for the TOTP second factor, so a
   user who loses their authenticator app can still sign in, without an
   operator resetting the account.
@@ -90,6 +93,14 @@ dates here, and the version something shipped in is the only number.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Sign in with a code sent by e-mail, v0.6.0** —
+  `auth.<type>.signInCode.request(email)` answers a six-digit code to send
+  and a challenge to keep with the visitor, or `null` for nobody — never
+  saying which; `signInCode.confirm(challenge, code)` marks the e-mail
+  verified and opens the session. On every user type with an e-mail, one
+  without a password included; an active second factor is still asked for.
+  A challenge lives ten minutes (`tokens.signInCode`) and takes five
+  attempts, and only the code's hash is stored, keyed by the challenge.
 - **A TOTP second factor, v0.5.0** — `janus({ secondFactor: { issuer, keys } })`
   and `auth.<type>.secondFactor`'s `enroll`, `activate`, `disable` and
   `confirm`, for every user type with a password; each secret sealed with
@@ -142,7 +153,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   the session middleware, the cookie, a route guarded by a permission,
   `bindJanus()` to bind the instances once, and every error as its status.
   Its own 0.1.0, beside `@nxgt/janus` 0.1.3.
-- **`defineModel` completed by your editor** — subject types and subject sets
-  in a relation, subject types in `fromField`, relations, permissions and
-  arrows in a rule and in `when`; a wrong name's error lists the names it
-  could have been. — v0.1.2

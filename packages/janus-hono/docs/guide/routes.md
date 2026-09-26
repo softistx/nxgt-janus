@@ -142,6 +142,9 @@ With `secondFactor` configured, `signIn` may answer a challenge instead of a
 session: narrow on `status` before `sendSession` — see
 [A second factor](#a-second-factor).
 
+To sign in with no password, by a code sent to the user's e-mail, see
+[A code sent by e-mail](#a-code-sent-by-e-mail).
+
 The refusals need no `try`: `janusErrors()` answers them.
 
 | Thrown | Answered |
@@ -264,6 +267,114 @@ app.delete('/account/second-factor', session(auth, { required: true }), async (c
 The key rotation, the attempts and the replay rules are
 [`@nxgt/janus`'s second factor guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md).
 
+## A code sent by e-mail
+
+A sign-in by e-mailed code is two routes, built like
+[the second factor's](#a-second-factor): the first asks for a code and keeps
+the **challenge** in a cookie scoped to the second, which takes the code and
+opens the session. Sending the e-mail is yours.
+
+```ts
+import { randomBytes } from 'node:crypto';
+import { sendSession } from '@nxgt/janus-hono';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+
+const CODE_CHALLENGE = 'sign-in-code';
+const codeScope = { path: '/sign-in/email', httpOnly: true, secure: true, sameSite: 'Strict' } as const;
+
+app.post('/sign-in/email', async (c) => {
+	const { email } = await c.req.json();
+	const issued = await auth.signInCode.request(email);
+	if (issued !== null) {
+		void mailer.send(issued.email, `Your sign-in code: ${issued.code}`); // the code only; not awaited
+	}
+	// the same answer either way: a decoy challenge when nobody holds the e-mail
+	const challenge = issued?.challenge ?? randomBytes(32).toString('base64url');
+	setCookie(c, CODE_CHALLENGE, challenge, { ...codeScope, maxAge: 600 });
+	return c.json({ next: 'code' }, 202);
+});
+
+app.post('/sign-in/email/code', async (c) => {
+	const { code } = await c.req.json();
+	const challenge = getCookie(c, CODE_CHALLENGE);
+	if (challenge === undefined) return c.json({ code: 'TOKEN_UNKNOWN' }, 400);
+	const user = sendSession(c, auth, await auth.signInCode.confirm(challenge, code));
+	deleteCookie(c, CODE_CHALLENGE, codeScope);
+	return c.json({ id: user.id });
+});
+```
+
+**The request route answers the same whoever asked** — the same status, the
+same body, and a cookie either way. `signInCode.request` answers `null` for
+an address nobody holds, and a route that answered differently, or set no
+cookie, would tell anyone which addresses have an account. The decoy is 32
+random bytes, the shape of a real challenge; confirming it is
+`TOKEN_UNKNOWN`. `maxAge: 600` is the default ten minutes of
+`tokens.signInCode`, written out so both cookies match. Not awaiting the
+mailer keeps the answer's time from telling either. Rate-limit this route
+per address and per client: every call sends an e-mail.
+
+The code route still tells a decoy apart: a wrong code against it is 400
+`TOKEN_UNKNOWN`, against a real challenge 401 `CODE_INVALID` with
+`attemptsLeft`. Where your users' addresses must stay secret, answer every
+refusal of that route alike, before `janusErrors()` sees it:
+
+```ts
+import { JanusError } from '@nxgt/janus';
+
+app.onError((error, c) =>
+	error instanceof JanusError && error.code !== 'STORE_FAILED' && c.req.path === '/sign-in/email/code'
+		? c.json({ code: 'CODE_INVALID' }, 401) // no attemptsLeft: it would tell a real challenge from a decoy
+		: answer(error, c),
+);
+```
+
+with `answer` the `janusErrors()` of [Wiring](#wiring).
+
+The code goes in the e-mail, **the challenge never does**: not in the
+e-mail, not in a link, not in a log.
+
+A wrong code leaves the cookie in place, so the visitor types it again.
+`janusErrors()` answers what `confirm` throws, with the statuses above:
+
+| Thrown | Answered |
+| --- | --- |
+| `CODE_INVALID` | 401 `{ code, attemptsLeft }` — the attempts the challenge has left, `0` once the fifth wrong code spent it |
+| `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED` | 400 `{ code }` — offer to send a new code |
+| `TOKEN_STALE` | 400 `{ code }` — the e-mail changed since the code was sent: send a new one |
+| `USER_INACTIVE` | 403 `{ code }` |
+
+`confirm` marks the user's e-mail verified: the code reached the inbox.
+
+### With a second factor
+
+With `janus({ secondFactor })`, a user whose factor is active gets a
+**challenge** from `signInCode.confirm`, not a session — the code proves the
+e-mail, not the factor — and passing its answer straight to `sendSession`
+no longer compiles on a type with a password. Narrow on `status`, and hand
+the challenge to the second factor's cookie, so
+[`/sign-in/code`](#a-second-factor) takes it from there:
+
+```ts
+app.post('/sign-in/email/code', async (c) => {
+	const { code } = await c.req.json();
+	const challenge = getCookie(c, CODE_CHALLENGE);
+	if (challenge === undefined) return c.json({ code: 'TOKEN_UNKNOWN' }, 400);
+	const result = await auth.signInCode.confirm(challenge, code);
+	deleteCookie(c, CODE_CHALLENGE, codeScope);
+	if (result.status === 'secondFactor') {
+		setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
+		return c.json({ next: 'secondFactor' });
+	}
+	const user = sendSession(c, auth, result);
+	return c.json({ id: user.id });
+});
+```
+
+A user type with no password has no second factor, so its `confirm` always
+answers a session. The attempts, the lifetime and every refusal are
+[`@nxgt/janus`'s sign-in code guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sign-in-code.md).
+
 ## Sign-out
 
 ```ts
@@ -343,5 +454,6 @@ as staff replaces the patient's cookie.
 - [`@nxgt/janus` — sessions](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sessions.md) — lifespans, renewal, the cookie's attributes
 - [`@nxgt/janus` — errors](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) — every code
 - [`@nxgt/janus` — the second factor](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md) — keys, states, attempts
+- [`@nxgt/janus` — sign-in codes](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sign-in-code.md) — requesting, the challenge, attempts, passwordless types
 - [Guarded routes and writing tuples](permissions.md) — `permission()`, `provide()`
 - [Troubleshooting](../troubleshooting.md)

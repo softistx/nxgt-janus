@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 import {
 	ada,
 	bearer,
-	clinic,
 	hasher,
 	password,
 	person,
@@ -51,13 +51,26 @@ describe('signInCode.request', () => {
 	});
 
 	it('answers null for a login that only looks like an e-mail', async () => {
-		const { auth } = clinic();
-		await auth.staff.create({ username: 'ada@example.test', service: 'x' });
-		// Staff have no e-mail: the flow does not exist on their type at all.
-		expect('signInCode' in auth.patient).toBe(true);
+		const auth = janus({
+			users: {
+				member: {
+					schema: z.strictObject({ username: z.string(), email: z.email() }),
+					password: { login: 'username' },
+				},
+			},
+			store: createMemoryStores(),
+			hasher,
+		});
+		// A username that looks like an e-mail is a login, not their address.
+		await auth.member.create({
+			username: 'bob@example.test',
+			email: 'robert@example.test',
+		});
+
+		expect(await auth.member.signInCode.request('bob@example.test')).toBeNull();
 		expect(
-			await auth.patient.signInCode.request('ada@example.test'),
-		).toBeNull();
+			await auth.member.signInCode.request('robert@example.test'),
+		).not.toBeNull();
 	});
 });
 
@@ -130,6 +143,61 @@ describe('signInCode.confirm', () => {
 		).toEqual(Array(8).fill('CODE_INVALID'));
 	});
 
+	it('counts a malformed code as an attempt', async () => {
+		const { auth } = setup();
+		await auth.signUp({ ...ada, password });
+		const issued = await auth.signInCode.request(ada.email);
+		if (issued === null) throw new Error('expected a code');
+
+		for (const [code, attemptsLeft] of [
+			['12345', 4],
+			['abcdef', 3],
+			[` ${issued.code}`, 2],
+		] as const) {
+			expect(
+				await rejection(auth.signInCode.confirm(issued.challenge, code)),
+			).toMatchObject({ code: 'CODE_INVALID', attemptsLeft });
+		}
+	});
+
+	it('opens one session for two right codes sent at once', async () => {
+		const { auth } = setup();
+		await auth.signUp({ ...ada, password });
+		const issued = await auth.signInCode.request(ada.email);
+		if (issued === null) throw new Error('expected a code');
+
+		const outcomes = await Promise.allSettled([
+			auth.signInCode.confirm(issued.challenge, issued.code),
+			auth.signInCode.confirm(issued.challenge, issued.code),
+		]);
+
+		expect(
+			outcomes.filter((outcome) => outcome.status === 'fulfilled'),
+		).toHaveLength(1);
+		expect(
+			outcomes.find((outcome) => outcome.status === 'rejected')?.reason,
+		).toMatchObject({ code: 'TOKEN_SPENT' });
+	});
+
+	it('writes nothing for an e-mail already verified', async () => {
+		const { auth } = setup();
+		await auth.signUp({ ...ada, password });
+		const first = await auth.signInCode.request(ada.email);
+		const verified = await auth.signInCode.confirm(
+			first?.challenge ?? '',
+			first?.code ?? '',
+		);
+		const again = await auth.signInCode.request(ada.email);
+
+		const signedIn = await auth.signInCode.confirm(
+			again?.challenge ?? '',
+			again?.code ?? '',
+		);
+
+		expect(signedIn.user.version).toBe(verified.user.version);
+		expect(signedIn.user.emailVerified).toBe(true);
+	});
+
 	it('refuses the code of another challenge: the hash is keyed by its own', async () => {
 		const { auth } = setup();
 		await auth.signUp({ ...ada, password });
@@ -200,11 +268,17 @@ describe('signInCode.confirm', () => {
 		const issued = await auth.patient.signInCode.request(ada.email);
 		if (issued === null) throw new Error('expected a code');
 
-		expect(
-			await rejection(
-				auth.member.signInCode.confirm(issued.challenge, issued.code),
-			),
-		).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+		// Right or wrong, another type's API compares nothing, names nobody,
+		// and leaves the challenge unspent — each call still costs an attempt.
+		for (const code of [other(issued.code), issued.code]) {
+			const refused = await rejection(
+				auth.member.signInCode.confirm(issued.challenge, code),
+			);
+			expect(refused).toMatchObject({
+				code: 'TOKEN_UNKNOWN',
+				userId: undefined,
+			});
+		}
 		expect(
 			(await auth.patient.signInCode.confirm(issued.challenge, issued.code))
 				.status,
@@ -236,5 +310,7 @@ describe('signInCode.confirm', () => {
 		const result = await auth.signInCode.confirm(issued.challenge, issued.code);
 
 		expect(result.status).toBe('secondFactor');
+		// The code proved the e-mail, whatever the second factor answers.
+		expect((await auth.get(user.id)).emailVerified).toBe(true);
 	});
 });

@@ -46,7 +46,7 @@ a published entry point is a promise.
 ## Three ways to use it
 
 Janus has two sides. **Identities** answers *who is this?* — users, their
-logins and passwords, a TOTP second factor, sessions, one-time tokens. **Permissions** answers *may
+logins and passwords, codes sent by e-mail, a TOTP second factor, sessions, one-time tokens. **Permissions** answers *may
 they?* — a model, the tuples stored against it, and `can`. Each side is usable
 alone, and neither loads the other's code: a spec reads the import graph of
 each entry point and fails if one reaches into the other.
@@ -177,7 +177,7 @@ compilation of callers that exhaust it:
 | `USER_INVALID` | 400, field by field from `issues` |
 | `PASSWORD_TOO_SHORT`, `HASH_UNSUPPORTED` | 400 |
 | `CREDENTIALS_INVALID` | 401 — one code for an unknown login, no password and a wrong one |
-| `CODE_INVALID` | 401 — a second factor's code that does not match or was already accepted; `attemptsLeft` from `confirm` belongs in the body |
+| `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
 | `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` | 409 — the factor is not in the state the call needs |
 | `USER_INACTIVE` | 403 |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
@@ -311,6 +311,8 @@ await auth.verifyEmail.send(user);                 // { token, email, expiresAt 
 await auth.verifyEmail.confirm(token);
 await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
+await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
+await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user, session, token }
 
 // Several user types
 const clinic = janus({
@@ -351,8 +353,9 @@ else reaches the store and is asynchronous.
   compile error on `login`, and the message lists the fields you could have
   meant. It is normalised with `'lowercaseTrim'` unless you say otherwise.
 - **`email`** defaults to the field named `email`. A type without one has no
-  `verifyEmail` and no `resetPassword` — they are absent from its type, not
-  failing at run time. Changing the e-mail sets `emailVerified` back to `false`.
+  `verifyEmail`, no `resetPassword` and no `signInCode` — they are absent from
+  its type, not failing at run time. Changing the e-mail sets `emailVerified`
+  back to `false`.
 - **Per type**: `create`, `find` (or `null`), `get` (or `NOT_FOUND`), `list`,
   `update(user, patch)` — merged over the stored fields, then validated whole —
   `setActive` and `delete`; with a password, `signUp`, `signIn`, `findByLogin`,
@@ -486,6 +489,48 @@ every user type with a password.
 [The second factor guide](docs/guide/second-factor.md) has every option,
 error and state, key rotation, and a sign-in route with the challenge in a
 cookie.
+
+### Sign-in codes — `signInCode`
+
+```ts
+import { z } from 'zod';
+import { createMemoryStores, janus } from '@nxgt/janus';
+
+const auth = janus({
+	user: z.object({ email: z.email(), name: z.string() }), // no password: codes only
+	store: createMemoryStores(),
+});
+
+const issued = await auth.signInCode.request(email); // null for nobody, or an inactive user
+if (issued !== null) {
+	await sendMail(issued.email, `Your sign-in code: ${issued.code}`); // the code, and only the code
+}
+// answer the same page either way; keep issued.challenge with the visitor — a cookie, never a URL
+
+const signedIn = await auth.signInCode.confirm(challenge, code); // { status: 'signedIn', user, session, token }
+```
+
+A six-digit code sent to the user's e-mail signs them in, with no password.
+
+- **On every user type with an e-mail**, with a password or without one. A
+  type with no password signs in by code alone; a type with no e-mail has no
+  `signInCode` at all.
+- **`request(email)` answers `null`** when nobody of this type holds that
+  e-mail, or the user is inactive — never say which. It answers the `code`
+  for the e-mail and the `challenge` for the visitor; the code's hash is
+  stored, keyed by the challenge.
+- **`confirm(challenge, code)`** marks the e-mail verified and opens the
+  session. A challenge lives `'10m'` (`tokens.signInCode`) and takes five
+  attempts: a wrong code is `CODE_INVALID` with `attemptsLeft`, and the fifth
+  spends it. An e-mail changed since is `TOKEN_STALE`; a user deactivated
+  since is `USER_INACTIVE`.
+- **An active second factor is still asked for**: with `secondFactor`
+  configured, `confirm` answers `SignInResult` on a type with a password, and
+  a user whose factor is active gets a challenge for `secondFactor.confirm`
+  — switch on `status`, as after `signIn`.
+
+[The sign-in code guide](docs/guide/sign-in-code.md) has the request that
+tells nobody who exists, the challenge in a cookie, every error, and a test.
 
 ### Permissions — `@nxgt/janus/permissions`
 
@@ -647,14 +692,24 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 
 ## Traps
 
-**Once `secondFactor` is configured, switch on `signIn`'s `status`.** A user
-whose factor is active gets `{ status: 'secondFactor', challenge }`, with no
-`token` and no `session`: `if (result.status === 'secondFactor') …` before
-anything reads them.
+**Once `secondFactor` is configured, switch on `signIn`'s `status`** — and
+on `signInCode.confirm`'s. A user whose factor is active gets
+`{ status: 'secondFactor', challenge }`, with no `token` and no `session`: an
+e-mailed code proves the e-mail, not the factor.
+`if (result.status === 'secondFactor') …` before anything reads them.
 
-**A challenge is a secret, like a session token.** Keep it in a short-lived
-`HttpOnly` cookie or the body of the code form — never in a URL, where logs,
-proxies and the `Referer` header see it, and never in a log.
+**A challenge is a secret, like a session token** — `signIn`'s and
+`signInCode.request`'s alike. Keep it in a short-lived `HttpOnly` cookie or
+the body of the code form — never in the e-mail, never in a URL, where logs,
+proxies and the `Referer` header see it, and never in a log. The e-mail holds
+the code and nothing else.
+
+**Answer `signInCode.request` the same whether it issued a code or not** —
+the same status, body and cookie: set a random challenge when it answered
+`null`. The code route then still tells a decoy (`TOKEN_UNKNOWN`) from a
+real challenge (`CODE_INVALID`, `attemptsLeft`): answer its refusals alike
+where addresses must stay secret. And rate-limit the request: `janus` issues
+a new code on every call, so without a limit anyone can fill a user's inbox.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`
@@ -774,16 +829,16 @@ could not answer: that is a denial made of an outage.
 
 ## Type safety, counted
 
-**One hundred and eleven plausible mistakes, one hundred and eleven refused at compile time — and
+**One hundred and fourteen plausible mistakes, one hundred and fourteen refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
 `test/types/port.ts` (twenty-one, on the identity stores' port, from the point
-of view of the person implementing it), `test/types/auth.ts` (twenty-eight, on
+of view of the person implementing it), `test/types/auth.ts` (thirty-one, on
 `janus()`, from the point of view of the application — eight of them on the
-second factor) and `test/types/permissions.ts` (forty-eight, on the
+second factor, three on sign-in codes) and `test/types/permissions.ts` (forty-eight, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

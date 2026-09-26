@@ -395,7 +395,13 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 		/**
 		 * Issues a code for the user of this type holding this e-mail, or
 		 * answers `null` when there is none, or they are inactive. **Never tell
-		 * the visitor which**: answer the same page either way.
+		 * the visitor which**: answer the same page either way, and in the same
+		 * time — send the e-mail off the request's path.
+		 *
+		 * **Rate-limit it, per e-mail and per client.** Every call issues a new
+		 * challenge with five attempts of its own, and the earlier ones stay
+		 * valid until they lapse: the five attempts bound one challenge, not
+		 * one account.
 		 */
 		request(email: string): Promise<IssuedCode<U> | null>;
 		/**

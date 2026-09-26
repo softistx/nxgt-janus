@@ -23,8 +23,9 @@ Nothing yet.
 
 - **An OpenTelemetry SDK** — like `@nxgt/telemetry`, it speaks OTLP through its
   exporters and depends on no `@opentelemetry/*` package.
-- **Writing a login, an e-mail, a password, a session token, a one-time token
-  or a session id** — in any span or event, on any setting.
+- **Writing a login, an e-mail, a password, a session token, a one-time token,
+  a one-time code, a challenge or a session id** — in any span or event, on
+  any setting.
 - **`moduleResolution: "nodenext"`** — like `@nxgt/janus`, the package imports
   without extensions. Use `"moduleResolution": "bundler"`.
 
@@ -32,6 +33,12 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Sign-in codes in the audit trail, v0.3.0** — a `janus.signInCode.sent`
+  event for every code issued, never for an address nobody holds; a sign-in
+  by code is a `janus.signIn` with `janus.signIn.code: true`, and the
+  `signInCode.confirm` span records `janus.signIn.status`, like `signIn`'s. A
+  refused code is a `janus.signIn.refused` warning. Neither the code nor its
+  challenge is ever written. Needs `@nxgt/janus` 0.6.0.
 - **The second factor in the audit trail, v0.2.0** — `janus.signIn` records
   `janus.signIn.status`; the events `janus.signIn.secondFactor`,
   `janus.secondFactor.enrolled`, `.activated` and `.disabled`; and a refused

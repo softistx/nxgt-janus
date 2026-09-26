@@ -74,6 +74,14 @@ How the messages are shaped:
 - [`<call>: the <type> type does not sign in with a password, so it has no second factor`](#call-the-type-type-does-not-sign-in-with-a-password-so-it-has-no-second-factor)
 - `TOKEN_*`, `USER_INACTIVE` and `VERSION_CONFLICT` from `secondFactor.confirm`: in their entries above.
 
+**Sign-in codes**
+- [`CODE_INVALID` — `signInCode.confirm: the code does not match, or was already used`](#code_invalid--signincodeconfirm-the-code-does-not-match-or-was-already-used)
+- [`TOKEN_STALE` — `<call>: the code was sent to an e-mail the user no longer has`](#token_stale--call-the-code-was-sent-to-an-e-mail-the-user-no-longer-has)
+- [The code from an earlier e-mail is refused with `CODE_INVALID`](#the-code-from-an-earlier-e-mail-is-refused-with-code_invalid)
+- [`signInCode.request` answers `null` for a user who exists](#signincoderequest-answers-null-for-a-user-who-exists)
+- [`TS2339: Property 'signInCode' does not exist on type 'TypeApi<…>'.`](#ts2339-property-signincode-does-not-exist-on-type-typeapi)
+- `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `USER_INACTIVE` and `VERSION_CONFLICT` from `signInCode.confirm`, and `TS2339` on its `token`: in their entries above.
+
 **Permissions**
 - [`PERMISSION_DEPTH` — `can: checking <type>#<permission> crossed more than <n> relations without an answer`](#permission_depth--can-checking-typepermission-crossed-more-than-n-relations-without-an-answer)
 - [`permissions: this model was not made by defineModel() …`](#permissions-this-model-was-not-made-by-definemodel--pass-what-definemodel-answered)
@@ -291,7 +299,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword` and `secondFactor.challenge`. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode` and `secondFactor.challenge`. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.
@@ -492,8 +500,8 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm`, for a user set inactive after `signIn` asked for a code.
-**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive. On `secondFactor.confirm`, the challenge is spent: reactivating the user does not revive it.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm`, for a user set inactive after `signIn` asked for a code, and `signInCode.confirm`, for a user set inactive after the code was sent.
+**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
 ### `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`
@@ -524,6 +532,25 @@ code. To give slower visitors more time:
 
 ```ts
 janus({ ..., secondFactor: { issuer: 'Acme', keys, challenge: '10m' } });
+```
+
+**On `signInCode.confirm`**, the messages name the challenge
+`signInCode.request` answered: `signInCode.confirm: no such challenge`,
+`signInCode.confirm: the challenge was already used`,
+`signInCode.confirm: the challenge has expired`.
+
+**When:** `signInCode.confirm(challenge, code)`.
+**Why:** a challenge lives ten minutes and takes five codes. It is spent by
+the code that signs the user in, by the fifth wrong code, and by a refusal
+that ends it (`TOKEN_STALE`, `USER_INACTIVE`). `TOKEN_UNKNOWN` also covers a
+challenge whose user was deleted, one confirmed through another user type's
+`signInCode` — which leaves it for its own — the decoy challenge of a
+`request` that answered `null`, and the two arguments swapped.
+**Fix:** answer 400 and offer to send a new code. To give slower inboxes
+more time:
+
+```ts
+janus({ ..., tokens: { signInCode: '15m' } });
 ```
 
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
@@ -595,7 +622,7 @@ each of those entries has a paragraph for it.
 
 The same for `session` and `user`.
 
-**When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor`.
+**When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor` — and `signInCode.confirm`'s, on a user type with a password.
 **Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
 **Fix:** switch on `status`:
 
@@ -738,6 +765,119 @@ A `TypeError`.
 **When:** `secondFactor.enroll`, from JavaScript, on a user type without `password`. In TypeScript, `secondFactor` is absent from such a type.
 **Why:** a second factor is asked for after a password. A type that signs in otherwise has nothing to ask it after, and no login to show in the app.
 **Fix:** enroll only users of a type with `password: { login }`.
+
+---
+
+## Sign-in codes
+
+The messages start with `signInCode.confirm` — prefixed by the type with
+several user types: `patient.signInCode.confirm: …`. `signInCode.request`
+throws nothing but `STORE_FAILED`: an e-mail it cannot sign in is `null`.
+`signInCode.confirm` also rejects with
+[`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
+[`USER_INACTIVE`](#user_inactive--call-the-user-is-inactive) and
+[`VERSION_CONFLICT`](#version_conflict--call-expected-version-n-found-m);
+each of those entries has a paragraph for it.
+[The sign-in code guide](guide/sign-in-code.md) has the whole flow.
+
+### `CODE_INVALID` — `signInCode.confirm: the code does not match, or was already used`
+
+The message is the second factor's too; this entry is the e-mailed code's.
+
+`TokenError`, carrying `attemptsLeft` and the `userId` of the user the code
+was sent to.
+
+**When:** `signInCode.confirm(challenge, code)`.
+**Why:** the code is not the one sent with this challenge, or is not six
+digits — a space, a dash, a code pasted with its label. Every call costs one
+of the challenge's five attempts, counted before the code is compared;
+`attemptsLeft` is what remains. At `0` the challenge is spent, and the next
+`confirm` is `TOKEN_SPENT`, even with the right code. Codes sent at once past
+the fifth attempt are all refused, the right one included.
+**Fix:** answer 401 with `attemptsLeft`, and offer a new code once it is `0`.
+Strip what the visitor may have typed around the digits before calling
+`confirm`:
+
+```ts
+import { TokenError } from '@nxgt/janus';
+
+try {
+  return await auth.signInCode.confirm(challenge, code.replace(/\D/g, ''));
+} catch (error) {
+  if (error instanceof TokenError && error.code === 'CODE_INVALID') {
+    return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status: 401 });
+  }
+  throw error;
+}
+```
+
+If the visitor typed the code from the e-mail correctly, see
+[the code from an earlier e-mail](#the-code-from-an-earlier-e-mail-is-refused-with-code_invalid).
+
+### `TOKEN_STALE` — `<call>: the code was sent to an e-mail the user no longer has`
+
+`TokenError`, carrying the `userId`.
+
+**When:** `signInCode.confirm`, after the user's e-mail was changed — by
+`update`, or a patch naming the e-mail field — since the code was sent.
+**Why:** the code proves an address, and signing in with it would mark as
+verified an address the user no longer holds. The challenge is spent.
+**Fix:** answer 400, and request a new code: it goes to the current address.
+
+```ts
+const issued = await auth.signInCode.request(currentEmail);
+```
+
+### The code from an earlier e-mail is refused with `CODE_INVALID`
+
+**When:** the visitor asked for a code twice — pressed "send again", or
+opened the form in two tabs — and typed the code of the first e-mail.
+**Why:** every `request` issues a new code **with its own challenge**, and a
+code is checked against the challenge it was sent with. The cookie or the
+form field now holds the second challenge, so the first code does not
+match it — and costs an attempt.
+**Fix:** tell the visitor that only the last code sent works, and put the
+time it was sent in the e-mail's subject or text so they can tell the
+e-mails apart. The earlier challenge is not revoked: it still expires on its
+own.
+
+### `signInCode.request` answers `null` for a user who exists
+
+**When:** `signInCode.request(email)`, for an address you can see in the
+database.
+**Why**, in the order to check:
+
+1. **The user is inactive.** An inactive user gets no code, and the answer
+   is the same as for nobody.
+2. **It is another user type.** `clinic.patient.signInCode.request` looks
+   among patients only; the same address may hold a user of another type.
+3. **The address is not the type's e-mail field.** A type whose `email`
+   option names `contact` is looked up by `contact`. A login that looks like
+   an e-mail — a `username` of `ada@example.com` — is not an e-mail, and is
+   `null` too.
+
+The e-mail is trimmed and lowercased before the lookup, so case and
+surrounding spaces are never the cause.
+**Fix:** `setActive(user, true)`; call the right type's `signInCode`; name
+the field with `email: 'contact'`. Do not tell the visitor which case it
+was — the route answers the same page either way.
+
+### `TS2339: Property 'signInCode' does not exist on type 'TypeApi<…>'.`
+
+**When:** `tsc`, on `auth.signInCode` or `clinic.<type>.signInCode`.
+**Why:** the user type has no e-mail: no field called `email`, and no
+`email` option naming one. A code has nowhere to be sent, so the flow is
+absent from the type.
+**Fix:** name the field that holds the e-mail:
+
+```ts
+janus({
+  users: {
+    staff: { schema: Staff, password: { login: 'username' }, email: 'workEmail' },
+  },
+  ...
+});
+```
 
 ---
 

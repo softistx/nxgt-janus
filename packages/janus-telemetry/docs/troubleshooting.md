@@ -11,6 +11,7 @@ would be without it.
 - [`TypeError: Cannot add property …, object is not extensible` (Node), `Attempting to define property on object that is not extensible.` (Bun)](#typeerror-cannot-add-property--object-is-not-extensible)
 - [A wrong password does not fail the span](#a-wrong-password-does-not-fail-the-span)
 - [`janus.signIn.refused` has no `user.id`](#janussigninrefused-has-no-userid)
+- [A `janus.signInCode.request` span with no `janus.signInCode.sent` event](#a-janussignincoderequest-span-with-no-janussignincodesent-event)
 - [Every wrong password fails its span](#every-wrong-password-fails-its-span)
 
 ### No `janus.*` span or event at all
@@ -51,12 +52,14 @@ extensible.`
 ### A wrong password does not fail the span
 
 **When:** a `janus.signIn` span is `ok` although the sign-in threw
-`CREDENTIALS_INVALID` — or a `janus.secondFactor.confirm` span is `ok` although the
-code was refused with `CODE_INVALID`.
+`CREDENTIALS_INVALID` — or a `janus.secondFactor.confirm` or
+`janus.signInCode.confirm` span is `ok` although the code was refused with
+`CODE_INVALID`.
 
 **Why:** a refusal is an answer — Janus worked. The span carries
 `janus.refusal`, and the `janus.signIn.refused` warning says why; for a
-refused code, the warning also carries `janus.secondFactor.attemptsLeft`. Only
+refused code, the warning also carries `janus.secondFactor.attemptsLeft` —
+under that name for an e-mailed sign-in code too. Only
 a failure, such as `STORE_FAILED`, fails a span.
 
 **Fix:** nothing. Query `janus.refusal` or the warning to count refusals.
@@ -75,8 +78,27 @@ password was right, so the user is known.)
 `unknownLogin` has none to name, and the others do not say which, so a
 response cannot tell which accounts exist. The login tried is never written.
 
+The same for a refused `signInCode.confirm` with `TOKEN_UNKNOWN`,
+`TOKEN_SPENT` or `TOKEN_EXPIRED`: the challenge is refused before any user is
+read. Its `CODE_INVALID`, `TOKEN_STALE` and `USER_INACTIVE` do carry
+`user.id`.
+
 **Fix:** to count refusals per account, do it where the login is known — in
 your sign-in route, from the request — not from telemetry.
+
+### A `janus.signInCode.request` span with no `janus.signInCode.sent` event
+
+**When:** a visitor asked for a sign-in code, the span is there with
+`janus.user.type` and no `user.id`, and no event follows.
+
+**Why:** `signInCode.request` answered `null` — nobody of that type holds the
+address, or the user is inactive — and nothing was sent. The event is
+written only for a code issued, and never with the address typed: the trail
+must not become a list of addresses tried against your users.
+
+**Fix:** nothing, if the address is nobody's. For a user you expected to
+find, see
+[`signInCode.request` answers `null` for a user who exists](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#signincoderequest-answers-null-for-a-user-who-exists).
 
 ### Every wrong password fails its span
 

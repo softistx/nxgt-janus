@@ -1,7 +1,8 @@
 import { randomInt, timingSafeEqual } from 'node:crypto';
 import { TokenError } from '../errors/janus-error';
-import type { Context } from './context';
-import type { TokenKind, TokenRecord } from './port/types';
+import { normalizeEmail, type ResolvedType } from './config';
+import { type Context, emailOf } from './context';
+import type { TokenKind, TokenRecord, UserRecord } from './port/types';
 import { hashSecret, mintSecret } from './secrets';
 
 /**
@@ -16,10 +17,80 @@ export type OneTimeNoun = 'token' | 'challenge';
 /**
  * How many codes one challenge takes — a second factor's or an e-mail
  * code's. A six-digit code has a million values: five attempts is a
- * one-in-200,000 chance, and the attempts are counted by the store in one
- * write, never read then written.
+ * one-in-200,000 chance **per challenge**, and the attempts are counted by
+ * the store in one write, never read then written.
  */
 export const CODE_ATTEMPTS = 5;
+
+/**
+ * Counts one attempt at a challenge's code, before anything is compared: a
+ * guess that fails for any reason has still cost one. Refuses a challenge
+ * that cannot be used, and one past its last attempt — a call that raced the
+ * one that spent it — unread.
+ */
+export async function countCodeAttempt(
+	context: Context,
+	secret: string,
+	kind: TokenKind,
+	where: string,
+	userType: string,
+): Promise<{ readonly token: TokenRecord; readonly attemptsLeft: number }> {
+	const token = await context.store.tokens.countAttempt(
+		hashSecret(secret),
+		kind,
+	);
+	refuseUnusable(token, context.clock.now(), where, 'challenge');
+	if (token.attempts > CODE_ATTEMPTS) {
+		throw codeInvalid(where, token.userId, userType, 0);
+	}
+	return { token, attemptsLeft: CODE_ATTEMPTS - token.attempts };
+}
+
+/**
+ * A code that does not match — a second factor's or an e-mailed one — or a
+ * TOTP code already used. `attemptsLeft` only when a challenge counted it.
+ */
+export function codeInvalid(
+	where: string,
+	userId: string,
+	userType: string,
+	attemptsLeft?: number,
+): TokenError {
+	return new TokenError(
+		'CODE_INVALID',
+		`${where}: the code does not match, or was already used`,
+		{
+			operation: where,
+			userId,
+			userType,
+			...(attemptsLeft === undefined ? {} : { attemptsLeft }),
+		},
+	);
+}
+
+/**
+ * Refuses a token sent to an e-mail the user no longer has: redeeming it
+ * would prove an address nobody holds any more.
+ */
+export function refuseStale(
+	type: ResolvedType,
+	user: UserRecord,
+	token: TokenRecord,
+	where: string,
+	noun: 'token' | 'code',
+): void {
+	const email = emailOf(type, user.fields);
+	if (
+		email === null ||
+		normalizeEmail(email) !== normalizeEmail(token.address)
+	) {
+		throw new TokenError(
+			'TOKEN_STALE',
+			`${where}: the ${noun} was sent to an e-mail the user no longer has`,
+			{ operation: where, userId: user.id, userType: type.name },
+		);
+	}
+}
 
 /**
  * Refuses a token that cannot be used: none, spent, or lapsed. What a store
@@ -116,30 +187,48 @@ export function codeMatches(
 	return given.length === held.length && timingSafeEqual(given, held);
 }
 
+interface OneTimeRequest {
+	readonly kind: TokenKind;
+	readonly userId: string;
+	readonly address: string;
+	readonly ttlMs: number;
+}
+
 /**
  * Issues a one-time token: 32 random bytes, given back once, and only their
- * hash stored. With `code`, a six-digit code too, for a person to type: only
- * its hash is stored, keyed by the token.
+ * hash stored.
  */
 export async function issueOneTime(
 	context: Context,
-	token: {
-		readonly kind: TokenKind;
-		readonly userId: string;
-		readonly address: string;
-		readonly ttlMs: number;
-		readonly code?: boolean;
-	},
+	token: OneTimeRequest,
+): Promise<{ readonly secret: string; readonly expiresAt: Date }> {
+	return insertOneTime(context, token, null);
+}
+
+/**
+ * Issues a one-time token with a six-digit code for a person to type: the
+ * token is the challenge, and only the code's hash is stored, keyed by it.
+ */
+export async function issueCode(
+	context: Context,
+	token: OneTimeRequest,
 ): Promise<{
 	readonly secret: string;
 	readonly expiresAt: Date;
-	readonly code: string | null;
+	readonly code: string;
 }> {
+	const code = String(randomInt(1_000_000)).padStart(6, '0');
+	return { ...(await insertOneTime(context, token, code)), code };
+}
+
+async function insertOneTime(
+	context: Context,
+	token: OneTimeRequest,
+	code: string | null,
+): Promise<{ readonly secret: string; readonly expiresAt: Date }> {
 	const now = context.clock.now();
 	const secret = mintSecret();
 	const expiresAt = new Date(now.getTime() + token.ttlMs);
-	const code =
-		token.code === true ? String(randomInt(1_000_000)).padStart(6, '0') : null;
 
 	await context.store.tokens.insertToken({
 		tokenHash: hashSecret(secret),
@@ -152,5 +241,5 @@ export async function issueOneTime(
 		spentAt: null,
 		createdAt: now,
 	});
-	return { secret, expiresAt, code };
+	return { secret, expiresAt };
 }

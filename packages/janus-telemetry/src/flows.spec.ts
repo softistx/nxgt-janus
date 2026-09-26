@@ -246,6 +246,7 @@ describe('instrumentJanus()', () => {
 		).toMatchObject({
 			'janus.refusal': 'CODE_INVALID',
 			'janus.secondFactor.attemptsLeft': 4,
+			'janus.signIn.code': true,
 		});
 		expect(
 			logs.find((log) => log.name === 'janus.signIn')?.attributes,

@@ -78,7 +78,13 @@ const WRITTEN: Readonly<
 	},
 	'signInCode.confirm': (call, outcome) => {
 		if (!outcome.ok) {
-			log.warn(events.signInRefused(refusalFields(call, outcome.refusal)));
+			// Marked, so an alert on burnt challenges can tell the two codes apart.
+			log.warn(
+				events.signInRefused({
+					...refusalFields(call, outcome.refusal),
+					'janus.signIn.code': true,
+				}),
+			);
 		} else if (statusOf(outcome.value) === 'secondFactor') {
 			log.info(
 				events.secondFactorAsked(

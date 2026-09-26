@@ -1,11 +1,12 @@
 import { SecondFactorError } from '../../errors/janus-error';
 import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, toUser, writeUser } from '../context';
+import { codeInvalid } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { seal } from '../sealing';
 import { mintTotpSecret, otpauthUri } from '../totp';
 import type { SecondFactorApi } from '../types';
-import { acceptCode, codeInvalid, isActive, requireSettings } from './factor';
+import { acceptCode, isActive, requireSettings } from './factor';
 
 type Lifecycle = Pick<
 	SecondFactorApi<AnyUser>['secondFactor'],
@@ -123,7 +124,7 @@ export function lifecycleFlows(
 						now,
 						where,
 					);
-					if (accepted === null) throw codeInvalid(type, where, record.id);
+					if (accepted === null) throw codeInvalid(where, record.id, type.name);
 					return { secondFactor: { ...accepted, confirmedAt: now } };
 				},
 			);

@@ -7,7 +7,7 @@
  * a user who can never sign in, a field read off the wrong kind of user, a
  * password hash handed to a request handler.
  *
- * **Thirty plausible mistakes, thirty refused.** Add a case whenever the
+ * **Thirty-one plausible mistakes, thirty-one refused.** Add a case whenever the
  * surface gains something it should refuse; never delete one to make a change
  * pass.
  */
@@ -278,6 +278,11 @@ async function flows() {
 	);
 	// @ts-expect-error the code proves the e-mail; an active factor is still asked for
 	void coded.token;
+
+	// ── 31. A code read off a request that may have found nobody ──────────
+	const issued = await one.signInCode.request('a@b.test');
+	// @ts-expect-error null when nobody holds the e-mail: send nothing then
+	void issued.code;
 }
 
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
@@ -330,6 +335,10 @@ async function allowed() {
 	const enrolment: { secret: string; uri: string } =
 		await twoFactor.patient.secondFactor.enroll(signedIn.user);
 	const active: boolean = signedIn.user.hasSecondFactor;
+	// Without a second factor, a code signs a patient straight in.
+	const patientByCode: string = (
+		await clinic.patient.signInCode.confirm('challenge', '123456')
+	).token;
 	// A guest has no password, so no second factor: a code signs them in.
 	const guestToken: string = (
 		await twoFactor.guest.signInCode.confirm('challenge', '123456')
@@ -348,6 +357,7 @@ async function allowed() {
 		enrolment,
 		active,
 		guestToken,
+		patientByCode,
 	];
 }
 
