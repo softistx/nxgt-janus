@@ -24,9 +24,9 @@ import {
 	validateFields,
 	writeUser,
 } from './context';
+import { issueOneTime, spendOneTime, unknownOneTime } from './one-time';
 import type { TokenKind, TokenRecord, UserRecord } from './port/types';
-import { secondFactorFlows } from './second-factor';
-import { hashSecret, mintSecret } from './secrets';
+import { secondFactorFlows } from './second-factor/flows';
 import { openSession } from './sessions';
 import type {
 	IssuedToken,
@@ -93,52 +93,18 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 	};
 
 	/**
-	 * Spends a token and says why it cannot be used, when it cannot.
-	 *
-	 * The store answers the token **as it was before the call**: `spentAt: null`
-	 * means this call spent it, and exactly one call ever sees that. A lapsed
-	 * token is spent all the same, so it cannot be retried. None of these
-	 * messages names the token: it is a secret, and so is its hash.
+	 * Spends a token and says why it cannot be used, when it cannot. A user
+	 * gone since, or of another type, is as good as no token; a token sent to
+	 * an e-mail the user no longer has is stale.
 	 */
 	const redeem = async (
 		kind: TokenKind,
 		secret: string,
 		where: string,
 	): Promise<{ token: TokenRecord; user: UserRecord }> => {
-		const now = clock.now();
-		const token = await store.tokens.consumeToken(
-			hashSecret(secret),
-			kind,
-			now,
-		);
-
-		if (token === null) {
-			throw new TokenError('TOKEN_UNKNOWN', `${where}: no such token`, {
-				operation: where,
-			});
-		}
-		if (token.spentAt !== null) {
-			throw new TokenError(
-				'TOKEN_SPENT',
-				`${where}: the token was already used`,
-				{
-					operation: where,
-				},
-			);
-		}
-		if (token.expiresAt.getTime() <= now.getTime()) {
-			throw new TokenError('TOKEN_EXPIRED', `${where}: the token has expired`, {
-				operation: where,
-			});
-		}
-
-		// A user gone since, or of another type, is as good as no token.
+		const token = await spendOneTime(context, secret, kind, where, 'token');
 		const user = await findRecord(context, token.userId, type.name);
-		if (user === null) {
-			throw new TokenError('TOKEN_UNKNOWN', `${where}: no such token`, {
-				operation: where,
-			});
-		}
+		if (user === null) throw unknownOneTime(where, 'token');
 
 		const email = emailOf(type, user.fields);
 		if (
@@ -170,22 +136,12 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			});
 		}
 
-		const now = clock.now();
-		const secret = mintSecret();
-		const expiresAt = new Date(now.getTime() + context.config.tokenTtlMs[kind]);
-
-		await store.tokens.insertToken({
-			tokenHash: hashSecret(secret),
+		const { secret, expiresAt } = await issueOneTime(context, {
 			kind,
 			userId: user.id,
 			address: email,
-			codeHash: null,
-			attempts: 0,
-			expiresAt,
-			spentAt: null,
-			createdAt: now,
+			ttlMs: context.config.tokenTtlMs[kind],
 		});
-
 		return { token: secret, email, expiresAt };
 	};
 

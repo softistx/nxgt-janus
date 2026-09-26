@@ -113,9 +113,9 @@ table plays that role, written in the same transaction as the user.
 
 Every key column is `text collate "C"`, compared byte for byte as the port
 requires. No secret is stored: sessions and tokens hold `sha256` of the secret,
-passwords a self-describing hash, and `second_factor_secret` a TOTP secret the
-store keeps byte for byte, which `@nxgt/janus` will seal with your
-application's key before the store sees it, once the second factor ships.
+passwords a self-describing hash, and `second_factor_secret` a TOTP secret
+`@nxgt/janus` has already sealed with your application's key —
+`v1.<key id>.…` — which the store keeps byte for byte.
 
 ## Traps
 

@@ -7,14 +7,15 @@ dates here, and the version something shipped in is the only number.
 
 - **One-time codes** — a one-time token short enough to type, sent by e-mail
   to sign in without a password, or to confirm a sensitive action, issued
-  and redeemed by `janus` like the verification and reset tokens today; and
-  TOTP, the one-time codes of an authenticator app, as a second factor, its
-  secret sealed with a key your application holds. `signIn` will answer
-  `{ status: 'signedIn' }` or `{ status: 'secondFactor', challenge }`. The
-  store port that holds them shipped in v0.4.0, below.
+  and redeemed by `janus` like the verification and reset tokens today. The
+  TOTP second factor shipped in v0.5.0, below, on the store port that
+  shipped in v0.4.0.
 
 ## Next
 
+- **Recovery codes** — single-use codes for the TOTP second factor, so a
+  user who loses their authenticator app can still sign in, without an
+  operator resetting the account.
 - **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`, built
   on a general mail toolkit shared with applications that are not about
   sign-in: a `Mailer` port you plug your transport into (SMTP, Resend, SES…) —
@@ -44,8 +45,10 @@ dates here, and the version something shipped in is the only number.
 - **More official adapters** — the ports are cut where atomicity is not
   required, so users, sessions and permission tuples can each live in the
   database that suits them. MongoDB is the first adapter
-  ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo));
-  PostgreSQL is under Now.
+  ([`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo)),
+  PostgreSQL and Redis followed
+  ([`@nxgt/janus-drizzle`](https://www.npmjs.com/package/@nxgt/janus-drizzle),
+  [`@nxgt/janus-redis`](https://www.npmjs.com/package/@nxgt/janus-redis)).
 
 ## Not planned
 
@@ -84,14 +87,23 @@ dates here, and the version something shipped in is the only number.
 
 ## Shipped
 
-Each entry names the version it came in.
+The last ten, newest first, each with the version it came in. Everything
+before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **A TOTP second factor, v0.5.0** — `janus({ secondFactor: { issuer, keys } })`
+  and `auth.<type>.secondFactor`'s `enroll`, `activate`, `disable` and
+  `confirm`, for every user type with a password; each secret sealed with
+  AES-256-GCM under keys your application holds, and rotated by adding a key.
+  Breaking once configured: `signIn` answers `{ status: 'signedIn', … }` or
+  `{ status: 'secondFactor', challenge, expiresAt }`. A challenge lives five
+  minutes and takes five attempts, a code is accepted once, and a refused one
+  throws `CODE_INVALID` with `attemptsLeft`.
 - **The store port holds a second factor and counts attempts on a token,
   v0.4.0** — `UserRecord.secondFactor`, a token's `codeHash` and `attempts`,
   the token kinds `'secondFactor'` and `'signInCode'`, and
   `TokenStore.countAttempt`, one conditional write per attempt, with six new
-  conformance cases. No flow uses them yet; the published adapters implement
-  them in `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3 and
+  conformance cases. The published adapters implement them in
+  `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3 and
   `@nxgt/janus-redis` 0.2.
 - **Permissions on a user, v0.3.0** — a user type may also be an object type:
   a staff member is the object `can()` asks about and is granted relations
@@ -109,7 +121,10 @@ Each entry names the version it came in.
   audit trail, never a login, a password, a session token or a one-time token;
   and [`@nxgt/janus-kit`](https://www.npmjs.com/package/@nxgt/janus-kit), all
   of it wired in one call.
-
+- **A NUL character or a lone surrogate never reaches a store** — refused in
+  fields with `USER_INVALID` on every adapter, rather than `STORE_FAILED` on
+  PostgreSQL alone; a login holding one is nobody's. The conformance suite
+  holds every adapter to round-tripping every other character. — v0.2.1
 - **The model's keys read `related` and `permits`** — Keto's OPL words: an
   object type declares `related: { members: ['staff', 'team#members'] }` and
   `permits: { view: ['members'] }`, and relation names are plural by convention. Breaking:
@@ -123,11 +138,6 @@ Each entry names the version it came in.
 - **The conformance suite accepts a store with its own expiry** — a store
   that drops a lapsed session at once, as a Redis TTL does, passes
   `sessions.deleteUser`; one that still holds it must count it. — v0.2.0
-- **A NUL character or a lone surrogate never reaches a store** — refused in
-  fields with `USER_INVALID` on every adapter, rather than `STORE_FAILED` on
-  PostgreSQL alone; a login holding one is nobody's. The conformance suite
-  holds every adapter to round-tripping every other character. — v0.2.1
-
 - **A Hono integration** — [`@nxgt/janus-hono`](https://www.npmjs.com/package/@nxgt/janus-hono):
   the session middleware, the cookie, a route guarded by a permission,
   `bindJanus()` to bind the instances once, and every error as its status.
@@ -136,35 +146,3 @@ Each entry names the version it came in.
   in a relation, subject types in `fromField`, relations, permissions and
   arrows in a rule and in `when`; a wrong name's error lists the names it
   could have been. — v0.1.2
-
-- **The model decides what a stored tuple grants** — `can()` and `list()` follow
-  only the holders a relation admits, as `grant()` writes only those: a tuple
-  stored past `grant()`, by an older model or by hand, grants nothing. — v0.1
-- **Guides and troubleshooting pages** — a `docs/` folder shipped in the
-  package: detailed guides with examples, and the errors you can meet, each
-  with its cause and fix. — v0.1
-- **Permissions at `@nxgt/janus/permissions`** — and `janus({ relations })`,
-  so deleting a user also deletes every tuple naming them. — v0.1
-- **`list()`** — the ids of every object a subject holds a permission on, as a
-  cursor page, `fromField` relations included through their `lookup`. — v0.1
-- **`can()`, `grant()` and `revoke()`** — a permission check that answers
-  `true` or `false` and throws on an outage, and tuple writes refused at
-  compile time when the model does not admit them. — v0.1
-- **Typed subjects and the `RelationStore` port** — `{ type, id }` subjects,
-  the tuple notation, `createMemoryRelations()`, and
-  `describeRelationStores` for adapter authors. — v0.1
-- **A permission model typed from itself** — `defineModel` with subject sets,
-  arrows, `fromField` relations read from your data, and `when` conditions
-  written in TypeScript. — v0.1
-- **Delete a user, and everything of theirs** — `delete(user)` removes the
-  user with every session and one-time token they had, idempotently. — v0.1
-- **Rehash a stale password on sign-in** — moving hashers, or raising a cost,
-  reaches every active user with no migration to run. — v0.1
-- **`janus()`** — sign-up, sign-in, sessions, e-mail verification and password
-  reset, with several user types in one instance, typed from your schemas.
-  — v0.1
-- **The conformance suite** — `@nxgt/janus/conformance`, the suite an adapter
-  runs, outages included. — v0.1
-- **The identity stores' port and its in-memory reference** — `JanusStores` and
-  `createMemoryStores()`, for your tests and as the model for an adapter.
-  — v0.1

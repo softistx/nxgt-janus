@@ -34,6 +34,14 @@ Nothing yet.
 
 ## Shipped
 
+Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
+
+- **The second factor's errors as statuses, v0.3.0** — `janusErrors()`
+  answers `CODE_INVALID` with 401 and `attemptsLeft` in the body, and
+  `SECOND_FACTOR_NOT_ENROLLED` and `SECOND_FACTOR_ACTIVE` with 409. Needs
+  `@nxgt/janus` 0.5.0.
+- **Examples and guides on `related` and `permits`, v0.2.0** — the model keys
+  of `@nxgt/janus` 0.2, which it now requires.
 - **The first release** — `session()`,
   `sendSession` (which answers the user), `signOut`, `permission()` and
   `byParam`, `provide()`, `janusErrors({ report, fallback })`, and

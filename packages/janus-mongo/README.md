@@ -72,8 +72,8 @@ encoded. A document read in a shell reads like the record in the code.
 
 No secret is stored: sessions and tokens hold `sha256` of the secret,
 passwords a self-describing hash, and a user's `secondFactor.secret` a TOTP
-secret the store keeps byte for byte, which `@nxgt/janus` will seal with your
-application's key before the store sees it, once the second factor ships.
+secret `@nxgt/janus` has already sealed with your application's key —
+`v1.<key id>.…` — which the store keeps byte for byte.
 
 `countAttempt` counts an attempt at a code in one `findOneAndUpdate` with
 `$inc`, so twenty concurrent attempts answer twenty distinct counts.

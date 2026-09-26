@@ -74,6 +74,18 @@ describe('sealing', () => {
 				'test',
 			),
 		).toThrow('not a sealed one');
+		const sealer = resolveSealer([{ id: 'k1', key: key(1) }], 'test');
+		const good = seal(sealer, 'secret', 'u');
+		const [version, id, iv] = good.split('.');
+		for (const bad of [
+			`${good}.junk`,
+			`${version}.${id}.${iv}.`,
+			`${version}.${id}.${iv}.${Buffer.alloc(16).toString('base64url')}`,
+		]) {
+			expect(() => unseal(sealer, bad, 'u', 'test')).toThrow(
+				'not a sealed one',
+			);
+		}
 	});
 
 	it('refuses keys that cannot seal, as wiring mistakes', () => {

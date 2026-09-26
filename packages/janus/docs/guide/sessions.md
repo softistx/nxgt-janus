@@ -145,6 +145,23 @@ export async function signOut(request: Request): Promise<Response> {
 }
 ```
 
+**With `secondFactor` configured, switch on `status` first.** A user whose
+second factor is active gets a challenge from `signIn`, not a session — no
+`token`, no `session` — and the destructuring above no longer compiles:
+
+```ts
+const result = await auth.signIn({ email, password });
+if (result.status === 'secondFactor') {
+	// keep result.challenge for the next request — never in a URL — and ask for a code
+	return Response.json({ next: 'code' });
+}
+const { user, session, token } = result; // status 'signedIn': as above
+```
+
+`secondFactor.confirm(challenge, code)` then answers the same `SignedIn`, and
+its session is sent the same way. See
+[the second factor](second-factor.md#signing-in-switch-on-status).
+
 `signOutEverywhere(user, { except })` revokes every standing session of a
 user, but the one named, and answers how many it revoked — "sign out
 everywhere else". An `except` that names no session of theirs — an unknown
@@ -209,5 +226,6 @@ cannot be replayed. `Session` is the stored record without that hash: `id`,
 ## See also
 
 - [Users](users.md) — `signUp`, `signIn`, the configuration
+- [The second factor](second-factor.md) — the challenge `signIn` answers instead of a session
 - [E-mail flows](email-flows.md) — verification and password reset
 - [Errors](errors.md) — `STORE_FAILED`, `UNSUPPORTED` and the rest

@@ -26,6 +26,9 @@ export interface Sealer {
 	readonly keys: ReadonlyMap<string, Buffer>;
 }
 
+/** GCM's tag, always the full 16 bytes: a shorter one is easier to forge. */
+const TAG_BYTES = 16;
+
 const KEY_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const KEY = /^[A-Za-z0-9+/_-]{43}=?$/;
 
@@ -85,12 +88,16 @@ export function unseal(
 	boundTo: string,
 	where: string,
 ): { readonly plain: string; readonly keyId: string } {
-	const [version, keyId, iv, body] = sealed.split('.');
+	const parts = sealed.split('.');
+	const [version, keyId, iv, body] = parts;
+	const bytes = Buffer.from(body ?? '', 'base64url');
+	// Exactly four parts, and a body longer than its 16-byte tag.
 	if (
+		parts.length !== 4 ||
 		version !== 'v1' ||
 		keyId === undefined ||
 		iv === undefined ||
-		body === undefined
+		bytes.length <= TAG_BYTES
 	) {
 		throw new TypeError(`${where}: the stored secret is not a sealed one`);
 	}
@@ -100,23 +107,23 @@ export function unseal(
 			`${where}: the secret is sealed with the key "${keyId}", which secondFactor.keys no longer holds — keep a key until no secret is sealed with it`,
 		);
 	}
-	const bytes = Buffer.from(body, 'base64url');
 	try {
 		const decipher = createDecipheriv(
 			'aes-256-gcm',
 			key,
 			Buffer.from(iv, 'base64url'),
+			{ authTagLength: TAG_BYTES },
 		);
 		decipher.setAAD(Buffer.from(boundTo));
-		decipher.setAuthTag(bytes.subarray(bytes.length - 16));
+		decipher.setAuthTag(bytes.subarray(bytes.length - TAG_BYTES));
 		const plain = Buffer.concat([
-			decipher.update(bytes.subarray(0, bytes.length - 16)),
+			decipher.update(bytes.subarray(0, bytes.length - TAG_BYTES)),
 			decipher.final(),
 		]).toString('utf8');
 		return { plain, keyId };
 	} catch (cause) {
 		throw new TypeError(
-			`${where}: the secret does not open with the key "${keyId}" — was that key changed under the same id?`,
+			`${where}: the secret does not open with the key "${keyId}" — was that key changed under the same id, or the secret copied from another user?`,
 			{ cause },
 		);
 	}

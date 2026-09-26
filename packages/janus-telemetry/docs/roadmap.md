@@ -30,6 +30,13 @@ Nothing yet.
 
 ## Shipped
 
+Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
+
+- **The second factor in the audit trail, v0.2.0** — `janus.signIn` records
+  `janus.signIn.status`; the events `janus.signIn.secondFactor`,
+  `janus.secondFactor.enrolled`, `.activated` and `.disabled`; and a refused
+  code warns with `janus.secondFactor.attemptsLeft`. No secret, challenge or
+  code is ever written. Needs `@nxgt/janus` 0.5.0.
 - **The audit trail reads subjects as `permissions()` does, v0.1.1** — a user
   with a field named `relation` is recorded as that user, and a subject set on
   a user type only when `setOf()` made it. Needs `@nxgt/janus` 0.3.0.

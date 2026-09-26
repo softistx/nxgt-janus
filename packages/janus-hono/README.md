@@ -47,11 +47,11 @@ declarations import without extensions, so `nodenext` is not supported.
 | Export | What it is |
 | --- | --- |
 | `session(auth, options?)` | Middleware. Reads who the request belongs to — `auth.authenticate(c.req.raw)` — and sets `c.var.user` and `c.var.session`, `null` for an anonymous request. `{ required: true }` answers an anonymous request 401 and types `c.var.user` as never `null`. `{ type: 'staff' }` treats a user of any other type as anonymous. Sends a renewed session's cookie again |
-| `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, or anything that answered `{ token, session, user }` — and answers the user |
+| `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, `secondFactor.confirm`, or anything that answered `{ token, session, user }` — and answers the user. With a second factor configured, narrow `signIn`'s answer on `status` first |
 | `signOut(c, auth)` | Revokes the session the request presents and clears the cookie, whatever the answer. `false` when the request presented no session, or an unknown one |
 | `janusErrors({ report?, fallback? })` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)`; anything else to `fallback`, or to Hono's own handling. `report(error, c)` sees every one answered 5xx first — `STORE_FAILED` and the like, for your logs |
-| `statusOf(code)` | The status a code deserves: `STORE_FAILED` 503, `CREDENTIALS_INVALID` 401, `USER_INACTIVE` 403, `LOGIN_TAKEN` 409, … Exhaustive over `JanusErrorCode` |
-| `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID` and `minLength` for `PASSWORD_TOO_SHORT` — what the client can act on, and nothing else |
+| `statusOf(code)` | The status a code deserves: `STORE_FAILED` 503, `CREDENTIALS_INVALID` and `CODE_INVALID` 401, `USER_INACTIVE` 403, `LOGIN_TAKEN`, `SECOND_FACTOR_NOT_ENROLLED` and `SECOND_FACTOR_ACTIVE` 409, … Exhaustive over `JanusErrorCode` |
+| `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT` and `attemptsLeft` for a `CODE_INVALID` from `secondFactor.confirm` — what the client can act on, and nothing else |
 | `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
@@ -62,6 +62,44 @@ declarations import without extensions, so `nodenext` is not supported.
 | `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
 
 The whole status table is in [`@nxgt/janus`'s errors guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md).
+
+## Second factor
+
+With `janus({ secondFactor })`, `signIn` answers a session or a challenge.
+Narrow on `status` before `sendSession`, keep the challenge in a cookie for
+the code route, and let `confirm` open the session:
+
+```ts
+import { janusErrors, sendSession } from '@nxgt/janus-hono';
+import { Hono } from 'hono';
+import { getCookie, setCookie } from 'hono/cookie';
+import { auth } from './auth'; // janus({ …, secondFactor: { issuer, keys } })
+
+const app = new Hono()
+	.post('/sign-in', async (c) => {
+		const result = await auth.signIn(await c.req.json());
+		if (result.status === 'secondFactor') {
+			setCookie(c, 'sign-in-challenge', result.challenge, {
+				path: '/sign-in', httpOnly: true, secure: true, sameSite: 'Strict', expires: result.expiresAt,
+			});
+			return c.json({ next: 'code' });
+		}
+		return c.json({ id: sendSession(c, auth, result).id });
+	})
+	.post('/sign-in/code', async (c) => {
+		const { code } = await c.req.json();
+		const challenge = getCookie(c, 'sign-in-challenge') ?? '';
+		const user = sendSession(c, auth, await auth.secondFactor.confirm(challenge, code));
+		return c.json({ id: user.id });
+	});
+
+app.onError(janusErrors()); // a wrong code: 401 { code: 'CODE_INVALID', attemptsLeft: 3 }
+```
+
+`janusErrors()` answers `CODE_INVALID` 401 with `attemptsLeft` in the body,
+`TOKEN_*` 400 — sign in again — and `SECOND_FACTOR_NOT_ENROLLED` and
+`SECOND_FACTOR_ACTIVE` 409. The enrolment routes and a bearer client's
+sign-in are in [the routes guide](docs/guide/routes.md#a-second-factor).
 
 ## Permissions
 
@@ -133,6 +171,16 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Traps
 
+- **With a second factor, `sendSession(c, auth, await auth.signIn(…))` does
+  not compile.** A challenge has no session to send. Narrow first:
+  `if (result.status === 'secondFactor') …`.
+- **A 401 is not always anonymous.** `session({ required: true })` answers
+  401 with no body; a wrong second-factor code is 401 with
+  `{ code: 'CODE_INVALID', attemptsLeft }`. Read the body before sending the
+  visitor to the sign-in page.
+- **A `janus()` without keys signing in a user with an active factor is a
+  500.** It throws a `TypeError`, not a `JanusError`, so `janusErrors()`
+  hands it to `fallback`. Give every instance the same `secondFactor`.
 - **Without `app.onError(janusErrors())`, an outage is Hono's 500.** Not a
   401 — `session()` never turns a failure into an anonymous request — but not
   the 503 that tells a client to retry either.
@@ -155,7 +203,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 - **`janusErrors()` logs nothing by itself.** A `STORE_FAILED` is answered 503
   without a line in your logs unless you pass `report` —
   `janusErrors({ report: (error) => logger.error(error) })`.
-- **`bodyOf` never carries `reason`, `login` or a cause.** `CREDENTIALS_INVALID`
+- **`bodyOf` never carries `reason`, `login`, a challenge or a cause.** `CREDENTIALS_INVALID`
   says one thing for an unknown login, a missing password and a wrong one, so a
   response cannot tell which users exist. Log the error before you answer it
   if you need the reason: `janusErrors` is a function of `(error, c)` you can
@@ -175,7 +223,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Documentation
 
-- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in, guarded routes
+- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in and of a second factor, guarded routes
 - [Troubleshooting](docs/troubleshooting.md) — by the symptom or message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 

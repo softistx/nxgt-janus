@@ -7,7 +7,7 @@
  * a user who can never sign in, a field read off the wrong kind of user, a
  * password hash handed to a request handler.
  *
- * **Twenty-five plausible mistakes, twenty-five refused.** Add a case whenever the
+ * **Twenty-eight plausible mistakes, twenty-eight refused.** Add a case whenever the
  * surface gains something it should refuse; never delete one to make a change
  * pass.
  */
@@ -231,6 +231,41 @@ async function flows() {
 	// ── 25. Confirming a challenge without the code ───────────────────────
 	// @ts-expect-error the code is what the challenge waits for
 	await twoFactor.patient.secondFactor.confirm('challenge');
+
+	// ── 26. No key to seal with ───────────────────────────────────────────
+	janus({
+		user: Patient,
+		password: { login: 'email' },
+		store,
+		hasher,
+		// @ts-expect-error the first key seals: there must be one
+		secondFactor: { issuer: 'Clinic', keys: [] },
+	});
+
+	// ── 27. Activating without the first code ─────────────────────────────
+	// @ts-expect-error the code proves the app holds the secret
+	await twoFactor.patient.secondFactor.activate(
+		'0190e3b4-0000-7000-8000-000000000000',
+	);
+
+	// ── 28. A second factor that may be on, read as if it were off ────────
+	const maybe = janus({
+		user: Patient,
+		password: { login: 'email' },
+		store,
+		hasher,
+		...(process.env.TOTP_KEY === undefined
+			? {}
+			: {
+					secondFactor: {
+						issuer: 'Clinic',
+						keys: [{ id: 'k1', key: process.env.TOTP_KEY }] as const,
+					},
+				}),
+	});
+	const perhaps = await maybe.signIn({ email: 'a@b.test', password: 'p' });
+	// @ts-expect-error it may be on at run time: narrow on status first
+	void perhaps.token;
 }
 
 // ── And the shapes that MUST keep compiling ─────────────────────────────────

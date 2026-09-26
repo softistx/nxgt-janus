@@ -100,9 +100,11 @@ encoded: a document read in a shell reads like the record in the code.
 
 - **No secret is stored.** Sessions and tokens hold the `sha256` of the
   secret; passwords a self-describing hash (`$scrypt$…`, `$argon2id$…`); a
-  second factor's `secret` a TOTP secret kept byte for byte, which
-  `@nxgt/janus` will seal with your application's key before the store sees
-  it, once the second factor ships.
+  second factor's `secret` a TOTP secret `@nxgt/janus` has already sealed
+  with your application's key, kept byte for byte. Its key id is the second
+  part of the value, so `{ 'secondFactor.secret': { $regex: '^v1\\.<id>\\.' } }`
+  finds the secrets still sealed with a key being
+  [rotated out](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md#rotating-the-keys).
 - **Documents written by an earlier version need no migration.** A user
   without `secondFactor` reads as having none; a token without `codeHash` or
   `attempts` reads as `null` and `0`.

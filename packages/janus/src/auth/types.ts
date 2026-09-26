@@ -480,10 +480,12 @@ export interface SharedApi<U extends { readonly type: string }> {
 	readonly types: readonly U['type'][];
 }
 
-/** Whether a configuration turns the second factor on. */
-type TwoFactorOf<C> = C extends { readonly secondFactor: object }
-	? true
-	: false;
+/**
+ * Whether a configuration may turn the second factor on. **A key that is
+ * there at all counts**, optional or not: a `secondFactor` set from the
+ * environment may be on at run time, and `signIn` must be typed for it.
+ */
+type TwoFactorOf<C> = 'secondFactor' extends keyof C ? true : false;
 
 /** What `janus(config)` answers. */
 export type Janus<C extends JanusConfig> = SharedApi<UserOf<C>> &

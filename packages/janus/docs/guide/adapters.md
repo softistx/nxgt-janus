@@ -97,10 +97,12 @@ interface UserRecord {
 }
 ```
 
-`secret` is **opaque to a store**: once the second factor ships, the core
-will seal it with a key the application holds before a store sees it, so a
-dump of the users cannot produce a code. Keep it like a password hash — byte
-for byte, no parsing, no trimming. Store
+`secret` is **opaque to a store**: the core seals it with a key the
+application holds — AES-256-GCM, written `v1.<key id>.<iv>.<ciphertext>` —
+before a store sees it, so a dump of the users cannot produce a code. Keep it
+like a password hash — byte for byte, no parsing, no trimming. The core
+rewrites it, sealed under another key, when the application
+[rotates its keys](second-factor.md#rotating-the-keys). Store
 the second factor whole: a method without a secret, or a `lastStep` without a
 method, is a record the core never writes.
 
@@ -150,7 +152,7 @@ interface TokenRecord {
 	readonly tokenHash: string;
 	readonly kind: TokenKind;
 	readonly userId: Id;
-	readonly address: string;
+	readonly address: string; // '' for a secondFactor challenge: nothing was sent
 	readonly codeHash: string | null; // a signInCode's code, hashed; null for every other kind
 	readonly attempts: number; // 0 at insertion
 	readonly expiresAt: Date;
@@ -160,7 +162,9 @@ interface TokenRecord {
 ```
 
 A token redeemed for another kind is unknown: every method that takes a
-`kind` matches on it. `codeHash` and `attempts` round-trip like every other
+`kind` matches on it. A `secondFactor` token is the challenge `signIn`
+answers, and its `address` is `''`: a column or a validator that refuses an
+empty string refuses every sign-in with a code. `codeHash` and `attempts` round-trip like every other
 field. An adapter whose stored tokens predate them reads them as `null` and
 `0`, as the three published adapters do, so no data migration is needed for
 them.
@@ -294,7 +298,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 44: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — twelve of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 45: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — twelve of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
@@ -320,6 +324,7 @@ while you work on it, never to ship:
 | `tokens.countAttempt` | two calls answer `attempts` 1 then 2, `codeHash` as written; `consumeToken` answers the count |
 | `tokens.countAttemptConcurrency` | twenty concurrent calls answer 1 to 20, each once |
 | `tokens.countAttemptRace` | attempts racing one redemption: the counts answered unspent are 1 to the final count, and every answer after the spend carries that final count |
+| `tokens.challenge` | a second-factor challenge, whose `address` is `''`, kept, counted and spent like any token |
 | `tokens.countAttemptSpent` | a spent token answered unchanged; another kind and an unknown hash answer `null` and count nothing |
 | `outage.countAttempt` | a store that cannot answer rejects, never `null` |
 

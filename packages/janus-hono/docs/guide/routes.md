@@ -138,6 +138,10 @@ app.post('/sign-in', async (c) => {
 holds the session token: it is in the `Set-Cookie`, and the body cannot leak
 it.
 
+With `secondFactor` configured, `signIn` may answer a challenge instead of a
+session: narrow on `status` before `sendSession` — see
+[A second factor](#a-second-factor).
+
 The refusals need no `try`: `janusErrors()` answers them.
 
 | Thrown | Answered |
@@ -160,6 +164,105 @@ return c.json({
 	expiresAt: signedIn.session.expiresAt,
 });
 ```
+
+## A second factor
+
+With `janus({ secondFactor })`, `signIn` answers either a session or a
+**challenge** — `{ status: 'secondFactor', challenge, expiresAt }` — and
+`sendSession` only takes the first. **Narrow on `status` before
+`sendSession`**: passing `signIn`'s answer straight in no longer compiles,
+because a challenge has no `token` and no `session`.
+
+```ts
+import { sendSession } from '@nxgt/janus-hono';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+
+const CHALLENGE = 'sign-in-challenge';
+const scope = { path: '/sign-in', httpOnly: true, secure: true, sameSite: 'Strict' } as const;
+
+app.post('/sign-in', async (c) => {
+	const { email, password } = await c.req.json();
+	const result = await auth.signIn({ email, password });
+	if (result.status === 'secondFactor') {
+		// the challenge is a secret: a cookie for the code route only, never a URL or a log
+		setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
+		return c.json({ next: 'code' });
+	}
+	const user = sendSession(c, auth, result);
+	return c.json({ id: user.id });
+});
+
+app.post('/sign-in/code', async (c) => {
+	const { code } = await c.req.json();
+	const challenge = getCookie(c, CHALLENGE);
+	if (challenge === undefined) return c.json({ code: 'TOKEN_UNKNOWN' }, 400);
+	const user = sendSession(c, auth, await auth.secondFactor.confirm(challenge, code));
+	deleteCookie(c, CHALLENGE, scope);
+	return c.json({ id: user.id });
+});
+```
+
+A wrong code leaves the cookie in place, so the visitor types the next one.
+`janusErrors()` answers what `confirm` throws:
+
+| Thrown | Answered |
+| --- | --- |
+| `CODE_INVALID` | 401 `{ code, attemptsLeft }` — the attempts the challenge has left, `0` once the fifth wrong code spent it |
+| `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED` | 400 `{ code }` — send the visitor back to the password |
+| `SECOND_FACTOR_NOT_ENROLLED` | 409 `{ code }` — the factor was disabled since `signIn`: sign in again |
+| `USER_INACTIVE` | 403 `{ code }` |
+
+`attemptsLeft` is the only thing the body adds: which cause of
+`CODE_INVALID` it was — a wrong code or a reused one — is not told.
+
+A bearer client gets the challenge in the body instead, and sends it back
+with the code:
+
+```ts
+app.post('/api/sign-in', async (c) => {
+	const result = await auth.signIn(await c.req.json());
+	if (result.status === 'secondFactor') {
+		return c.json({ challenge: result.challenge, expiresAt: result.expiresAt });
+	}
+	return c.json({ token: result.token, expiresAt: result.session.expiresAt });
+});
+```
+
+### Enrolling, activating, disabling
+
+The user is signed in for these, so `session()` names them:
+
+```ts
+app.post('/account/second-factor', session(auth, { required: true }), async (c) => {
+	const { secret, uri } = await auth.secondFactor.enroll(c.var.user);
+	c.header('Cache-Control', 'no-store'); // the secret is shown once, and never cached
+	return c.json({ secret, uri }); // the page renders uri as a QR code
+});
+
+app.post('/account/second-factor/activate', session(auth, { required: true }), async (c) => {
+	const { code } = await c.req.json();
+	await auth.secondFactor.activate(c.var.user, code);
+	return c.body(null, 204);
+});
+
+app.delete('/account/second-factor', session(auth, { required: true }), async (c) => {
+	// your policy: a session opened in the last five minutes, so its holder just proved themselves
+	if (Date.now() - c.var.session.authenticatedAt.getTime() > 5 * 60_000) {
+		return c.json({ error: 'signInAgain' }, 403);
+	}
+	await auth.secondFactor.disable(c.var.user);
+	return c.body(null, 204);
+});
+```
+
+| Thrown | Answered |
+| --- | --- |
+| `SECOND_FACTOR_ACTIVE` | 409 `{ code }` — `enroll` or `activate` on a factor already active |
+| `SECOND_FACTOR_NOT_ENROLLED` | 409 `{ code }` — `activate` before `enroll` |
+| `CODE_INVALID` | 401 `{ code }` — `activate` counts no attempts, so there is no `attemptsLeft` |
+
+The key rotation, the attempts and the replay rules are
+[`@nxgt/janus`'s second factor guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md).
 
 ## Sign-out
 
@@ -239,5 +342,6 @@ as staff replaces the patient's cookie.
 
 - [`@nxgt/janus` — sessions](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sessions.md) — lifespans, renewal, the cookie's attributes
 - [`@nxgt/janus` — errors](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) — every code
+- [`@nxgt/janus` — the second factor](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md) — keys, states, attempts
 - [Guarded routes and writing tuples](permissions.md) — `permission()`, `provide()`
 - [Troubleshooting](../troubleshooting.md)

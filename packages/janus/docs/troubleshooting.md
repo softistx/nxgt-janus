@@ -23,7 +23,7 @@ How the messages are shaped:
 - [`error instanceof StoreFailure` is `false` for an outage](#error-instanceof-storefailure-is-false-for-an-outage)
 
 **Configuring `janus()`**
-- [`janus: pass either user … or users …, and exactly one of them`](#janus-pass-either-user-one-kind-of-user-or-users-several-kinds-and-exactly-one-of-them)
+- [`janus: pass either user … or users …, and exactly one of them`](#janus-pass-either-user-one-user-type-or-users-several-user-types-and-exactly-one-of-them)
 - [`janus: user must be a Standard Schema …`](#janus-user-must-be-a-standard-schema--a-zod-4-valibot-or-arktype-schema)
 - [`janus: a user type signs in with a password and no hasher is wired …`](#janus-a-user-type-signs-in-with-a-password-and-no-hasher-is-wired--pass-hasher-scrypthasher-or-bunhasher-on-bun-there-is-no-silent-fallback)
 - [`bunHasher: Bun.password is not available …`](#bunhasher-bunpassword-is-not-available--this-runtime-is-not-bun-wire-scrypthasher-instead)
@@ -36,6 +36,9 @@ How the messages are shaped:
 - [`janus: the user type "<name>" must be a camelCase name …`](#janus-the-user-type-name-must-be-a-camelcase-name--letters-and-digits-starting-with-a-letter)
 - [`janus: session.lifespan: "<value>" is not a duration …`](#janus-sessionlifespan-value-is-not-a-duration-write-a-number-followed-by-ms-s-m-h-or-d--for-example-15m-or-720h)
 - [`janus: cookie.sameSite "none" requires cookie.secure …`](#janus-cookiesamesite-none-requires-cookiesecure--browsers-refuse-the-cookie-otherwise)
+- [`janus: secondFactor.issuer must name your application …`](#janus-secondfactorissuer-must-name-your-application--the-authenticator-app-shows-it-beside-the-account)
+- [`janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 …`](#janus-secondfactorkeys-the-key-id-is-not-32-bytes-in-base64--make-one-with-openssl-rand--base64-32)
+- [`"hasSecondFactor" is a field janus sets itself; rename it`](#hassecondfactor-is-a-field-janus-sets-itself-rename-it)
 - [Other `janus:` wiring messages](#other-janus-wiring-messages)
 
 **Users, sessions and tokens**
@@ -58,6 +61,19 @@ How the messages are shaped:
 - [`<call>: the <type> type does not sign in with a password …`](#call-the-type-type-does-not-sign-in-with-a-password--add-password--login--to-it)
 - [`authenticate()` answers `null` although a valid cookie was sent](#authenticate-answers-null-although-a-valid-cookie-was-sent)
 
+**Second factor**
+- [`TS2339: Property 'token' does not exist on type 'SignInResult<…>'.`](#ts2339-property-token-does-not-exist-on-type-signinresult)
+- [`CODE_INVALID` — `<call>: the code does not match, or was already used`](#code_invalid--call-the-code-does-not-match-or-was-already-used)
+- [The code the authenticator app shows is refused with `CODE_INVALID`](#the-code-the-authenticator-app-shows-is-refused-with-code_invalid)
+- [`SECOND_FACTOR_NOT_ENROLLED` — `secondFactor.activate: the user has no second factor waiting …`](#second_factor_not_enrolled--secondfactoractivate-the-user-has-no-second-factor-waiting--call-enroll-first)
+- [`SECOND_FACTOR_ACTIVE` — `secondFactor.enroll: the user's second factor is active …`](#second_factor_active--secondfactorenroll-the-users-second-factor-is-active--disable-it-first)
+- [`<call>: …, and janus() was given no secondFactor …`](#call--and-janus-was-given-no-secondfactor--pass-secondfactor--issuer-keys-)
+- [`<call>: the secret is sealed with the key "<id>", which secondFactor.keys no longer holds …`](#call-the-secret-is-sealed-with-the-key-id-which-secondfactorkeys-no-longer-holds--keep-a-key-until-no-secret-is-sealed-with-it)
+- [`<call>: the secret does not open with the key "<id>" — was that key changed under the same id, or the secret copied from another user?`](#call-the-secret-does-not-open-with-the-key-id--was-that-key-changed-under-the-same-id-or-the-secret-copied-from-another-user)
+- [`<call>: the stored secret is not a sealed one`](#call-the-stored-secret-is-not-a-sealed-one)
+- [`<call>: the <type> type does not sign in with a password, so it has no second factor`](#call-the-type-type-does-not-sign-in-with-a-password-so-it-has-no-second-factor)
+- `TOKEN_*`, `USER_INACTIVE` and `VERSION_CONFLICT` from `secondFactor.confirm`: in their entries above.
+
 **Permissions**
 - [`PERMISSION_DEPTH` — `can: checking <type>#<permission> crossed more than <n> relations without an answer`](#permission_depth--can-checking-typepermission-crossed-more-than-n-relations-without-an-answer)
 - [`permissions: this model was not made by defineModel() …`](#permissions-this-model-was-not-made-by-definemodel--pass-what-definemodel-answered)
@@ -73,6 +89,7 @@ How the messages are shaped:
 
 **Subjects**
 - [`parseTuple: "<text>" is not a relation tuple; expected type:id#relation@subject`](#parsetuple-text-is-not-a-relation-tuple-expected-typeidrelationsubject)
+- [`setOf: pass a user or { type, id }, then a relation`](#setof-pass-a-user-or--type-id--then-a-relation)
 
 **Conformance (adapter authors)**
 - [`describeJanusStores: no test runner on globalThis …`](#describejanusstores-no-test-runner-on-globalthis--pass-runner--describe-it--under-bun-test-import-them-from-buntest)
@@ -274,7 +291,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail` and `tokens.resetPassword`. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword` and `secondFactor.challenge`. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.
@@ -291,6 +308,48 @@ Also `janus: cookie.name must be a cookie-name token — letters, digits and !#$
 **When:** `janus({ ..., cookie })`.
 **Why:** browsers drop a `SameSite=None` cookie that is not `Secure`, so every sign-in would silently fail to stick.
 **Fix:** keep `secure: true` with `sameSite: 'none'`, or use the default `sameSite: 'lax'` when the site and the API share a site.
+
+### `janus: secondFactor.issuer must name your application — the authenticator app shows it beside the account`
+
+**When:** `janus({ ..., secondFactor })`, when `issuer` is missing, is not a string, or is blank.
+**Why:** the issuer is the label the authenticator app shows beside the account. Without it, a user with several accounts in the app cannot tell which code is yours.
+**Fix:**
+
+```ts
+janus({ ..., secondFactor: { issuer: 'Acme', keys } });
+```
+
+### `janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 — make one with openssl rand -base64 32`
+
+Also:
+
+- `janus: secondFactor.keys: expected at least one key — [{ id, key }], the first seals`
+- `janus: secondFactor.keys: every key needs an id of letters, digits, _ and -, at most 64 of them`
+- `janus: secondFactor.keys: two keys have the id "<id>"`
+
+**When:** `janus({ ..., secondFactor })`.
+**Why:** every TOTP secret is sealed with AES-256-GCM before a store sees it, and that takes a 32-byte key: 43 characters of base64 or base64url, with or without the trailing `=`. A hex key (64 characters), a passphrase, or an environment variable that is not set is refused. The id is written into every secret the key seals, so it is short, plain, and names one key only.
+**Fix:** make each key once and keep it with your other secrets:
+
+```sh
+openssl rand -base64 32
+```
+
+```ts
+janus({
+  ...,
+  secondFactor: {
+    issuer: 'Acme',
+    keys: [{ id: 'k2026a', key: process.env.TOTP_KEY_K2026A ?? '' }], // the first key seals
+  },
+});
+```
+
+### `"hasSecondFactor" is a field janus sets itself; rename it`
+
+**When:** `tsc`, on the `janus({...})` call, when your schema declares a `hasSecondFactor` field. This version added it to the fields janus sets on every user.
+**Why:** `user.hasSecondFactor` is janus's own answer: whether the user's second factor is active. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
+**Fix:** rename the field in your schema, and read `user.hasSecondFactor` for janus's answer.
 
 ### Other `janus:` wiring messages
 
@@ -365,6 +424,23 @@ const user = await auth.get(id);
 await auth.update(user, { name }, { ifVersion: user.version });
 ```
 
+**From `secondFactor.confirm`**, the message is the store's:
+`updateUser: expected version <n>, found <m>`.
+
+**When:** two `confirm` calls for one user run at once with the same code — a
+double-submitted form, two tabs, a client that retries before the first answer.
+**Why:** of two codes accepted at once, the first write wins and opens a
+session. The second finds the user's version moved and writes nothing: no
+session. Its challenge is not spent, and has lost one attempt.
+**Fix:** submit the code form once. The session already exists, from the call
+that won; if the visitor still needs one, the next code works on the same
+challenge — the same code will not, it was used.
+
+```ts
+// in the browser: one submit per code
+form.addEventListener('submit', () => form.querySelector('button')?.setAttribute('disabled', ''));
+```
+
 ### `USER_INVALID` — `<call>: the fields do not match the <type> schema (<n> issues, at <paths>)`
 
 `UserInvalidError`, carrying `issues` — each a `path` and a `message`.
@@ -416,9 +492,9 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive.
-**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive.
-**Fix:** answer 403, or reactivate: `await auth.setActive(user, true)`.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm`, for a user set inactive after `signIn` asked for a code.
+**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive. On `secondFactor.confirm`, the challenge is spent: reactivating the user does not revive it.
+**Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
 ### `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`
 
@@ -430,6 +506,24 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ```ts
 janus({ ..., tokens: { verifyEmail: '72h', resetPassword: '2h' } });
+```
+
+**On `secondFactor.confirm`**, the messages name the challenge `signIn`
+answered: `secondFactor.confirm: no such challenge`,
+`secondFactor.confirm: the challenge was already used`,
+`secondFactor.confirm: the challenge has expired`.
+
+**When:** `secondFactor.confirm(challenge, code)`.
+**Why:** a challenge lives five minutes and takes five codes. It is spent by
+the code that opens the session, by the fifth wrong code, and by a refusal
+that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`). `TOKEN_UNKNOWN`
+also covers a challenge whose user was deleted, and a challenge passed where a
+code was expected — the two arguments swapped.
+**Fix:** answer 400 and send the visitor back to sign in, which asks for a new
+code. To give slower visitors more time:
+
+```ts
+janus({ ..., secondFactor: { issuer: 'Acme', keys, challenge: '10m' } });
 ```
 
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
@@ -483,6 +577,167 @@ const page = await access.list(user, 'view', 'record', {
 **When:** `auth.authenticate(request)` on a request that also carries an `Authorization: Bearer` or an `X-Session-Token` header.
 **Why:** the **first credential present** wins, not the first valid one: `Authorization: Bearer`, then `X-Session-Token`, then the cookie. A lapsed bearer beside a live cookie is anonymous.
 **Fix:** stop the client sending the stale header. A `null` is never an outage: when the store cannot answer, `authenticate` rejects with `STORE_FAILED` — answer 503, not 401.
+
+---
+
+## Second factor
+
+Every entry here needs `janus({ ..., secondFactor })`. The messages start with
+`secondFactor.enroll`, `secondFactor.activate`, `secondFactor.confirm` or
+`signIn` — prefixed by the type with several user types:
+`staff.secondFactor.confirm: …`. `secondFactor.confirm` also rejects with
+[`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
+[`USER_INACTIVE`](#user_inactive--call-the-user-is-inactive) and
+[`VERSION_CONFLICT`](#version_conflict--call-expected-version-n-found-m);
+each of those entries has a paragraph for it.
+
+### `TS2339: Property 'token' does not exist on type 'SignInResult<…>'.`
+
+The same for `session` and `user`.
+
+**When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor`.
+**Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
+**Fix:** switch on `status`:
+
+```ts
+const result = await auth.signIn({ email, password });
+if (result.status === 'secondFactor') {
+  // Keep the challenge for the next request — never in a URL — and ask for a code.
+  return Response.json({ challenge: result.challenge, expiresAt: result.expiresAt });
+}
+return Response.json({ token: result.token });
+
+// the next request, with the code the app shows
+const signedIn = await auth.secondFactor.confirm(challenge, code); // { status: 'signedIn', token, … }
+```
+
+### `CODE_INVALID` — `<call>: the code does not match, or was already used`
+
+`TokenError`, carrying `attemptsLeft` on `secondFactor.confirm`.
+
+**When:** `secondFactor.activate(user, code)` or `secondFactor.confirm(challenge, code)`.
+**Why:** the code is wrong, or it was accepted before: a code is accepted once. On `confirm`, every call costs one of the challenge's five attempts, counted before anything is checked. `attemptsLeft` is what remains; at `0`, the challenge is spent and the next `confirm` is `TOKEN_SPENT`. On `activate` there is no challenge, no `attemptsLeft`, and nothing is spent: the user tries the next code.
+**Fix:** answer 401 with `attemptsLeft`, and send the visitor back to sign in once it is `0`:
+
+```ts
+import { TokenError } from '@nxgt/janus';
+
+try {
+  return await auth.secondFactor.confirm(challenge, code);
+} catch (error) {
+  if (error instanceof TokenError && error.code === 'CODE_INVALID') {
+    return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status: 401 });
+  }
+  throw error;
+}
+```
+
+If the code the user typed is the one their app shows, see the next entry.
+
+### The code the authenticator app shows is refused with `CODE_INVALID`
+
+**When:** `activate` or `confirm`, with the code on screen, typed correctly.
+**Why**, in the order to check:
+
+1. **A clock is off.** A code is accepted in its own 30-second step and one step either side. A phone or a server whose clock is more than about 30 seconds away from the real time produces codes outside that window. The window is not configurable.
+2. **The code was already used** — and so were the codes before it. Once a code is accepted, that code and every earlier one are refused: the user who activates and then signs in within the same 30 seconds, or who signs in twice in a row, must wait for the next code.
+3. **The app holds an older secret.** `enroll` called again before `activate` replaces the secret: an entry scanned from the first `enroll` shows codes for a secret nobody holds any more.
+
+**Fix:** for 1, keep the server's clock synchronised and ask the user to set their phone's time automatically. For 2, wait for the next code. For 3, delete the entry from the app and scan the `uri` of the last `enroll`.
+
+```sh
+timedatectl show -p NTPSynchronized   # NTPSynchronized=yes on the server
+```
+
+### `SECOND_FACTOR_NOT_ENROLLED` — `secondFactor.activate: the user has no second factor waiting — call enroll first`
+
+`SecondFactorError`. Also `secondFactor.confirm: the user no longer has a second factor — sign in again`.
+
+**When:** `activate` before `enroll`, or after `disable`. On `confirm`: the factor was disabled after `signIn` asked for a code.
+**Why:** `activate` checks a code against the secret `enroll` wrote, and there is none. On `confirm`, the factor the challenge asked for is gone, so the challenge is spent.
+**Fix:** `enroll`, show the `uri` as a QR code, then `activate` with a code from the app. After `confirm`'s refusal, sign in again: `signIn` answers a session directly for a user without a factor.
+
+```ts
+const { secret, uri } = await auth.secondFactor.enroll(user);
+// …the user scans uri, or types secret…
+await auth.secondFactor.activate(user, code);
+```
+
+### `SECOND_FACTOR_ACTIVE` — `secondFactor.enroll: the user's second factor is active — disable it first`
+
+`SecondFactorError`. Also `secondFactor.activate: the user's second factor is already active`.
+
+**When:** `enroll` or `activate` for a user whose factor is already active — often a form submitted twice, or a "set up again" button.
+**Why:** enrolling again would replace the secret and quietly switch the factor off until the new one is activated. It is refused so that only `disable` switches it off.
+**Fix:** check `user.hasSecondFactor` first. To move to a new phone, disable, then enroll:
+
+```ts
+const cleared = await auth.secondFactor.disable(user);
+const { uri } = await auth.secondFactor.enroll(cleared);
+```
+
+### `<call>: …, and janus() was given no secondFactor — pass secondFactor: { issuer, keys }`
+
+Most often: `signIn: the user's second factor is active, and janus() was given no secondFactor — pass secondFactor: { issuer, keys }`. A `TypeError`.
+
+**When:** `signIn` for a user whose factor is active, on a `janus()` built without `secondFactor` — a second process over the same users: a worker, a script, an admin service, an older deployment. From JavaScript, `enroll`, `activate` and `confirm` on such an instance too.
+**Why:** the password alone never opens a session for a user with an active factor, and an instance without keys cannot check a code. It refuses rather than sign the user in on the password alone.
+**Fix:** give every `janus()` over the same users the same `secondFactor`, from one module:
+
+```ts
+// auth-config.ts, imported by every process
+export const secondFactor = { issuer: 'Acme', keys } as const;
+
+janus({ ..., secondFactor });
+```
+
+### `<call>: the secret is sealed with the key "<id>", which secondFactor.keys no longer holds — keep a key until no secret is sealed with it`
+
+A `TypeError`.
+
+**When:** `activate` or `confirm`, for a user whose secret was sealed with a key since removed from `keys` — or with a key another deployment has and this one does not.
+**Why:** each sealed secret names its key. The first key seals, every key opens, and a secret is sealed again under the first key only the next time a code of that user is accepted. A user who has not signed in since the rotation still holds the old seal.
+**Fix:** put the old key back, after the new one:
+
+```ts
+secondFactor: {
+  issuer: 'Acme',
+  keys: [
+    { id: 'k2026b', key: process.env.TOTP_KEY_K2026B ?? '' }, // seals
+    { id: 'k2026a', key: process.env.TOTP_KEY_K2026A ?? '' }, // still opens
+  ],
+},
+```
+
+A key can go once no stored second-factor secret starts with `v1.<its id>.`.
+
+### `<call>: the secret does not open with the key "<id>" — was that key changed under the same id, or the secret copied from another user?`
+
+A `TypeError`.
+
+**When:** `activate` or `confirm`.
+**Why:** the key held under that id is not the one that sealed the secret: its value was changed and its id kept, or two environments sharing one database hold different keys under one id. It is also the message for a sealed secret copied onto another user — a seal is bound to the user's id — for example a user record duplicated by hand.
+**Fix:** restore the original key under that id. A new key always takes a new id. For a copied record, disable the factor and have the user enroll again: `await auth.secondFactor.disable(user)`.
+
+### `<call>: the stored secret is not a sealed one`
+
+A `TypeError`.
+
+**When:** `activate` or `confirm`.
+**Why:** the stored secret is not `v1.<key id>.<iv>.<sealed>`: it was written into the store directly — a plain base32 secret imported from another system — or cut short.
+**Fix:** never write the second factor into the store yourself. Disable it and have the user enroll again:
+
+```ts
+await auth.secondFactor.disable(user);
+```
+
+### `<call>: the <type> type does not sign in with a password, so it has no second factor`
+
+A `TypeError`.
+
+**When:** `secondFactor.enroll`, from JavaScript, on a user type without `password`. In TypeScript, `secondFactor` is absent from such a type.
+**Why:** a second factor is asked for after a password. A type that signs in otherwise has nothing to ask it after, and no login to show in the app.
+**Fix:** enroll only users of a type with `password: { login }`.
 
 ---
 

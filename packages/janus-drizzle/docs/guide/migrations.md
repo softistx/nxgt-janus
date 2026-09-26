@@ -134,9 +134,11 @@ migration creates is what the conformance suites ran on.
 - **A second factor in four columns, checked whole.** A method and a secret,
   or neither; a confirmation date and a last step only beside them; `totp`
   the only method, and a last step never negative. The
-  secret is opaque to the store and kept byte for byte: once the second
-  factor ships, `@nxgt/janus` will seal it before the store sees it, so a
-  dump of `users` cannot produce a code.
+  secret is opaque to the store and kept byte for byte: `@nxgt/janus` seals
+  it before the store sees it, so a dump of `users` cannot produce a code.
+  Its key id is the second part of the value, so
+  `where second_factor_secret like 'v1.<id>.%'` finds the secrets still sealed
+  with a key being [rotated out](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md#rotating-the-keys).
 - **`attempts` is `not null default 0`**, checked `>= 0`, so the rows an upgrade finds read
   as tokens with no attempt counted yet.
 - **No foreign key from sessions and tokens to users.** Deleting a user
@@ -214,6 +216,6 @@ const patients = row?.patients ?? 0;
 ```
 
 **Read, never write.** A row written behind the store's back skips its
-invariants: the logins' uniqueness, `version`, the password check, and,
-once the second factor ships, the sealing of its secret. Write through
+invariants: the logins' uniqueness, `version`, the password check, and the
+sealing of a second factor's secret. Write through
 `auth` and `access`.

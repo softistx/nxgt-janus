@@ -19,6 +19,7 @@ for what causes each.
 - [`Expected 5 arguments, but got 4`, on `permission()`](#expected-5-arguments-but-got-4-on-permission)
 - [`Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…> | null>'`](#type--id-string--is-not-assignable-to-type-awaitableobjectdata--null)
 - [`Property 'access' does not exist on type 'Readonly<ContextVariableMap & …>'`](#property-access-does-not-exist-on-type-readonlycontextvariablemap--)
+- [`Argument of type 'SignInResult<…>' is not assignable to parameter of type …`, on `sendSession`](#argument-of-type-signinresult-is-not-assignable-to-parameter-of-type--readonly-token-string-readonly-session-session-readonly-user--)
 
 **Runtime**
 - [`500 Internal Server Error` for every refusal](#500-internal-server-error-for-every-refusal)
@@ -28,6 +29,8 @@ for what causes each.
 - [`401` with an empty body, for a signed-in user](#401-with-an-empty-body-for-a-signed-in-user)
 - [`503 {"code":"STORE_FAILED"}` on every route](#503-codestore_failed-on-every-route)
 - [`400 {"code":"HASH_UNSUPPORTED"}` on sign-in](#400-codehash_unsupported-on-sign-in)
+- [`401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form](#401-codecode_invalidattemptsleftn-on-the-code-form)
+- [`409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`](#409-codesecond_factor_active-or-409-codesecond_factor_not_enrolled)
 - [The browser never sends the cookie back](#the-browser-never-sends-the-cookie-back)
 - [A bearer client holds an expiry earlier than the session's](#a-bearer-client-holds-an-expiry-earlier-than-the-sessions)
 
@@ -142,6 +145,36 @@ that instance: it sets, and types, only what it is given.
 
 ```ts
 const app = new Hono().use(session(auth), provide({ auth, access }));
+```
+
+### `Argument of type 'SignInResult<…>' is not assignable to parameter of type '{ readonly token: string; readonly session: Session; readonly user: … }'`
+
+Also: `Type 'SecondFactorRequired' is missing the following properties …: token, session, user`.
+
+**When:** `sendSession(c, auth, await auth.signIn(...))`, once `janus()` is
+given a `secondFactor`.
+
+**Why:** `signIn` then answers a session, or `{ status: 'secondFactor',
+challenge, expiresAt }` for a user whose second factor is active — and a
+challenge is no session to send.
+
+**Fix:** switch on `status`, and send the session `secondFactor.confirm`
+answers on the next request.
+
+```ts
+app.post('/sign-in', async (c) => {
+	const result = await auth.signIn(await c.req.json());
+	if (result.status === 'secondFactor') {
+		// never in a URL: the body of the code form, or a short-lived cookie
+		return c.json({ challenge: result.challenge, expiresAt: result.expiresAt });
+	}
+	return c.json(sendSession(c, auth, result));
+});
+
+app.post('/sign-in/code', async (c) => {
+	const { challenge, code } = await c.req.json();
+	return c.json(sendSession(c, auth, await auth.secondFactor.confirm(challenge, code)));
+});
 ```
 
 ## Runtime
@@ -276,6 +309,58 @@ wiring fault, not the user's: they cannot act on the 400.
 
 ```ts
 janus({ …, hasher: bunHasher(), verifiers: [scryptHasher()] }); // old hashes still verify
+```
+
+### `401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form
+
+Also `401 {"code":"CODE_INVALID"}`, with no `attemptsLeft`, from
+`secondFactor.activate`.
+
+**When:** a route calling `secondFactor.confirm(challenge, code)` or
+`secondFactor.activate(user, code)`, with a code that does not match or was
+already used.
+
+**Why:** `janusErrors()` answers a wrong code 401, like a wrong password. On
+`confirm`, `attemptsLeft` is what the challenge has left of its five attempts;
+at `0` it is spent, and the next call with it answers
+`400 {"code":"TOKEN_SPENT"}`. If the code is the one the app shows, the cause
+is a clock off by more than about 30 seconds, or a code used already — see
+[`@nxgt/janus`'s troubleshooting](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#the-code-the-authenticator-app-shows-is-refused-with-code_invalid).
+
+**Fix:** read `attemptsLeft` in the client: ask again while it is above `0`,
+and go back to the sign-in form once it is `0`.
+
+```ts
+const response = await fetch('/sign-in/code', { method: 'POST', body: JSON.stringify({ challenge, code }) });
+if (response.status === 401) {
+	const { attemptsLeft } = await response.json();
+	if (attemptsLeft === 0) showSignInForm();
+	else showCodeForm(`Wrong code — ${attemptsLeft} tries left`);
+}
+```
+
+### `409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`
+
+**When:** a route calling `secondFactor.enroll` or `secondFactor.activate`
+answers `SECOND_FACTOR_ACTIVE` for a user whose factor is already on;
+`secondFactor.activate` with no `enroll` before it, or `secondFactor.confirm`
+after the factor was disabled, answers `SECOND_FACTOR_NOT_ENROLLED`.
+
+**Why:** both say the factor is not in the state the call needs — a conflict
+with the user's state, so 409, not 400. A `409 {"code":"VERSION_CONFLICT"}`
+from the code form is the other 409: the same code submitted twice at once,
+where the first call already opened the session.
+
+**Fix:** read `c.var.user.hasSecondFactor` before offering "set up" or
+"turn off"; after `SECOND_FACTOR_NOT_ENROLLED` on the code form, send the
+visitor back to sign in. The causes of each are in
+[`@nxgt/janus`'s troubleshooting](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#second-factor).
+
+```ts
+app.post('/me/second-factor', session(auth, { required: true }), async (c) => {
+	if (c.var.user.hasSecondFactor) return c.json({ active: true });
+	return c.json(await auth.secondFactor.enroll(c.var.user)); // { secret, uri }
+});
 ```
 
 ### The browser never sends the cookie back

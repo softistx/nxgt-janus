@@ -6,12 +6,12 @@ import {
 	password,
 	person,
 	rejection,
-} from '../../test/auth';
-import { fixedClock } from '../time/clock';
-import { janus } from './janus';
-import { createMemoryStores } from './port/memory';
-import type { JanusStores } from './port/types';
-import { codeAt, fromBase32, stepAt } from './totp';
+} from '../../../test/auth';
+import { fixedClock } from '../../time/clock';
+import { janus } from '../janus';
+import { createMemoryStores } from '../port/memory';
+import type { JanusStores } from '../port/types';
+import { codeAt, fromBase32, stepAt } from '../totp';
 
 const key = (fill: number) => Buffer.alloc(32, fill).toString('base64');
 
@@ -285,6 +285,64 @@ describe('signIn with a second factor', () => {
 		expect(
 			outcomes.filter((outcome) => outcome.status === 'fulfilled'),
 		).toHaveLength(1);
+	});
+});
+
+describe('the challenge, raced and crossed', () => {
+	it('refuses every code past the fifth, the right one included, when they arrive at once', async () => {
+		const context = setup();
+		const { auth, codeOf } = context;
+		const { secret } = await enrolled(context);
+		const challenge = await challenged(auth);
+		const right = codeOf(secret);
+		const wrong = right === '000000' ? '111111' : '000000';
+
+		const outcomes = await Promise.all(
+			[...Array(5).fill(wrong), ...Array(3).fill(right)].map((code) =>
+				rejection(auth.secondFactor.confirm(challenge, code)),
+			),
+		);
+
+		expect(
+			outcomes.map((outcome) => (outcome as { code: string }).code),
+		).toEqual(Array(8).fill('CODE_INVALID'));
+		expect(
+			outcomes.map(
+				(outcome) => (outcome as { attemptsLeft: number }).attemptsLeft,
+			),
+		).toEqual([4, 3, 2, 1, 0, 0, 0, 0]);
+	});
+
+	it("answers another type's challenge as unknown", async () => {
+		const clock = fixedClock(Date.UTC(2026, 8, 26));
+		const auth = janus({
+			users: {
+				patient: { schema: person, password: { login: 'email' } },
+				staff: { schema: person, password: { login: 'email' } },
+			},
+			store: createMemoryStores(),
+			hasher,
+			clock,
+			secondFactor: { issuer: 'Clinic', keys: [{ id: 'k1', key: key(1) }] },
+		});
+		const { user } = await auth.patient.signUp({ ...ada, password });
+		const { secret } = await auth.patient.secondFactor.enroll(user);
+		const codeNow = () => codeAt(fromBase32(secret), stepAt(clock.now()));
+		await auth.patient.secondFactor.activate(user, codeNow());
+		clock.advance(30_000);
+		const result = await auth.patient.signIn({ email: ada.email, password });
+		if (result.status !== 'secondFactor')
+			throw new Error('expected a challenge');
+
+		expect(
+			await rejection(
+				auth.staff.secondFactor.confirm(result.challenge, codeNow()),
+			),
+		).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+		expect(
+			(await auth.patient.secondFactor.confirm(result.challenge, codeNow()))
+				.status,
+		).toBe('signedIn');
 	});
 });
 
