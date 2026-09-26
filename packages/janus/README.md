@@ -602,6 +602,8 @@ await auth.signUp({ email, password }); // the listener has the event before thi
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.
 
+To post them as signed webhooks:
+[`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks).
 [The user events guide](docs/guide/events.md) has the listener, the four
 types, what a failure costs, and a test.
 

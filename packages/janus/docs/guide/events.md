@@ -3,7 +3,9 @@
 This page is for hearing what happens to a user once it is written: created,
 e-mail verified, password reset, deleted. Another service can then follow
 without polling. `janus` hands each event to one function you give it;
-**delivering it is yours**, or `@nxgt/janus-webhooks`'s once it ships.
+**delivering it is yours** — or
+[`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks)'s:
+`webhooks({ endpoints })` signs and posts each event.
 
 ```ts
 import { z } from 'zod';
