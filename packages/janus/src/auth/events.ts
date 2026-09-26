@@ -28,7 +28,7 @@ export interface UserEvent {
 	readonly type: UserEventType;
 	/**
 	 * When the write landed: the `createdAt` or `updatedAt` it wrote, or, for
-	 * a deletion, the time read just before it.
+	 * a deletion, the time read just before it — not when the listener ran.
 	 */
 	readonly occurredAt: Date;
 	readonly userId: Id;
@@ -59,9 +59,9 @@ export function resolveEvents(
 }
 
 /**
- * Hands one event to the listener, right after the write it reports — before
- * any store call that follows, whose outage would otherwise lose it for good.
- * Its failure is the application's, not the flow's: warned about, with what
+ * Hands one event to the listener, once the flow's steps are done — from a
+ * `finally` where a step after the write can fail, so an outage there does
+ * not lose it for good. Its failure is the application's, not the flow's: warned about, with what
  * it takes to send the event again — never thrown, since the write has landed.
  */
 export async function emit(
@@ -76,7 +76,8 @@ export async function emit(
 	const event: UserEvent = Object.freeze({
 		id: mintId(occurredAt.getTime()),
 		type,
-		occurredAt,
+		// A copy: the record's own Date is also the user the flow answers.
+		occurredAt: new Date(occurredAt.getTime()),
 		userId: user.id,
 		userType: user.type,
 	});

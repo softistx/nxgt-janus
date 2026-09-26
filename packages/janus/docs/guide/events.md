@@ -77,7 +77,7 @@ never share one.
 
 ## When the listener runs
 
-Right after the write, **awaited**, before the flow answers. So a listener
+After the write, **awaited**, before the flow answers. So a listener
 that stores the event durably — a job queue, an outbox table — has done so
 when `signUp` answers:
 
@@ -90,12 +90,13 @@ const auth = janus({
 });
 ```
 
-**Right after** means before any step that follows the write: `delete` hands
-over `user.deleted` before it removes the user's sessions, and
-`resetPassword.confirm` its events before it revokes them. A store outage in
-those later steps fails the call, but the event is already sent — a retry
-could not send it, since `delete` then finds nobody and the reset link is
-spent.
+**After the flow's own steps**, and **even when one of them fails**: `delete`
+removes the user's sessions and tokens, and `resetPassword.confirm` revokes
+the sessions opened with the old password, before the listener runs — so a
+listener that takes its time never leaves an old session alive. Those steps
+run in a `try`; the event is sent from its `finally`. A store outage there
+fails the call, but the event is sent all the same — a retry could not send
+it, since `delete` then finds nobody and the reset link is spent.
 
 `occurredAt` is the write's own time: the `createdAt` or `updatedAt` it
 wrote, the time read just before the deletion — not when the listener ran.

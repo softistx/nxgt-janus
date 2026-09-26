@@ -593,7 +593,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
   field, no password, no token. Whoever receives the event reads the rest
   from where it is kept, if they may.
 - **Each event has an `id` of its own**, a UUIDv7: the key to deliver it once.
-- **The listener runs right after the write, and is awaited** before the
+- **The listener runs after the write, and is awaited** before the
   flow answers, so a durable queue has the event by then. `occurredAt` is the
   write's own time. A refused flow sends nothing.
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed

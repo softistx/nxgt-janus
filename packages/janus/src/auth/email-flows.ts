@@ -153,17 +153,25 @@ export function emailFlows(
 						};
 					},
 				);
-				// Reported before the steps an outage can interrupt: the link is
-				// spent, so a retry is refused and could not send them.
-				await emit(context, 'user.passwordReset', written, written.updatedAt);
-				if (newlyVerified) {
-					await emit(context, 'user.emailVerified', written, written.updatedAt);
+				try {
+					// Whoever had the old password is signed out, and a sign-in
+					// they left waiting on its second factor cannot be finished —
+					// before the listener runs, however long it takes.
+					await store.sessions.revokeUserSessions(written.id, clock.now());
+					await endSignInsWaiting(context, written.id);
+				} finally {
+					// Reported even when an outage interrupts the steps above:
+					// the link is spent, so a retry is refused and could not.
+					await emit(context, 'user.passwordReset', written, written.updatedAt);
+					if (newlyVerified) {
+						await emit(
+							context,
+							'user.emailVerified',
+							written,
+							written.updatedAt,
+						);
+					}
 				}
-
-				// Whoever had the old password is signed out, and a sign-in they
-				// left waiting on its second factor cannot be finished.
-				await store.sessions.revokeUserSessions(written.id, clock.now());
-				await endSignInsWaiting(context, written.id);
 				return toUser(written);
 			},
 		},

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test';
 import {
 	ada,
+	bearer,
 	clinic,
 	hasher,
 	password,
@@ -146,27 +147,84 @@ describe('user events', () => {
 		expect(order).toEqual(['listener', 'answered']);
 	});
 
-	it('reports the time the write landed, not the time the listener ran', async () => {
+	it('reports the time each write landed, not the time the listener ran', async () => {
 		const store = createMemoryStores();
+		// Time passes during every write, and after it.
+		const later = () => clock.advance(60_000);
 		const { auth, clock, received } = setup(undefined, {
 			...store,
 			users: {
 				...store.users,
-				// Time passes between the write and whatever follows it.
+				async insertUser(record) {
+					const inserted = await store.users.insertUser(record);
+					later();
+					return inserted;
+				},
 				async updateUser(...args) {
 					const written = await store.users.updateUser(...args);
-					clock.advance(60_000);
+					later();
 					return written;
+				},
+				async deleteUser(id) {
+					later();
+					return store.users.deleteUser(id);
 				},
 			},
 		});
+		const last = () => received.at(-1)?.occurredAt;
+
 		const { user } = await auth.signUp({ ...ada, password });
+		expect(last()).toEqual(user.createdAt);
+
 		const sent = await auth.verifyEmail.send(user);
-
 		const verified = await auth.verifyEmail.confirm(sent.token);
+		expect(last()).toEqual(verified.updatedAt);
 
-		expect(received.at(-1)?.occurredAt).toEqual(verified.updatedAt);
-		expect(received.at(-1)?.occurredAt).not.toEqual(clock.now());
+		const reset = await auth.resetPassword.request(ada.email);
+		const renewed = await auth.resetPassword.confirm(
+			reset?.token ?? '',
+			'a new password',
+		);
+		expect(last()).toEqual(renewed.updatedAt);
+
+		const bob = await auth.create({ email: 'bob@example.test', name: 'Bob' });
+		const issued = await auth.signInCode.request('bob@example.test');
+		const coded = await auth.signInCode.confirm(
+			issued?.challenge ?? '',
+			issued?.code ?? '',
+		);
+		expect(coded.user.id).toBe(bob.id);
+		expect(last()).toEqual(coded.user.updatedAt);
+
+		const before = clock.now();
+		await auth.delete(user);
+		expect(last()).toEqual(before);
+		expect(last()).not.toEqual(clock.now());
+	});
+
+	it('hands the listener its own Date: mutating it rewrites nothing the flow answers', async () => {
+		const { auth } = setup((event) => {
+			event.occurredAt.setTime(0);
+		});
+
+		const { user } = await auth.signUp({ ...ada, password });
+
+		expect(user.createdAt.getTime()).not.toBe(0);
+	});
+
+	it('signs out whoever had the old password before the listener hears of a reset', async () => {
+		let seen: unknown = 'not called';
+		const { auth } = setup(async (event) => {
+			if (event.type === 'user.passwordReset') {
+				seen = await auth.authenticate(bearer(token));
+			}
+		});
+		const { token } = await auth.signUp({ ...ada, password });
+
+		const reset = await auth.resetPassword.request(ada.email);
+		await auth.resetPassword.confirm(reset?.token ?? '', 'a new password');
+
+		expect(seen).toBeNull();
 	});
 
 	it('names the user type, and reports nothing for a delete given another type', async () => {
@@ -188,24 +246,35 @@ describe('user events', () => {
 
 describe('an outage after the write', () => {
 	/** The reference stores, with one sessions method failing once. */
-	function failingOnce(method: 'deleteUserSessions' | 'revokeUserSessions') {
+	function failingOnce(
+		method: 'deleteUserSessions' | 'revokeUserSessions',
+	): JanusStores {
 		const store = createMemoryStores();
 		let failed = false;
+		const once = () => {
+			if (failed) return;
+			failed = true;
+			throw new StoreFailure('sessions down', { cause: null });
+		};
 		return {
 			...store,
 			sessions: {
 				...store.sessions,
-				async [method](...args: [never, never]) {
-					if (!failed) {
-						failed = true;
-						throw new StoreFailure('sessions down', { cause: null });
-					}
-					return (store.sessions[method] as (...a: unknown[]) => unknown)(
-						...args,
-					);
-				},
+				...(method === 'deleteUserSessions'
+					? {
+							async deleteUserSessions(userId) {
+								once();
+								return store.sessions.deleteUserSessions(userId);
+							},
+						}
+					: {
+							async revokeUserSessions(userId, at) {
+								once();
+								return store.sessions.revokeUserSessions(userId, at);
+							},
+						}),
 			},
-		} as JanusStores;
+		};
 	}
 
 	it('still reports the user deleted: the replay deletes nobody, so could not', async () => {

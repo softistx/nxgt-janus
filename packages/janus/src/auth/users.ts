@@ -182,15 +182,24 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			// replay, finding no user, still deletes it.
 			const deletedAt = clock.now();
 			const deleted = record !== null && (await store.users.deleteUser(id));
-			// Once, when this call deleted them, and before the steps an outage
-			// can interrupt: a replay deletes nobody, so it could not send it.
-			if (deleted) {
-				await emit(context, 'user.deleted', { id, type: type.name }, deletedAt);
+			try {
+				await store.sessions.deleteUserSessions(id);
+				await store.tokens.deleteUserTokens(id);
+				// Last, and on a replay too: the tuples naming them.
+				await context.relations?.deleteEntity({ type: type.name, id });
+			} finally {
+				// Once, when this call deleted them — even when an outage
+				// interrupts the steps above: a replay deletes nobody, so it
+				// could not send it.
+				if (deleted) {
+					await emit(
+						context,
+						'user.deleted',
+						{ id, type: type.name },
+						deletedAt,
+					);
+				}
 			}
-			await store.sessions.deleteUserSessions(id);
-			await store.tokens.deleteUserTokens(id);
-			// Last, and on a replay too: the tuples naming them.
-			await context.relations?.deleteEntity({ type: type.name, id });
 			return deleted;
 		},
 
