@@ -354,7 +354,7 @@ await auth.update(user, { name }, { ifVersion: user.version });
 `UserInvalidError`, carrying `issues` — each a `path` and a `message`.
 
 **When:** `signUp`, `create`, `update`.
-**Why:** your schema refused the fields. `update` merges the patch over the stored fields and validates the whole, so the refusal can name a field the patch did not touch. An issue whose message is `set by janus, not by a request` means the input carried a field janus sets (`id`, `active`, `version`, …) and your schema let it through.
+**Why:** your schema refused the fields. `update` merges the patch over the stored fields and validates the whole, so the refusal can name a field the patch did not touch. An issue whose message is `set by janus, not by a request` means the input carried a field janus sets (`id`, `active`, `version`, …) and your schema let it through. An issue whose message is `holds a NUL character or a lone surrogate, which no store can keep` means a string — or, with `a key holds …`, an object key — carried `\u0000` or half of a surrogate pair: PostgreSQL refuses both, so janus refuses them on every adapter rather than answer `STORE_FAILED` on one. A key is reported by the path of the object holding it, never by the key itself.
 **Fix:** answer 400, field by field:
 
 ```ts

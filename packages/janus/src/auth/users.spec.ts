@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 import {
 	ada,
 	bearer,
@@ -672,5 +673,103 @@ describe('delete', () => {
 				'relations.deleteEntity is missing',
 			);
 		});
+	});
+});
+
+describe('strings no store can keep', () => {
+	const nul = 'Ada\u0000Lovelace';
+	const lone = 'Ada \uD800';
+
+	/** The memory store, refusing what PostgreSQL refuses: the core must not ask. */
+	function strict() {
+		const store = createMemoryStores();
+		const refuse = (text: string) => {
+			if (text.includes('\u0000') || !text.isWellFormed()) {
+				throw new Error('22021: invalid byte sequence');
+			}
+		};
+		const { findUserByLogin, insertUser } = store.users;
+		store.users.findUserByLogin = async (type, login) => {
+			refuse(login);
+			return findUserByLogin(type, login);
+		};
+		store.users.insertUser = async (record) => {
+			refuse(JSON.stringify(record.fields));
+			return insertUser(record);
+		};
+		return setup({ store });
+	}
+
+	it('refuses a NUL or a lone surrogate in a field with USER_INVALID, never STORE_FAILED', async () => {
+		const { auth } = strict();
+
+		for (const name of [nul, lone]) {
+			const error = (await rejection(
+				auth.signUp({ ...ada, name, password }),
+			)) as UserInvalidError;
+
+			expect(error.code).toBe('USER_INVALID');
+			expect(error.issues).toEqual([
+				{
+					path: ['name'],
+					message:
+						'holds a NUL character or a lone surrogate, which no store can keep',
+				},
+			]);
+			expect(error.message).not.toContain(name);
+		}
+	});
+
+	it('refuses one at any depth, and in a key without putting the key in the message', async () => {
+		const auth = janus({
+			user: z.object({
+				email: z.email(),
+				tags: z.array(z.string()),
+				meta: z.record(z.string(), z.string()),
+			}),
+			store: createMemoryStores(),
+		});
+
+		const error = (await rejection(
+			auth.create({
+				email: 'ada@example.test',
+				tags: ['ok', nul],
+				meta: { [`k${'\u0000'}`]: 'v' },
+			}),
+		)) as UserInvalidError;
+
+		expect(error.issues?.map((issue) => issue.path)).toEqual([
+			['tags', 1],
+			['meta'],
+		]);
+		expect(error.issues?.[1]?.message).toStartWith('a key holds');
+		expect(error.message).not.toContain('\u0000');
+	});
+
+	it('keeps every other character: control characters, and a surrogate pair', async () => {
+		const { auth, store } = strict();
+
+		const { user } = await auth.signUp({
+			...ada,
+			name: 'Ada\u0001\u001f￿ 😀',
+			password,
+		});
+
+		expect((await store.users.findUser(user.id))?.fields.name).toBe(
+			'Ada\u0001\u001f￿ 😀',
+		);
+	});
+
+	it('answers a login no store can keep as nobody’s, without asking the store', async () => {
+		const { auth } = strict();
+		await auth.signUp({ ...ada, password });
+
+		expect(await auth.findByLogin(`${ada.email}\u0000`)).toBeNull();
+		expect(await auth.resetPassword.request(`${ada.email}\uDC00`)).toBeNull();
+		const error = (await rejection(
+			auth.signIn({ email: `${ada.email}\u0000`, password }),
+		)) as CredentialError;
+		expect(error.code).toBe('CREDENTIALS_INVALID');
+		expect(error.reason).toBe('unknownLogin');
 	});
 });

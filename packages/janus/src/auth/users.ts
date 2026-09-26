@@ -15,6 +15,7 @@ import {
 	findRecord,
 	getRecord,
 	idOf,
+	isStorable,
 	loginsOf,
 	passwordMatches,
 	rehashed,
@@ -46,6 +47,14 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 	const { store, clock } = context;
 	const at = (operation: string) =>
 		context.config.single ? operation : `${type.name}.${operation}`;
+
+	/**
+	 * The user holding this normalised login, or `null`. A login no store can
+	 * keep is nobody's: answered as an absence, without asking a store that
+	 * would fail on it.
+	 */
+	const byLogin = async (login: string): Promise<UserRecord | null> =>
+		isStorable(login) ? store.users.findUserByLogin(type.name, login) : null;
 
 	/** Validates, hashes, writes once. What `create` and `signUp` share. */
 	const insert = async (input: Input, where: string): Promise<UserRecord> => {
@@ -291,9 +300,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 			const password = (input as Input)?.password;
 
 			const record =
-				typeof login === 'string'
-					? await store.users.findUserByLogin(type.name, rule.normalize(login))
-					: null;
+				typeof login === 'string' ? await byLogin(rule.normalize(login)) : null;
 			const refuse = (
 				reason: 'unknownLogin' | 'noPassword' | 'wrongPassword',
 			) =>
@@ -332,10 +339,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 		async findByLogin(login) {
 			const rule = passwordRule(at('findByLogin'));
-			const record = await store.users.findUserByLogin(
-				type.name,
-				rule.normalize(login),
-			);
+			const record = await byLogin(rule.normalize(login));
 			return record === null ? null : toUser(record);
 		},
 
@@ -422,7 +426,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 				const where = at('resetPassword.request');
 				passwordRule(where);
 				const wanted = normalizeEmail(String(email));
-				const record = await store.users.findUserByLogin(type.name, wanted);
+				const record = await byLogin(wanted);
 
 				// Found by a login that is not their e-mail — a username that looks
 				// like one — is nobody's e-mail: no token.

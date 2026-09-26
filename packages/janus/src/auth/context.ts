@@ -135,6 +135,7 @@ export async function validateFields(
 				issues.push({ path: [key], message: 'set by janus, not by a request' });
 			}
 		}
+		unstorableIn(value, [], issues);
 	}
 
 	if (issues.length > 0) {
@@ -148,6 +149,48 @@ export async function validateFields(
 	}
 
 	return withoutUndefined((result as { value: unknown }).value) as JsonObject;
+}
+
+/**
+ * Whether every store can keep this string. PostgreSQL refuses `\u0000` in
+ * `text` and `jsonb`, and a lone surrogate in `jsonb`; MongoDB and the memory
+ * store keep both. Refused here, once, so a request that sends one is told
+ * `USER_INVALID` on every adapter — not `STORE_FAILED` on one of them, a 503
+ * for a database that is up.
+ */
+export const isStorable = (value: string): boolean =>
+	!value.includes('\u0000') && value.isWellFormed();
+
+const UNSTORABLE =
+	'holds a NUL character or a lone surrogate, which no store can keep';
+
+/** Pushes an issue for every key and every string no store can keep. */
+function unstorableIn(
+	value: unknown,
+	path: (string | number)[],
+	issues: Issue[],
+): void {
+	if (typeof value === 'string') {
+		if (!isStorable(value)) issues.push({ path, message: UNSTORABLE });
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (const [index, inner] of value.entries()) {
+			unstorableIn(inner, [...path, index], issues);
+		}
+		return;
+	}
+	if (typeof value === 'object' && value !== null) {
+		for (const [key, inner] of Object.entries(value)) {
+			// The key itself stays out of the path: the path reaches the message,
+			// and a NUL has no business in a log line.
+			if (!isStorable(key)) {
+				issues.push({ path, message: `a key ${UNSTORABLE}` });
+			} else {
+				unstorableIn(inner, [...path, key], issues);
+			}
+		}
+	}
 }
 
 function segmentKey(
