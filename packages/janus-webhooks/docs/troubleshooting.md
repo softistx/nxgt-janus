@@ -13,9 +13,9 @@ How the messages are shaped:
   It is thrown when `webhooks()` or `verifyWebhook()` is called, so fix the
   configuration; no handler should answer one.
 - **A delivery that fails is never thrown.** The listener returns at once and
-  the flow of `@nxgt/janus` answers as usual; a delivery that runs out of
-  retries goes to your `onGivingUp`, or is a `JANUS_WEBHOOK_GAVE_UP` process
-  warning without one.
+  the flow of `@nxgt/janus` answers as usual; a delivery given up — out of
+  retries, or cut short by `close()` — goes to your `onGivingUp`, or is a
+  `JANUS_WEBHOOK_GAVE_UP` process warning without one.
 - **`verifyWebhook` answers `null`** for any request it cannot vouch for, and
   never says why: a forger learns nothing from the answer.
 
@@ -31,7 +31,11 @@ How the messages are shaped:
 - [`webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.deleted`](#webhooks-an-endpoints-types-are-user-event-types--usercreated-useremailverified-userpasswordreset-userdeleted)
 - [`webhooks: retries: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`](#webhooks-retries-value-is-not-a-duration-write-a-number-followed-by-ms-s-m-h-or-d--for-example-15m-or-720h)
 - [`webhooks: retries: a duration in milliseconds must be a finite number above zero`](#webhooks-retries-a-duration-in-milliseconds-must-be-a-finite-number-above-zero)
+- [`webhooks: retries is a list of durations`](#webhooks-retries-is-a-list-of-durations)
+- [`webhooks: retries wait at most 24 days each`](#webhooks-retries-wait-at-most-24-days-each)
 - [`verifyWebhook: pass the endpoint's secrets — at least one`](#verifywebhook-pass-the-endpoints-secrets--at-least-one)
+- [`verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more`](#verifywebhook-toleranceseconds-is-a-finite-number-of-seconds-0-or-more)
+- [`verifyWebhook: now is a valid Date`](#verifywebhook-now-is-a-valid-date)
 
 **Types**
 - [`TS2322: Type 'string | undefined' is not assignable to type 'string'.`](#ts2322-type-string--undefined-is-not-assignable-to-type-string)
@@ -196,6 +200,30 @@ webhooks({ endpoints, retries: [] });           // one attempt, no retry
 webhooks({ endpoints, retries: ['1s', '1m'] }); // three attempts
 ```
 
+### `webhooks: retries is a list of durations`
+
+**When:** calling `webhooks({ retries: '5s' })` from JavaScript — one duration
+where a list is expected.
+**Why:** `retries` is the schedule: one delay per retry, in order.
+**Fix:** a list, even of one:
+
+```ts
+webhooks({ endpoints, retries: ['5s'] }); // two attempts
+```
+
+### `webhooks: retries wait at most 24 days each`
+
+**When:** calling `webhooks({ … })` with a retry delay longer than 2³¹ − 1 ms,
+about 24.8 days — `'30d'`, `'720h'`.
+**Why:** `setTimeout` cannot wait longer: past it, the timer fires at once, and
+a retry meant for a month later would be sent immediately.
+**Fix:** a shorter delay. A delivery that must survive for weeks belongs in a
+durable queue, not in memory — see [the roadmap](roadmap.md#next):
+
+```ts
+webhooks({ endpoints, retries: ['1h', '1d', '7d'] });
+```
+
 ### `verifyWebhook: pass the endpoint's secrets — at least one`
 
 **When:** calling `verifyWebhook({ secrets: [], … })`.
@@ -211,6 +239,31 @@ const secrets = [process.env.WEBHOOK_SECRET, process.env.WEBHOOK_SECRET_NEXT].fi
 ```
 
 Leaving `secrets` out entirely is refused with the same message.
+
+### `verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more`
+
+**When:** calling `verifyWebhook({ toleranceSeconds, … })` with `NaN`, a
+negative number or `Infinity` — most often `Number(process.env.TOLERANCE)`
+with the variable unset.
+**Why:** the tolerance is what stops a replay. Compared with `NaN`, every
+timestamp would pass, so a request recorded years ago would verify.
+**Fix:** leave it out for the default `300`, or pass a checked number:
+
+```ts
+const toleranceSeconds = Number(process.env.WEBHOOK_TOLERANCE ?? 300);
+```
+
+### `verifyWebhook: now is a valid Date`
+
+**When:** calling `verifyWebhook({ now, … })` with an Invalid Date —
+`new Date(undefined)`, `new Date('not a date')`.
+**Why:** the same as the tolerance: against an Invalid Date, every timestamp
+would pass.
+**Fix:** leave `now` out outside tests; in a test, pass a real date:
+
+```ts
+verifyWebhook({ secrets, headers, body, now: new Date('2026-09-26T12:00:00Z') });
+```
 
 ## Types
 
@@ -249,6 +302,8 @@ webhooks({ endpoints: [{ url, secrets: [first, ...rest] }] });
 
 ### `[JANUS_WEBHOOK_GAVE_UP] Warning: webhooks: gave up <type> <event id> to <origin> after <n> attempts (<why>, <status or error>)`
 
+One attempt is written in the singular — `after 1 attempt (retriesRanOut, 503)` — which is what `retries: []` always gives.
+
 A process warning, not a thrown error. It names the endpoint by its origin
 only: the path and the query, which may hold a token of the receiver's, are
 never printed.
@@ -263,6 +318,7 @@ parentheses hold:
 | `(retriesRanOut, TypeError)` | the last request got no answer: DNS, a refused connection, TLS |
 | `(closed, 503)`, `(closed, TimeoutError)` | `close()` was called while the delivery waited for a retry, or while an attempt was in flight that then failed with a retry left: the last attempt's status or failure |
 | `after 0 attempts (closed, no answer)` | the event arrived after `close()`: nothing was sent |
+| `(retriesRanOut, RangeError)` | the event's body could not be built — an `occurredAt` that is an Invalid Date, in an event rebuilt by hand: nothing was sent |
 
 With the default schedule, a delivery is retried for more than a day
 (`5s`, `5m`, `30m`, `2h`, `5h`, `10h`, `10h`, eight attempts), so this warning
@@ -273,7 +329,7 @@ unreachable for all that time. The event is not sent again.
 again once the endpoint is back — `delivery.event` is the whole event:
 
 ```ts
-const hooks = webhooks({
+const listener = webhooks({
   endpoints,
   onGivingUp: async (delivery, reason) => {
     await deadLetters.insert({ event: delivery.event, url: delivery.url, ...reason });
@@ -349,12 +405,12 @@ memory) runs nothing at all.
 **Fix:** stop taking requests first, so no new event comes, then `close()`:
 
 ```ts
-const hooks = webhooks({ endpoints, onGivingUp });
-const auth = janus({ ...options, events: hooks });
+const listener = webhooks({ endpoints, onGivingUp });
+const auth = janus({ ...options, events: listener });
 
 process.on('SIGTERM', async () => {
   server.stop();
-  await hooks.close();
+  await listener.close();
   process.exit(0);
 });
 ```
@@ -385,8 +441,8 @@ themselves as shown in `@nxgt/janus`'s
 `webhooks()` to every `janus()` that should send:
 
 ```ts
-const hooks = webhooks({ endpoints: [{ url, secrets: [secret] }] });
-const auth = janus({ ...options, events: hooks });
+const listener = webhooks({ endpoints: [{ url, secrets: [secret] }] });
+const auth = janus({ ...options, events: listener });
 ```
 
 ## Receiving
@@ -402,8 +458,9 @@ purpose it never says which check failed. In order of likelihood:
   other bytes (spacing, key order, escapes). Pass the raw text;
 - **the secret is not the endpoint's** — another environment's, or the old one
   removed from the receiver before the sender stopped signing with it. Rotate
-  by adding the new secret on the receiver first, then on the sender, then
-  removing the old one from the sender, then from the receiver;
+  as [the sending guide](guide/sending.md) says: sign with both, let the
+  receiver accept both, drop the old one from the sender, and last from the
+  receiver;
 - **the clocks disagree** by more than `toleranceSeconds` (`300` by default),
   in either direction — or the request was verified late, from a queue,
   rather than when it arrived;
@@ -439,8 +496,8 @@ app.post('/hooks/janus', async (c) => {
 
 With Express, take the body raw on that route —
 `express.raw({ type: 'application/json' })` — and pass
-`req.body.toString('utf8')`. With a plain object of headers in any case, pass
-`new Headers(headers)`. Check the clocks (NTP) before raising
+`req.body.toString('utf8')`; `req.headers` goes as it is — a header record is
+read whatever the case of its keys. Check the clocks (NTP) before raising
 `toleranceSeconds`: a wider window is a wider window for replays.
 
 ### A webhook is received twice

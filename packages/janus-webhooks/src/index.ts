@@ -12,6 +12,7 @@
 
 export {
 	type Delivery,
+	type Failure,
 	type GivingUp,
 	type WebhookEndpoint,
 	type Webhooks,

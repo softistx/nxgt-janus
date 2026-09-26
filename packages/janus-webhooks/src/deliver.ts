@@ -1,24 +1,13 @@
+import { type Duration, parseDuration, type UserEvent } from '@nxgt/janus';
 import {
-	type Duration,
-	parseDuration,
-	type UserEvent,
-	type UserEventType,
-} from '@nxgt/janus';
-import { bodyOf } from './payload';
-import { keyOf, sign } from './signature';
+	type Failure,
+	post,
+	type Target,
+	targetOf,
+	type WebhookEndpoint,
+} from './request';
 
-/** Where events are sent, and what they are signed with. */
-export interface WebhookEndpoint {
-	/** `https://`, or `http://` to `localhost` for development. */
-	readonly url: string;
-	/**
-	 * Every request is signed with each: to rotate, add the new secret, let
-	 * the receiver accept it, then remove the old one.
-	 */
-	readonly secrets: readonly [string, ...string[]];
-	/** The event types this endpoint receives. Every type when absent. */
-	readonly types?: readonly UserEventType[];
-}
+export type { Failure, WebhookEndpoint };
 
 /** One event on its way to one endpoint. */
 export interface Delivery {
@@ -29,21 +18,14 @@ export interface Delivery {
 	readonly attempts: number;
 }
 
-/** Why a delivery was given up. */
-export interface GivingUp {
+/** Why a delivery was given up, and what its last attempt got. */
+export interface GivingUp extends Failure {
 	/**
 	 * `retriesRanOut`: every attempt failed. `closed`: `close()` came first —
 	 * the delivery waited for a retry, failed after the call, or its event
 	 * arrived after it.
 	 */
 	readonly why: 'retriesRanOut' | 'closed';
-	/**
-	 * The last attempt's response status, or `null` when it had none — or
-	 * when no attempt was made.
-	 */
-	readonly status: number | null;
-	/** The last failure's name — `TimeoutError`, `TypeError` — or `null`. */
-	readonly error: string | null;
 }
 
 export interface WebhooksOptions {
@@ -80,6 +62,21 @@ export interface Webhooks {
 }
 
 /** The Standard Webhooks retry schedule, after a first attempt at once. */
+/** The longest delay `setTimeout` keeps: 2³¹ − 1 ms, about 24.8 days. */
+const LONGEST = 2 ** 31 - 1;
+
+/** The warning for a delivery given up with no `onGivingUp`: the origin, never the URL. */
+function gaveUp(
+	delivery: Delivery,
+	reason: GivingUp,
+	origin: string | undefined,
+): string {
+	const { attempts, event } = delivery;
+	const plural = attempts === 1 ? '' : 's';
+	const got = reason.status ?? reason.error ?? 'no answer';
+	return `webhooks: gave up ${event.type} ${event.id} to ${origin} after ${attempts} attempt${plural} (${reason.why}, ${got})`;
+}
+
 const SCHEDULE: readonly Duration[] = [
 	'5s',
 	'5m',
@@ -90,66 +87,14 @@ const SCHEDULE: readonly Duration[] = [
 	'10h',
 ];
 
-const LOCAL = new Set(['localhost', '127.0.0.1', '[::1]']);
-
-const TYPES: ReadonlySet<string> = new Set<UserEventType>([
-	'user.created',
-	'user.emailVerified',
-	'user.passwordReset',
-	'user.deleted',
-]);
-
-interface Target {
-	readonly url: string;
-	readonly origin: string;
-	readonly keys: readonly Buffer[];
-	readonly types: ReadonlySet<UserEventType> | null;
-}
-
-function targetOf(endpoint: WebhookEndpoint, where: string): Target {
-	let url: URL;
-	try {
-		url = new URL(endpoint?.url);
-	} catch {
-		throw new TypeError(`${where}: an endpoint's url is not a URL`);
-	}
-	if (
-		url.protocol !== 'https:' &&
-		!(url.protocol === 'http:' && LOCAL.has(url.hostname))
-	) {
-		throw new TypeError(
-			`${where}: an endpoint's url must be https:// — http:// only to localhost`,
-		);
-	}
-	const secrets = endpoint.secrets;
-	if (!Array.isArray(secrets) || secrets.length === 0) {
-		throw new TypeError(`${where}: an endpoint needs at least one secret`);
-	}
-	const types = endpoint.types;
-	if (
-		types !== undefined &&
-		(!Array.isArray(types) || !types.every((one) => TYPES.has(one)))
-	) {
-		throw new TypeError(
-			`${where}: an endpoint's types are user event types — ${[...TYPES].join(', ')}`,
-		);
-	}
-	return {
-		url: url.href,
-		origin: url.origin,
-		keys: secrets.map((secret) => keyOf(secret, where)),
-		types: types === undefined ? null : new Set(types),
-	};
-}
-
 /**
  * Signs user events and posts them to your endpoints, retrying on failure:
  * the listener to hand `janus({ events })`.
  *
  * ```ts
- * const hooks = webhooks({ endpoints: [{ url, secrets: [secret] }] });
- * const auth = janus({ ..., events: hooks });
- * process.on('SIGTERM', () => hooks.close());
+ * const listener = webhooks({ endpoints: [{ url, secrets: [secret] }] });
+ * const auth = janus({ ..., events: listener });
+ * process.on('SIGTERM', () => listener.close());
  * ```
  *
  * A request succeeds on a `2xx`, and nothing else: a redirect is not
@@ -165,17 +110,25 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 	const targets = options.endpoints.map((endpoint) =>
 		targetOf(endpoint, where),
 	);
-	const delays = (options.retries ?? SCHEDULE).map((delay) =>
-		parseDuration(delay, `${where}: retries`),
-	);
+	const retries: unknown = options.retries ?? SCHEDULE;
+	if (!Array.isArray(retries)) {
+		throw new TypeError(`${where}: retries is a list of durations`);
+	}
+	const delays = retries.map((delay: Duration) => {
+		const ms = parseDuration(delay, `${where}: retries`);
+		// Past it, setTimeout fires at once: a retry meant for a month later
+		// would be sent immediately.
+		if (ms > LONGEST) {
+			throw new TypeError(`${where}: retries wait at most 24 days each`);
+		}
+		return ms;
+	});
 	const timeoutMs = parseDuration(
 		options.timeout ?? '10s',
 		`${where}: timeout`,
 	);
 	const send = options.fetch ?? fetch;
 
-	/** What the last attempt of a delivery got, for when it is given up. */
-	type Failure = Omit<GivingUp, 'why'>;
 	const waiting = new Map<
 		ReturnType<typeof setTimeout>,
 		{ readonly delivery: Delivery; readonly failed: Failure }
@@ -184,64 +137,26 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 	let closed = false;
 
 	const giveUp = async (delivery: Delivery, reason: GivingUp) => {
-		const target = targets.find((one) => one.url === delivery.url);
-		const warn = (message: string, code: string) =>
-			process.emitWarning(message, { code });
 		if (options.onGivingUp === undefined) {
-			warn(
-				`webhooks: gave up ${delivery.event.type} ${delivery.event.id} to ${target?.origin} after ${delivery.attempts} attempt${delivery.attempts === 1 ? '' : 's'} (${reason.why}, ${reason.status ?? reason.error ?? 'no answer'})`,
-				'JANUS_WEBHOOK_GAVE_UP',
-			);
+			const target = targets.find((one) => one.url === delivery.url);
+			process.emitWarning(gaveUp(delivery, reason, target?.origin), {
+				code: 'JANUS_WEBHOOK_GAVE_UP',
+			});
 			return;
 		}
 		try {
 			await options.onGivingUp(delivery, reason);
 		} catch (failure) {
-			warn(
+			process.emitWarning(
 				`webhooks: onGivingUp failed on ${delivery.event.type} ${delivery.event.id}: ${failure instanceof Error ? failure.name : typeof failure}`,
-				'JANUS_WEBHOOK_REPORT_FAILED',
+				{ code: 'JANUS_WEBHOOK_REPORT_FAILED' },
 			);
-		}
-	};
-
-	/** One request; `null` when it succeeded, or what went wrong. */
-	const post = async (
-		target: Target,
-		event: UserEvent,
-	): Promise<Failure | null> => {
-		const body = bodyOf(event);
-		const timestamp = Math.floor(Date.now() / 1000);
-		const signature = target.keys
-			.map((key) => sign(key, event.id, timestamp, body))
-			.join(' ');
-		try {
-			const response = await send(target.url, {
-				method: 'POST',
-				body,
-				redirect: 'manual',
-				signal: AbortSignal.timeout(timeoutMs),
-				headers: {
-					'content-type': 'application/json',
-					'webhook-id': event.id,
-					'webhook-timestamp': String(timestamp),
-					'webhook-signature': signature,
-				},
-			});
-			await response.body?.cancel();
-			return response.status >= 200 && response.status < 300
-				? null
-				: { status: response.status, error: null };
-		} catch (failure) {
-			return {
-				status: null,
-				error: failure instanceof Error ? failure.name : typeof failure,
-			};
 		}
 	};
 
 	const attempt = (target: Target, delivery: Delivery): void => {
 		const run = (async () => {
-			const failed = await post(target, delivery.event);
+			const failed = await post(target, delivery.event, send, timeoutMs);
 			const sent: Delivery = { ...delivery, attempts: delivery.attempts + 1 };
 			if (failed === null) return;
 			const delay = delays[delivery.attempts];

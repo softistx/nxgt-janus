@@ -56,10 +56,13 @@ function givingUps() {
 describe('webhooks', () => {
 	it('posts the event, signed so that verifyWebhook reads it back', async () => {
 		const { sent, fetch } = endpoint(204);
-		const hooks = webhooks({ endpoints: [{ url, secrets: [secret] }], fetch });
+		const listener = webhooks({
+			endpoints: [{ url, secrets: [secret] }],
+			fetch,
+		});
 
-		hooks(event);
-		await hooks.close();
+		listener(event);
+		await listener.close();
 
 		expect(sent).toHaveLength(1);
 		const init: RequestInit = sent[0]?.init ?? {};
@@ -77,21 +80,24 @@ describe('webhooks', () => {
 	it('returns at once: no flow waits on an endpoint', () => {
 		const fetch = (() =>
 			new Promise(() => {})) as unknown as typeof globalThis.fetch;
-		const hooks = webhooks({ endpoints: [{ url, secrets: [secret] }], fetch });
+		const listener = webhooks({
+			endpoints: [{ url, secrets: [secret] }],
+			fetch,
+		});
 
-		expect(hooks(event)).toBeUndefined();
+		expect(listener(event)).toBeUndefined();
 	});
 
 	it('signs with every secret while one is rotated, so either verifies', async () => {
 		const next = mintWebhookSecret();
 		const { sent, fetch } = endpoint(200);
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret, next] }],
 			fetch,
 		});
 
-		hooks(event);
-		await hooks.close();
+		listener(event);
+		await listener.close();
 
 		const headers = sent[0]?.init.headers as Record<string, string>;
 		const body = String(sent[0]?.init.body);
@@ -103,7 +109,7 @@ describe('webhooks', () => {
 	it('sends each endpoint only the types it asked for', async () => {
 		const all = endpoint(200);
 		const deleted = endpoint(200);
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [
 				{ url, secrets: [secret] },
 				{
@@ -119,9 +125,9 @@ describe('webhooks', () => {
 				)) as unknown as typeof globalThis.fetch,
 		});
 
-		hooks(event);
-		hooks({ ...event, type: 'user.deleted' });
-		await hooks.close();
+		listener(event);
+		listener({ ...event, type: 'user.deleted' });
+		await listener.close();
 
 		expect(all.sent).toHaveLength(2);
 		expect(deleted.sent).toHaveLength(1);
@@ -133,16 +139,16 @@ describe('webhooks', () => {
 	it('retries a failure on its schedule — a status other than 2xx, a network error — until one succeeds', async () => {
 		const { sent, fetch } = endpoint(500, 'throw', 302, 200);
 		const { given, onGivingUp } = givingUps();
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret] }],
 			retries: ['5ms', '5ms', '5ms'],
 			fetch,
 			onGivingUp,
 		});
 
-		hooks(event);
+		listener(event);
 		await until(() => sent.length === 4);
-		await hooks.close();
+		await listener.close();
 
 		expect(sent).toHaveLength(4);
 		expect(given).toEqual([]);
@@ -156,14 +162,14 @@ describe('webhooks', () => {
 	it('gives up when the retries run out, and says why', async () => {
 		const { sent, fetch } = endpoint(503);
 		const { given, onGivingUp } = givingUps();
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret] }],
 			retries: ['5ms', '5ms'],
 			fetch,
 			onGivingUp,
 		});
 
-		hooks(event);
+		listener(event);
 		await until(() => given.length === 1);
 
 		expect(sent).toHaveLength(3);
@@ -173,7 +179,7 @@ describe('webhooks', () => {
 				{ why: 'retriesRanOut', status: 503, error: null },
 			],
 		]);
-		await hooks.close();
+		await listener.close();
 	});
 
 	it('names a request that took too long a TimeoutError', async () => {
@@ -184,7 +190,7 @@ describe('webhooks', () => {
 				);
 			})) as unknown as typeof globalThis.fetch;
 		const { given, onGivingUp } = givingUps();
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret] }],
 			retries: [],
 			timeout: '10ms',
@@ -192,7 +198,7 @@ describe('webhooks', () => {
 			onGivingUp,
 		});
 
-		hooks(event);
+		listener(event);
 		await until(() => given.length === 1);
 
 		expect(given[0]?.[1]).toEqual({
@@ -205,18 +211,18 @@ describe('webhooks', () => {
 	it('on close, waits for the requests in flight and gives up the retries still waiting', async () => {
 		const { sent, fetch } = endpoint(500);
 		const { given, onGivingUp } = givingUps();
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret] }],
 			retries: ['1h'],
 			fetch,
 			onGivingUp,
 		});
 
-		hooks(event);
+		listener(event);
 		await until(() => sent.length === 1 && given.length === 0);
 		await new Promise((resolve) => setTimeout(resolve, 5));
-		await hooks.close();
-		hooks({ ...event, type: 'user.deleted' });
+		await listener.close();
+		listener({ ...event, type: 'user.deleted' });
 		await until(() => given.length === 2);
 
 		expect(sent).toHaveLength(1);
@@ -226,6 +232,119 @@ describe('webhooks', () => {
 			[1, { why: 'closed', status: 500, error: null }],
 			[0, { why: 'closed', status: null, error: null }],
 		]);
+	});
+});
+
+describe('close(), racing a request in flight', () => {
+	/** A fetch whose answer the spec gives by hand, once the request is sent. */
+	function held() {
+		const sent: string[] = [];
+		let answer: (status: number) => void = () => {};
+		const fetch = ((input: string) => {
+			sent.push(input);
+			return new Promise<Response>((resolve) => {
+				answer = (status) => resolve(new Response(null, { status }));
+			});
+		}) as unknown as typeof globalThis.fetch;
+		return { sent, fetch, answer: (status: number) => answer(status) };
+	}
+
+	it('waits for it, and gives it up as closed when it then fails — no retry sent after', async () => {
+		const { sent, fetch, answer } = held();
+		const { given, onGivingUp } = givingUps();
+		const listener = webhooks({
+			endpoints: [{ url, secrets: [secret] }],
+			retries: ['5ms'],
+			fetch,
+			onGivingUp,
+		});
+
+		listener(event);
+		let done = false;
+		const closing = listener.close().then(() => {
+			done = true;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(done).toBe(false);
+
+		answer(500);
+		await closing;
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(sent).toHaveLength(1);
+		expect(given).toEqual([
+			[
+				{ event, url, attempts: 1 },
+				{ why: 'closed', status: 500, error: null },
+			],
+		]);
+	});
+
+	it('cancels a retry waiting, so none is sent after close', async () => {
+		const { sent, fetch } = endpoint(500);
+		const listener = webhooks({
+			endpoints: [{ url, secrets: [secret] }],
+			retries: ['20ms'],
+			fetch,
+			onGivingUp: () => {},
+		});
+
+		listener(event);
+		await until(() => sent.length === 1);
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		await listener.close();
+		await new Promise((resolve) => setTimeout(resolve, 40));
+
+		expect(sent).toHaveLength(1);
+	});
+
+	it('waits for an onGivingUp that takes its time', async () => {
+		const { fetch } = endpoint(500);
+		let reported = false;
+		const listener = webhooks({
+			endpoints: [{ url, secrets: [secret] }],
+			retries: ['1h'],
+			fetch,
+			onGivingUp: async () => {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+				reported = true;
+			},
+		});
+
+		listener(event);
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		await listener.close();
+
+		expect(reported).toBe(true);
+	});
+});
+
+describe('an event whose body cannot be built', () => {
+	it('is given up like a request that could not be sent, never an unhandled rejection', async () => {
+		const unhandled: unknown[] = [];
+		const onUnhandled = (reason: unknown) => unhandled.push(reason);
+		process.on('unhandledRejection', onUnhandled);
+		const { sent, fetch } = endpoint(200);
+		const { given, onGivingUp } = givingUps();
+		const listener = webhooks({
+			endpoints: [{ url, secrets: [secret] }],
+			retries: [],
+			fetch,
+			onGivingUp,
+		});
+
+		listener({ ...event, occurredAt: new Date(Number.NaN) });
+		await listener.close();
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		process.off('unhandledRejection', onUnhandled);
+
+		expect(sent).toEqual([]);
+		expect(unhandled).toEqual([]);
+		expect(given[0]?.[1]).toEqual({
+			why: 'retriesRanOut',
+			status: null,
+			error: 'RangeError',
+		});
 	});
 });
 
@@ -242,14 +361,14 @@ describe('giving up, unheard', () => {
 
 	it('is a JANUS_WEBHOOK_GAVE_UP warning naming the event and the origin, never the URL', async () => {
 		const { fetch } = endpoint(410);
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret] }],
 			retries: [],
 			fetch,
 		});
 
-		hooks(event);
-		await hooks.close();
+		listener(event);
+		await listener.close();
 		await until(() => warnings.length === 1);
 
 		const [warning] = warnings;
@@ -266,7 +385,7 @@ describe('giving up, unheard', () => {
 
 	it('is a JANUS_WEBHOOK_REPORT_FAILED warning when onGivingUp throws', async () => {
 		const { fetch } = endpoint(500);
-		const hooks = webhooks({
+		const listener = webhooks({
 			endpoints: [{ url, secrets: [secret] }],
 			retries: [],
 			fetch,
@@ -275,8 +394,8 @@ describe('giving up, unheard', () => {
 			},
 		});
 
-		hooks(event);
-		await hooks.close();
+		listener(event);
+		await listener.close();
 		await until(() => warnings.length === 1);
 
 		expect((warnings[0] as Error & { code?: string }).code).toBe(
@@ -293,7 +412,7 @@ describe('webhooks({ … }) refuses, as wiring', () => {
 		['no endpoint', { endpoints: [] }, 'webhooks: pass at least one endpoint'],
 		[
 			'a URL that is not one',
-			{ endpoints: [{ url: 'hooks', secrets: [secret] }] },
+			{ endpoints: [{ url: 'listener', secrets: [secret] }] },
 			"webhooks: an endpoint's url is not a URL",
 		],
 		[
@@ -325,6 +444,16 @@ describe('webhooks({ … }) refuses, as wiring', () => {
 			'a timeout that is not a duration',
 			{ endpoints, timeout: -1 },
 			'webhooks: timeout',
+		],
+		[
+			'a retry longer than a timer can wait',
+			{ endpoints, retries: ['30d'] },
+			'webhooks: retries wait at most 24 days each',
+		],
+		[
+			'retries that are not a list',
+			{ endpoints, retries: '5s' },
+			'webhooks: retries is a list of durations',
 		],
 	])('%s', (_, options, message) => {
 		expect(() => webhooks(options as never)).toThrow(message);

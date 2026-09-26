@@ -84,9 +84,11 @@ request's:
 
 | Message | Cause |
 | --- | --- |
-| `verifyWebhook: pass the endpoint's secrets — at least one` | `secrets: []` |
-| `verifyWebhook: a secret is written whsec_<base64> — make one with mintWebhookSecret()` | a secret without the `whsec_` prefix |
+| `verifyWebhook: pass the endpoint's secrets — at least one` | `secrets: []`, or `secrets` missing or not an array |
+| `verifyWebhook: a secret is written whsec_<base64> — make one with mintWebhookSecret()` | a secret without the `whsec_` prefix, or not a string |
 | `verifyWebhook: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too short, or not base64 |
+| `verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more` | `NaN` — `Number(process.env.X)` with `X` unset — a negative number, or `Infinity`: each would let every timestamp through |
+| `verifyWebhook: now is a valid Date` | an Invalid Date, which would let every timestamp through too |
 
 ## The raw body
 
@@ -240,7 +242,7 @@ it('handles a user event once, and refuses a forgery', async () => {
 		return new Response(null, { status: 204 });
 	};
 
-	const hooks = webhooks({
+	const listener = webhooks({
 		endpoints: [{ url: 'https://receiver.example.test/hooks', secrets: [secret] }],
 		retries: [],
 		fetch: ((input: string, init: RequestInit) => receive(new Request(input, init))) as typeof fetch,
@@ -252,9 +254,9 @@ it('handles a user event once, and refuses a forgery', async () => {
 		userId: '0199a0db-f800-7000-8000-000000000002',
 		userType: 'user',
 	};
-	hooks(event);
-	hooks(event); // the same id twice: handled once
-	await hooks.close();
+	listener(event);
+	listener(event); // the same id twice: handled once
+	await listener.close();
 
 	expect(handled).toEqual([event]);
 
@@ -276,7 +278,7 @@ widening `toleranceSeconds`.
 type HeadersLike = Headers | Readonly<Record<string, string | readonly string[] | undefined>>;
 
 interface VerifyOptions {
-	readonly secrets: readonly string[];
+	readonly secrets: readonly [string, ...string[]];
 	readonly headers: HeadersLike;
 	readonly body: string;
 	readonly toleranceSeconds?: number;

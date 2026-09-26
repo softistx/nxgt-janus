@@ -12,7 +12,7 @@ import { z } from 'zod';
 const secret = process.env.WEBHOOK_SECRET;
 if (!secret) throw new Error('WEBHOOK_SECRET is not set');
 
-const hooks = webhooks({
+const listener = webhooks({
 	endpoints: [{ url: 'https://crm.example.com/hooks/janus', secrets: [secret] }],
 });
 
@@ -21,17 +21,17 @@ const auth = janus({
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: hooks,
+	events: listener,
 });
 
 await auth.signUp({ email: 'ada@example.com', password: 'correct horse' });
 // POST https://crm.example.com/hooks/janus, signed, with
 // {"type":"user.created","timestamp":"2026-09-26T11:59:00.000Z","data":{"userId":"0199…","userType":"user"}}
 
-process.on('SIGTERM', () => hooks.close());
+process.on('SIGTERM', () => listener.close());
 ```
 
-`hooks` is a function — the listener — with a `close()` method. The words
+`listener` is a function — the listener — with a `close()` method. The words
 used here — endpoint, delivery, attempt, retry, give up — are defined in
 [the index](../README.md#words).
 
@@ -61,7 +61,7 @@ A `Duration` is `@nxgt/janus`'s: milliseconds as a number, or `'500ms'`,
 | `types` | `readonly UserEventType[]` | every type | The user event types this endpoint receives |
 
 ```ts
-const hooks = webhooks({
+const listener = webhooks({
 	endpoints: [
 		// Every user event.
 		{ url: 'https://crm.example.com/hooks/janus', secrets: [crmSecret] },
@@ -97,6 +97,8 @@ variable first, as the first example does. `types` takes the four
 | `webhooks: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too short, or not base64 |
 | `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.deleted` | a type `janus` never sends |
 | `webhooks: retries: …`, `webhooks: timeout: …` | a duration `parseDuration` refuses: `'soon'`, `-1` |
+| `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
+| `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, which `setTimeout` would fire at once |
 
 [Troubleshooting](../troubleshooting.md) has each with its fix.
 
@@ -196,7 +198,7 @@ alert:
 ```ts
 import { type Delivery, type GivingUp, webhooks } from '@nxgt/janus-webhooks';
 
-const hooks = webhooks({
+const listener = webhooks({
 	endpoints,
 	async onGivingUp(delivery: Delivery, reason: GivingUp) {
 		await deadLetters.insertOne({
@@ -280,7 +282,7 @@ flow sends an event to a closed listener:
 ```ts
 process.on('SIGTERM', async () => {
 	await server.stop(); // no more sign-ups
-	await hooks.close(); // then the deliveries
+	await listener.close(); // then the deliveries
 	process.exit(0);
 });
 ```
@@ -291,7 +293,7 @@ without `close()` exits past it, and the delivery is lost without a report.
 
 ```ts
 for (const row of rows) await auth.create(row);
-await hooks.close();
+await listener.close();
 ```
 
 A request in flight is aborted after `timeout`, so `close()` waits for it
@@ -384,7 +386,7 @@ import { z } from 'zod';
 it('tells the CRM about a sign-up', async () => {
 	const secret = mintWebhookSecret();
 	const received: (UserEvent | null)[] = [];
-	const hooks = webhooks({
+	const listener = webhooks({
 		endpoints: [{ url: 'https://crm.example.test/hooks', secrets: [secret] }],
 		retries: [],
 		fetch: (async (input: string, init: RequestInit) => {
@@ -398,11 +400,11 @@ it('tells the CRM about a sign-up', async () => {
 		password: { login: 'email' },
 		store: createMemoryStores(),
 		hasher: scryptHasher({ cost: 10 }),
-		events: hooks,
+		events: listener,
 	});
 
 	const { user } = await auth.signUp({ email: 'ada@example.com', password: 'correct horse' });
-	await hooks.close(); // waits for the request in flight
+	await listener.close(); // waits for the request in flight
 
 	expect(received).toEqual([expect.objectContaining({ type: 'user.created', userId: user.id })]);
 });
@@ -429,7 +431,7 @@ interface WebhooksOptions {
 }
 
 interface Webhooks {
-	(event: UserEvent): void; // a UserEventListener: janus({ events: hooks })
+	(event: UserEvent): void; // a UserEventListener: janus({ events: listener })
 	close(): Promise<void>;
 }
 

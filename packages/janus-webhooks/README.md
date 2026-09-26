@@ -16,7 +16,7 @@ import { z } from 'zod';
 const secret = process.env.WEBHOOK_SECRET; // whsec_…, from mintWebhookSecret()
 if (!secret) throw new Error('WEBHOOK_SECRET is not set');
 
-const hooks = webhooks({
+const listener = webhooks({
 	endpoints: [{ url: 'https://crm.example.com/hooks/janus', secrets: [secret] }],
 });
 
@@ -25,11 +25,11 @@ export const auth = janus({
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: hooks, // every user.created, user.emailVerified, user.passwordReset, user.deleted
+	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.deleted
 });
 
 process.on('SIGTERM', async () => {
-	await hooks.close(); // waits for requests in flight, gives up the retries still waiting
+	await listener.close(); // waits for requests in flight, gives up the retries still waiting
 	process.exit(0);
 });
 ```
@@ -40,6 +40,7 @@ process.on('SIGTERM', async () => {
 
 ```sh
 bun add @nxgt/janus-webhooks @nxgt/janus
+bun add zod # the schema of the examples; any Standard Schema library will do
 bun add -d typescript
 ```
 
@@ -60,7 +61,7 @@ whose `types` include it — all four types when `types` is absent:
 ```ts
 import { webhooks } from '@nxgt/janus-webhooks';
 
-const hooks = webhooks({
+const listener = webhooks({
 	endpoints: [
 		{ url: 'https://crm.example.com/hooks/janus', secrets: [crmSecret] },
 		{ url: 'https://search.example.com/hooks', secrets: [searchSecret], types: ['user.deleted'] },
@@ -119,7 +120,7 @@ mintWebhookSecret(); // 'whsec_…': 32 random bytes, base64 — give the same o
 | `verifyWebhook(options)` | `{ secrets, headers, body, toleranceSeconds?, now? }` → `UserEvent \| null`. Headers as a fetch `Headers` or a Node header record. No secret, or a malformed one, is a `TypeError` |
 | `mintWebhookSecret()` | A new `whsec_` secret for an endpoint |
 | `WebhooksOptions`, `WebhookEndpoint`, `Webhooks` | What `webhooks()` takes and answers |
-| `Delivery`, `GivingUp` | What `onGivingUp` receives: `{ event, url, attempts }`, and `{ why, status, error }` |
+| `Delivery`, `GivingUp`, `Failure` | What `onGivingUp` receives: `{ event, url, attempts }`, and `{ why, status, error }` — a `GivingUp` is a `Failure`, what the last attempt got, with the reason |
 | `VerifyOptions`, `HeadersLike`, `WebhookBody` | What `verifyWebhook` takes, and the JSON body on the wire |
 
 ## Traps
@@ -132,12 +133,12 @@ until then, build what must not miss one to also read the users now and then.
 
 **Call `close()` on shutdown.** It waits for the requests in flight and gives
 up the retries still waiting, each reported as `closed` — without it they
-vanish without a word. `process.on('SIGTERM', () => hooks.close())`.
+vanish without a word. `process.on('SIGTERM', () => listener.close())`.
 
 **The listener never makes a flow wait.** It starts the first request at once
 and returns, so `signUp` answers before any endpoint does: `janus` awaiting
 its listener buys no durability here. A retry's timer does not hold the
-process open either — end a script with `await hooks.close()`.
+process open either — end a script with `await listener.close()`.
 
 **A redirect is a failure, and only a `2xx` is a success.** Redirects are not
 followed: point `url` at the final address, `https://` — `http://` only to
@@ -152,7 +153,7 @@ within `toleranceSeconds` (300) passes, and so does a retry of one you already
 handled: keep the ids handled — `event.id`, the `webhook-id` header — and
 answer a second with a `2xx`, doing nothing.
 
-**Rotate a secret in three steps.** Sign with both
+**Rotate a secret in four steps.** Sign with both
 (`secrets: [old, next]`), let the receiver accept both, then drop the old one
 from the sender, and last from the receiver.
 
@@ -165,12 +166,13 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Five plausible mistakes, five refused at compile time.**
+**Six plausible mistakes, six refused at compile time.**
 `test/types/webhooks.ts` holds one `@ts-expect-error` per mistake, beside the
 wiring that must keep compiling (`janus({ events: webhooks(…) })`): an
 endpoint with no secret, a secret read from the environment and not checked
 (`string | undefined`), a type `janus` never sends, a retry that is not a
-`Duration`, and reading a verified event before checking it for `null`.
+`Duration`, a receiver with no secret, and reading a verified event before
+checking it for `null`.
 
 ## Documentation
 

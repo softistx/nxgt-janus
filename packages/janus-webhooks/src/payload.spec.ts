@@ -64,6 +64,28 @@ describe('verifyWebhook', () => {
 		).toEqual(event);
 	});
 
+	it('reads a header Node repeated, as an array', () => {
+		const { body, headers } = request();
+		const other = sign(
+			keyOf(mintWebhookSecret(), 'test'),
+			event.id,
+			seconds,
+			body,
+		);
+
+		expect(
+			verifyWebhook({
+				secrets: [secret],
+				now,
+				body,
+				headers: {
+					...headers,
+					'webhook-signature': [other, headers['webhook-signature']],
+				},
+			}),
+		).toEqual(event);
+	});
+
 	it('reads a header record whatever the case of its keys', () => {
 		const { body, headers } = request();
 		const shouting = Object.fromEntries(
@@ -100,6 +122,40 @@ describe('verifyWebhook', () => {
 			request({ body: JSON.stringify({ type: 'invoice.paid' }) }),
 		],
 		['a body that is not JSON', request({ body: 'not json' })],
+		[
+			'a signature of the wrong length',
+			{
+				...request(),
+				headers: { ...request().headers, 'webhook-signature': 'v1,abc' },
+			},
+		],
+		[
+			'an empty signature',
+			{
+				...request(),
+				headers: { ...request().headers, 'webhook-signature': '' },
+			},
+		],
+		[
+			'a signed body whose userId is not a string',
+			request({
+				body: JSON.stringify({
+					type: 'user.created',
+					timestamp: event.occurredAt.toISOString(),
+					data: { userId: 42, userType: 'user' },
+				}),
+			}),
+		],
+		[
+			'a signed body whose timestamp is not a date',
+			request({
+				body: JSON.stringify({
+					type: 'user.created',
+					timestamp: 'yesterday',
+					data: { userId: event.userId, userType: 'user' },
+				}),
+			}),
+		],
 	])('answers null for %s', (_, forged) => {
 		expect(verifyWebhook({ secrets: [secret], now, ...forged })).toBeNull();
 	});
@@ -128,6 +184,24 @@ describe('verifyWebhook', () => {
 			verifyWebhook({ secrets: [secret], now, toleranceSeconds: 10, ...late }),
 		).toBeNull();
 		expect(verifyWebhook({ secrets: [secret], now, ...late })).toEqual(event);
+	});
+
+	it('refuses, as wiring, a tolerance or a now that is not a number: it would let every timestamp through', () => {
+		for (const toleranceSeconds of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+			expect(() =>
+				verifyWebhook({
+					secrets: [secret],
+					now,
+					toleranceSeconds,
+					...request(),
+				}),
+			).toThrow(
+				'verifyWebhook: toleranceSeconds is a finite number of seconds',
+			);
+		}
+		expect(() =>
+			verifyWebhook({ secrets: [secret], now: new Date('x'), ...request() }),
+		).toThrow('verifyWebhook: now is a valid Date');
 	});
 
 	it('refuses, as wiring, no secret or a malformed one', () => {

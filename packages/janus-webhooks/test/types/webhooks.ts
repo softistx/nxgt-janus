@@ -12,15 +12,15 @@ const secret = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
 const url = 'https://hooks.example.test/janus';
 
 // What janus({ events }) takes: the delivery is the listener.
-const hooks = webhooks({ endpoints: [{ url, secrets: [secret] }] });
+const listener = webhooks({ endpoints: [{ url, secrets: [secret] }] });
 janus({
 	user: z.strictObject({ email: z.email() }),
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: hooks,
+	events: listener,
 });
-const closing: Promise<void> = hooks.close();
+const closing: Promise<void> = listener.close();
 
 // An endpoint with no secret: signed by nothing.
 // @ts-expect-error secrets holds at least one
@@ -37,6 +37,10 @@ webhooks({ endpoints: [{ url, secrets: [secret], types: ['user.signedIn'] }] });
 // A retry written as a bare string.
 // @ts-expect-error a Duration: a number of ms, or '5s', '5m', '2h'…
 webhooks({ endpoints: [{ url, secrets: [secret] }], retries: ['soon'] });
+
+// A receiver with no secret would vouch for nothing.
+// @ts-expect-error secrets holds at least one
+verifyWebhook({ secrets: [], headers: {}, body: '' });
 
 // A verified request may be a forgery: null until checked.
 const received = verifyWebhook({ secrets: [secret], headers: {}, body: '' });

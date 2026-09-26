@@ -1,4 +1,5 @@
 import type { UserEvent, UserEventType } from '@nxgt/janus';
+import { isUserEventType } from './event-types';
 import { keyOf, signedBy } from './signature';
 
 /**
@@ -25,13 +26,6 @@ export function bodyOf(event: UserEvent): string {
 	return JSON.stringify(body);
 }
 
-const TYPES: ReadonlySet<string> = new Set<UserEventType>([
-	'user.created',
-	'user.emailVerified',
-	'user.passwordReset',
-	'user.deleted',
-]);
-
 /** A request's headers, as a fetch `Request` or a Node handler holds them. */
 export type HeadersLike =
 	| Headers
@@ -39,7 +33,7 @@ export type HeadersLike =
 
 export interface VerifyOptions {
 	/** The endpoint's secrets: every one is tried, so a rotation drops none. */
-	readonly secrets: readonly string[];
+	readonly secrets: readonly [string, ...string[]];
 	readonly headers: HeadersLike;
 	/** The body **as received**, before any parsing: the signature covers its bytes. */
 	readonly body: string;
@@ -74,8 +68,18 @@ export function verifyWebhook(options: VerifyOptions): UserEvent | null {
 		throw new TypeError(`${where}: pass the endpoint's secrets — at least one`);
 	}
 	const keys = secrets.map((secret) => keyOf(secret, where));
+	// The one check that stops a replay: a NaN here would let every
+	// timestamp through, so it is refused as wiring.
 	const tolerance = options.toleranceSeconds ?? 300;
+	if (!Number.isFinite(tolerance) || tolerance < 0) {
+		throw new TypeError(
+			`${where}: toleranceSeconds is a finite number of seconds, 0 or more`,
+		);
+	}
 	const now = Math.floor((options.now ?? new Date()).getTime() / 1000);
+	if (!Number.isFinite(now)) {
+		throw new TypeError(`${where}: now is a valid Date`);
+	}
 
 	const id = header(options.headers, 'webhook-id');
 	const stamp = header(options.headers, 'webhook-timestamp');
@@ -99,7 +103,7 @@ function eventOf(id: string, body: string): UserEvent | null {
 	}
 	if (typeof parsed !== 'object' || parsed === null) return null;
 	const { type, timestamp, data } = parsed as Record<string, unknown>;
-	if (typeof type !== 'string' || !TYPES.has(type)) return null;
+	if (!isUserEventType(type)) return null;
 	if (typeof timestamp !== 'string') return null;
 	const occurredAt = new Date(timestamp);
 	if (Number.isNaN(occurredAt.getTime())) return null;
@@ -109,7 +113,7 @@ function eventOf(id: string, body: string): UserEvent | null {
 
 	return Object.freeze({
 		id,
-		type: type as UserEventType,
+		type,
 		occurredAt,
 		userId,
 		userType,

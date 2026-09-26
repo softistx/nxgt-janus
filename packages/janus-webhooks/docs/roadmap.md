@@ -11,8 +11,8 @@ are no dates here, and the version something shipped in is the only number.
   `webhook-timestamp` and `webhook-signature` headers) and posted to your
   endpoints, retried with backoff in memory when a request fails. Secrets
   rotate by listing the new one beside the old, and `mintWebhookSecret()`
-  makes a new `whsec_` secret. A delivery whose retries run out goes to your
-  `onGivingUp`, or is a `JANUS_WEBHOOK_GAVE_UP` warning without one — never
+  makes a new `whsec_` secret. A delivery given up — out of retries, or cut
+  short by `close()` — goes to your `onGivingUp`, or is a `JANUS_WEBHOOK_GAVE_UP` warning without one — never
   dropped in silence. On the receiving side, `verifyWebhook` answers the
   event a request carries, or `null` when it is not one your secrets signed.
   Not yet on npm; it will be once reviewed.
@@ -41,6 +41,6 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Shipped
 
-Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
+Newest first; from the first release on, the package's CHANGELOG holds every one.
 
 Nothing yet.

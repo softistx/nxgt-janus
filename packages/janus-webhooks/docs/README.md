@@ -22,6 +22,6 @@ and mean the same here. These pages add:
 | **receiver** | The service behind an endpoint, which calls `verifyWebhook` | "consumer" |
 | **delivery** | One user event on its way to one endpoint: a `Delivery`. One event sent to two endpoints is two deliveries, each retried and given up on its own | "message", "job" |
 | **attempt** | One request of a delivery. `Delivery.attempts` counts them. Not `@nxgt/janus`'s attempt — a code tried against a challenge | "try" |
-| **retry** | An attempt after a failed one, sent on the schedule of `retries` | "redelivery" |
+| **retry** | An attempt after a failed one, sent on the schedule of `retries`. Not `@nxgt/janus`'s retry — a write repeated after a conflict | "redelivery" |
 | **give up** | End a delivery without a `2xx`: every attempt failed (`retriesRanOut`), or `close()` came first (`closed`). Reported to `onGivingUp`, or as a `JANUS_WEBHOOK_GAVE_UP` warning | "drop", "fail", "dead" |
 | **secret** | A `whsec_…` string, shared by the sender and the receiver of one endpoint: `mintWebhookSecret()` makes one | "key", "token" |

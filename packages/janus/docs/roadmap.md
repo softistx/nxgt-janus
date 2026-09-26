@@ -10,7 +10,7 @@ dates here, and the version something shipped in is the only number.
   so another service can follow without polling. A signature it can check —
   the Standard Webhooks headers, HMAC-SHA256, secrets that rotate — retries
   with backoff on failure, and retries that run out reported to a function
-  you give, never dropped in silence. The payload is the event: the user
+  you give, never dropped in silence. The payload carries the event: the user
   named by id, every key camelCase.
 
 ## Next
