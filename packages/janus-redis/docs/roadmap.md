@@ -6,8 +6,7 @@ in.
 
 ## Now
 
-- **The first release.** The adapter passes the conformance suite for sessions
-  and tokens on Redis 7.4. It stays unpublished until its release is decided.
+Nothing yet.
 
 ## Next
 
@@ -34,4 +33,6 @@ Nothing yet.
 
 ## Shipped
 
-Nothing yet.
+- **The first release, v0.1.0.** Sessions and one-time tokens in Redis,
+  expired by Redis itself; the adapter passes the conformance suite for both
+  stores on Redis 7.4.
