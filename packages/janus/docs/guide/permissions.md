@@ -403,7 +403,7 @@ of a set keeps the mark; `JSON` and `structuredClone` drop it, so a set read
 back from either is bob again — call `setOf` on it, or keep its notation
 (`staff:…#managers`), which `parseSubject` reads back as the set. It copies
 `type` and `id` only, so none of bob's fields reaches a tuple. A set on a user type
-the model does not also declare under `types` is refused by `can()`,
+the model does not also declare under `types` is refused by `can()`, `list()`,
 `grant()` and `revoke()` — and by the compiler first: there is no relation to
 hold.
 
