@@ -47,7 +47,7 @@ either finds this row.
 | **anonymous** | A request that presents no session credential, or one that authenticates nobody: `authenticate` answers `null` | "unauthenticated", "guest", "logged out" |
 | **bearer client** | A client that sends its session token as `Authorization: Bearer` rather than in a cookie | |
 | **one-time token** | A single-use token sent by e-mail, for verification or a password reset | "code" alone — `code` is an error's code |
-| **one-time code** | Planned, see the roadmap: a one-time token short enough to type, sent by e-mail — or, for TOTP, computed by an authenticator app and never sent | "OTP", "PIN", "code" alone |
+| **one-time code** | Planned, see [the roadmap](../roadmap.md#next): a one-time token short enough to type, sent by e-mail — or, for TOTP, computed by an authenticator app and never sent | "OTP", "PIN", "code" alone |
 | **token** | Never alone in prose: a *session token* or a *one-time token*. The `tokens` store and the `TOKEN_*` codes are one-time tokens only | |
 | **e-mail flow** | `verifyEmail` or `resetPassword`: send a one-time token, then confirm it | |
 
