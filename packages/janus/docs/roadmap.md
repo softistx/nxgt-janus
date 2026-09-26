@@ -19,7 +19,23 @@ dates here, and the version something shipped in is the only number.
 
 ## Next
 
-Nothing yet.
+- **One-time codes** — a short code sent by e-mail to sign in without a
+  password, or to confirm a sensitive action, issued and redeemed by `janus`
+  like the verification and reset tokens today; and TOTP, the codes of an
+  authenticator app, as a second factor.
+- **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`: a
+  `Mailer` port you plug your transport into (SMTP, Resend, SES…), and default
+  templates for verification, password reset and one-time codes. The templates
+  are built with Maizzle and Tailwind CSS 4 when the package is built — CSS
+  inlined for mail clients — and ship as typed functions:
+  `templates.verifyEmail({ name, link })` answers `{ subject, html, text }`,
+  every value escaped, a missing or misspelled variable a compile error. No
+  template engine at run time; your own templates stay possible.
+- **Webhooks** — signed HTTP events when something happens to a user
+  (created, e-mail verified, password reset, deleted), so another service can
+  follow without polling: a signature it can check, retries on failure, and
+  the same rule as the audit trail — never a password, a token or a code in a
+  payload.
 
 ## Later
 
