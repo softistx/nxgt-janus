@@ -2,9 +2,9 @@
 
 [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) wired in one call:
 users and permissions in PostgreSQL through
-[`@nxgt/janus-drizzle`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/README.md) or in MongoDB through
+[`@nxgt/janus-drizzle`](https://www.npmjs.com/package/@nxgt/janus-drizzle) or in MongoDB through
 [`@nxgt/janus-mongo`](https://www.npmjs.com/package/@nxgt/janus-mongo), sessions and one-time tokens in
-Redis through [`@nxgt/janus-redis`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-redis/README.md), telemetry, a health check
+Redis through [`@nxgt/janus-redis`](https://www.npmjs.com/package/@nxgt/janus-redis), telemetry, a health check
 and a close.
 
 ```ts
@@ -62,6 +62,7 @@ bun add @nxgt/janus-kit @nxgt/janus @nxgt/redis zod
 bun add @nxgt/janus-drizzle @nxgt/drizzle drizzle-orm   # for @nxgt/janus-kit/drizzle
 bun add @nxgt/janus-mongo @nxgt/mongo mongodb           # for @nxgt/janus-kit/mongo
 bun add @nxgt/janus-telemetry @nxgt/telemetry           # only for telemetry: true
+bun add -d @types/bun                                   # the kit's types name Bun's RedisOptions
 ```
 
 Required peers, whichever subpath:

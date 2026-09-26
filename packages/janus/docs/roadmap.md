@@ -82,9 +82,10 @@ Nothing yet.
 
 ## Shipped
 
-The first public release, v0.1.
+Each entry names the version it came in.
 
-- **The adapters and the kit, each at its first release, v0.1.0** —
+- **The adapters and the kit, each at its first release, v0.1.0, beside
+  `@nxgt/janus` 0.2.2** —
   [`@nxgt/janus-drizzle`](https://www.npmjs.com/package/@nxgt/janus-drizzle),
   both sides over one PostgreSQL database on Drizzle;
   [`@nxgt/janus-redis`](https://www.npmjs.com/package/@nxgt/janus-redis),

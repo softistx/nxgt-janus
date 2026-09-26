@@ -18,7 +18,11 @@ real Redis 7.4, outages included.
 
 ```sh
 bun add @nxgt/janus-redis @nxgt/janus @nxgt/redis
+bun add @nxgt/janus-drizzle @nxgt/drizzle drizzle-orm   # the users store in the example below — or @nxgt/janus-mongo
 ```
+
+Users live in another adapter: this one holds sessions and one-time tokens
+only.
 
 Every peer is required:
 - `@nxgt/janus`;
