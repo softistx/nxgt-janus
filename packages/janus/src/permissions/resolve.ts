@@ -71,11 +71,44 @@ const FIELD = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/**
+ * Where a message points: at the key the author wrote. A type written in the
+ * reference form reaches `resolveModel` spelled out, and its mistakes are
+ * still named where they were made — `rules.doc.view`, not
+ * `types.doc.permissions.view`, which the author never wrote.
+ */
+interface Paths {
+	/** `types.doc.relations`, or `types.doc.related`. */
+	readonly relations: (type: string) => string;
+	/** `types.doc.permissions`, or `types.doc.permits`: where the names are declared. */
+	readonly names: (type: string) => string;
+	/** `types.doc.permissions`, or `rules.doc`: where the rules are written. */
+	readonly rules: (type: string) => string;
+}
+
+function pathsOf(referenceForm: ReadonlySet<string>): Paths {
+	return {
+		relations: (type) =>
+			`types.${type}.${referenceForm.has(type) ? 'related' : 'relations'}`,
+		names: (type) =>
+			`types.${type}.${referenceForm.has(type) ? 'permits' : 'permissions'}`,
+		rules: (type) =>
+			referenceForm.has(type) ? `rules.${type}` : `types.${type}.permissions`,
+	};
+}
+
+/**
+ * Checks a configuration in the string form and resolves it. `referenceForm`
+ * names the types `normalizeRules` spelled out, so that a refusal names the
+ * key their author wrote.
+ */
 export function resolveModel(
 	config: ModelConfig,
 	where: string,
+	referenceForm: ReadonlySet<string> = new Set(),
 ): ResolvedModel {
 	const refuse = (message: string) => new TypeError(`${where}: ${message}`);
+	const paths = pathsOf(referenceForm);
 
 	if (!isRecord(config)) throw refuse('pass { subjects, types }');
 	if (!Array.isArray(config.subjects)) {
@@ -118,11 +151,16 @@ export function resolveModel(
 		if (!isRecord(def)) throw refuse(`${at} must be an object`);
 		for (const key of Object.keys(def)) {
 			if (key !== 'relations' && key !== 'permissions') {
-				throw refuse(`${at}.${key} is not a key of an object type`);
+				throw refuse(
+					`${at}.${key} is not a key of an object type: relations or permissions — related or permits`,
+				);
 			}
 		}
-		relationNames.set(name, namesIn(def.relations, `${at}.relations`, refuse));
-		const permissions = namesIn(def.permissions, `${at}.permissions`, refuse);
+		relationNames.set(
+			name,
+			namesIn(def.relations, paths.relations(name), refuse),
+		);
+		const permissions = namesIn(def.permissions, paths.names(name), refuse);
 		for (const permission of permissions) {
 			if (relationNames.get(name)?.has(permission)) {
 				throw refuse(
@@ -143,11 +181,10 @@ export function resolveModel(
 
 	const types = new Map<string, ResolvedObjectType>();
 	for (const [name, def] of Object.entries(config.types)) {
-		const at = `types.${name}`;
 		const relations = new Map<string, ResolvedRelation>();
 
 		for (const [relation, holders] of Object.entries(def.relations ?? {})) {
-			const here = `${at}.relations.${relation}`;
+			const here = `${paths.relations(name)}.${relation}`;
 			relations.set(
 				relation,
 				resolveRelation(holders, here, {
@@ -160,7 +197,7 @@ export function resolveModel(
 
 		const permissions = new Map<string, readonly ResolvedRule[]>();
 		for (const [permission, rules] of Object.entries(def.permissions ?? {})) {
-			const here = `${at}.permissions.${permission}`;
+			const here = `${paths.rules(name)}.${permission}`;
 			if (!Array.isArray(rules) || rules.length === 0) {
 				throw refuse(`${here} must be a non-empty array of rules`);
 			}
@@ -182,8 +219,8 @@ export function resolveModel(
 		types.set(name, { name, relations, permissions });
 	}
 
-	refuseLoops(types, refuse);
-	refuseDataBeyondRoot(types, refuse);
+	refuseLoops(types, paths, refuse);
+	refuseDataBeyondRoot(types, paths, refuse);
 
 	return { subjects, types };
 }
@@ -342,6 +379,7 @@ function resolveRule(
  */
 function refuseLoops(
 	types: ReadonlyMap<string, ResolvedObjectType>,
+	paths: Paths,
 	refuse: (message: string) => TypeError,
 ): void {
 	for (const type of types.values()) {
@@ -353,7 +391,7 @@ function refuseLoops(
 			const loop = visiting.indexOf(permission);
 			if (loop >= 0) {
 				throw refuse(
-					`types.${type.name}.permissions: ${[...visiting.slice(loop), permission].join(' → ')} is a loop no relation ends`,
+					`${paths.rules(type.name)}: ${[...visiting.slice(loop), permission].join(' → ')} is a loop no relation ends`,
 				);
 			}
 			visiting.push(permission);
@@ -379,6 +417,7 @@ function refuseLoops(
  */
 function refuseDataBeyondRoot(
 	types: ReadonlyMap<string, ResolvedObjectType>,
+	paths: Paths,
 	refuse: (message: string) => TypeError,
 ): void {
 	/** The field `name` of `type` reads, directly or through its own rules; `null` when none. */
@@ -408,7 +447,7 @@ function refuseDataBeyondRoot(
 					target === undefined ? null : fieldRead(target, holder.relation);
 				if (field !== null) {
 					throw refuse(
-						`types.${type.name}.relations.${relation}: "${holder.type}#${holder.relation}" reads ${holder.type}.${field}, and a subject set reaches ${holder.type}s nobody passed to can() — store that relation instead of reading it`,
+						`${paths.relations(type.name)}.${relation}: "${holder.type}#${holder.relation}" reads ${holder.type}.${field}, and a subject set reaches ${holder.type}s nobody passed to can() — store that relation instead of reading it`,
 					);
 				}
 			}
@@ -427,7 +466,7 @@ function refuseDataBeyondRoot(
 						target === undefined ? null : fieldRead(target, rule.target);
 					if (field !== null) {
 						throw refuse(
-							`types.${type.name}.permissions.${permission}: "${rule.relation}->${rule.target}" reaches ${name}.${rule.target}, which reads ${name}.${field}, and only the object passed to can() carries its data — store that relation instead of reading it`,
+							`${paths.rules(type.name)}.${permission}: "${rule.relation}->${rule.target}" reaches ${name}.${rule.target}, which reads ${name}.${field}, and only the object passed to can() carries its data — store that relation instead of reading it`,
 						);
 					}
 				}

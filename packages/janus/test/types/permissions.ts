@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Thirty-eight plausible mistakes, thirty-eight refused**, each verified to fail for
+ * **Thirty-nine plausible mistakes, thirty-nine refused**, each verified to fail for
  * the reason its comment names — a refusal that fails for another reason
  * proves nothing. Add a case whenever the model gains something it should
  * refuse; never delete one to make a change pass.
@@ -405,3 +405,18 @@ const misspelled = {
 defineModel(misspelled);
 
 export const checked = { clinic, allowed };
+
+defineModel({
+	subjects,
+	types: {
+		team: {
+			relations: { member: ['staff'] },
+			permissions: { view: ['member'] },
+		},
+		document: {
+			relations: { team: ['team', 'team#member'] },
+			// @ts-expect-error 39. an arrow through a relation that can hold a subject set: defineModel refuses it, so the compiler does first
+			permissions: { view: ['team->view'] },
+		},
+	},
+});

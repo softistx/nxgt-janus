@@ -22,7 +22,17 @@
  */
 
 import type { CursorPage } from '../pagination/cursor-page';
+import { hasRules, nameOfRef, normalizeRules } from './normalize';
 import { type ResolvedModel, resolveModel } from './resolve';
+import type {
+	NameOfRef,
+	Normalized,
+	PermitTypesOf,
+	Ref,
+	ReferenceTypesOf,
+	RulesOf,
+	RulesOnly,
+} from './rules';
 
 // ─── The two building blocks ──────────────────────────────────────────────
 
@@ -86,7 +96,8 @@ export function fromField(
 
 /**
  * A rule that grants only when `test(ctx)` is true: `when('doctor', (ctx:
- * { onShift: boolean }) => ctx.onShift)`.
+ * { onShift: boolean }) => ctx.onShift)` — or, in a rule function,
+ * `when(related.doctors, (ctx: { onShift: boolean }) => ctx.onShift)`.
  *
  * `rule` is any rule of the same object type — a relation, a permission, an
  * arrow. The test is synchronous and pure: it decides on what the caller
@@ -101,8 +112,20 @@ export interface When<Rule extends string = string, Ctx = never> {
 export function when<const Rule extends string, Ctx>(
 	rule: Rule,
 	test: (ctx: Ctx) => boolean,
-): When<Rule, Ctx> {
-	return Object.freeze({ kind: 'when', rule, test });
+): When<Rule, Ctx>;
+export function when<const R extends Ref, Ctx>(
+	ref: R,
+	test: (ctx: Ctx) => boolean,
+): When<NameOfRef<R>, Ctx>;
+export function when(
+	rule: string | Ref,
+	test: (ctx: never) => boolean,
+): When<string, never> {
+	return Object.freeze({
+		kind: 'when',
+		rule: typeof rule === 'string' ? rule : nameOfRef(rule),
+		test,
+	});
 }
 
 // ─── The shape of a model ─────────────────────────────────────────────────
@@ -126,6 +149,10 @@ export interface ObjectTypeDef {
 	readonly relations?: { readonly [name: string]: RelationDef };
 	/** Each permission is the union of its rules. */
 	readonly permissions?: { readonly [name: string]: readonly RuleDef[] };
+	/** `relations`, in the reference form: the same holders, under OPL's name. */
+	readonly related?: { readonly [name: string]: RelationDef };
+	/** The names of the permissions, in the reference form; their rules are in `rules`. */
+	readonly permits?: readonly string[];
 }
 
 export interface ModelConfig {
@@ -135,6 +162,15 @@ export interface ModelConfig {
 	 */
 	readonly subjects: readonly string[];
 	readonly types: { readonly [name: string]: ObjectTypeDef };
+	/**
+	 * The reference form's rules: for each type that declares `permits`, one
+	 * function per permit, given typed references. See `./rules`.
+	 */
+	readonly rules?: {
+		readonly [type: string]: {
+			readonly [permit: string]: (param: never) => readonly unknown[];
+		};
+	};
 }
 
 // ─── Reading a model's types ──────────────────────────────────────────────
@@ -147,16 +183,22 @@ export type ObjectTypeOf<C extends ModelConfig> = keyof TypesOf<C> & string;
 /** The user types a model accepts as subjects. */
 export type UserTypeOf<C extends ModelConfig> = C['subjects'][number];
 
-type RelationsOf<Ts, T> = T extends keyof Ts
+// Each reads both spellings: `relations` or `related`, `permissions` or
+// `permits`. A subject set or an arrow may name a type written either way.
+export type RelationsOf<Ts, T> = T extends keyof Ts
 	? Ts[T] extends { readonly relations: infer R }
 		? keyof R & string
-		: never
+		: Ts[T] extends { readonly related: infer R }
+			? keyof R & string
+			: never
 	: never;
 
-type PermissionsOf<Ts, T> = T extends keyof Ts
+export type PermissionsOf<Ts, T> = T extends keyof Ts
 	? Ts[T] extends { readonly permissions: infer P }
 		? keyof P & string
-		: never
+		: Ts[T] extends { readonly permits: readonly (infer P extends string)[] }
+			? P
+			: never
 	: never;
 
 type NamesOf<Ts, T> = RelationsOf<Ts, T> | PermissionsOf<Ts, T>;
@@ -166,7 +208,11 @@ type RelationDefOf<Ts, T, R> = T extends keyof Ts
 		? R extends keyof Rs
 			? Rs[R]
 			: never
-		: never
+		: Ts[T] extends { readonly related: infer Rs }
+			? R extends keyof Rs
+				? Rs[R]
+				: never
+			: never
 	: never;
 
 /** The relations of `T` that are stored as tuples: every one but its `fromField`s. */
@@ -190,14 +236,18 @@ type SubjectRefOf<S extends string, Ts> =
 	| (keyof Ts & string)
 	| SubjectSetOf<Ts>;
 
-/** The object types an arrow through `R` reaches: its direct subject types. */
-type ArrowTargets<Ts, T, R> =
+/**
+ * The object types an arrow through `R` reaches: its direct subject types —
+ * and none when `R` can hold a subject set, which `defineModel` refuses: an
+ * arrow follows object types only.
+ */
+export type ArrowTargets<Ts, T, R> =
 	RelationDefOf<Ts, T, R> extends FromField<string, infer Sub>
 		? Sub
 		: RelationDefOf<Ts, T, R> extends readonly (infer E)[]
-			? E extends `${string}#${string}`
-				? never
-				: E
+			? [Extract<E, `${string}#${string}`>] extends [never]
+				? E
+				: never
 			: never;
 
 /** The names every one of `Targets` declares. */
@@ -224,7 +274,7 @@ type ArrowsOf<Ts, T> = {
 }[RelationsOf<Ts, T>];
 
 /** Every string a rule of `T` may be. */
-type RuleRefOf<Ts, T> = NamesOf<Ts, T> | ArrowsOf<Ts, T>;
+export type RuleRefOf<Ts, T> = NamesOf<Ts, T> | ArrowsOf<Ts, T>;
 
 /** What `can()` accepts for an object type: its relations and its permissions. */
 export type CheckableOf<
@@ -541,7 +591,7 @@ type Refusal<Text extends string, Expected> = {
  * `"patient" | "staff" | "team#member"` — rather than as the alias that
  * computed it, so an error lists what the name could have been.
  */
-type Spelled<U> = [U] extends [infer V extends string]
+export type Spelled<U> = [U] extends [infer V extends string]
 	? { [K in V]: K }[V]
 	: never;
 
@@ -571,6 +621,12 @@ export type ModelTypesOf<S extends string, Ts> = {
 				| readonly Spelled<SubjectRefOf<S, Ts>>[]
 				| FromField<string, Spelled<S | (keyof Ts & string)>>;
 		};
+		readonly related?: {
+			readonly [name: string]:
+				| readonly Spelled<SubjectRefOf<S, Ts>>[]
+				| FromField<string, Spelled<S | (keyof Ts & string)>>;
+		};
+		readonly permits?: PermitsCheck<Ts, T>;
 		readonly permissions?: {
 			readonly [P in PermissionsOf<Ts, T>]: P extends RelationsOf<Ts, T>
 				? Refusal<
@@ -585,12 +641,56 @@ export type ModelTypesOf<S extends string, Ts> = {
 	} & {
 		// `permission:` beside `relations` would be dropped by the constraint
 		// above and refused only when defineModel runs.
-		readonly [K in Exclude<keyof Ts[T], 'relations' | 'permissions'>]: Refusal<
-			`${T & string}.${K & string} is not a key of an object type: relations or permissions`,
-			never
-		>;
+		readonly [K in Exclude<keyof Ts[T], KeysOfForm<Ts[T]>>]: K extends
+			| 'relations'
+			| 'permissions'
+			| 'related'
+			| 'permits'
+			? Refusal<
+					`${T & string} mixes the two forms: related and permits, or relations and permissions — not one of each`,
+					never
+				>
+			: Refusal<
+					`${T & string}.${K & string} is not a key of an object type: relations or permissions — related or permits`,
+					never
+				>;
 	};
 };
+
+/**
+ * The keys an object type may have, given the ones it has: one form or the
+ * other, never a key of each. Every key while it has none, so an editor
+ * offers all four in an empty type.
+ */
+type KeysOfForm<D> = [keyof D & ('related' | 'permits')] extends [never]
+	? [keyof D & ('relations' | 'permissions')] extends [never]
+		? 'relations' | 'permissions' | 'related' | 'permits'
+		: 'relations' | 'permissions'
+	: 'related' | 'permits';
+
+/** The names a tuple holds more than once. */
+type Repeated<P> = P extends readonly [infer H, ...infer Rest]
+	? (H extends Rest[number] ? H : never) | Repeated<Rest>
+	: never;
+
+/**
+ * `permits`, checked name by name: a name that is also a relation of the
+ * type, or that the list holds twice, is unassignable on that name.
+ */
+type PermitsCheck<Ts, T extends keyof Ts> = Ts[T] extends {
+	readonly permits: infer P extends readonly string[];
+}
+	? {
+			readonly [I in keyof P]: P[I] extends RelationsOf<Ts, T>
+				? Refusal<
+						`"${P[I]}" names a relation and a permission of ${T & string}; rename one`,
+						never
+					>
+				: P[I] extends Repeated<P>
+					? Refusal<`${T & string}.permits names "${P[I]}" twice`, never>
+					: P[I];
+		}
+	: readonly string[];
 
 // ─── Defining one ─────────────────────────────────────────────────────────
 
@@ -600,7 +700,11 @@ export interface PermissionModel<C extends ModelConfig = ModelConfig> {
 	readonly subjects: readonly UserTypeOf<C>[];
 	/** The object types it declares. */
 	readonly types: readonly ObjectTypeOf<C>[];
-	/** The definition, as written. Frozen. */
+	/**
+	 * The definition, in the string form: a model written with references
+	 * holds its rules spelled out — `permissions: { view: ['owners'] }` — as
+	 * its type says. Its top level is frozen.
+	 */
 	readonly definition: C;
 }
 
@@ -639,18 +743,47 @@ const RESOLVED = new WeakMap<object, ResolvedModel>();
 export function defineModel<
 	const Subjects extends readonly string[],
 	const Ts extends ModelConfig['types'] & ModelTypesOf<Subjects[number], Ts>,
->(config: {
-	readonly subjects: Subjects;
-	readonly types: Ts;
-}): PermissionModel<{ readonly subjects: Subjects; readonly types: Ts }>;
+	const Rs extends RulesOf<Ts> & RulesOnly<Ts, Rs>,
+>(
+	config: {
+		readonly subjects: Subjects;
+		readonly types: Ts;
+		/** The reference form's rules: one function per permit each type declares. */
+		readonly rules?: Rs;
+	} & ([PermitTypesOf<Ts>] extends [never]
+		? unknown
+		: {
+				/** Required once a type declares `permits`: each needs its rule. */
+				readonly rules: Rs;
+			}),
+): PermissionModel<
+	// A model written with strings alone keeps its types exactly as before the
+	// reference form; one that uses it anywhere is read in the string form.
+	[ReferenceTypesOf<Ts>] extends [never]
+		? { readonly subjects: Subjects; readonly types: Ts }
+		: Normalized<{
+				readonly subjects: Subjects;
+				readonly types: Ts;
+				readonly rules: Rs;
+			}> &
+				ModelConfig
+>;
 export function defineModel<const C extends ModelConfig>(
 	config: C,
 ): PermissionModel<C> {
-	const resolved = resolveModel(config, 'defineModel');
+	// The reference form is spelled out first; the rest reads one form.
+	const source = hasRules(config)
+		? normalizeRules(config, 'defineModel')
+		: { config, referenceForm: new Set<string>() };
+	const resolved = resolveModel(
+		source.config,
+		'defineModel',
+		source.referenceForm,
+	);
 	const model: PermissionModel<C> = Object.freeze({
 		subjects: [...resolved.subjects] as UserTypeOf<C>[],
 		types: [...resolved.types.keys()] as ObjectTypeOf<C>[],
-		definition: config,
+		definition: Object.freeze({ ...source.config }) as C,
 	});
 	RESOLVED.set(model, resolved);
 	return model;

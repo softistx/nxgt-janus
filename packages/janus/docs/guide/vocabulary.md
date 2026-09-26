@@ -63,7 +63,9 @@ either finds this row.
 | **relation** | A named link, stored as tuples or read from a field (`fromField`) | |
 | **holder** | What a relation admits: `'staff'`, or the subject set `'team#member'` | |
 | **permission** | A name computed from relations and other permissions by its rules | |
-| **rule** | One entry of a permission: a relation, another permission, an arrow, or one of them under a condition | |
+| **rule** | One entry of a permission: a relation, another permission, an arrow, or one of them under a condition — a string, or a **reference** | |
+| **reference** | What a rule function is given and answers: `related.owners`, `permits.manage`, `related.parents.permits.view` — a typed object `defineModel` spells out into the string rule | "selector", "path" |
+| **related**, **permits**, **rules** | The keys of the reference form: `related` holds the relations, `permits` the permission names, on the type; `rules` the rule functions, beside the types. `relations` and `permissions` are the string form's, and stay | |
 | **arrow** | A rule that follows a relation to another object's permission: `'team->view'` | |
 | **condition** | A predicate on a rule, written with `when`, run on the `ctx` passed to `can()` and `list()` | |
 | **tuple** | One stored fact — object, relation, subject: `document:d1#viewer@user:u1` | "grant", "ACL entry" |

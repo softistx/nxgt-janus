@@ -73,8 +73,11 @@ function serviceOver(text: string): ts.LanguageService {
 	return service;
 }
 
-/** The string completions offered at each `§` of `source`, in order. */
-function completionsIn(source: string): string[][] {
+/** The completions of `kind` offered at each `§` of `source`, in order. */
+function completionsIn(
+	source: string,
+	kind: ts.ScriptElementKind = ts.ScriptElementKind.string,
+): string[][] {
 	const cursors: number[] = [];
 	let text = '';
 	for (const part of source.split('§')) {
@@ -86,7 +89,7 @@ function completionsIn(source: string): string[][] {
 
 	return cursors.map((cursor) =>
 		(service.getCompletionsAtPosition(FILE, cursor, {})?.entries ?? [])
-			.filter((entry) => entry.kind === ts.ScriptElementKind.string)
+			.filter((entry) => entry.kind === kind)
 			.map((entry) => entry.name)
 			.filter((name) => name !== ''),
 	);
@@ -130,6 +133,58 @@ describe('an editor completes a model', () => {
 	it('never offers a permission its own name: a loop no relation ends', () => {
 		expect(at(2)).not.toContain('view');
 		expect(at(3)).not.toContain('edit');
+	});
+});
+
+const RULES = `
+import { defineModel, fromField, when } from './index';
+
+const subjects = ['patient', 'staff'] as readonly ('patient' | 'staff')[];
+
+defineModel({
+	subjects,
+	types: {
+		team: {
+			related: { members: ['staff', 'team#members'], leads: ['staff'] },
+			permits: ['manage', 'view'],
+		},
+		record: {
+			related: { doctors: fromField('doctorId', 'staff'), teams: ['team'] },
+			permits: ['view', 'edit'],
+		},
+	},
+	rules: {
+		team: {
+			manage: ({ related }) => [related.§],
+			view: ({ related, permits }) => [related.members, permits.§],
+		},
+		record: {
+			view: ({ related }) => [related.teams.permits.§, related.teams.related.§],
+			edit: ({ related }) => [when(related.§, (ctx: { onShift: boolean }) => ctx.onShift)],
+		},
+	},
+});
+`;
+
+describe('an editor completes a rule function', () => {
+	let asked: string[][] | undefined;
+	const at = (cursor: number) => {
+		asked ??= completionsIn(RULES, ts.ScriptElementKind.memberVariableElement);
+		return asked[cursor];
+	};
+
+	it("offers related. the type's relations, in when() too", () => {
+		expect(at(0)?.sort()).toEqual(['leads', 'members']);
+		expect(at(4)?.sort()).toEqual(['doctors', 'teams']);
+	});
+
+	it('offers permits. the other permits, never its own name', () => {
+		expect(at(1)).toEqual(['manage']);
+	});
+
+	it("offers an arrow the target's permits and relations", () => {
+		expect(at(2)?.sort()).toEqual(['manage', 'view']);
+		expect(at(3)?.sort()).toEqual(['leads', 'members']);
 	});
 });
 
