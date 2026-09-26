@@ -174,7 +174,7 @@ not count it. The conformance suite accepts both.
 ### `TokenStore.countAttempt`
 
 Counts one attempt at a code against a token, and answers the token **as it
-is after the call** — what bounds guessing a six-digit code:
+is after the call** — what bounds the attempts at a six-digit code:
 
 | The stored token | Written | Answered |
 | --- | --- | --- |
@@ -184,7 +184,7 @@ is after the call** — what bounds guessing a six-digit code:
 
 Like `consumeToken`, it is **one conditional write**, never a read followed by
 a write: twenty concurrent calls answer the counts 1 to 20, each once. A count
-two guesses both read is a guess for free. Whether the count is past the
+two attempts both read is an attempt for free. Whether the count is past the
 limit, and whether the code matches, is the core's decision after the call;
 spending the token stays `consumeToken`'s.
 

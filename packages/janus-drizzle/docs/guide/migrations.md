@@ -176,7 +176,8 @@ ALTER TABLE "tokens" ADD CONSTRAINT "tokens_attempts" CHECK ("attempts" >= 0);
 ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode'));
 ```
 
-That is what drizzle-kit writes from the 0.1 tables to the 0.2 ones; with a
+Those are the statements drizzle-kit writes from the 0.1 tables to the 0.2
+ones, in its own order and separated by `--> statement-breakpoint`; with a
 PostgreSQL schema of its own, every name is qualified.
 
 ## Collecting lapsed sessions

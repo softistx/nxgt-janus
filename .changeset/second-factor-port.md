@@ -7,7 +7,7 @@
 
 The store port gains what one-time codes need. No flow uses it yet: the second factor and e-mail sign-in codes come next.
 
-- `UserRecord.secondFactor` is a TOTP secret the core seals, with its confirmation and the last step accepted, or `null`. `UserPatch` names it like `password`.
+- `UserRecord.secondFactor` is a TOTP secret, which the core will seal once the second factor ships, with its confirmation and the last step accepted, or `null`. `UserPatch` names it like `password`.
 - `TokenRecord` gains `codeHash` and `attempts`, and `TokenKind` gains `'secondFactor'` and `'signInCode'`.
 - `TokenStore.countAttempt(tokenHash, kind)` is a new required method. It is one conditional write that counts an attempt at a code and answers the token after it. A spent token is answered as it is, and an unknown one is `null`.
 
