@@ -227,7 +227,10 @@ A user passed as it is, is that user, even with a field named `relation`:
 **`setOf` is the one way to write a set on a user type** the model also
 declares as an object type — `grant(note, 'readers', setOf(bob, 'managers'))`.
 On an object type, `{ type, id, relation }` written out is a set too.
-`parseSubject` and `parseTuple` answer a set as `setOf` makes it.
+`parseSubject` and `parseTuple` answer a set as `setOf` makes it — frozen, and
+marked — so compare a parsed set with `setOf(…)` or through `formatSubject`,
+not with a plain `{ type, id, relation }`.
+
 In Ory, the equality between a Kratos identity id and Keto's `subject_id` is a
 comment and a convention, restated in three repositories and enforced nowhere.
 Here it is a type and a one-line function — and that shared vocabulary is the
@@ -550,7 +553,8 @@ example; `allRelationCases`, `relationStoreCases`, `relationOutageCases` and
 **On a user type, only `setOf` makes a set.** A user passed as it is — or
 `{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
 even with a field named `relation`. The compiler refuses the written-out set
-where the relation admits one; from JavaScript it grants that user, silently.
+where the relation admits one. From JavaScript it grants that user, silently,
+where the relation also admits the user — and is refused where it does not.
 `grant(note, 'readers', setOf(bob, 'managers'))`. A spread of a set is still
 the set; **through `JSON` or `structuredClone` it comes back as the user** —
 call `setOf` again, or `parseSubject` on its notation (`staff:u1#managers`).

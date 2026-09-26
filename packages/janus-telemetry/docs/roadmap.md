@@ -30,6 +30,9 @@ Nothing yet.
 
 ## Shipped
 
+- **The audit trail reads subjects as `permissions()` does, v0.1.1** — a user
+  with a field named `relation` is recorded as that user, and a subject set on
+  a user type only when `setOf()` made it. Needs `@nxgt/janus` 0.3.0.
 - **The first release, v0.1.0** — `instrumentJanus` and
   `instrumentPermissions`: a span per flow and per permission check, and the
   security events worth an audit trail.

@@ -31,7 +31,7 @@ bun add @nxgt/janus-telemetry @nxgt/janus @nxgt/telemetry
 bun add -d typescript
 ```
 
-Every peer is required: `@nxgt/janus`, `@nxgt/telemetry` (0.2.1 or later) and
+Every peer is required: `@nxgt/janus` (0.3.0 or later), `@nxgt/telemetry` (0.2.1 or later) and
 `typescript` (6). `@nxgt/janus` and `@nxgt/telemetry` are **peers**: one copy of `@nxgt/janus`, so
 `instanceof JanusError` holds, and one of `@nxgt/telemetry`, so there is one
 current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
@@ -42,7 +42,7 @@ current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 | --- | --- |
 | `instrumentJanus(auth)` | The same `janus()` instance, frozen, with every flow traced under its call path — `auth.signIn` as `janus.signIn`, `auth.patient.signIn` as `janus.patient.signIn` — and the security events written as logs. `cookie` stays synchronous and untraced |
 | `instrumentPermissions(access)` | The same `permissions()` instance, frozen, with `can`, `list`, `grant` and `revoke` traced, and one audit event per tuple written |
-| `JanusLike`, `PermissionsLike` | What each accepts: `instrumentJanus(access)` and `instrumentPermissions(auth)` do not compile |
+| `JanusLike`, `PermissionsLike` | What each accepts: `instrumentJanus(access)` and `instrumentPermissions(auth)` do not compile. `PermissionsLike.model.subjects`, which `permissions()` answers, tells a user from a subject set; an instance without it has every `{ type, id, relation }` recorded as a set |
 
 ## What is written
 

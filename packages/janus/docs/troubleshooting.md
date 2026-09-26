@@ -571,7 +571,7 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | Message | Fix |
 | --- | --- |
 | `can: "<name>" is not a relation or a permission of <type>` | Ask a name the type declares. |
-| `<call>: "<type>" is not an object type of the model` | Use a type declared under `types`. |
+| `<call>: "<type>" is not an object type of the model` | Use a type declared under `types`. Also for a subject set — `setOf` included — whose type is neither a user type nor an object type. |
 | `<call>: the object must be { type, id, …its fields }` | `{ type: 'record', ...record }`. |
 | `<call>: the subject must be a user, or { type, id }` | Pass the user from `janus()`, or `{ type, id }`. `null` is anonymous and answers `false`. |
 | `<call>: the object id must be a non-empty string without @, # or parentheses` | Also for `the subject id`. Those characters belong to the tuple notation. |

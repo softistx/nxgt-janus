@@ -115,10 +115,12 @@ a tuple.
 | --- | --- |
 | `subjectOf(user)` | `{ type, id }` of any object carrying both |
 | `isSubjectSet(subject)` | whether `relation` is a string |
+| `setOf(entity, relation)` | the subject set `{ type, id, relation }`, marked: on a user type, the only way to write one |
+| `isSetOf(value)` | whether `setOf` made it, or a spread of it |
 | `formatEntity(entity)` | `'record:r1'` |
 | `formatSubject(subject)` | `'staff:u1'`, or `'team:t1#members'` |
 | `formatTuple(tuple)` | `'team:t1#members@team:t2#members'` |
-| `parseSubject(text)` | the `Subject` back |
+| `parseSubject(text)` | the `Subject` back — a set as `setOf` makes it |
 | `parseTuple(text)` | the `RelationTuple` back |
 
 ```ts
