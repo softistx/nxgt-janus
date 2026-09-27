@@ -1,14 +1,12 @@
+import { until as untilWithin, watchWarnings } from '../../test/deliveries';
 import { mintWebhookSecret } from '../signature';
 
 // What the worker.*.spec.ts files share. They hold the worker's edges: what
 // a slow report, a queue that fails half-way, or a queue that answers
-// nonsense does to a delivery. The helpers a queue does not change are the
-// deliver and durable specs' own.
+// nonsense does to a delivery. What the deliver and durable specs share
+// with them is test/deliveries.ts'.
 
-import { until as untilWithin, watchWarnings } from '../deliver.fixtures';
-
-export { givingUps } from '../deliver.fixtures';
-export { eventOf, held, pause } from '../durable.fixtures';
+export { eventOf, givingUps, held, pause } from '../../test/deliveries';
 
 const secret = mintWebhookSecret();
 const url = 'https://hooks.example.test/janus';
