@@ -299,8 +299,9 @@ Written on the port's types, and checked by the suites:
 3. **Uniqueness is a constraint** — a unique index, never a read followed by a
    write.
 4. **Bytes round-trip.** No normalising, trimming or retyping. The core
-   normalises logins before a store sees them, and never hands a store
-   `\u0000` or a lone surrogate; every other character comes back as written.
+   normalises logins before a store sees them, and never hands a store —
+   identity or relation — `\u0000` or a lone surrogate; every other
+   character comes back as written.
 5. **Every method is atomic on its own.** The core opens no transaction; an
    adapter may open one inside a method. And **a read sees every write that
    completed before it** — never a secondary or a read replica: a sign-in
@@ -348,7 +349,7 @@ compile error naming the missing method.
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
 | `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 49: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — thirteen of them | `{ stores, faults?, close? }` |
-| `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 15: the relation store, and one outage per method | `{ store, faults?, close? }` |
+| `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 16: the relation store, ids of edge characters, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
 stores: a case that leaks into the next is the hardest failure to debug.

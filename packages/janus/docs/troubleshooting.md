@@ -1063,6 +1063,7 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: the object must be { type, id, …its fields }` | `{ type: 'record', ...record }`. |
 | `<call>: the subject must be a user, or { type, id }` | Pass the user from `janus()`, or `{ type, id }`. `null` is anonymous and answers `false`. |
 | `<call>: the object id must be a non-empty string without @, # or parentheses` | Also for `the subject id`. Those characters belong to the tuple notation. |
+| `grant: the object id holds a NUL character or a lone surrogate, which no store can keep` | Also with `revoke:`, and for `the subject id`. PostgreSQL refuses `\u0000` and half a surrogate pair, so janus refuses them on every adapter: clean the id where it was read. `can()` answers `false` and `list()` an empty page for such an id instead — no tuple can name it. |
 | `<call>: "<relation>" is not a relation of <type>, so <type>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'members' }`. |
 | `<call>: <type> is a user type the model does not declare as an object type, so <type>#<relation> is no subject set` | `setOf(user, relation)` names a relation on that user: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
 | `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. |

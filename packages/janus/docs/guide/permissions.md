@@ -456,6 +456,13 @@ await access.can(null, 'view', { type: 'record', ...record });                  
 nothing. A cycle in the data — a team member of itself — is cut, and is not an
 error.
 
+**An id no store can keep is held by nobody.** An id holding a NUL character
+(`\u0000`) or a lone surrogate cannot be written to PostgreSQL, so no tuple can
+name it: `can()` answers `false` for such an object or subject before any
+store call, a `fromField` whose value holds one names nobody, and `list()`
+leaves out an id a `lookup` answers holding one. Every other character is an
+id like any other.
+
 ### `list`
 
 ```ts
@@ -490,7 +497,9 @@ request first ([troubleshooting](../troubleshooting.md#call-limit-must-be-an-int
 `ctx` is required as for `can` — `list(grace, 'edit', 'record', { ctx })`.
 Your editor completes `permission` with what `list()` can answer only: a name
 reaching a `fromField` with no `lookup` is neither offered nor accepted.
-`null` answers an empty page before any store call.
+`null` answers an empty page before any store call, and so does a subject
+whose id no store can keep; an id a `lookup` answers that no store can keep is
+left out of the page.
 
 `list()` walks backwards from the subject, reading every page of the reverse
 index for every id each step reaches. That is fine for what one user can see,
@@ -515,6 +524,9 @@ await access.grant({ type: 'record', id: 'r1' }, 'teams', team);                
 await access.revoke(team, 'members', grace);
 ```
 
+An object or subject id holding a NUL character or a lone surrogate is a
+`TypeError` — no store can keep it, so nothing could hold it
+([troubleshooting](../troubleshooting.md#other-can-list-grant-and-revoke-messages)).
 Both are idempotent: granting what is held, or revoking what is not, is not an
 error. Each writes one tuple.
 
