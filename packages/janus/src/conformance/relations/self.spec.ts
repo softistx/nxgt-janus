@@ -4,9 +4,9 @@ import { createMemoryRelations } from '../../permissions/port/memory';
 import {
 	allRelationCases,
 	describeRelationStores,
-	referenceRelationHarness,
 	runRelationCase,
-} from './index';
+} from './describe';
+import { referenceRelationHarness } from './reference';
 
 // The suite proved against the reference store, outages included, before any
 // adapter runs it.
