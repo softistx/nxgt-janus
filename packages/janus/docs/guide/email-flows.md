@@ -29,6 +29,38 @@ const verified = await auth.verifyEmail.confirm(sent.token);
 verified.emailVerified; // true
 ```
 
+## Ready-made e-mails — `@nxgt/janus-mail`
+
+`sendMail` above is yours to write, or
+[`@nxgt/janus-mail`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/README.md)
+writes it: it takes what `send` and `request` answer, as they answer it, and
+sends the verification and reset e-mails — and the *password changed* and
+*e-mail changed* notices — in English and French, over any `@nxgt/mail`
+transport. In progress, and private until its first release.
+
+```ts
+import { janusMail } from '@nxgt/janus-mail';
+
+const mail = janusMail({
+	mailer, // an @nxgt/mail transport
+	from: 'noreply@app.example',
+	brand: 'App',
+	links: {
+		verifyEmail: (token) => `https://app.example/verify?token=${token}`,
+		resetPassword: (token) => `https://app.example/reset?token=${token}`,
+		secureAccount: () => 'https://app.example/account/security',
+	},
+});
+
+await mail.verifyEmail(await auth.verifyEmail.send(user), { name: user.name });
+
+const issued = await auth.resetPassword.request(email);
+if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name });
+```
+
+Each e-mail goes to `issued.email`, and a send that fails rejects with the
+transport's `MailFailure`: never report it as sent.
+
 ## Which types have these flows
 
 `verifyEmail` exists on a type with an e-mail field: the one `email` names, or

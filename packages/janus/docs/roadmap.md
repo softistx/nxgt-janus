@@ -5,7 +5,21 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **Sending the e-mails — in progress, private** — in a package of its own,
+  `@nxgt/janus-mail`, built on the `@nxgt/mail` toolkit shared with
+  applications that are not about sign-in: its `Mailer` port takes your
+  transport (SMTP, Resend…), and a transport that fails throws, like a store.
+  `janusMail({ mailer, from, brand, links })` takes what each flow answers —
+  `await mail.verifyEmail(await auth.verifyEmail.send(user), { name, locale })`
+  — and sends five e-mails, in English and French: e-mail verification,
+  password reset, sign-in code, and the notices *password changed* and
+  *e-mail changed*. They are built once, when the package is built, with
+  Maizzle and Tailwind CSS — CSS inlined for mail clients, the text in ICU
+  catalogues — and only filled at send time, every value escaped, your brand
+  included: no template engine in your server. Any one of them can be your
+  own function — React Email, a string — and a language beyond the two takes
+  all five. Built and tested in this repository, not yet published; see its
+  [README](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/README.md).
 
 ## Next
 
@@ -19,23 +33,6 @@ Nothing between releases.
 - **Recovery codes** — single-use codes for the TOTP second factor, so a
   user who loses their authenticator app can still sign in, without an
   operator resetting the account.
-- **Sending the e-mails** — in a package of its own, `@nxgt/janus-mail`, built
-  on a general mail toolkit shared with applications that are not about
-  sign-in: a `Mailer` port you plug your transport into (SMTP, Resend, SES…) —
-  a transport that fails throws, like a store — and default templates for
-  verification, password reset and one-time codes, in English and French. One
-  template per e-mail, never one HTML file per language: the layout is built
-  once with Maizzle and Tailwind CSS 4 — CSS inlined for mail clients — and
-  its text lives in ICU message catalogues, one per language, plurals and
-  dates included. Both are compiled when the package is built into typed
-  functions: `templates.verifyEmail({ locale: 'fr', link })` answers
-  `{ subject, html, text }`, every value escaped, a missing variable or an
-  unknown locale a compile error, a message that fails to format a throw —
-  never an e-mail sent with `{link}` in it. No template engine at run time.
-  The defaults are a starting point, not a requirement: add a language with a
-  catalogue, or replace any one template with your own function of the same
-  shape — built with the same toolkit, React Email or a plain string — and
-  keep the defaults for the rest.
 
 ## Later
 
