@@ -13,10 +13,14 @@ How the messages are shaped:
   and never from a request. It is thrown when `webhooks()`, the listener it
   answers, or `verifyWebhook()` is called, so fix the configuration or the
   event passed in; no handler should answer one.
-- **A delivery that fails is never thrown.** The listener returns at once and
-  the flow of `@nxgt/janus` answers as usual; a delivery given up — out of
-  retries, or cut short by `close()` — goes to your `onGivingUp`, or is a
-  `JANUS_WEBHOOK_GAVE_UP` process warning without one.
+- **A delivery that fails is never thrown.** The listener waits for the
+  insert into the queue only, and the flow of `@nxgt/janus` answers as usual;
+  a delivery given up — out of retries, cut short by `close()`, or left to an
+  endpoint no longer configured — goes to your `onGivingUp`, or is a
+  `JANUS_WEBHOOK_GAVE_UP` process warning without one. With a `queue`, an
+  insert that fails rejects the listener, and `janus` turns that into a
+  `JANUS_EVENT_FAILED` warning; a queue failing after that is a
+  `JANUS_WEBHOOK_QUEUE_FAILED` warning.
 - **`verifyWebhook` answers `null`** for any request it cannot vouch for, and
   never says why: a forger learns nothing from the answer.
 
@@ -34,6 +38,13 @@ How the messages are shaped:
 - [`webhooks: retries: a duration in milliseconds must be a finite number above zero`](#webhooks-retries-a-duration-in-milliseconds-must-be-a-finite-number-above-zero)
 - [`webhooks: retries is a list of durations`](#webhooks-retries-is-a-list-of-durations)
 - [`webhooks: retries wait at most 24 days each`](#webhooks-retries-wait-at-most-24-days-each)
+- [`webhooks: an endpoint's id is 1 to 64 letters, digits, '.', '_' or '-'`](#webhooks-an-endpoints-id-is-1-to-64-letters-digits--_-or--)
+- [`webhooks: two endpoints have one id — give each an id of its own; with a queue, two with the same url need one`](#webhooks-two-endpoints-have-one-id--give-each-an-id-of-its-own-with-a-queue-two-with-the-same-url-need-one)
+- [`webhooks: queue is not a WebhookQueue — it has no <method>`](#webhooks-queue-is-not-a-webhookqueue--it-has-no-method)
+- [`webhooks: concurrency is a whole number of requests, 1 or more`](#webhooks-concurrency-is-a-whole-number-of-requests-1-or-more)
+- [`webhooks: poll and orphanGrace take effect with a queue only — pass one, or leave them out`](#webhooks-poll-and-orphangrace-take-effect-with-a-queue-only--pass-one-or-leave-them-out)
+- [`webhooks: lease must be longer than timeout — a request outliving its lease is sent twice`](#webhooks-lease-must-be-longer-than-timeout--a-request-outliving-its-lease-is-sent-twice)
+- [`webhooks: <lease or poll> waits at most 24 days`](#webhooks-lease-or-poll-waits-at-most-24-days)
 - [`webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.deleted, a userId and a userType`](#webhooks-the-listener-takes-a-user-event--an-id-one-of-usercreated-useremailverified-userpasswordreset-userdeleted-a-userid-and-a-usertype)
 - [`webhooks: an event's occurredAt is a valid Date`](#webhooks-an-events-occurredat-is-a-valid-date)
 - [`verifyWebhook: pass the endpoint's secrets — at least one`](#verifywebhook-pass-the-endpoints-secrets--at-least-one)
@@ -43,17 +54,23 @@ How the messages are shaped:
 **Types**
 - [`TS2322: Type 'string | undefined' is not assignable to type 'string'.`](#ts2322-type-string--undefined-is-not-assignable-to-type-string)
 - [`TS2322: Type 'string[]' is not assignable to type 'readonly [string, ...string[]]'.`](#ts2322-type-string-is-not-assignable-to-type-readonly-string-string)
+- [`TS2322: Type '"endpointRemoved"' is not assignable to type 'never'.`](#ts2322-type-endpointremoved-is-not-assignable-to-type-never)
+- [`TS18047: 'delivery.url' is possibly 'null'.`](#ts18047-deliveryurl-is-possibly-null)
 
 **Delivering**
 - [`[JANUS_WEBHOOK_GAVE_UP] Warning: webhooks: gave up <type> <event id> to <origin> after <n> attempts (<why>, <status or error>)`](#janus_webhook_gave_up-warning-webhooks-gave-up-type-event-id-to-origin-after-n-attempts-why-status-or-error)
 - [`[JANUS_WEBHOOK_REPORT_FAILED] Warning: webhooks: onGivingUp failed on <type> <event id>: <name>`](#janus_webhook_report_failed-warning-webhooks-ongivingup-failed-on-type-event-id-name)
+- [`[JANUS_WEBHOOK_QUEUE_FAILED] Warning: webhooks: the queue failed on <method>: <name> — deliveries wait in it until it answers again`](#janus_webhook_queue_failed-warning-webhooks-the-queue-failed-on-method-name--deliveries-wait-in-it-until-it-answers-again)
+- [`[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: StoreFailure`](#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-storefailure)
 - [A redirect is counted as a failure](#a-redirect-is-counted-as-a-failure)
 - [Events are lost when the process exits](#events-are-lost-when-the-process-exits)
+- [Deliveries wait for an endpoint no longer configured](#deliveries-wait-for-an-endpoint-no-longer-configured)
 - [An endpoint receives nothing, and nothing is given up](#an-endpoint-receives-nothing-and-nothing-is-given-up)
 
 **Receiving**
 - [`verifyWebhook` answers `null`](#verifywebhook-answers-null)
 - [A webhook is received twice](#a-webhook-is-received-twice)
+- [A webhook is received twice after a restart](#a-webhook-is-received-twice-after-a-restart)
 
 ---
 
@@ -220,12 +237,114 @@ webhooks({ endpoints, retries: ['5s'] }); // two attempts
 about 24.8 days — `'30d'`, `'720h'`.
 **Why:** `setTimeout` cannot wait longer: past it, the timer fires at once, and
 a retry meant for a month later would be sent immediately.
-**Fix:** a shorter delay. A delivery that must survive for weeks belongs in a
-durable queue, not in memory — see [the roadmap](roadmap.md#next):
+**Fix:** a shorter delay. The cap holds with a `queue` too: the process that
+fails an attempt sets a timer for its retry. More attempts, spaced out, reach
+as far:
 
 ```ts
-webhooks({ endpoints, retries: ['1h', '1d', '7d'] });
+webhooks({ endpoints, retries: ['1h', '1d', '7d', '14d', '21d'] });
 ```
+
+### `webhooks: an endpoint's id is 1 to 64 letters, digits, '.', '_' or '-'`
+
+**When:** calling `webhooks({ … })` with an endpoint whose `id` is not a
+string, is empty, is longer than 64 characters, or holds any other
+character — a URL, a space, a slash.
+**Why:** the id is what a queue stores, and what a `JANUS_WEBHOOK_GAVE_UP`
+warning names for an endpoint no longer configured. Keeping it to a plain
+name keeps a URL — and the token its query may hold — out of both.
+**Fix:** a short name that says which endpoint it is:
+
+```ts
+webhooks({ endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus', secrets: [secret] }], queue });
+```
+
+### `webhooks: two endpoints have one id — give each an id of its own; with a queue, two with the same url need one`
+
+**When:** calling `webhooks({ … })` with two endpoints whose `id`s are the
+same — or, with a `queue`, two with the same URL and no `id`, since each then
+takes the hash of its URL.
+**Why:** a queue holds one delivery per event and endpoint id: two endpoints
+under one id would share one delivery, and one of them would never receive
+the event.
+**Fix:** give each its own `id`. Two entries for one URL — a receiver taking
+two sets of types with different secrets — need one each:
+
+```ts
+webhooks({
+	endpoints: [
+		{ id: 'crm-users', url, secrets: [crmSecret], types: ['user.created'] },
+		{ id: 'crm-deletions', url, secrets: [otherSecret], types: ['user.deleted'] },
+	],
+	queue,
+});
+```
+
+Without a `queue`, two endpoints with the same URL and no `id` stay legal,
+as in 0.1.0: each is named by its position.
+
+### `webhooks: queue is not a WebhookQueue — it has no <method>`
+
+**When:** calling `webhooks({ queue })` from JavaScript, or through a cast,
+with an object missing one of the six methods — `insertDeliveries`,
+`claimDeliveries`, `claimOrphanedDeliveries`, `extendLease`,
+`scheduleRetry`, `deleteDelivery`. TypeScript refuses it at compile time.
+**Why:** a queue without, say, `scheduleRetry` would lose every delivery at
+its first failure; it is refused before any event is taken.
+**Fix:** pass the adapter's queue as it is, not a spread or a wrapper that
+drops methods — and run [the conformance suite](guide/queues.md#testing-an-adapter)
+against your own:
+
+```ts
+webhooks({ endpoints, queue: createMyWebhookQueue(db) });
+```
+
+### `webhooks: concurrency is a whole number of requests, 1 or more`
+
+**When:** calling `webhooks({ concurrency })` with a string — often read from
+the environment — `0`, a negative number or a fraction.
+**Why:** it is how many requests one process sends at once.
+**Fix:** parse it, and leave it out for the default of 64:
+
+```ts
+webhooks({ endpoints, concurrency: Number(process.env.WEBHOOK_CONCURRENCY ?? 64) });
+```
+
+### `webhooks: poll and orphanGrace take effect with a queue only — pass one, or leave them out`
+
+**When:** calling `webhooks({ poll })` or `webhooks({ orphanGrace })` without
+a `queue`.
+**Why:** both are about deliveries other processes left in a shared queue.
+Without one, deliveries wait in this process's memory, where no other
+process leaves any: the options would do nothing, silently.
+**Fix:** pass the `queue` they are for, or remove them:
+
+```ts
+webhooks({ endpoints, queue, poll: '5s', orphanGrace: '48h' });
+```
+
+### `webhooks: lease must be longer than timeout — a request outliving its lease is sent twice`
+
+**When:** calling `webhooks({ lease, timeout })` with a `lease` no longer
+than `timeout` — often `timeout` raised without `lease`.
+**Why:** a claimed delivery is hidden for `lease`. A request that could run
+longer would be claimed and sent again by another process while it is still
+running.
+**Fix:** leave `lease` out — it defaults to `timeout` plus 30 seconds — or
+keep that margin:
+
+```ts
+webhooks({ endpoints, queue, timeout: '30s', lease: '1m' });
+```
+
+### `webhooks: <lease or poll> waits at most 24 days`
+
+**When:** calling `webhooks({ … })` with a `lease` or a `poll` longer than
+2³¹ − 1 ms, about 24.8 days — or a `timeout` so long that the default lease,
+`timeout` plus 30 seconds, is.
+**Why:** both are waited on by `setTimeout`, which fires at once past that.
+**Fix:** a shorter one: a poll is seconds, a lease a little more than a
+request can take.
 
 ### `webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.deleted, a userId and a userType`
 
@@ -335,6 +454,45 @@ if (first === undefined) throw new Error('WEBHOOK_SECRETS is empty');
 webhooks({ endpoints: [{ url, secrets: [first, ...rest] }] });
 ```
 
+### `TS2322: Type '"endpointRemoved"' is not assignable to type 'never'.`
+
+**When:** `tsc`, after upgrading to 0.2, on a `switch` over `reason.why` that
+handles `'retriesRanOut'` and `'closed'` and checks the rest is `never`.
+**Why:** 0.2 added a third reason: a delivery waiting, with a `queue`, for
+an endpoint no process is configured with any more.
+**Fix:** handle it — the event is in `delivery.event`, and there is no URL:
+
+```ts
+switch (reason.why) {
+	case 'retriesRanOut':
+	case 'closed':
+		return deadLetters.insert({ event: delivery.event, endpoint: delivery.endpoint, ...reason });
+	case 'endpointRemoved':
+		return logger.warn({ eventId: delivery.event.id, endpoint: delivery.endpoint }, 'endpoint removed');
+	default: {
+		const exhausted: never = reason.why;
+		return exhausted;
+	}
+}
+```
+
+### `TS18047: 'delivery.url' is possibly 'null'.`
+
+Or `TS2345: Argument of type 'string | null' is not assignable to parameter
+of type 'string | URL'.`, on `new URL(delivery.url)`.
+
+**When:** `tsc`, after upgrading to 0.2, on code in `onGivingUp` that reads
+`delivery.url` as a string.
+**Why:** a queue holds the endpoint's id, never its URL. A delivery given up
+as `endpointRemoved` belongs to an endpoint no longer configured, so its URL
+is unknown: `null`.
+**Fix:** name the endpoint by `delivery.endpoint`, always present, and read
+the URL only when there is one:
+
+```ts
+const origin = delivery.url === null ? null : new URL(delivery.url).origin;
+```
+
 ## Delivering
 
 ### `[JANUS_WEBHOOK_GAVE_UP] Warning: webhooks: gave up <type> <event id> to <origin> after <n> attempts (<why>, <status or error>)`
@@ -353,8 +511,9 @@ parentheses hold:
 | `(retriesRanOut, 503)` | every attempt failed; the last one was answered with that status — any status outside `2xx`, a redirect included |
 | `(retriesRanOut, TimeoutError)` | the last request took longer than `timeout` (`'10s'` by default) |
 | `(retriesRanOut, TypeError)` | the last request got no answer: DNS, a refused connection, TLS |
-| `(closed, 503)`, `(closed, TimeoutError)` | `close()` was called while the delivery waited for a retry, or while an attempt was in flight that then failed with a retry left: the last attempt's status or failure |
-| `after 0 attempts (closed, no answer)` | the event arrived after `close()`: nothing was sent |
+| `(closed, 503)`, `(closed, TimeoutError)` | without a `queue`: `close()` was called while the delivery waited for a retry, or while an attempt was in flight that then failed with a retry left: the last attempt's status or failure |
+| `after 0 attempts (closed, no answer)` | without a `queue`: the event arrived after `close()`: nothing was sent |
+| `to endpoint <id> … (endpointRemoved, …)` | with a `queue`: the delivery waited longer than `orphanGrace` for an endpoint id no process is configured with — see [Deliveries wait for an endpoint no longer configured](#deliveries-wait-for-an-endpoint-no-longer-configured). It names the id, the only thing the queue knows of the endpoint |
 
 With the default schedule, a delivery is retried for more than a day
 (`5s`, `5m`, `30m`, `2h`, `5h`, `10h`, `10h`, eight attempts), so this warning
@@ -368,7 +527,7 @@ again once the endpoint is back — `delivery.event` is the whole event:
 const listener = webhooks({
   endpoints,
   onGivingUp: async (delivery, reason) => {
-    await deadLetters.insert({ event: delivery.event, url: delivery.url, ...reason });
+    await deadLetters.insert({ event: delivery.event, endpoint: delivery.endpoint, ...reason });
   },
 });
 ```
@@ -396,7 +555,7 @@ and fall back to a log line that holds the event:
 ```ts
 onGivingUp: async (delivery, reason) => {
   try {
-    await deadLetters.insert({ event: delivery.event, url: delivery.url, ...reason });
+    await deadLetters.insert({ event: delivery.event, endpoint: delivery.endpoint, ...reason });
   } catch {
     logger.error({ event: delivery.event, reason }, 'webhook given up, and not stored');
   }
@@ -407,6 +566,48 @@ The warning holds the event's type and `id`, not the user's id: to find what
 was lost, reconcile the receiver's copy against the users themselves, as in
 `@nxgt/janus`'s
 [An event you expected never arrived](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#an-event-you-expected-never-arrived).
+
+### `[JANUS_WEBHOOK_QUEUE_FAILED] Warning: webhooks: the queue failed on <method>: <name> — deliveries wait in it until it answers again`
+
+**When:** with a `queue`, a call to it threw — `claimDeliveries` on a poll,
+`scheduleRetry` or `deleteDelivery` after a request, `extendLease` while
+`onGivingUp` ran. `<name>` is the failure's name, `StoreFailure` from a
+well-behaved adapter; never its message, which may hold a connection string.
+**Why:** the queue is down or unreachable. The warning is written **once
+per outage**: the next call that succeeds ends it, and the next failure
+warns again. Meanwhile the pump backs off, doubling from `poll` up to 30
+seconds. Nothing is lost: deliveries wait in the queue, and a request whose
+retry or delete could not be written is sent again once its lease lapses —
+a receiver may see it twice.
+**Fix:** bring the queue back; nothing needs restarting. Watch for the
+warning where you watch the process's health:
+
+```ts
+process.on('warning', (warning) => {
+  if ((warning as { code?: string }).code === 'JANUS_WEBHOOK_QUEUE_FAILED') alert(warning.message);
+});
+```
+
+### `[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: StoreFailure`
+
+`@nxgt/janus`'s warning, not this package's: its
+[entry](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md)
+has the general case.
+
+**When:** with a `queue`, a flow wrote a user and the listener could not
+insert the event's deliveries: the queue was down. The flow still answered
+as usual.
+**Why:** every delivery goes through the queue, and the insert is the one
+step with nowhere else to go: no request was sent, and nothing will send it.
+It is the one place an event can be lost, and it is reported with the
+event's type and id and the user's id.
+**Fix:** once the queue is back, send the event again with the same id, so a
+receiver that somehow had it ignores it. The warning holds what it takes to
+rebuild it; `occurredAt` is the user's `createdAt` or `updatedAt`:
+
+```ts
+await listener({ id: eventId, type: 'user.created', occurredAt: user.createdAt, userId: user.id, userType: user.type });
+```
 
 ### A redirect is counted as a failure
 
@@ -430,34 +631,57 @@ Following redirects is [not planned](roadmap.md#not-planned).
 
 ### Events are lost when the process exits
 
-**When:** after a deploy, a restart or a crash, an endpoint that was down for
-a moment never receives some events — and no `JANUS_WEBHOOK_GAVE_UP` warning
-or `onGivingUp` call says so.
-**Why:** retries wait **in memory**, on timers that do not hold the process
-open. A process that exits without calling `close()` drops them with no trace.
-`close()` waits for the requests in flight and gives up each retry still
-waiting as `closed`, so it reaches `onGivingUp`. A crash (`SIGKILL`, out of
-memory) runs nothing at all.
-**Fix:** stop taking requests first, so no new event comes, then `close()`:
+**When:** without a `queue`, after a deploy, a restart or a crash, an
+endpoint that was down for a moment never receives some events — and no
+`JANUS_WEBHOOK_GAVE_UP` warning or `onGivingUp` call says so.
+**Why:** without a `queue`, deliveries wait **in this process's memory**, on
+timers that do not hold the process open. A process that exits without
+calling `close()` drops them with no trace. `close()` waits for the requests
+in flight and gives up each retry still waiting as `closed`, so it reaches
+`onGivingUp`. A crash (`SIGKILL`, out of memory) runs nothing at all.
+**Fix:** pass a `queue` every process shares, and what one process leaves
+waiting — a retry, a request a crash cut short — the next one sends. See
+[queues](guide/queues.md):
 
 ```ts
-const listener = webhooks({ endpoints, onGivingUp });
+const listener = webhooks({ endpoints, queue, onGivingUp });
 const auth = janus({ ...options, events: listener });
 
 process.on('SIGTERM', async () => {
-  server.stop();
-  await listener.close();
+  server.stop(); // no new event
+  await listener.close(); // the requests in flight; nothing is given up
   process.exit(0);
 });
 ```
 
-On a platform that freezes the process as soon as a response is sent, the
-first request itself may not leave: the listener starts it and returns at
-once. There, pass `janus({ events })` a listener of your own that stores the
-event durably, and deliver from a worker. A durable queue for retries is on
-the [roadmap](roadmap.md#next); until then, reconcile against the users
-themselves as shown in `@nxgt/janus`'s
-[An event you expected never arrived](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#an-event-you-expected-never-arrived).
+Without a queue, stop taking requests first, then `close()`, so what waits
+is at least reported. On a platform that freezes the process as soon as a
+response is sent, a queue keeps the event even when the first request never
+leaves: the listener awaits the insert before the flow answers, and another
+process — or the next invocation — sends it.
+
+### Deliveries wait for an endpoint no longer configured
+
+**When:** with a `queue`, after an endpoint was removed from `endpoints`, or
+its URL changed while it had no `id`, deliveries are given up a day later
+as `endpointRemoved` — `delivery.url` is `null`, and the warning reads
+`to endpoint <id>`.
+**Why:** a queue holds each delivery by the endpoint's **id**. Without an
+`id`, that is a hash of the URL: a new URL is a new id, and what waited for
+the old one belongs to no endpoint. Each process gives such a delivery up
+once it has been due for `orphanGrace` (`'24h'`) — long enough that a
+rolling deploy, some processes on the old configuration and some on the new,
+never gives up the other version's deliveries.
+**Fix:** give each endpoint an `id`, so its URL can change and its
+deliveries follow:
+
+```ts
+webhooks({ endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/v2', secrets: [secret] }], queue });
+```
+
+For the deliveries already given up, `onGivingUp` has each event: send it
+again to the endpoint as it is now configured. A removed endpoint's
+deliveries are meant to go: shorten `orphanGrace` to see them go sooner.
 
 ### An endpoint receives nothing, and nothing is given up
 
@@ -468,8 +692,12 @@ themselves as shown in `@nxgt/janus`'s
   none, and the endpoint receives nothing at all;
 - `janus()` was given another listener than the one `webhooks()` answered, or
   none — each `janus()` instance takes its own `events`;
-- the process exited while a retry waited — see
+- the process exited while a retry waited, without a `queue` — see
   [Events are lost when the process exits](#events-are-lost-when-the-process-exits);
+- with a `queue`, the queue is down — see
+  [`JANUS_WEBHOOK_QUEUE_FAILED`](#janus_webhook_queue_failed-warning-webhooks-the-queue-failed-on-method-name--deliveries-wait-in-it-until-it-answers-again) —
+  or the endpoint's id changed, so what waits is not its any more — see
+  [Deliveries wait for an endpoint no longer configured](#deliveries-wait-for-an-endpoint-no-longer-configured);
 - the flow wrote nothing, so no event was sent — see `@nxgt/janus`'s
   [An event you expected never arrived](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#an-event-you-expected-never-arrived).
 
@@ -564,3 +792,21 @@ return c.body(null, 204);
 Answer fast and do slow work after, so a request is not retried for being
 slow. Keep the ids longer than the retry schedule — two days covers the
 default one.
+
+### A webhook is received twice after a restart
+
+**When:** with a `queue`, a receiver gets the same `webhook-id` twice around a
+deploy, a crash or a queue outage — sometimes seconds apart, after a request
+it had already answered `2xx`.
+**Why:** delivery is at least once, across processes too. A delivery is
+claimed under a lease; a process that dies mid-request — or answers `2xx` but
+cannot delete the delivery because the queue is down — leaves it in the
+queue, and once the lease lapses (`timeout` plus 30 seconds) another process
+sends it again. A lease that lapses while a request still runs, because the
+processes' clocks disagree by more than the margin, does the same. The same
+holds for reports: `onGivingUp` may be called twice for one delivery when a
+process dies between reporting and removing it.
+**Fix:** nothing on the sender: deduplicate on the receiver, by `webhook-id`,
+exactly as for a retry — see [A webhook is received twice](#a-webhook-is-received-twice).
+Keep the processes' clocks on NTP, and key a dead-letter table on
+`delivery.event.id` and `delivery.endpoint` so a second report is a no-op.

@@ -4,9 +4,9 @@
 delivered as signed webhooks by the
 [Standard Webhooks](https://www.standardwebhooks.com) specification: each
 user event is posted to your endpoints, signed with HMAC-SHA256, retried on
-failure, and every delivery given up is reported, never dropped without a
-word. The receiving side checks the signature with `verifyWebhook`, or with
-any Standard Webhooks library.
+failure — through a queue that can outlive the process — and every delivery
+given up is reported, never dropped without a word. The receiving side checks
+the signature with `verifyWebhook`, or with any Standard Webhooks library.
 
 ```ts
 import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
@@ -69,14 +69,41 @@ const listener = webhooks({
 	retries: ['5s', '5m', '30m', '2h', '5h', '10h', '10h'], // the default: at once, then these
 	timeout: '10s', // the default, per request
 	onGivingUp: async (delivery, reason) => {
-		// reason.why: 'retriesRanOut' | 'closed'; delivery.attempts: how many requests were sent
-		await deadLetters.insert({ eventId: delivery.event.id, url: delivery.url, ...reason });
+		// reason.why: 'retriesRanOut' | 'closed' | 'endpointRemoved'; delivery.attempts: how many requests were sent
+		await deadLetters.insert({ eventId: delivery.event.id, endpoint: delivery.endpoint, ...reason });
 	},
 });
 ```
 
 The [sending guide](docs/guide/sending.md) has every option, the retry
 schedule, when a delivery is given up and why, the wire format, and a test.
+
+### Surviving a restart — `queue`
+
+Without a `queue`, deliveries wait in the process's memory: a crash loses the
+retries still waiting. Pass a `WebhookQueue` that every process shares, and a
+retry failed by one process is sent by the next:
+
+```ts
+import { webhooks, type WebhookQueue } from '@nxgt/janus-webhooks';
+
+const queue: WebhookQueue = createYourQueue(); // an adapter of the port: a Redis one is on the way
+
+const listener = webhooks({
+	endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus', secrets: [crmSecret] }],
+	queue, // the listener now awaits the insert — one call to the queue, never an endpoint
+});
+
+process.on('SIGTERM', async () => {
+	await listener.close(); // gives nothing up: what waits is sent by the next process
+	process.exit(0);
+});
+```
+
+`createMemoryWebhookQueue()` is the port's reference, and
+`@nxgt/janus-webhooks/conformance` the suite an adapter runs. The
+[queues guide](docs/guide/queues.md) has the contract, leases, endpoint ids,
+and how to write and test an adapter.
 
 ### Receiving — `verifyWebhook()`
 
@@ -116,29 +143,48 @@ mintWebhookSecret(); // 'whsec_…': 32 random bytes, base64 — give the same o
 
 | Export | What it is |
 | --- | --- |
-| `webhooks(options)` | The listener for `janus({ events })`, and `close()`. Options: `endpoints` (each `{ url, secrets, types? }`), `retries`, `timeout`, `onGivingUp`, `fetch`. Wiring mistakes are a `TypeError` when it is called, and so is an event rebuilt by hand that is not one, when the listener is |
+| `webhooks(options)` | The listener for `janus({ events })`, and `close()`. Options: `endpoints` (each `{ url, secrets, types?, id? }`), `retries`, `timeout`, `onGivingUp`, `fetch`, `queue`, `concurrency`, `lease`, `poll`, `orphanGrace`. With a `queue` the listener answers the insert, a `Promise`; without one, nothing. Wiring mistakes are a `TypeError` when it is called, and so is an event rebuilt by hand that is not one, when the listener is |
 | `verifyWebhook(options)` | `{ secrets, headers, body, toleranceSeconds?, now? }` → `UserEvent \| null`. Headers as a fetch `Headers` or a Node header record. No secret, a malformed one, a `toleranceSeconds` that is not a finite number of seconds, or a `now` that is not a valid `Date` is a `TypeError` |
 | `mintWebhookSecret()` | A new `whsec_` secret for an endpoint |
+| `createMemoryWebhookQueue()` | The reference `WebhookQueue`, in memory: what `webhooks()` uses without a `queue`, and one to share between two `webhooks()` in a test |
+| `WebhookQueue`, `QueuedDelivery` | The port a durable queue implements, and one delivery as it holds it: the event and the endpoint's id, never the URL or a secret |
 | `WebhooksOptions`, `WebhookEndpoint`, `Webhooks` | What `webhooks()` takes and answers |
-| `Delivery`, `GivingUp`, `Failure` | What `onGivingUp` receives: `{ event, url, attempts }`, and `{ why, status, error }` — a `GivingUp` is a `Failure`, what the last attempt got, with the reason |
+| `Delivery`, `GivingUp`, `Failure` | What `onGivingUp` receives: `{ event, url, endpoint, attempts }` — `url` is `null` for `endpointRemoved` — and `{ why, status, error }`: a `GivingUp` is a `Failure`, what the last attempt got, with the reason |
 | `VerifyOptions`, `HeadersLike`, `WebhookBody` | What `verifyWebhook` takes, and the JSON body on the wire |
+| `@nxgt/janus-webhooks/conformance` | The suite a queue adapter runs: `describeWebhookQueues({ name, harness, runner })`, `runWebhookQueueCase`, the cases as data (`webhookQueueCases`, `webhookQueueOutageCases`, `allWebhookQueueCases`), `referenceWebhookQueueHarness()`, and their types. It imports no test framework |
 
 ## Traps
 
-**Retries wait in memory.** A crash, or an exit without `close()`, loses
-every retry still waiting, and nothing sends it later: on top of
-`@nxgt/janus`'s own *at most once, from the process that wrote*, an endpoint
-may miss an event. A durable queue is on the [roadmap](docs/roadmap.md);
-until then, build what must not miss one to also read the users now and then.
+**Retries wait in memory, unless you pass a `queue`.** Without one, a crash,
+or an exit without `close()`, loses every retry still waiting, and nothing
+sends it later. With a `queue` every process shares, what one process leaves
+waiting — a retry, a request cut short by a crash — the next one sends.
 
-**Call `close()` on shutdown.** It waits for the requests in flight and gives
-up the deliveries waiting for a retry, each reported as `closed` — without it they
-vanish without a word. `process.on('SIGTERM', () => listener.close())`.
+**At least once, even across restarts.** A delivery is claimed under a
+lease, and a process that dies mid-request loses nothing: once the lease
+lapses, another process sends it again — so a receiver may see one twice,
+and a crash costs one attempt of the schedule. Receivers deduplicate on
+`webhook-id`, as they already must for a retry.
 
-**The listener never makes a flow wait.** It starts the first request at once
-and returns, so `signUp` answers before any endpoint does: `janus` awaiting
-its listener buys no durability here. A retry's timer does not hold the
-process open either — end a script with `await listener.close()`.
+**Call `close()` on shutdown.** Without a `queue`, it waits for the requests
+in flight and gives up the deliveries waiting for a retry, each reported as
+`closed` — without it they vanish without a word. With one, it waits for the
+requests in flight and gives nothing up. `process.on('SIGTERM', () =>
+listener.close())`.
+
+**The listener waits for the insert only.** Every delivery goes through a
+queue; the listener awaits the insert — a `Map` in memory, one call with a
+`queue` — then returns, and the first request starts at once, so `signUp`
+never waits for an endpoint. With a `queue`, an insert that fails rejects,
+and `janus` reports it as `JANUS_EVENT_FAILED` with the event's id. A retry's
+timer does not hold the process open — end a script with `await
+listener.close()`.
+
+**An endpoint's id is what a queue knows it by.** Without an `id`, it is a
+hash of the URL: changing the URL of an endpoint with deliveries waiting
+leaves them to no endpoint, and after `orphanGrace` (24 hours) they are given
+up as `endpointRemoved`, with `delivery.url` `null`. Give each endpoint an
+`id` when you first pass a `queue`: adding one later changes the id too.
 
 **A redirect is a failure, and only a `2xx` is a success.** Redirects are not
 followed: point `url` at the final address, `https://` — `http://` only to
@@ -160,23 +206,26 @@ from the sender, and last from the receiver.
 **The warnings name the URL's origin, never the URL.** `JANUS_WEBHOOK_GAVE_UP`
 writes `https://crm.example.com` because a path or query may hold a token of
 the receiver's; `onGivingUp` receives the full `delivery.url`, so do not log
-it as it stands.
+it as it stands. A queue never holds the URL at all — only the endpoint's
+id.
 
 The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Six plausible mistakes, six refused at compile time.**
+**Ten plausible mistakes, ten refused at compile time.**
 `test/types/webhooks.ts` holds one `@ts-expect-error` per mistake, beside the
-wiring that must keep compiling (`janus({ events: webhooks(…) })`): an
-endpoint with no secret, a secret read from the environment and not checked
-(`string | undefined`), a type `janus` never sends, a retry that is not a
-`Duration`, a receiver with no secret, and reading a verified event before
-checking it for `null`.
+wiring that must keep compiling (`janus({ events: webhooks(…) })`, with and
+without a `queue`): an endpoint with no secret, a secret read from the
+environment and not checked (`string | undefined`), a type `janus` never
+sends, a retry that is not a `Duration`, a receiver with no secret, reading a
+verified event before checking it for `null`, a queue missing a method, a
+`concurrency` written as a string, an endpoint `id` written as a number, and
+a `switch` over `reason.why` that forgets `endpointRemoved`.
 
 ## Documentation
 
-- [Guides](docs/README.md) — sending and receiving, every option with an example
+- [Guides](docs/README.md) — sending, receiving and queues, every option with an example
 - [Troubleshooting](docs/troubleshooting.md) — by the warning or error you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 

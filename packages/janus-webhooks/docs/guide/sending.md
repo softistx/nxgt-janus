@@ -38,7 +38,7 @@ used here — endpoint, delivery, attempt, retry, give up — are defined in
 ## Options
 
 ```ts
-webhooks({ endpoints, retries?, timeout?, onGivingUp?, fetch? });
+webhooks({ endpoints, retries?, timeout?, onGivingUp?, fetch?, queue?, concurrency?, lease?, poll?, orphanGrace? });
 ```
 
 | Option | Type | Default | Effect |
@@ -48,6 +48,11 @@ webhooks({ endpoints, retries?, timeout?, onGivingUp?, fetch? });
 | `timeout` | `Duration` | `'10s'` | How long one request may take before it counts as failed, a `TimeoutError` |
 | `onGivingUp` | `(delivery: Delivery, reason: GivingUp) => void \| Promise<void>` | a `JANUS_WEBHOOK_GAVE_UP` warning | Called once for each delivery given up |
 | `fetch` | `typeof fetch` | the global `fetch` | What the requests go through: a proxy, an instrumented `fetch`, a fake in a test |
+| `queue` | `WebhookQueue` | none: deliveries wait in this process's memory | Where deliveries wait, shared by every process that passes the same one — see [queues](queues.md) |
+| `concurrency` | `number` | `64` | How many requests this process sends at once, all endpoints together; the rest wait their turn in the queue |
+| `lease` | `Duration` | `timeout` plus `'30s'` | How long a delivery being sent is hidden from every other claim. Longer than `timeout` |
+| `poll` | `Duration` | `'1s'`, give or take a fifth | With a `queue` only: how often it is asked for what other processes left due |
+| `orphanGrace` | `Duration` | `'24h'` | With a `queue` only: how long a delivery to an endpoint no process is configured with waits before it is given up as `endpointRemoved` |
 
 A `Duration` is `@nxgt/janus`'s: milliseconds as a number, or `'500ms'`,
 `'5s'`, `'5m'`, `'2h'`, `'1d'`.
@@ -59,6 +64,7 @@ A `Duration` is `@nxgt/janus`'s: milliseconds as a number, or `'500ms'`,
 | `url` | `string` | required | `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]` for development |
 | `secrets` | `readonly [string, ...string[]]` | required, at least one | Each request is signed with every one: two while a secret is [rotated](#secrets-and-rotation) |
 | `types` | `readonly UserEventType[]` | every type | The user event types this endpoint receives |
+| `id` | `string` | a hash of the URL with a `queue`; the position in `endpoints` without one | What a queue knows the endpoint by, and `delivery.endpoint`: 1 to 64 letters, digits, `.`, `_` or `-` |
 
 ```ts
 const listener = webhooks({
@@ -82,6 +88,32 @@ variable first, as the first example does. `types` takes the four
 `UserEventType`s — `'user.created'`, `'user.emailVerified'`,
 `'user.passwordReset'`, `'user.deleted'` — and nothing else.
 
+#### The endpoint's id
+
+A queue holds a delivery by the endpoint's id, never by its URL — a query may
+hold a token of the receiver's — and never with its secrets, which are read
+from the running configuration at each attempt. So the id is what ties a
+waiting delivery to the endpoint that sends it:
+
+- **Rotating a secret** needs nothing: a retry is signed with the secrets
+  configured when it is sent.
+- **Changing a URL** without an `id` changes the hash, so the deliveries
+  waiting for the old one belong to no endpoint any more: after
+  `orphanGrace` they are given up as `endpointRemoved`, each with its event,
+  for you to send again. With an `id`, the URL changes and they follow it:
+
+```ts
+// The id stays; the URL moved. What waited for the old address is sent to the new one.
+webhooks({ endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus/v2', secrets: [crmSecret] }], queue });
+```
+
+  Give each endpoint an `id` when you first pass a `queue`: adding one later
+  is itself a change of id, and orphans what waited under the hash.
+
+- **Two endpoints with one id** are refused when `webhooks()` is called. With
+  a `queue`, that includes two with the same URL and no `id`. Without one,
+  two with the same URL stay legal, as in 0.1.0: each is its position.
+
 ### Wiring refusals
 
 `webhooks()` checks its options when it is called, and throws a bare
@@ -99,6 +131,14 @@ variable first, as the first example does. `types` takes the four
 | `webhooks: retries: …`, `webhooks: timeout: …` | a duration `parseDuration` refuses: `'soon'`, `-1` |
 | `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
 | `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, which `setTimeout` would fire at once |
+| `webhooks: an endpoint's id is 1 to 64 letters, digits, '.', '_' or '-'` | an `id` that is not a string, is empty or too long, or holds another character — a URL, a space |
+| `webhooks: two endpoints have one id — …` | two `id`s alike, or, with a `queue`, two endpoints with the same URL and no `id` |
+| `webhooks: queue is not a WebhookQueue — it has no <method>` | a `queue` missing one of the port's six methods |
+| `webhooks: concurrency is a whole number of requests, 1 or more` | `concurrency: '4'`, `0`, `2.5` |
+| `webhooks: poll and orphanGrace take effect with a queue only — …` | `poll` or `orphanGrace` without a `queue`: nothing polls a process's own memory |
+| `webhooks: lease must be longer than timeout — …` | a `lease` no longer than `timeout`: a request outliving its lease is sent twice |
+| `webhooks: lease: …`, `webhooks: poll: …`, `webhooks: orphanGrace: …` | a duration `parseDuration` refuses |
+| `webhooks: lease waits at most 24 days`, `webhooks: poll waits at most 24 days` | a timer past 2³¹ − 1 ms |
 
 The listener refuses a mistake of its own the same way, thrown at once — only
 an event rebuilt by hand can be one, and every receiver would refuse it:
@@ -158,12 +198,33 @@ hours later still falls inside the receiver's tolerance. The receiver tells a
 retry of one it already handled by that id: see
 [handling an event once](receiving.md#handling-each-event-once).
 
-The first attempt is sent at once, not on a timer: the listener starts the
-request and returns, so `signUp` answers without waiting for any endpoint,
-and the request under way keeps the process alive until it ends. Retries
-wait on timers that **do not** keep the process alive, and **in memory**: a
-crash or an exit loses them. That is what [`close()`](#shutdown--close) is
-for.
+Every delivery goes through a queue — the `queue` you pass, or one in the
+process's memory. The listener inserts the event's deliveries, one per
+endpoint whose `types` take it, and returns: `signUp` waits for that insert,
+never for an endpoint. The first attempt starts at once, not on a timer, and
+the request under way keeps the process alive until it ends. Retries wait on
+timers that **do not** keep the process alive.
+
+**Without a `queue`**, retries wait **in memory**: a crash or an exit loses
+them. That is what [`close()`](#shutdown--close) is for. **With one**, they
+wait in it: the process that failed an attempt wakes itself when the retry
+falls due, and every process polls the queue, so a retry left by a process
+that stopped is sent by another. See [queues](queues.md).
+
+At most `concurrency` requests (64) are in flight per process; the rest wait
+in the queue, due, and are claimed as requests end — from each endpoint in
+turn, so one endpoint's backlog does not hold the others back.
+
+#### What a crash costs
+
+An attempt is counted when a delivery is **claimed**, before the request is
+sent. A process that dies mid-request has spent that attempt: with a
+`queue`, the delivery is claimed again once its `lease` lapses — `timeout`
+plus 30 seconds, by default — and sent as the next attempt. With the default
+schedule a crash costs one of the eight attempts; a delivery that crashes
+every process it reaches still runs out, and is given up, instead of looping
+for ever. The receiver may see the request that was cut short **and** its
+next attempt: delivery is at least once.
 
 ## Giving up
 
@@ -173,12 +234,13 @@ once for it, with the delivery and the reason:
 ```ts
 interface Delivery {
 	readonly event: UserEvent;
-	readonly url: string; // the endpoint's url, as new URL(url).href writes it
-	readonly attempts: number; // requests sent: 0 for one closed before its first
+	readonly url: string | null; // the endpoint's url, as new URL(url).href writes it — null for endpointRemoved
+	readonly endpoint: string; // the endpoint's id
+	readonly attempts: number; // requests sent: 0 for one given up before its first
 }
 
 interface GivingUp {
-	readonly why: 'retriesRanOut' | 'closed';
+	readonly why: 'retriesRanOut' | 'closed' | 'endpointRemoved';
 	readonly status: number | null; // the last response's status, or null when there was none
 	readonly error: string | null; // the last failure's name — 'TimeoutError', 'TypeError' — or null
 }
@@ -189,13 +251,27 @@ Exactly when each reason is given:
 | What happened | `why` | `attempts` | `status`, `error` |
 | --- | --- | --- | --- |
 | Every attempt failed, the last one included | `retriesRanOut` | `retries.length + 1` | the last attempt's — even when `close()` was called while it was in flight |
-| `close()` found the delivery waiting for a retry | `closed` | the attempts already sent | the last attempt's |
-| An attempt in flight when `close()` was called failed, with a retry still left | `closed` | the attempts sent, that one included | that attempt's |
-| The event reached the listener after `close()` | `closed` | `0`: nothing was sent | `null`, `null` |
+| Without a `queue`: `close()` found the delivery waiting for a retry | `closed` | the attempts already sent | the last attempt's |
+| Without a `queue`: an attempt in flight when `close()` was called failed, with a retry still left | `closed` | the attempts sent, that one included | that attempt's |
+| Without a `queue`: the event reached the listener after `close()` | `closed` | `0`: nothing was sent | `null`, `null` |
+| With a `queue`: the delivery waited, longer than `orphanGrace`, for an endpoint id no process is configured with — the endpoint was removed, or its URL changed without an `id` | `endpointRemoved` | the attempts sent before | the last attempt's, or `null`, `null`; and `delivery.url` is `null` |
 
 An attempt in flight when `close()` was called that answers a `2xx` is
 delivered, and not given up. `retries: []` makes every failure a
-`retriesRanOut`, with `attempts: 1`.
+`retriesRanOut`, with `attempts: 1`. **With a `queue`, `closed` is never
+given**: what `close()` finds waiting stays in the queue for the next
+process.
+
+`endpointRemoved` waits `orphanGrace` past the delivery's due time, so a
+rolling deploy — some processes with an endpoint, some without — never gives
+up another version's deliveries. Each process looks for such deliveries
+every minute, or every `orphanGrace` when that is shorter.
+
+Report first, remove second: a delivery given up is reported, then removed
+from the queue. With a `queue`, a process that dies between the two leaves
+it to the next one, which takes it back once the lease lapses — sends it
+once more, and reports it again when that fails. Reporting is at least once
+too: key a dead-letter table on `delivery.event.id` and `delivery.endpoint`.
 
 ### `onGivingUp`
 
@@ -211,7 +287,9 @@ const listener = webhooks({
 		await deadLetters.insertOne({
 			eventId: delivery.event.id,
 			event: delivery.event,
-			endpoint: new URL(delivery.url).origin, // the path or query may hold a token
+			endpoint: delivery.endpoint, // the endpoint's id
+			// The path or query may hold a token; url is null for endpointRemoved.
+			origin: delivery.url === null ? null : new URL(delivery.url).origin,
 			attempts: delivery.attempts,
 			...reason,
 		});
@@ -278,11 +356,18 @@ async function resend(event: UserEvent): Promise<void> {
 close(): Promise<void>;
 ```
 
-`close()` cancels the retries still waiting and gives up their deliveries as `closed`,
-waits for the requests in flight — and for the reports of those that fail —
-then resolves. After it, the listener sends nothing: an event it receives is
-given up as `closed`, with `attempts: 0` — one that is not a user event is
-still thrown, as before `close()`.
+`close()` stops claiming, and waits for the inserts under way — an event that
+reached the listener before `close()` still gets its first attempt — and for
+the requests in flight, and the reports of those that fail. Then it depends
+on the queue:
+
+| | Without a `queue` | With a `queue` |
+| --- | --- | --- |
+| A delivery waiting for a retry | given up as `closed` | stays in the queue, for the next process |
+| An attempt in flight that fails, with a retry left | given up as `closed` | scheduled in the queue as usual |
+| An event after `close()` | given up as `closed`, `attempts: 0` | inserted, and not sent from this process |
+
+An event that is not a user event is still thrown, as before `close()`.
 
 Call it on `SIGTERM`, after the server has stopped taking requests, so no
 flow sends an event to a closed listener:
@@ -297,7 +382,8 @@ process.on('SIGTERM', async () => {
 
 A script — an import, a migration — that sends user events ends with it too:
 a retry's timer does not keep the process alive, so a script that returns
-without `close()` exits past it, and the delivery is lost without a report.
+without `close()` exits past it — and, without a `queue`, the delivery is
+lost without a report.
 
 ```ts
 for (const row of rows) await auth.create(row);
@@ -379,6 +465,8 @@ verifyWebhook({ secrets: [nextSecret], headers, body });
 
 The secrets are read once, when `webhooks()` is called: a process keeps
 signing with the ones it started with, retries included, until it restarts.
+A queue never holds a secret: a retry another process sends is signed with
+that process's secrets.
 
 ## In a test
 
@@ -428,6 +516,7 @@ interface WebhookEndpoint {
 	readonly url: string;
 	readonly secrets: readonly [string, ...string[]];
 	readonly types?: readonly UserEventType[];
+	readonly id?: string;
 }
 
 interface WebhooksOptions {
@@ -436,19 +525,29 @@ interface WebhooksOptions {
 	readonly timeout?: Duration;
 	readonly onGivingUp?: (delivery: Delivery, reason: GivingUp) => void | Promise<void>;
 	readonly fetch?: typeof fetch;
+	readonly queue?: WebhookQueue;
+	readonly concurrency?: number;
+	readonly poll?: Duration;
+	readonly lease?: Duration;
+	readonly orphanGrace?: Duration;
 }
 
 interface Webhooks {
-	(event: UserEvent): void; // a UserEventListener: janus({ events: listener })
+	// A UserEventListener: janus({ events: listener }). The insert with a queue, nothing without one.
+	(event: UserEvent): Promise<void> | undefined;
 	close(): Promise<void>;
 }
 
 function webhooks(options: WebhooksOptions): Webhooks;
 function mintWebhookSecret(): string;
+function createMemoryWebhookQueue(): WebhookQueue;
 ```
+
+`WebhookQueue` and `QueuedDelivery` are in [the queues guide](queues.md#the-port).
 
 ## See also
 
+- [Queues](queues.md) — deliveries that outlive the process, and writing an adapter
 - [Receiving webhooks](receiving.md) — the other side of the wire
 - [User events in `@nxgt/janus`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md) — the four types, and when the listener runs
 - [Troubleshooting](../troubleshooting.md) — the wiring refusals and the warnings

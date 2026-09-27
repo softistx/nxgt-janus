@@ -328,6 +328,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; two copies of 60 lines are cheaper. Change one, change both |
 | `test/mongo.ts`, the pinned replica set the specs start | `packages/janus-mongo/test/server.ts`, `packages/janus-kit/test/mongo.ts` | Same; the mongod version in both keys the one `.cache/mongodb` |
 | The DDL helper, drizzle-kit's `generateMigration` over `defineJanusTables()` | `packages/janus-drizzle/test/db.ts`, `packages/janus-kit/test/postgres.ts` | Same |
+| The conformance helpers — `equal`, `ok`, `rejects`, `isOurs`, `describeSuite`, `fromGlobals` | `packages/janus/src/conformance/{assert,describe}.ts`, `packages/janus-webhooks/src/conformance/{assert,describe}.ts` | `@nxgt/janus/conformance` exports its suites, not its helpers, and a second port's suite in another package needs them; exporting them would make them a public promise for 150 lines. The copy's `isOurs` takes the class name, since `@nxgt/janus`'s bundle renames `StoreFailure` to `StoreFailure2`. Change one, change both |
 
 ---
 

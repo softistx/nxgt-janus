@@ -28,7 +28,7 @@ interface Held {
  *   mutating what it passed or got back.
  *
  * It holds nothing beyond the process: a queue that outlives a restart is an
- * adapter's, such as `@nxgt/janus-webhooks-redis`'s.
+ * adapter's, on a database every process reaches.
  */
 export function createMemoryWebhookQueue(): WebhookQueue {
 	const held = new Map<string, Held>();

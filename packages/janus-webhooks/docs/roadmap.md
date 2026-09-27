@@ -5,13 +5,17 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **A durable queue for deliveries** — every delivery goes through a
+  `WebhookQueue`, and one passed as `webhooks({ queue })` outlives the
+  process: a retry failed by one process is sent by the next, and a request
+  cut short by a crash is sent again once its lease lapses. The port, its
+  memory reference `createMemoryWebhookQueue()` and the conformance suite
+  `@nxgt/janus-webhooks/conformance` are in this release; a Redis-backed
+  adapter, `@nxgt/janus-webhooks-redis`, is the other half, in progress.
 
 ## Next
 
-- **A durable queue for retries** — a pluggable queue for deliveries waiting
-  on a retry, so they survive a restart instead of living in memory; a
-  Redis-backed one first.
+Nothing queued.
 
 ## Later
 
