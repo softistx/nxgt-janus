@@ -622,8 +622,9 @@ and the reading of this repository's own
 practises it:
 
 - **`<type>`** is one of `feat`, `fix`, `docs`, `test`, `refactor`, `chore`,
-  `ci` — and `revert`, used once, for #17. A `!` after the scope marks a
-  breaking change: `feat(janus-drizzle)!: Unprefixed tables, …`.
+  `ci`, `build` — and `revert`, used once, for #17. A `!` after the scope
+  marks a breaking change: `feat(janus-drizzle)!: Unprefixed tables, …`.
+  `build` is build configuration: tsconfig, bundler, packaging.
 - **`<package>`** is the package's directory name, without `@nxgt/`:
   `fix(janus-webhooks): …`, or `docs(janus, janus-telemetry): …` for two. The
   scope names the package whose changelog the change belongs to. The early
