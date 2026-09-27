@@ -1,109 +1,14 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { janus, scryptHasher } from '@nxgt/janus';
-import { defineModel, permissions } from '@nxgt/janus/permissions';
-import { syncMongoAdapter } from '@nxgt/janus-mongo';
-import { closeMongo, connectMongo } from '@nxgt/mongo';
-import type { Db } from 'mongodb';
-import { z } from 'zod';
-import { startMongo, type TestServer } from '../../test/mongo';
+import { describe, expect, it } from 'bun:test';
 import { defineConfig } from './config';
 import { connectKit } from './connect';
+import { auth, mongoPerFile } from './connect.fixtures';
 
-let server: TestServer;
+// How connectKit() fails over MongoDB, what it only warns of, and how ping()
+// reports a database that stops answering: never naming a URL.
 
-beforeAll(async () => {
-	server = await startMongo();
-}, 300_000);
-
-afterAll(async () => {
-	await closeMongo();
-	await server.stop();
-});
-
-const user = z.object({ email: z.email() });
-const hasher = scryptHasher({ cost: 10 });
-let databases = 0;
-/** A database of its own per case, synced unless asked otherwise. */
-async function database(synced = true): Promise<Db> {
-	databases += 1;
-	const db = server.client.db(`kit${databases}`);
-	if (synced) await syncMongoAdapter(db);
-	return db;
-}
-/** The replica set's URL, naming `name` as its database. */
-function urlOf(name: string): string {
-	const { hosts, replicaSet } = server.client.options;
-	return `mongodb://${hosts.map(String).join(',')}/${name}?replicaSet=${replicaSet}`;
-}
-const auth = (
-	adapters: Parameters<Parameters<typeof defineConfig>[0]['auth']>[0],
-) => janus({ user, password: { login: 'email' }, hasher, ...adapters });
+const { database } = mongoPerFile();
 
 describe('connectKit() over MongoDB', () => {
-	it('wires auth and access over a Db it was given, and leaves it open', async () => {
-		const db = await database();
-		const kit = await connectKit(
-			defineConfig({
-				mongo: { db },
-				auth,
-				access: ({ relations, auth }) =>
-					permissions({
-						model: defineModel({
-							subjects: auth.types,
-							types: {
-								document: {
-									related: { owners: ['user'] },
-									permits: { view: ['owners'] },
-								},
-							},
-						}),
-						store: relations,
-					}),
-			}),
-		);
-		const { user: ada, token } = await kit.auth.signUp({
-			email: 'ada@example.test',
-			password: 'correct horse',
-		});
-		const document = { type: 'document', id: 'd1' } as const;
-		await kit.access.grant(document, 'owners', ada);
-		expect(await kit.access.can(ada, 'view', document)).toBe(true);
-		const request = new Request('https://x.test', {
-			headers: { authorization: `Bearer ${token}` },
-		});
-		expect((await kit.auth.authenticate(request))?.user.id).toBe(ada.id);
-		expect(kit.db).toBe(db);
-
-		const health = await kit.ping();
-		expect(health).toMatchObject({ ok: true, mongo: { ok: true } });
-		expect(health.redis).toBeUndefined();
-
-		// Deleting the user deletes the tuples naming them: relations is wired.
-		await kit.auth.delete(ada);
-		expect(await kit.access.can(ada, 'view', document)).toBe(false);
-
-		await kit.close();
-		// The Db was handed in: still open.
-		expect(await db.collection('users').countDocuments()).toBe(0);
-	});
-
-	it('opens a URL, uses the database its path names, and closes it', async () => {
-		const db = await database();
-		const kit = await connectKit(
-			defineConfig({ mongo: { url: urlOf(db.databaseName) }, auth }),
-		);
-		await kit.auth.signUp({
-			email: 'bo@example.test',
-			password: 'correct horse',
-		});
-		expect(kit.db.databaseName).toBe(db.databaseName);
-		expect(await db.collection('users').countDocuments()).toBe(1);
-		expect((await kit.ping()).mongo.ok).toBe(true);
-
-		await kit.close();
-		expect((await kit.ping({ timeoutMs: 500 })).mongo.ok).toBe(false);
-	});
-
 	it('fails at connect, naming the collections that are missing, and writes nothing', async () => {
 		const db = await database(false);
 		const outcome = await connectKit(
@@ -218,22 +123,6 @@ describe('connectKit() over MongoDB', () => {
 		expect(elapsed).toBeGreaterThan(4_500);
 		expect(elapsed).toBeLessThan(10_000);
 	}, 20_000);
-
-	it("passes @nxgt/mongo's refusal of a URL already connected with other options through", async () => {
-		const db = await database();
-		const url = urlOf(db.databaseName);
-		await using mine = await connectMongo(url);
-		const outcome = await connectKit(
-			defineConfig({ mongo: { url }, auth }),
-		).then(
-			() => 'resolved',
-			(error: Error) => `${error.name}: ${error.message}`,
-		);
-		expect(outcome).toStartWith(
-			'TypeError: connectMongo: this URI is already connected with other options.',
-		);
-		expect(mine.db.databaseName).toBe(db.databaseName);
-	});
 
 	it('reports a database that stops answering as ok: false within timeoutMs', async () => {
 		const synced = await database();

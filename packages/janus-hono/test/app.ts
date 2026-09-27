@@ -17,7 +17,12 @@ import {
 	permissions,
 	when,
 } from '@nxgt/janus/permissions';
+import { Hono } from 'hono';
 import { z } from 'zod';
+import { janusErrors } from '../src/errors';
+import { byParam, permission } from '../src/permission';
+import { provide } from '../src/provide';
+import { session } from '../src/session';
 
 export const ada = { email: 'ada@example.test', name: 'Ada Lovelace' };
 export const password = 'correct horse';
@@ -103,3 +108,68 @@ export const bearer = (token: string) => ({
 export const cookie = (token: string) => ({
 	headers: { cookie: `janus-session=${token}` },
 });
+
+/**
+ * An app whose routes load a record and ask permission() for it, or grant
+ * through provide(): what the permission specs and provide.spec.ts share.
+ */
+export function app() {
+	const context = setup();
+	const { auth, access } = context;
+	const records = new Map<string, MedicalRecord>([
+		['r1', { id: 'r1', doctorId: null, title: 'Blood test' }],
+	]);
+	const loads: string[] = [];
+	// `c.req.param()` in a middleware is `string | undefined`: Hono types the
+	// path in the route's own handler only.
+	const load = (id: string | undefined) => {
+		if (id === undefined) return null;
+		loads.push(id);
+		return records.get(id) ?? null;
+	};
+
+	const routes = new Hono()
+		.use(session(auth))
+		.get(
+			'/records/:id',
+			permission(access, 'view', 'record', byParam('id', load)),
+			(c) => c.json({ title: c.var.object.title }),
+		)
+		// A route with no :id: byParam answers null, which is a 404.
+		.get(
+			'/records',
+			permission(access, 'view', 'record', byParam('id', load)),
+			(c) => c.json({ title: c.var.object.title }),
+		)
+		.put(
+			'/records/:id',
+			permission(access, 'edit', 'record', (c) => load(c.req.param('id')), {
+				ctx: (c) => ({ locked: c.req.header('x-locked') === 'yes' }),
+			}),
+			(c) => c.body(null, 204),
+		)
+		.get(
+			'/as/:subject/records/:id',
+			permission(access, 'view', 'record', (c) => load(c.req.param('id')), {
+				subject: (c) => ({ type: 'patient', id: c.req.param('subject') ?? '' }),
+			}),
+			(c) => c.json({ title: c.var.object.title }),
+		)
+		.post(
+			'/records',
+			session(auth, { type: 'patient', required: true }),
+			provide({ access }),
+			async (c) => {
+				const record = { id: 'r2', doctorId: null, title: 'X-ray' };
+				records.set(record.id, record);
+				await c.var.access.grant(
+					{ type: 'record', id: record.id },
+					'owners',
+					c.var.user,
+				);
+				return c.json({ id: record.id }, 201);
+			},
+		);
+	routes.onError(janusErrors());
+	return { ...context, routes, records, loads };
+}
