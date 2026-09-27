@@ -13,6 +13,7 @@ import {
 	createMongoRelations,
 	createMongoStores,
 	syncMongoAdapter,
+	syncMongoRelations,
 	syncMongoStores,
 } from '../../src/index';
 
@@ -25,11 +26,16 @@ createMongoStores('mongodb://localhost:27017/app');
 createMongoAdapter(connection);
 // @ts-expect-error 3. the driver's client: the adapter takes one of its databases
 createMongoRelations(connection.client);
-// @ts-expect-error 4. the connection again, to the deployment step
+// @ts-expect-error 4. the connection again, to the adapter's deployment step
 await syncMongoAdapter(connection);
-// @ts-expect-error 5. a sync option in the wrong case: `dryRun`
+// @ts-expect-error 5. the connection to the relations' deployment step
+await syncMongoRelations(connection);
+// @ts-expect-error 6. the promise `connectMongo` answers, not awaited
+createMongoStores(connectMongo('mongodb://localhost:27017/app'));
+// @ts-expect-error 7. a sync option in the wrong case: `dryRun`
 await syncMongoStores(db, { dryrun: true });
 await syncMongoAdapter(db, { dryRun: true });
+await syncMongoRelations(db);
 
 const User = z.strictObject({ email: z.email() });
 const mongo = createMongoAdapter(db);
@@ -52,7 +58,7 @@ export const whole = janus({
 	user: User,
 	password: { login: 'email' },
 	hasher: scryptHasher(),
-	// @ts-expect-error 6. the whole adapter as `store`: spread it, or take `mongo.store`
+	// @ts-expect-error 8. the whole adapter as `store`: spread it, or take `mongo.store`
 	store: mongo,
 });
 
@@ -60,7 +66,7 @@ export const swapped = janus({
 	user: User,
 	password: { login: 'email' },
 	hasher: scryptHasher(),
-	// @ts-expect-error 7. the relation store as the identity stores
+	// @ts-expect-error 9. the relation store as the identity stores
 	store: createMongoRelations(db),
 });
 
@@ -71,7 +77,7 @@ const model = defineModel({
 
 export const access = permissions({ model, store: mongo.relations });
 
-// @ts-expect-error 8. the whole adapter as the relation store: take `mongo.relations`
+// @ts-expect-error 10. the whole adapter as the relation store: take `mongo.relations`
 permissions({ model, store: mongo });
-// @ts-expect-error 9. the identity stores as the relation store
+// @ts-expect-error 11. the identity stores as the relation store
 permissions({ model, store: createMongoStores(db) });
