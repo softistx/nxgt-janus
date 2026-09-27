@@ -45,8 +45,12 @@ export function createMongoRelations(db: Db): RelationStore {
 			run$('findSubjectSets', () => findSubjectSets(context, object, relation)),
 		findEntities: (object, relation) =>
 			run$('findEntities', () => findEntities(context, object, relation)),
-		findObjects: (query) =>
-			run$('findObjects', () => findObjects(context, query)),
+		// Unpacked before `run$`, as the port's other methods: a malformed
+		// request is the caller's bug, thrown as it is, never an outage.
+		findObjects: ({ type, relation, subject, after, limit }) =>
+			run$('findObjects', () =>
+				findObjects(context, { type, relation, subject, after, limit }),
+			),
 		deleteEntity: (entity) =>
 			run$('deleteEntity', () => deleteEntity(context, entity)),
 	};
