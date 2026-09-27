@@ -500,7 +500,7 @@ describe('list()', () => {
 					store: createMemoryRelations(),
 				}).list(ada, 'view' as never, 'record'),
 			// The subject's type, never its id.
-			"record.doctors is read from a field, and has no lookup to find the records naming a staff — fromField('doctorId', 'staff', { lookup })",
+			"list: record.doctors is read from a field, and has no lookup to find the records naming a subject of type 'staff' — fromField('doctorId', 'staff', { lookup })",
 		],
 		[
 			'a condition with no ctx',

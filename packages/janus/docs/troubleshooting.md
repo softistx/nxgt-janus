@@ -92,7 +92,7 @@ How the messages are shaped:
 - [`permissions: store.<method> is missing`](#permissions-storemethod-is-missing)
 - [`can: <type>.<relation> reads <field>, which the object does not carry …`](#can-typerelation-reads-field-which-the-object-does-not-carry--pass-the-loaded-object-spread)
 - [`can: <type>.<name> reaches a condition, and no ctx was passed — pass { ctx }`](#can-typename-reaches-a-condition-and-no-ctx-was-passed--pass--ctx-)
-- [`list: <type>.<relation> is read from a field, and has no lookup …`](#list-typerelation-is-read-from-a-field-and-has-no-lookup-to-find-the-types-naming-a-subject-type--)
+- [`list: <type>.<relation> is read from a field, and has no lookup …`](#list-typerelation-is-read-from-a-field-and-has-no-lookup-to-find-the-types-naming-a-subject-of-type-subject-type--)
 - [`list: the lookup of <type>.<relation> must answer an array of ids`](#list-the-lookup-of-typerelation-must-answer-an-array-of-ids)
 - [`grant: <type>.<relation> is read from <field>; there is nothing to store …`](#grant-typerelation-is-read-from-field-there-is-nothing-to-store--change-the-type-instead)
 - [`grant: <type>.<relation> is not held by <holder>`](#grant-typerelation-is-not-held-by-holder)
@@ -1017,7 +1017,7 @@ Also `list: <type>.<name> reaches a condition, and no ctx was passed — pass { 
 await access.can(grace, 'edit', { type: 'record', ...record }, { ctx: { onShift: true } });
 ```
 
-### `list: <type>.<relation> is read from a field, and has no lookup to find the <type>s naming a <subject type> — …`
+### `list: <type>.<relation> is read from a field, and has no lookup to find the <type>s naming a subject of type '<subject type>' — …`
 
 **When:** `access.list(subject, permission, type)` through a `fromField` relation.
 **Why:** `list()` walks backwards from the subject, so it cannot read a field of objects it has not found yet. It asks your `lookup` for the ids of the objects whose field names the subject.

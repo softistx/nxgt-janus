@@ -216,7 +216,7 @@ export class Reverse {
 			const subject = def?.kind === 'fromField' ? def.subject : 'subject';
 			// The subject's type, never its id: a message reports a shape.
 			throw new TypeError(
-				`list: ${type.name}.${relation} is read from a field, and has no lookup to find the ${type.name}s naming a ${subject} — fromField('${field}', '${subject}', { lookup })`,
+				`list: ${type.name}.${relation} is read from a field, and has no lookup to find the ${type.name}s naming a subject of type '${subject}' — fromField('${field}', '${subject}', { lookup })`,
 			);
 		}
 		const ids = await def.lookup(id);
