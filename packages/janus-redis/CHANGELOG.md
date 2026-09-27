@@ -1,5 +1,12 @@
 # @nxgt/janus-redis
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [[`0be654f`](https://github.com/softistx/nxgt-janus/commit/0be654f2fb2d02186cf68cab070d59b8b039d129)]:
+  - @nxgt/janus@0.9.0
+
 ## 0.3.2
 
 ### Patch Changes

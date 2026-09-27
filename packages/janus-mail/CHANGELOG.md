@@ -1,5 +1,26 @@
 # @nxgt/janus-mail
 
+## 0.3.0
+
+### Minor Changes
+
+- [#125](https://github.com/softistx/nxgt-janus/pull/125) [`f02c2f3`](https://github.com/softistx/nxgt-janus/commit/f02c2f387628bcd9d5c5ec30b8501c61c8c1f5a0) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Two new notices: `mail.twoFactorEnabled(to)` and `mail.twoFactorDisabled(to)`. They tell `to.email` that two-factor authentication was turned on or off, and link to `links.secureAccount()`, the page where the user manages their security settings. They are built in English and French from `@nxgt/mail-presets` 0.4.0's `two-factor-enabled` and `two-factor-disabled`. Send them on `@nxgt/janus`'s new `user.secondFactorEnabled` and `user.secondFactorDisabled` events:
+  
+  ```ts
+  if (event.type === 'user.secondFactorDisabled') {
+  	const user = await auth.get(event.userId);
+  	await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
+  }
+  ```
+  
+  `janusTemplates()`, `JanusMailTemplates` and `JanusMailVariables` gain the two templates. **With a locale beyond `en` and `fr`, `templates` must now include `twoFactorEnabled` and `twoFactorDisabled` too.** Until it does, the call does not compile, and in JavaScript `janusMail()` throws a `TypeError` that lists the missing templates.
+
+### Patch Changes
+
+- [#122](https://github.com/softistx/nxgt-janus/pull/122) [`4d48a34`](https://github.com/softistx/nxgt-janus/commit/4d48a348d82d80cc0a3e20083a3110fd2f398d54) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The e-mails now follow the reader's dark mode. They are rebuilt with `@nxgt/mail-ui` 0.4.0, `@nxgt/mail-presets` 0.4.0 and `@nxgt/mail-i18n` 0.5.0, and each HTML part declares `color-scheme: light dark`. A mail client that reads `prefers-color-scheme`, or Outlook's `[data-ogsc]`, shows a dark page, a dark card and light text when the reader is in dark mode. Gmail always shows the light e-mail, as before. The text parts, the subjects, the variables and the manifest (format 1) are unchanged, and so is the JavaScript. The `@nxgt/mail` peer stays `>=0.1.0 <1`. An override that returns its own `html` is not affected.
+- Updated dependencies [[`0be654f`](https://github.com/softistx/nxgt-janus/commit/0be654f2fb2d02186cf68cab070d59b8b039d129)]:
+  - @nxgt/janus@0.9.0
+
 ## 0.2.1
 
 ### Patch Changes
