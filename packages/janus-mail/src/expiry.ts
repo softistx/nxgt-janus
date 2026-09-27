@@ -14,9 +14,9 @@ const MINUTES_IN_DAY = 24 * MINUTES_IN_HOUR;
  * A duration in the locale, in the largest unit it holds at least once:
  * rounded to the minute first — the flow set `expiresAt` a moment before the
  * send, so an hour is 59 minutes and 59 seconds by then — and then down to a
- * whole unit: 90 minutes is "1 hour", 36 hours "1 day". The e-mail so never
- * promises more than half a minute beyond what is left; less than a minute
- * is "1 minute".
+ * whole unit: 90 minutes is "1 hour", 36 hours "1 day". At 30 seconds or
+ * more, the e-mail never promises more than half a minute beyond what is
+ * left; under that, it says "1 minute".
  *
  * ```ts
  * formatExpiry(3_600_000, 'fr'); // '1 heure'
@@ -72,7 +72,11 @@ export function expiresInFor(
 	if (!(expiresAt instanceof Date) || Number.isNaN(expiresAt.getTime())) {
 		throw new TypeError(`janusMail.${method}: expiresAt must be a Date`);
 	}
-	const left = expiresAt.getTime() - clock.now().getTime();
+	const now = clock.now();
+	if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
+		throw new TypeError(`janusMail.${method}: clock.now() must answer a Date`);
+	}
+	const left = expiresAt.getTime() - now.getTime();
 	if (left <= 0) {
 		throw new TypeError(
 			`janusMail.${method}: expiresAt is past — the link or code would not work`,

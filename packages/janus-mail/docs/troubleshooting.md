@@ -34,12 +34,14 @@ How the messages are shaped:
 - [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
+- [`janusMail: locales must be BCP 47 language tags, with hyphens, as 'fr-CA'`](#janusmail-locales-must-be-bcp-47-language-tags-with-hyphens-as-fr-ca)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
 - [`janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing)
 
 **Sending**
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`janusMail.<method>: expiresAt must be a Date`](#janusmailmethod-expiresat-must-be-a-date)
+- [`janusMail.<method>: clock.now() must answer a Date`](#janusmailmethod-clocknow-must-answer-a-date)
 - [`janusMail.<method>: expiresAt is past — the link or code would not work`](#janusmailmethod-expiresat-is-past--the-link-or-code-would-not-work)
 - [`This link expires in 1 hour.` — in the wrong language, or shorter than the `tokens` TTL](#this-link-expires-in-1-hour--in-the-wrong-language-or-shorter-than-the-tokens-ttl)
 - [`MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`](#mail_refused--render-email-link-must-be-an-http-https-or-mailto-url)
@@ -174,6 +176,18 @@ out: the defaults could not render them in that locale. Pass all five — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
 
+### `janusMail: locales must be BCP 47 language tags, with hyphens, as 'fr-CA'`
+
+A `TypeError` when `janusMail()` is called: a locale in `locales` is one
+`Intl` refuses — `de_DE` with an underscore, a grandfathered `i-klingon`, a
+bare private-use `x-…`. The expiry is formatted by `Intl` in the locale
+picked, so a locale it cannot parse would fail at the first send; it is
+refused here instead. Write the tag with hyphens:
+
+```ts
+janusMail({ mailer, from, brand: 'Acme', links, locales: ['en', 'fr', 'de-DE'], templates });
+```
+
 ### `janusMail: clock must be a Clock — an object with a now function`
 
 `clock` is `@nxgt/janus`'s `Clock`, `{ now(): Date }` — pass the one given to
@@ -222,6 +236,14 @@ await mail.verifyEmail(issued, { name: job.name });
 // or
 await mail.verifyEmail(job.issued, { name: job.name }, { expiresIn: '1 day' });
 ```
+
+### `janusMail.<method>: clock.now() must answer a Date`
+
+A `TypeError` from `verifyEmail`, `resetPassword` or `signInCode`: the
+`clock` given to `janusMail()` has a `now` that answered something else — a
+number from `Date.now()`, a string, an invalid `Date`. Nothing is sent.
+`clock` is `@nxgt/janus`'s `Clock`: pass the one `janus({ clock })` was
+given, or `{ now: () => new Date() }`.
 
 ### `janusMail.<method>: expiresAt is past — the link or code would not work`
 

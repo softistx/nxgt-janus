@@ -49,6 +49,7 @@ describe('formatExpiry', () => {
 
 	test('less than a minute is 1 minute', () => {
 		expect(spaced(formatExpiry(20_000, 'en'))).toBe('1 minute');
+		expect(spaced(formatExpiry(1, 'en'))).toBe('1 minute');
 	});
 
 	test('a regional locale formats in its language', () => {
@@ -188,6 +189,19 @@ describe('expiresIn refusals', () => {
 		expect(error).toBeInstanceOf(TypeError);
 		expect((error as Error).message).toBe(
 			'janusMail.resetPassword: expiresAt is past — the link or code would not work',
+		);
+		expect(options.mailer.attempts).toBe(0);
+	});
+
+	test('a clock whose now() answers no Date is a TypeError, and nothing is sent', async () => {
+		const options = {
+			...baseOptions(),
+			clock: { now: () => Date.now() as unknown as Date },
+		};
+		const error = await rejection(janusMail(options).signInCode(signIn));
+		expect(error).toBeInstanceOf(TypeError);
+		expect((error as Error).message).toBe(
+			'janusMail.signInCode: clock.now() must answer a Date',
 		);
 		expect(options.mailer.attempts).toBe(0);
 	});

@@ -98,6 +98,16 @@ function resolveClock(clock: unknown): Clock {
 	return Object.freeze({ now: (clock.now as () => Date).bind(clock) });
 }
 
+/** Whether `Intl` takes the locale — the expiry is formatted in it — as `fr-CA`, not `fr_CA`. */
+function isLanguageTag(locale: string): boolean {
+	try {
+		Intl.getCanonicalLocales(locale);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /** `locales` and `fallbackLocale`, with their defaults. */
 function resolveLocales(options: Record<string, unknown>): {
 	locales: readonly string[];
@@ -112,6 +122,9 @@ function resolveLocales(options: Record<string, unknown>): {
 		refuse("locales must list at least one locale, as ['en', 'fr']");
 	}
 	const locales: readonly string[] = Object.freeze([...wanted]);
+	if (!locales.every(isLanguageTag)) {
+		refuse("locales must be BCP 47 language tags, with hyphens, as 'fr-CA'");
+	}
 	if (new Set(locales).size !== locales.length) {
 		refuse('locales holds the same locale twice');
 	}

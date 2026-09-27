@@ -144,9 +144,9 @@ derived at send time from the flow's `issued.expiresAt`:
 1. the time left until `expiresAt`, rounded to the minute — the flow set it a
    moment ago, so an hour is still "1 hour";
 2. then **down** to the largest whole unit it holds — days, hours or minutes
-   — so the e-mail never promises more than half a minute beyond what is
-   left: 90 minutes is "1 hour", 36 hours "1 day", less than a minute
-   "1 minute";
+   — so, at 30 seconds or more, the e-mail never promises more than half a
+   minute beyond what is left; under that, it says "1 minute". 90 minutes is
+   "1 hour", 36 hours "1 day";
 3. formatted by `Intl.NumberFormat` with `style: 'unit'` and
    `unitDisplay: 'long'`, in the recipient's locale: "3 hours", "3 heures".
 
@@ -205,7 +205,7 @@ defines no error class and wraps nothing:
 | --- | --- | --- | --- |
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
-| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`. For [the expiry](#the-expiry): `janusMail.<method>: expiresAt must be a Date`, `janusMail.<method>: expiresAt is past — the link or code would not work`, `janusMail.<method>: expiresIn must be a string` | A bug to fix — for a past `expiresAt`, issue a new token or code and send that |
+| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`. For [the expiry](#the-expiry): `janusMail.<method>: expiresAt must be a Date`, `janusMail.<method>: expiresAt is past — the link or code would not work`, `janusMail.<method>: expiresIn must be a string`, `janusMail.<method>: clock.now() must answer a Date` | A bug to fix — for a past `expiresAt`, issue a new token or code and send that |
 | `Error` from `createMailRenderer` | the renderer | `mails/` is missing where the package runs: a bundler inlined `@nxgt/janus-mail`, or a deploy kept `dist/` only | Keep `@nxgt/janus-mail` external to your bundle and deploy its `mails/` with it; see [troubleshooting](../troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is

@@ -44,11 +44,14 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
-- **The expiry in the e-mail.** The verification, reset and sign-in code
-  e-mails say how long the link or code lasts — "1 hour", "1 heure" —
-  derived from the flow's `expiresAt` in the recipient's locale, or given per
-  send as `{ expiresIn }`. Built from `@nxgt/mail-presets` 0.2.0, whose text
-  parts keep each paragraph on one line.
+- **The expiry in the e-mail, v0.2.0.** The verification, reset and sign-in
+  code e-mails say how long the link or code lasts — "1 hour", "1 heure" —
+  derived from the flow's `expiresAt` in the recipient's locale, measured
+  against `janusMail({ clock })` (the clock given to `janus()`), or given per
+  send as `{ expiresIn }`. Two breaks: a template called directly takes
+  `expiresIn`, and `signInCode` reads `issued.expiresAt`. Built from
+  `@nxgt/mail-presets` 0.2.0, whose text parts keep each paragraph on one
+  line.
 
 - **The first release, v0.1.0.** The five e-mails of `@nxgt/janus`'s flows,
   in English and French, over any `@nxgt/mail` transport: `janusMail()` and
