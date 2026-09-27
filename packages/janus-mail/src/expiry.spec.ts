@@ -206,6 +206,21 @@ describe('expiresIn refusals', () => {
 		expect(options.mailer.attempts).toBe(0);
 	});
 
+	test('a clock whose now() answers an invalid Date is refused the same way', async () => {
+		const options = {
+			...baseOptions(),
+			clock: { now: () => new Date(Number.NaN) },
+		};
+		const error = await rejection(
+			janusMail(options).resetPassword(reset, { name: 'Ada' }),
+		);
+		expect(error).toBeInstanceOf(TypeError);
+		expect((error as Error).message).toBe(
+			'janusMail.resetPassword: clock.now() must answer a Date',
+		);
+		expect(options.mailer.attempts).toBe(0);
+	});
+
 	test('a clock that is not one is a TypeError from janusMail()', () => {
 		expect(() =>
 			janusMail({

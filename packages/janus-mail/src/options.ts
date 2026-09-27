@@ -123,7 +123,7 @@ function resolveLocales(options: Record<string, unknown>): {
 	}
 	const locales: readonly string[] = Object.freeze([...wanted]);
 	if (!locales.every(isLanguageTag)) {
-		refuse("locales must be BCP 47 language tags, with hyphens, as 'fr-CA'");
+		refuse("locales must be BCP 47 language tags, as 'fr-CA'");
 	}
 	if (new Set(locales).size !== locales.length) {
 		refuse('locales holds the same locale twice');

@@ -84,19 +84,24 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 		"locales must list at least one locale, as ['en', 'fr']",
 	],
 	[
-		'a locale twice',
-		{ locales: ['en', 'en'] },
-		'locales holds the same locale twice',
-	],
-	[
 		'a locale with an underscore',
 		{ locales: ['en', 'de_DE'] },
-		"locales must be BCP 47 language tags, with hyphens, as 'fr-CA'",
+		"locales must be BCP 47 language tags, as 'fr-CA'",
 	],
 	[
 		'a grandfathered tag Intl refuses',
 		{ locales: ['i-klingon'] },
-		"locales must be BCP 47 language tags, with hyphens, as 'fr-CA'",
+		"locales must be BCP 47 language tags, as 'fr-CA'",
+	],
+	[
+		'a bare private-use tag Intl refuses',
+		{ locales: ['x-foo'] },
+		"locales must be BCP 47 language tags, as 'fr-CA'",
+	],
+	[
+		'a locale twice',
+		{ locales: ['en', 'en'] },
+		'locales holds the same locale twice',
 	],
 	[
 		'a fallbackLocale outside locales',

@@ -1,23 +1,18 @@
 /**
- * Type safety, measured: each `@ts-expect-error` below is one plausible
- * mistake the compiler refuses, and fails the typecheck the moment it stops
- * being refused. The README counts them. Below them, the calls that must keep
- * compiling: a refusal that also refuses the right call is a bug.
+ * The refusals of `janusMail()`'s options, numbered after `send-refusals.ts`'s:
+ * each `@ts-expect-error` is one plausible mistake the compiler refuses, and
+ * the README counts them with the others. Below them, the options that must
+ * keep compiling — among them adding a language with every template.
  *
  * Typechecked by `tsc --noEmit`, never run.
  */
-import type { IssuedCode, IssuedToken } from '@nxgt/janus';
 import { createMemoryMailer, type Rendered } from '@nxgt/mail';
 import {
 	type JanusMailTemplates,
 	janusMail,
 	janusTemplates,
-	type Recipient,
 } from '../../src/index';
 
-declare const issuedToken: IssuedToken;
-declare const issuedCode: IssuedCode<{ id: string }>;
-declare const maybeReset: (IssuedToken & { user: { id: string } }) | null;
 declare const rendered: Rendered;
 
 const mailer = createMemoryMailer();
@@ -32,41 +27,8 @@ const mail = janusMail({
 	brand: 'Acme',
 	links,
 });
-const ada: Recipient = { name: 'Ada', locale: 'fr-CA' };
 
 // ── The refusals ────────────────────────────────────────────────────────────
-
-// 1. A sign-in code given to verifyEmail: it has no token.
-// @ts-expect-error
-await mail.verifyEmail(issuedCode, ada);
-
-// 2. A one-time token given to signInCode: it has no code.
-// @ts-expect-error
-await mail.signInCode(issuedToken);
-
-// 3. resetPassword.request's answer, not checked for null first.
-// @ts-expect-error
-await mail.resetPassword(maybeReset, ada);
-
-// 4. verifyEmail without the recipient: the e-mail greets them by name.
-// @ts-expect-error
-await mail.verifyEmail(issuedToken);
-
-// 5. A recipient without a name.
-// @ts-expect-error
-await mail.resetPassword(issuedToken, { locale: 'fr' });
-
-// 6. passwordChanged without the address to tell.
-// @ts-expect-error
-await mail.passwordChanged({ name: 'Ada' });
-
-// 7. emailChanged without the former address, which is where it goes.
-// @ts-expect-error
-await mail.emailChanged({ name: 'Ada', newEmail: 'ada@new.example' });
-
-// 8. A locale that is not a locale.
-// @ts-expect-error
-await mail.signInCode(issuedCode, { locale: 33 });
 
 // 9. links without secureAccount, which the two notices link to.
 janusMail({
@@ -187,23 +149,6 @@ janusMail({
 });
 
 // ── What must keep compiling ────────────────────────────────────────────────
-
-// Every flow's answer, as the flows give it.
-await mail.verifyEmail(issuedToken, ada);
-if (maybeReset !== null) await mail.resetPassword(maybeReset, ada);
-await mail.signInCode(issuedCode); // the whole IssuedCode: only code, email and expiresAt are read
-await mail.signInCode(issuedCode, { locale: ['fr-CA', 'en'] });
-await mail.signInCode(issuedCode, ada); // a recipient with a name: the name is not used
-await mail.passwordChanged({
-	name: 'Ada',
-	email: 'ada@example.com',
-	locale: null,
-});
-await mail.emailChanged({
-	...ada,
-	formerEmail: 'ada@example.com',
-	newEmail: 'ada@new.example',
-});
 
 // A partial override, async, reading the locale.
 janusMail({

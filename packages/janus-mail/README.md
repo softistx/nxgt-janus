@@ -223,7 +223,8 @@ without the same `clock` here, a clock set in the past makes every send an
 
 **Locales are BCP 47 tags: `fr-CA`, never `fr_CA`.** The expiry is
 formatted by `Intl` in the locale picked, so a locale `Intl` refuses is a
-`TypeError` from `janusMail()`.
+`TypeError` from `janusMail()`:
+[`locales must be BCP 47 language tags, as 'fr-CA'`](docs/troubleshooting.md#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca).
 
 **The expiry is formatted by the runtime's `Intl`.** A locale the runtime has
 no data for is formatted in its default language, and French puts a no-break
@@ -259,9 +260,13 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 ## Type safety, counted
 
 **Twenty-five plausible mistakes, twenty-five refused at compile time.**
-[`test/types/refusals.ts`](test/types/refusals.ts) holds one
-`@ts-expect-error` per mistake, beside the calls that must keep compiling —
-among them adding a language with every template — and
+Three files hold one `@ts-expect-error` per mistake, beside the calls that
+must keep compiling:
+[`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
+send, 1 to 8;
+[`test/types/option-refusals.ts`](test/types/option-refusals.ts) the twelve
+of `janusMail()`'s options, 9 to 20, beside adding a language with every
+template; and
 [`test/types/expiry-refusals.ts`](test/types/expiry-refusals.ts) the five of
 the expiry and the clock, 21 to 25:
 

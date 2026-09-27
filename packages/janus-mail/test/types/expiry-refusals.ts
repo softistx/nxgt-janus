@@ -1,8 +1,8 @@
 /**
- * The refusals of the expiry and the clock, numbered after `refusals.ts`'s: each
- * `@ts-expect-error` is one plausible mistake the compiler refuses, and the
- * README counts them with the others. Below them, the calls that must keep
- * compiling.
+ * The refusals of the expiry and the clock, numbered after
+ * `option-refusals.ts`'s: each `@ts-expect-error` is one plausible mistake the
+ * compiler refuses, and the README counts them with the others. Below them,
+ * the calls that must keep compiling.
  *
  * Typechecked by `tsc --noEmit`, never run.
  */
