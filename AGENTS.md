@@ -57,14 +57,13 @@ the kit wires internally is the one exception, by design: `@nxgt/janus-redis`
 is a dependency of `janus-kit`, since the application never imports it —
 while the libraries beneath it stay peers. For an
 nxgt-data package the range is `>=<floor> <1` — `>=0.17.0 <1`, `>=0.3.1 <1`,
-`>=0.6.1 <1` — because a caret on a `0.x` version admits a single minor
+`>=0.6.1 <1`, and `>=0.2.1 <1` for `@nxgt/telemetry` in the integration
+`janus-telemetry` — because a caret on a `0.x` version admits a single minor
 (`^0.17.1` stops at `0.18.0`), and every minor of nxgt-data would then force a
 release here. The same package sits in `devDependencies`, and `bun.lock` holds
 the version the specs actually run on — for `@nxgt/mongo` that is 0.17.1, above
-the 0.17.0 floor. The one wrapped `0.x` library still peered by caret is
-`@nxgt/telemetry: ^0.2.1` in the integration `janus-telemetry`, which admits
-`0.2.x` only while its README says "0.2.1 or later": a fix owed, not a second
-rule.
+the 0.17.0 floor; the `janus-mongo` and `janus-kit` suites were run once
+against 0.17.0 itself before that floor was kept.
 
 ### The other three declared divergences
 
