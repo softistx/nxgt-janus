@@ -295,7 +295,11 @@ by its build, and `biome.json`'s `files.includes` has `!**/generated` beside
 `!**/dist`. The output is **committed**, so a package type-checks without
 running its generator; CI rebuilds it and diffs `packages/*/src/generated`
 against the commit right after the build, so a stale committed copy fails
-there. The folder says
+there. Since `@nxgt/mail-i18n` 0.2.0, the header it writes into
+`generated/mail.ts` says *never committed: git-ignore it* — its advice to an
+application. This repository commits the file anyway, as a declared
+divergence: the rule here is the one above, and the header is not edited,
+since the file is the generator's. The folder says
 what is generated from the tree alone, one path excludes all of it from a
 review or a lint, and the file keeps the name its content deserves, so the
 import reads `./generated/mail` like any other module.

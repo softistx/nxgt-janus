@@ -96,7 +96,7 @@ fails before a release.
 | `mail/` | yes | The source of the build |
 | `mails/` | no | Rebuilt by every build; shipped in the tarball |
 | `mail/.maizzle/` | no | Maizzle's own generated files |
-| `src/generated/` | yes | So the package type-checks without a Maizzle build. CI rebuilds it and runs `git diff --exit-code` on it: a stale copy fails |
+| `src/generated/` | yes | So the package type-checks without a Maizzle build. CI rebuilds it and runs `git diff --exit-code` on it: a stale copy fails. `generated/mail.ts`'s header says *never committed* — `@nxgt/mail-i18n`'s advice to an application; this package commits it on purpose |
 
 ## See also
 
