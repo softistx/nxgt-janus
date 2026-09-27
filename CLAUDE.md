@@ -15,12 +15,17 @@ applies to any coding agent working in this repository lives there:
 - The casing rule (no `snake_case`, anywhere) and the Biome rule that holds it
 - How type safety is **measured** rather than claimed, and where the count lives
 - The packaging risk: one definition of `StoreFailure`, and the three guard rails
+- The house rules: imports without extensions, generated code in `generated/`,
+  adapters peering what they wrap, the verifying order, `bun.lock`, and the
+  commit form
 
 ## Per-package instructions
 
-`packages/janus` is the only package so far; its
-[README](./packages/janus/README.md) is the npm page and carries the **API** and
-**Traps** sections.
+Each package under `packages/` has a README that is its npm page and carries
+the **API** and **Traps** sections; AGENTS.md's *Layout* says what else it
+carries and what goes in its `docs/`. Start with
+[`packages/janus`](./packages/janus/README.md), the core every other package
+peers.
 
 ## Keeping it that way
 
