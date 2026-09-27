@@ -1,7 +1,7 @@
 # Troubleshooting `@nxgt/janus-mail`
 
-Each entry is headed by the text you see: a message, an error `code`, or a
-compiler error. Search this page for the words of your message.
+Each entry is headed by the text you see: a message, an error `code`, a
+compiler error — or, where nothing is thrown, what the e-mail says. Search this page for the words of your message.
 
 How the messages are shaped:
 
@@ -34,10 +34,16 @@ How the messages are shaped:
 - [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
+- [`janusMail: locales must be BCP 47 language tags, with hyphens, as 'fr-CA'`](#janusmail-locales-must-be-bcp-47-language-tags-with-hyphens-as-fr-ca)
+- [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
 - [`janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing)
 
 **Sending**
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
+- [`janusMail.<method>: expiresAt must be a Date`](#janusmailmethod-expiresat-must-be-a-date)
+- [`janusMail.<method>: clock.now() must answer a Date`](#janusmailmethod-clocknow-must-answer-a-date)
+- [`janusMail.<method>: expiresAt is past — the link or code would not work`](#janusmailmethod-expiresat-is-past--the-link-or-code-would-not-work)
+- [`This link expires in 1 hour.` — in the wrong language, or shorter than the `tokens` TTL](#this-link-expires-in-1-hour--in-the-wrong-language-or-shorter-than-the-tokens-ttl)
 - [`MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`](#mail_refused--render-email-link-must-be-an-http-https-or-mailto-url)
 - [`janusMail.<method>: links.<call> must answer a string`](#janusmailmethod-linkscall-must-answer-a-string)
 - [`render: <email>: link must be a string or a finite number`](#render-email-link-must-be-a-string-or-a-finite-number)
@@ -48,6 +54,7 @@ How the messages are shaped:
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
+- [`TS2345: … Types of property 'expiresAt' are incompatible. Type 'string' is not assignable to type 'Date'.`](#ts2345--types-of-property-expiresat-are-incompatible-type-string-is-not-assignable-to-type-date)
 - [`TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`](#ts2739-type----is-missing-the-following-properties-from-type-janusmailtemplates)
 - [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
 
@@ -169,6 +176,30 @@ out: the defaults could not render them in that locale. Pass all five — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
 
+### `janusMail: locales must be BCP 47 language tags, with hyphens, as 'fr-CA'`
+
+A `TypeError` when `janusMail()` is called: a locale in `locales` is one
+`Intl` refuses — `de_DE` with an underscore, a grandfathered `i-klingon`, a
+bare private-use `x-…`. The expiry is formatted by `Intl` in the locale
+picked, so a locale it cannot parse would fail at the first send; it is
+refused here instead. Write the tag with hyphens:
+
+```ts
+janusMail({ mailer, from, brand: 'Acme', links, locales: ['en', 'fr', 'de-DE'], templates });
+```
+
+### `janusMail: clock must be a Clock — an object with a now function`
+
+`clock` is `@nxgt/janus`'s `Clock`, `{ now(): Date }` — pass the one given to
+`janus({ clock })`, not `Date.now` or `() => new Date()`:
+
+```ts
+import { fixedClock } from '@nxgt/janus';
+
+const clock = fixedClock(Date.UTC(2026, 0, 1));
+janusMail({ mailer, from, brand: 'Acme', links, clock });
+```
+
 ## Sending
 
 ### `janusMail.<method>: <field> must be a string`
@@ -186,7 +217,61 @@ if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name }
 
 `issued` needs `token` and `email` (`code` and `email` for `signInCode`), and
 the recipient its `name` — a user whose schema has no name passes one
-anyway: `{ name: user.email }`.
+anyway: `{ name: user.email }`. `janusMail.verifyEmail: expiresIn must be a
+string` is the third argument's `expiresIn` given as something else — a
+number of seconds: pass the text to show, `{ expiresIn: '1 hour' }`, or
+leave it out.
+
+### `janusMail.<method>: expiresAt must be a Date`
+
+A `TypeError` from `verifyEmail`, `resetPassword` or `signInCode`: the e-mail
+says how long its link or code lasts, from `issued.expiresAt`, and that is
+not a valid `Date`. The usual cause is a flow's answer that went through
+JSON — a job queue, a cache — where a `Date` becomes a string. Nothing is
+sent. Revive it when the job runs, or say the expiry yourself:
+
+```ts
+const issued = { ...job.issued, expiresAt: new Date(job.issued.expiresAt) };
+await mail.verifyEmail(issued, { name: job.name });
+// or
+await mail.verifyEmail(job.issued, { name: job.name }, { expiresIn: '1 day' });
+```
+
+### `janusMail.<method>: clock.now() must answer a Date`
+
+A `TypeError` from `verifyEmail`, `resetPassword` or `signInCode`: the
+`clock` given to `janusMail()` has a `now` that answered something else — a
+number from `Date.now()`, a string, an invalid `Date`. Nothing is sent.
+`clock` is `@nxgt/janus`'s `Clock`: pass the one `janus({ clock })` was
+given, or `{ now: () => new Date() }`.
+
+### `janusMail.<method>: expiresAt is past — the link or code would not work`
+
+A `TypeError`: the send came after the link or the code expired — a queue
+that waited too long, an `expiresAt` from another record, or, in tests,
+`janus({ clock: fixedClock(...) })` without the same `clock` given to
+`janusMail()`, so a date in the clock's past is measured against today. Nothing is
+sent: an e-mail whose link fails helps nobody. Issue a new one
+(`auth.verifyEmail.send(user)`, `auth.signInCode.request(email)`) and send
+that; if a queue can hold a send that long, lengthen the `tokens` TTL in
+`janus({ tokens })`.
+
+### `This link expires in 1 hour.` — in the wrong language, or shorter than the `tokens` TTL
+
+`expiresIn` is formatted by the runtime's `Intl.NumberFormat`, in the locale
+picked for the recipient. A locale the runtime has no data for — a Node
+built with `small-icu`, a locale of your own — is formatted in the
+runtime's default language. The time left is measured against
+`janusMail({ clock })`, rounded to the minute, then **down** to the largest
+whole unit: 90 minutes is "1 hour", 36 hours "1 day".
+For another wording, pass it:
+
+```ts
+await mail.resetPassword(issued, { name, locale: 'de' }, { expiresIn: '90 Minuten' });
+```
+
+French puts a no-break space between the number and some units (`1 heure`,
+per CLDR): compare with `\s` in a test, not a plain space.
 
 ### `MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`
 
@@ -300,7 +385,15 @@ return new Response(null, { status: 202 });
 
 The same holds for `signInCode.request`, whose answer passed unchecked reads
 `Argument of type 'IssuedCode<…> | null' is not assignable to parameter of
-type 'Pick<IssuedCode<unknown>, "email" | "code">'`.
+type 'Pick<IssuedCode<unknown>, "email" | "code" | "expiresAt">'`.
+
+### `TS2345: … Types of property 'expiresAt' are incompatible. Type 'string' is not assignable to type 'Date'.`
+
+A flow's answer that went through JSON, typed as it came out. Revive the
+date — `{ ...issued, expiresAt: new Date(issued.expiresAt) }` — or pass the
+expiry as text in the third argument. A sign-in code built by hand without
+`expiresAt` reads `Property 'expiresAt' is missing`: pass the flow's answer
+whole.
 
 ### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
 

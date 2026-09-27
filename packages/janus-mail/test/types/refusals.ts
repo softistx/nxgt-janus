@@ -191,7 +191,7 @@ janusMail({
 // Every flow's answer, as the flows give it.
 await mail.verifyEmail(issuedToken, ada);
 if (maybeReset !== null) await mail.resetPassword(maybeReset, ada);
-await mail.signInCode(issuedCode); // the whole IssuedCode: only code and email are read
+await mail.signInCode(issuedCode); // the whole IssuedCode: only code, email and expiresAt are read
 await mail.signInCode(issuedCode, { locale: ['fr-CA', 'en'] });
 await mail.signInCode(issuedCode, ada); // a recipient with a name: the name is not used
 await mail.passwordChanged({

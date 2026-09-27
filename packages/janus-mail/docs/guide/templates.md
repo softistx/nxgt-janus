@@ -59,30 +59,30 @@ e-mail.
 
 | Template | Variables | Sent by |
 | --- | --- | --- |
-| `verifyEmail` | `brand`, `name`, `link` | `mail.verifyEmail(issued, to)` |
-| `resetPassword` | `brand`, `name`, `link` | `mail.resetPassword(issued, to)` |
-| `signInCode` | `brand`, `code` | `mail.signInCode(issued, to?)` |
+| `verifyEmail` | `brand`, `name`, `link`, `expiresIn` | `mail.verifyEmail(issued, to, options?)` |
+| `resetPassword` | `brand`, `name`, `link`, `expiresIn` | `mail.resetPassword(issued, to, options?)` |
+| `signInCode` | `brand`, `code`, `expiresIn` | `mail.signInCode(issued, to?, options?)` |
 | `passwordChanged` | `brand`, `name`, `link` | `mail.passwordChanged(to)` |
 | `emailChanged` | `brand`, `name`, `link`, `newEmail` | `mail.emailChanged(to)` |
 
 Every one also gets `locale`, one of `locales`. Every value is a string:
 `brand` from the options, `name` from the recipient, `link` from `links` —
 `links.secureAccount()` for the two notices — `code` and `newEmail` from the
-call.
+call, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
+the send's own `expiresIn` ([Sending](sending.md#the-expiry)).
 
 `signInCode` is **never given the challenge**: it is not in its variables,
-and the method never reads it. `expiresAt` is not given either — the flows
-answer it, so a template that states the lifetime takes it from a closure:
+and the method never reads it. An override states the expiry from
+`expiresIn`, already formatted:
 
 ```ts
 const mail = janusMail({
 	mailer, from, brand: 'Acme', links,
 	templates: {
-		// The code lives ten minutes, @nxgt/janus's default for tokens.signInCode.
-		signInCode: ({ code, locale }) =>
+		signInCode: ({ code, expiresIn, locale }) =>
 			locale === 'fr'
-				? { subject: `Code : ${code}`, html: `<p>${code} — valable 10 minutes.</p>`, text: `${code} — valable 10 minutes.` }
-				: { subject: `Code: ${code}`, html: `<p>${code} — valid for 10 minutes.</p>`, text: `${code} — valid for 10 minutes.` },
+				? { subject: `Code : ${code}`, html: `<p>${code} — valable ${expiresIn}.</p>`, text: `${code} — valable ${expiresIn}.` }
+				: { subject: `Code: ${code}`, html: `<p>${code} — valid for ${expiresIn}.</p>`, text: `${code} — valid for ${expiresIn}.` },
 	},
 });
 ```
@@ -109,7 +109,7 @@ another locale, it takes **all five** — see
 rest — frozen:
 
 ```ts
-const rendered = await mail.templates.verifyEmail({ brand: 'Acme', name: 'Ada', link, locale: 'fr' });
+const rendered = await mail.templates.verifyEmail({ brand: 'Acme', name: 'Ada', link, expiresIn: '1 heure', locale: 'fr' });
 ```
 
 ## The defaults alone — `janusTemplates()`
@@ -122,6 +122,7 @@ const { subject, html, text } = await defaults.resetPassword({
 	brand: 'Acme',
 	name: 'Ada',
 	link: 'https://acme.example/reset?token=abc',
+	expiresIn: '1 heure',
 	locale: 'fr',
 });
 ```
@@ -152,7 +153,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-0.1.0, built with a neutral grey theme and no logo:
+0.2.0, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -167,8 +168,9 @@ Each has a header and a footer with the brand, a heading, a greeting by name
 client that shows no button, and a text part. The two notices add a warning:
 *if this was not you, secure your account now*.
 
-**They do not state how long a link or a code lasts.** Replace the template
-when yours must: see above.
+`verifyEmail`, `resetPassword` and `signInCode` also say how long the link
+or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
+10 minutes." The text part keeps each paragraph on one line.
 
 **The brand is text.** It is written in the header, the body and the footer,
 escaped — no logo and no link, which would need absolute URLs known when the

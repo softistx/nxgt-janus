@@ -5,8 +5,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fixedClock } from '@nxgt/janus';
 import { createMemoryMailer } from '@nxgt/mail';
-import { links, signIn } from '../test/setup';
+import { issuedAt, links, signIn } from '../test/setup';
 
 const PACKAGE_DIR = join(import.meta.dir, '..');
 
@@ -25,6 +26,7 @@ describe('the built artifact', () => {
 			from: 'noreply@acme.example',
 			brand: 'Acme',
 			links,
+			clock: fixedClock(issuedAt),
 		}).signInCode(signIn, { locale: 'fr' });
 		const [sent] = mailer.sent;
 		expect(sent?.subject).toBe('Votre code de connexion : 042817');
@@ -40,6 +42,7 @@ describe('the built artifact', () => {
 			from: 'noreply@acme.example',
 			brand: 'Acme',
 			links,
+			clock: fixedClock(issuedAt),
 		});
 		const error = await mail.signInCode(signIn).then(
 			() => null,

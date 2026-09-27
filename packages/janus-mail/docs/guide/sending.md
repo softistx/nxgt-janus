@@ -48,6 +48,7 @@ time one is sent, and kept.
 | `locales` | `readonly L[]` | `['en', 'fr']` | The locales sent in — see [Locales](locales.md) |
 | `fallbackLocale` | one of `locales` | `'en'`, else the first of `locales` | The locale when the recipient wants none of `locales` |
 | `templates` | `Partial<JanusMailTemplates<L>>` | none | Your own templates, over the defaults — see [Templates](templates.md) |
+| `clock` | `Clock` from `@nxgt/janus` | the system clock | What the time left until a flow's `expiresAt` is measured against — pass the one `janus({ clock })` was given; see [The expiry](#the-expiry) |
 
 Every link is called at send time, and must answer an absolute `http:`,
 `https:` or `mailto:` URL: a default template refuses anything else with
@@ -72,16 +73,17 @@ option and never its value — every message is in
 Each method renders its e-mail with its template, hands it to the mailer,
 and answers the mailer's `SentMail` (`{ messageId }`).
 
-### `verifyEmail(issued, to)`
+### `verifyEmail(issued, to, options?)`
 
 ```ts
 const issued = await auth.verifyEmail.send(user); // IssuedToken: { token, email, expiresAt }
 await mail.verifyEmail(issued, { name: user.name, locale: user.locale });
 ```
 
-Sent to `issued.email`, with the link `links.verifyEmail(issued.token)`.
+Sent to `issued.email`, with the link `links.verifyEmail(issued.token)` and
+how long it lasts — see [The expiry](#the-expiry).
 
-### `resetPassword(issued, to)`
+### `resetPassword(issued, to, options?)`
 
 ```ts
 const issued = await auth.resetPassword.request(email); // (IssuedToken & { user }) | null
@@ -92,16 +94,18 @@ if (issued !== null) {
 
 `request` answers `null` for an address nobody holds, and the compiler
 refuses `null` here: check it first, and answer the visitor the same either
-way. Sent to `issued.email`, with `links.resetPassword(issued.token)`.
+way. Sent to `issued.email`, with `links.resetPassword(issued.token)` and how
+long it lasts.
 
-### `signInCode(issued, to?)`
+### `signInCode(issued, to?, options?)`
 
 ```ts
 const issued = await auth.signInCode.request(email); // IssuedCode: { code, challenge, email, expiresAt, user } | null
 if (issued !== null) await mail.signInCode(issued, { locale: issued.user.locale });
 ```
 
-It reads `issued.code` and `issued.email`, **and nothing else**: the
+It reads `issued.code`, `issued.email` and `issued.expiresAt`, **and nothing
+else**: the
 challenge is the visitor's secret, and neither the default template nor an
 override is ever given it. `to` is optional — the e-mail greets nobody by
 name — and only its `locale` is read.
@@ -130,6 +134,50 @@ since whoever changed it already controls the new one. It names `newEmail`,
 and links to `links.secureAccount()`. Read the former address before the
 update: the user `update` answers already holds the new one.
 
+## The expiry
+
+`verifyEmail`, `resetPassword` and `signInCode` say how long the link or the
+code lasts — "This link expires in 1 hour.", "Ce code expire dans
+10 minutes." The text is `expiresIn`, one of the template's variables,
+derived at send time from the flow's `issued.expiresAt`:
+
+1. the time left until `expiresAt`, rounded to the minute — the flow set it a
+   moment ago, so an hour is still "1 hour";
+2. then **down** to the largest whole unit it holds — days, hours or minutes
+   — so, at 30 seconds or more, the e-mail never promises more than half a
+   minute beyond what is left; under that, it says "1 minute". 90 minutes is
+   "1 hour", 36 hours "1 day";
+3. formatted by `Intl.NumberFormat` with `style: 'unit'` and
+   `unitDisplay: 'long'`, in the recipient's locale: "3 hours", "3 heures".
+
+With `@nxgt/janus`'s defaults, a verification link says "1 day", a reset
+link "1 hour" and a sign-in code "10 minutes".
+
+The time is `janusMail({ clock })`'s — pass the clock `janus({ clock })` was
+given, a `fixedClock` in tests — else the system clock:
+
+```ts
+import { fixedClock } from '@nxgt/janus';
+
+const clock = fixedClock(Date.UTC(2026, 0, 1));
+const auth = janus({ /* … */ clock });
+const mail = janusMail({ mailer, from, brand: 'Acme', links, clock });
+```
+
+To say it yourself — another wording, or a locale the runtime's `Intl` has no
+data for — pass `expiresIn` as the third argument, plain text already in the
+recipient's language. `expiresAt` is then not read:
+
+```ts
+await mail.verifyEmail(issued, { name: user.name, locale: 'fr' }, { expiresIn: '24 heures' });
+await mail.signInCode(issued, undefined, { expiresIn: 'ten minutes' });
+```
+
+A send whose `expiresAt` is not a valid `Date` — a flow's answer that went
+through JSON on its way to a queue holds a string — or is already past, is
+a `TypeError`, and nothing reaches the mailer: revive the date with
+`new Date(issued.expiresAt)` when the job runs, or pass `expiresIn`.
+
 ## Where each e-mail goes
 
 | Method | To | Never to |
@@ -157,7 +205,7 @@ defines no error class and wraps nothing:
 | --- | --- | --- | --- |
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
-| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string` | A bug to fix |
+| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`. For [the expiry](#the-expiry): `janusMail.<method>: expiresAt must be a Date`, `janusMail.<method>: expiresAt is past — the link or code would not work`, `janusMail.<method>: expiresIn must be a string`, `janusMail.<method>: clock.now() must answer a Date` | A bug to fix — for a past `expiresAt`, issue a new token or code and send that |
 | `Error` from `createMailRenderer` | the renderer | `mails/` is missing where the package runs: a bundler inlined `@nxgt/janus-mail`, or a deploy kept `dist/` only | Keep `@nxgt/janus-mail` external to your bundle and deploy its `mails/` with it; see [troubleshooting](../troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is
@@ -197,8 +245,13 @@ fail:
 
 ```ts
 import { expect, it } from 'bun:test';
+import { fixedClock } from '@nxgt/janus';
 import { createMemoryMailer, MailFailure } from '@nxgt/mail';
 import { janusMail } from '@nxgt/janus-mail';
+
+// The clock given to janus({ clock }) too: the codes it issues expire ten minutes on.
+const clock = fixedClock(Date.UTC(2026, 0, 1, 9));
+const expiresAt = new Date(Date.UTC(2026, 0, 1, 9, 10));
 
 const links = {
 	verifyEmail: (token: string) => `https://acme.example/verify?token=${token}`,
@@ -208,24 +261,25 @@ const links = {
 
 it('sends the code, and never the challenge', async () => {
 	const mailer = createMemoryMailer();
-	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links });
-	const issued = { code: '042817', challenge: 'secret', email: 'ada@example.com' };
+	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links, clock });
+	const issued = { code: '042817', challenge: 'secret', email: 'ada@example.com', expiresAt };
 
 	await mail.signInCode(issued, { locale: 'fr-CA' });
 
 	const [sent] = mailer.sent;
 	expect(sent?.to).toBe('ada@example.com');
 	expect(sent?.subject).toBe('Votre code de connexion : 042817');
+	expect(sent?.text).toContain('10 minutes.');
 	expect(`${sent?.html}${sent?.text}`).not.toContain('secret');
 });
 
 it('says so when the mailer is down', async () => {
 	const mailer = createMemoryMailer();
 	mailer.failNext();
-	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links });
+	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links, clock });
 
 	const error = await mail
-		.signInCode({ code: '042817', email: 'ada@example.com' })
+		.signInCode({ code: '042817', email: 'ada@example.com', expiresAt })
 		.then(() => null, (e: unknown) => e); // settled where it is created
 
 	expect(error).toBeInstanceOf(MailFailure);

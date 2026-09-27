@@ -56,7 +56,7 @@ The package peers `@nxgt/mail` at `>=0.1.0 <1`, so the build it ships must
 be readable by `@nxgt/mail` 0.1.0. The manifest says which format it is in —
 `formatVersion`, its first key, `MANIFEST_FORMAT` of the `@nxgt/mail-i18n`
 that built it — and within 0.x a renderer reads every format up to its own.
-`@nxgt/mail` 0.1.0 through 0.5.0 read format 1, and a manifest without the
+`@nxgt/mail` 0.1.0 through 0.6.0 read format 1, and a manifest without the
 field is format 1.
 
 `formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build

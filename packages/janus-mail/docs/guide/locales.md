@@ -74,9 +74,9 @@ import { janusMail, type JanusMailTemplates } from '@nxgt/janus-mail';
 type Locale = 'en' | 'fr' | 'de';
 
 const templates: JanusMailTemplates<Locale> = {
-	verifyEmail: ({ name, link, locale }) => render('verify-email', locale, { name, link }),
-	resetPassword: ({ name, link, locale }) => render('reset-password', locale, { name, link }),
-	signInCode: ({ code, locale }) => render('sign-in-code', locale, { code }),
+	verifyEmail: ({ name, link, expiresIn, locale }) => render('verify-email', locale, { name, link, expiresIn }),
+	resetPassword: ({ name, link, expiresIn, locale }) => render('reset-password', locale, { name, link, expiresIn }),
+	signInCode: ({ code, expiresIn, locale }) => render('sign-in-code', locale, { code, expiresIn }),
 	passwordChanged: ({ name, link, locale }) => render('password-changed', locale, { name, link }),
 	emailChanged: ({ name, link, newEmail, locale }) => render('email-changed', locale, { name, link, newEmail }),
 };
@@ -85,7 +85,9 @@ const mail = janusMail({ mailer, from, brand: 'Acme', links, locales: ['en', 'fr
 mail.locales; // readonly ('en' | 'fr' | 'de')[]
 ```
 
-`render` here is yours — a renderer over a Maizzle build of your own, with
+`render` here is yours; `expiresIn` is the expiry, already formatted in
+`locale` — "1 Stunde" for `de`, where the runtime's `Intl` has German. A
+renderer over a Maizzle build of your own, with
 `@nxgt/mail-presets` and a `locales/de.json`, is the closest to the defaults.
 With only some templates, the call does not compile — the error lands on
 `templates`:

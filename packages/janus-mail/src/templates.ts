@@ -22,20 +22,24 @@ import type { JanusMailTemplates } from './types';
  */
 export function janusTemplates(): JanusMailTemplates {
 	return Object.freeze({
-		verifyEmail: ({ brand, name, link, locale }): Rendered =>
+		verifyEmail: ({ brand, name, link, expiresIn, locale }): Rendered =>
 			defaultRenderer().render(
 				'verify-email',
-				{ brand, name, link },
+				{ brand, name, link, expiresIn },
 				{ locale },
 			),
-		resetPassword: ({ brand, name, link, locale }): Rendered =>
+		resetPassword: ({ brand, name, link, expiresIn, locale }): Rendered =>
 			defaultRenderer().render(
 				'reset-password',
-				{ brand, name, link },
+				{ brand, name, link, expiresIn },
 				{ locale },
 			),
-		signInCode: ({ brand, code, locale }): Rendered =>
-			defaultRenderer().render('sign-in-code', { brand, code }, { locale }),
+		signInCode: ({ brand, code, expiresIn, locale }): Rendered =>
+			defaultRenderer().render(
+				'sign-in-code',
+				{ brand, code, expiresIn },
+				{ locale },
+			),
 		passwordChanged: ({ brand, name, link, locale }): Rendered =>
 			defaultRenderer().render(
 				'password-changed',

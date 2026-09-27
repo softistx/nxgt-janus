@@ -89,6 +89,16 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 		'locales holds the same locale twice',
 	],
 	[
+		'a locale with an underscore',
+		{ locales: ['en', 'de_DE'] },
+		"locales must be BCP 47 language tags, with hyphens, as 'fr-CA'",
+	],
+	[
+		'a grandfathered tag Intl refuses',
+		{ locales: ['i-klingon'] },
+		"locales must be BCP 47 language tags, with hyphens, as 'fr-CA'",
+	],
+	[
 		'a fallbackLocale outside locales',
 		{ fallbackLocale: 'de' },
 		'fallbackLocale must be one of locales',
@@ -124,6 +134,17 @@ describe('wiring', () => {
 			expect(wire(patch)).toThrow(new TypeError(`janusMail: ${message}`));
 		});
 	}
+
+	test('a refused locale is not named in the message', () => {
+		let caught: unknown;
+		try {
+			wire({ locales: ['en', 'de_DE'] })();
+		} catch (error) {
+			caught = error;
+		}
+		expect(caught).toBeInstanceOf(TypeError);
+		expect((caught as Error).message).not.toContain('de_DE');
+	});
 
 	test('a bad option throws a bare TypeError, not a subclass', () => {
 		let caught: unknown;
