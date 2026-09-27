@@ -61,19 +61,60 @@ wrapped nxgt `0.x` library — nxgt-data's packages, and `@nxgt/telemetry` from
 nxgt-telemetry — the range is `>=<floor> <1`: `>=0.17.0 <1`, `>=0.3.1 <1`,
 `>=0.6.1 <1`, and `>=0.2.1 <1` for `@nxgt/telemetry` in the integration
 `janus-telemetry`. A caret on a `0.x` version admits a single minor
-(`^0.17.1` stops at `0.18.0`), and every minor upstream would then force a
+(`^0.4.2` stops at `0.5.0`), and every minor upstream would then force a
 release here. The same package sits in `devDependencies`, and `bun.lock` holds
-the version the specs actually run on. For `@nxgt/telemetry` that is 0.2.1, the
-floor itself: no later minor was published when the range was widened. For
-`@nxgt/mongo` it is 0.17.1, above the 0.17.0 floor, and CI runs that version
+the version the specs actually run on — every one of them npm's `latest` when
+last checked, on 2026-09-27. For `@nxgt/telemetry` that is 0.2.1, the
+floor itself: no later minor was published when the range was widened.
+`@nxgt/redis` 0.3.1 and `@nxgt/drizzle` 0.6.1 are likewise their floors. For
+`@nxgt/mongo` it is 0.18.1, above the 0.17.0 floor, and CI runs that version
 from the lock. The `janus-mongo` and `janus-kit` suites were also run once by
-hand, outside the lock, against 0.17.0 (the floor) and 0.18.1 (the newest
-minor then published). Both passed, with typecheck clean. `@nxgt/mail`, from
-nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.5.0 from
-the lock. The `janus-mail` suite was run once by hand, outside the lock,
-against 0.1.0 (the floor), and again against 0.1.0, 0.4.0 and 0.5.0 after the
-move to 0.5.0. All passed, with typecheck clean. The `mails/` build reads the
-same under every one of them.
+hand, outside the lock, against 0.17.0 (the floor) and 0.18.1, when the lock
+still held 0.17.1. Both passed, with typecheck clean, and passed again on
+0.18.1 from the lock. `@nxgt/mail`, from
+nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.5.1 from
+the lock, with `@nxgt/mail-config` 0.2.0, `@nxgt/mail-i18n` 0.3.0,
+`@nxgt/mail-ui` 0.1.1 and `@nxgt/mail-presets` 0.1.2 building `mails/` — whose
+text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, so
+`mail/maizzle.config.ts` sets no `plaintext` of its own. The `janus-mail`
+suite was run by hand, outside the lock, against 0.1.0 (the floor), 0.4.0 and
+0.5.0, and again against 0.1.0, 0.5.0 and 0.5.1 after the move to 0.5.1. All
+passed, with typecheck clean. The `mails/` build reads the same under every
+one of them, and **the build checks that it will**: a renderer reads every
+manifest format up to its own, `@nxgt/mail` 0.1.0 reads format 1, and
+`scripts/build-mail.ts` fails unless the manifest's `formatVersion` is
+`@nxgt/mail-i18n`'s `MANIFEST_FORMAT` and at most `PEER_FLOOR_READS`, 1. A new
+format from `@nxgt/mail-i18n` therefore fails the build here until the peer's
+floor rises to an `@nxgt/mail` that reads it
+(`packages/janus-mail/docs/guide/building.md`).
+
+**A new `@nxgt/*` release is found by a schedule, not by memory.** A range
+admits it the day it is published; the specs meet it only once the lock is
+bumped. `bun run nxgt:outdated` (`scripts/check-nxgt-versions.ts`, spec'd in
+`scripts/check-nxgt-versions.spec.ts`) lists every `@nxgt/*` devDependency
+from outside this repository — the mail-* build packages included — whose
+locked version is behind npm's `latest`: exit 0 when all are current, 1 when
+something is behind, 2 when the registry did not answer, which is never read
+as "current". The `nxgt versions` workflow runs it every Monday and on
+`workflow_dispatch`; something behind opens the issue *@nxgt/\*
+devDependencies behind npm latest*, or updates the one open, and fails the
+run, and a later run with nothing behind closes it. The bump is then a pull
+request like any other: the devDependency and `bun.lock` in one commit, the
+suites that use it run, and the sentences above updated. It runs the full CI,
+**Floors included**, since a new version upstream can break a floor as well
+as the pinned servers. A peer floor moves only when the new version forces
+it. A lock bump changes nothing published, so its changeset is an empty one
+(`---` twice): `changeset status` still asks for one, since a `package.json`
+changed.
+
+Not Dependabot, though it has a `bun` ecosystem: its updater reads `bun.lock`
+up to `lockfileVersion` 1 — `MAX_SUPPORTED_LOCKFILE_VERSION` in
+dependabot-core's `bun/lib/dependabot/bun/bun_package_manager.rb`, with Bun
+1.3.14 in its image, checked on 2026-09-27 — and this lock, written by Bun
+1.4.2, is version 2. When Dependabot reads version 2, a `.github/dependabot.yml`
+limited to `@nxgt/*` and grouped into one pull request can replace the
+workflow; its pull requests would still need the `Changeset present` step to
+pass.
 
 ### The other three declared divergences
 
@@ -318,7 +359,8 @@ build-only `@nxgt/mail-config`, `@nxgt/mail-i18n`, `@nxgt/mail-ui` and
 pinned exact and **direct** — under Bun's isolated install, a Tailwind that is
 only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
-`build` runs `scripts/build-mail.ts` (Maizzle, then a check that exactly the
+`build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
+`@nxgt/mail` 0.1.0 reads and that exactly the
 five e-mails were built) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer.
@@ -508,6 +550,10 @@ skipping of a `private` package. The first run of those two found that
 reported the package as unbuilt. `scripts/check-changesets.spec.ts` covers the
 changeset check — read with `@changesets/parse`, the parser `changeset version`
 uses, so a shape it accepts is never let through unread.
+`scripts/check-nxgt-versions.spec.ts` covers which devDependencies are
+tracked, what counts as behind, a registry that fails or answers no version,
+and the reading of this repository's own
+`bun.lock`.
 
 ---
 
