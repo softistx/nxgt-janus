@@ -5,7 +5,7 @@
 
 import type { Duration } from '../../time/duration';
 import type { StandardSchemaV1 } from '../standard-schema';
-import type { PasswordConfig } from './password-policy';
+import type { PasswordConfig } from './password-config';
 
 /**
  * What a user schema may produce: JSON, where an object property may also be

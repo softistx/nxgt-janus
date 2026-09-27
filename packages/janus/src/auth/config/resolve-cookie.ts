@@ -1,7 +1,7 @@
 /** Resolves the session cookie: the strict defaults, and a name browsers take. */
 
 import type { CookieConfig } from './janus-config';
-import type { ResolvedConfig } from './resolved';
+import type { ResolvedConfig } from './resolved-config';
 
 /** RFC 6265's cookie-name token: no control character, space, or separator. */
 const COOKIE_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;

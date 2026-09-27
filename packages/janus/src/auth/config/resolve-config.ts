@@ -14,7 +14,7 @@ import { RESERVED_TYPES, SINGLE_TYPE } from './reserved';
 import { resolveCookie } from './resolve-cookie';
 import { resolveSecondFactor } from './resolve-second-factor';
 import { resolveType } from './resolve-type';
-import type { ResolvedConfig, ResolvedType } from './resolved';
+import type { ResolvedConfig, ResolvedType } from './resolved-config';
 import type { UserSchema, UserTypeConfig } from './user-type';
 
 /** Applies the defaults and refuses what cannot be wired. `where` names the call. */

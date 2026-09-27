@@ -18,10 +18,10 @@ export type {
 	SingleTypeConfig,
 } from './janus-config';
 export { type Normalize, normalizeEmail } from './normalize';
-export type { PasswordConfig } from './password-policy';
+export type { PasswordConfig } from './password-config';
 export { RESERVED_FIELDS, RESERVED_TYPES, SINGLE_TYPE } from './reserved';
 export { resolveConfig } from './resolve-config';
-export type { ResolvedConfig, ResolvedType } from './resolved';
+export type { ResolvedConfig, ResolvedType } from './resolved-config';
 export type {
 	FieldsJson,
 	SessionConfig,

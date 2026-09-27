@@ -3,8 +3,8 @@
 import { parseDuration } from '../../time/duration';
 import { fieldName } from './names';
 import { normalizer } from './normalize';
-import type { PasswordConfig } from './password-policy';
-import type { ResolvedType } from './resolved';
+import type { PasswordConfig } from './password-config';
+import type { ResolvedType } from './resolved-config';
 import type { UserTypeConfig } from './user-type';
 
 /** `at` names the type in a refusal; `schemaKey` is the key its schema came in. */

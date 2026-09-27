@@ -3,7 +3,7 @@
 import { parseDuration } from '../../time/duration';
 import { resolveSealer } from '../sealing';
 import type { SecondFactorConfig } from './janus-config';
-import type { ResolvedConfig } from './resolved';
+import type { ResolvedConfig } from './resolved-config';
 
 export function resolveSecondFactor(
 	config: SecondFactorConfig | undefined,
