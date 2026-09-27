@@ -1,6 +1,7 @@
 import { PermissionDepthError } from '../errors/janus-error';
 import type { CursorPage } from '../pagination/cursor-page';
 import { MAX_PAGE_SIZE } from '../pagination/cursor-page';
+import { isStorable } from '../stores/storable';
 import type { Subject } from '../subjects/subject';
 import type { RelationStore } from './port/types';
 import {
@@ -221,7 +222,8 @@ export class Reverse {
 				`list: the lookup of ${type.name}.${relation} must answer an array of ids`,
 			);
 		}
-		return ids;
+		// An id no store can keep is held by nobody, as can() answers it.
+		return ids.filter(isStorable);
 	}
 
 	/** The condition, run on the caller's `ctx`, as for `can()`. */

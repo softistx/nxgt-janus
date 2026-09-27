@@ -126,14 +126,35 @@ export const relationStoreCases: readonly RelationCase[] = [
 			// The core refuses a NUL and a lone surrogate before a store is
 			// asked; everything else must come back exactly as written.
 			const edge = 'a\u0001\u001f\u007f\uFFFF 😀 z';
-			const written = tuple(
-				entity('record', edge),
-				'viewer',
-				set('team', edge, 'member'),
-			);
-			await store.write({ add: [written] });
+			const record = entity('record', edge);
+			const written = tuple(record, 'viewer', set('team', edge, 'member'));
+			const direct = tuple(record, 'viewer', entity('staff', edge));
+			await store.write({ add: [written, direct] });
 
 			equal(await store.has(written), true, 'has for ids of edge characters');
+			// Read back through every index: an adapter that mangles an id the
+			// same way on write and on lookup still fails here.
+			equal(
+				await store.findSubjectSets(record, 'viewer'),
+				[set('team', edge, 'member')],
+				'findSubjectSets answers the set id as written',
+			);
+			equal(
+				await store.findEntities(record, 'viewer'),
+				[entity('staff', edge)],
+				'findEntities answers the entity id as written',
+			);
+			equal(
+				await store.findObjects({
+					type: 'record',
+					relation: 'viewer',
+					subject: direct.subject,
+					after: null,
+					limit: 10,
+				}),
+				{ items: [edge], nextCursor: null },
+				'findObjects answers the object id as written',
+			);
 			equal(
 				await store.has(
 					tuple(

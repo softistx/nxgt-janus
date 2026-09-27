@@ -459,8 +459,9 @@ error.
 **An id no store can keep is held by nobody.** An id holding a NUL character
 (`\u0000`) or a lone surrogate cannot be written to PostgreSQL, so no tuple can
 name it: `can()` answers `false` for such an object or subject before any
-store call, and a `fromField` whose value holds one names nobody. Every other
-character is an id like any other.
+store call, a `fromField` whose value holds one names nobody, and `list()`
+leaves out an id a `lookup` answers holding one. Every other character is an
+id like any other.
 
 ### `list`
 

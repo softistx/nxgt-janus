@@ -90,10 +90,11 @@ before is in the [CHANGELOG](../CHANGELOG.md).
 - **A permission id no store can keep is held by nobody** — an object or
   subject id holding a NUL character or a lone surrogate answers `false` from
   `can()` and an empty page from `list()`, before any store call, and a
-  `fromField` holding one names nobody; `grant()` and `revoke()` refuse it
-  with a `TypeError` rather than `STORE_FAILED` on PostgreSQL alone. The
-  relation store suite holds every adapter to round-tripping every other
-  character in an id. — v0.8.3
+  `fromField` holding one names nobody, nor does a `lookup` answering one;
+  `grant()` and `revoke()` refuse it with a `TypeError` rather than
+  `STORE_FAILED` on PostgreSQL alone. The relation store suite holds every
+  adapter to reading back every other character in an id exactly as written.
+  — v0.8.3
 - **Webhooks, `@nxgt/janus-webhooks` v0.1.0** — a package of its own: the
   user events `janus({ events })` hands over, signed by the Standard
   Webhooks specification (HMAC-SHA256, secrets that rotate) and posted to

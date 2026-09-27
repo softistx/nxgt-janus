@@ -65,7 +65,11 @@ Declared here so the review agent does not flag them on every pass.
   synchronous**.
 - The error rules: a refusal at **wiring** time is a bare `TypeError`; a refusal
   at **call** time, on a value that could have come from a request, is a class
-  with a `code`.
+  with a `code`. One exception, decided for `@nxgt/janus/permissions`: an id
+  `grant()` or `revoke()` cannot store — notation characters, a NUL, a lone
+  surrogate — is a `TypeError`. A grant writes the application's own ids, so a
+  bad one is its bug; the reads a request reaches, `can()` and `list()`, answer
+  such an id as an absence instead, and never throw on it.
 - A message reports a **shape and never a value**, names the call the consumer
   wrote, and **never contains a URI** — a connection string holds a password.
 - `process.emitWarning` is the only logging channel. A library does not own
