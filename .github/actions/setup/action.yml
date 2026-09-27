@@ -16,7 +16,3 @@ runs:
       # reading NPM_TOKEN.
       run: bun i --frozen-lockfile
       shell: bash
-    - name: Setup Biome
-      uses: biomejs/setup-biome@v2
-      with:
-        version: latest

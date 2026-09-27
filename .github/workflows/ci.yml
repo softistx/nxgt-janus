@@ -25,11 +25,23 @@ on:
   push:
     branches: [develop]
 
+# A pull request's new push supersedes its run in progress. A push to
+# `develop` never does: each one is in a group of its own, by run id, because
+# that run is what writes the caches every pull request reads — and a group
+# with `cancel-in-progress: false` still cancels a run left *pending* in it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref != 'refs/heads/develop' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     name: CI
     # GitHub-hosted. The repository is public, so these minutes are free.
     runs-on: ubuntu-latest
+    # Measured on the last 30 runs: 6 to 8½ minutes, of which `bun install`
+    # takes about 3½ and a cold Redis build about 2. Past 30, it is hung, and
+    # the six-hour default would hold the runner for nothing.
+    timeout-minutes: 30
     # @nxgt/janus-drizzle's specs run on a real PostgreSQL here, and on PGlite
     # everywhere else. PGlite runs one connection, so the concurrency cases —
     # twenty redemptions of one token — are serialised there and pass without
@@ -54,8 +66,10 @@ jobs:
           fetch-depth: 0
       - name: Setup
         uses: ./.github/actions/setup
+      # The Biome bun.lock resolved, as `bun run check` runs it locally: one
+      # version, the one biome.json's $schema names, and never `latest`.
       - name: Lint code
-        run: biome ci
+        run: bunx biome ci
       # A changeset naming a private package is consumed by `changeset
       # version` and published by nothing: the release stays in version mode
       # (#51 → #53). A typo in a package name is the same release that never
@@ -74,14 +88,15 @@ jobs:
       - name: Type checking
         run: bun run typecheck
       # @nxgt/janus-mongo's specs start a real mongod, as a single-node replica
-      # set, which is what `failCommand` needs. mongodb-memory-server downloads
-      # it on the first start; the version is pinned in the file this key
-      # hashes, the way nxgt-data keys its own.
+      # set, which is what `failCommand` needs, and so do @nxgt/janus-kit's,
+      # from a copy of it. mongodb-memory-server downloads it on the first
+      # start; the version is pinned in both files, which this key hashes, the
+      # way nxgt-data keys its own.
       - name: Cache the mongod binary
         uses: actions/cache@v4
         with:
           path: .cache/mongodb
-          key: mongod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts') }}
+          key: mongod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts', 'packages/janus-kit/test/mongo.ts') }}
       # @nxgt/janus-redis's specs start a real Redis, and so do
       # @nxgt/janus-kit's and @nxgt/janus-webhooks-redis's, from copies of the
       # same test/server.ts, pinned to the same version. Nobody publishes a
@@ -111,6 +126,13 @@ jobs:
           JANUS_DRIVER=postgres-js bun test src
         env:
           JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
+      # And on PGlite, which the README and the adapters guide say it passes
+      # on, and which is what a contributor without a server runs: with no
+      # JANUS_POSTGRES_URL, test/db.ts opens one PGlite per case. About two
+      # minutes, measured locally.
+      - name: Run the PostgreSQL adapter on PGlite
+        working-directory: packages/janus-drizzle
+        run: bun test src
       # The build exits 0 on packages that throw the instant they are imported —
       # it happened three times in nxgt-core. This packs them, installs them as a consumer
       # does and imports every declared subpath.

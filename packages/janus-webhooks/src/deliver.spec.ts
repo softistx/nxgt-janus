@@ -1,4 +1,12 @@
-import { afterAll, afterEach, describe, expect, it } from 'bun:test';
+import {
+	afterAll,
+	afterEach,
+	describe,
+	expect,
+	it,
+	jest,
+	spyOn,
+} from 'bun:test';
 import type { UserEvent } from '@nxgt/janus';
 import { type Delivery, type GivingUp, webhooks } from './deliver';
 import { verifyWebhook } from './payload';
@@ -281,21 +289,43 @@ describe('close(), racing a request in flight', () => {
 	});
 
 	it('cancels a retry waiting, so none is sent after close', async () => {
-		const { sent, fetch } = endpoint(500);
-		const listener = webhooks({
-			endpoints: [{ url, secrets: [secret] }],
-			retries: ['20ms'],
-			fetch,
-			onGivingUp: () => {},
-		});
+		// On a fake clock: with a real one, a loaded runner could let the retry
+		// fall due before close() and send it. Here nothing is due until the
+		// spec says so, and the retry's own timer is what it waits for.
+		jest.useFakeTimers();
+		const timers = spyOn(globalThis, 'setTimeout');
+		try {
+			const { sent, fetch } = endpoint(500);
+			const { given, onGivingUp } = givingUps();
+			const listener = webhooks({
+				endpoints: [{ url, secrets: [secret] }],
+				retries: ['20ms'],
+				fetch,
+				onGivingUp,
+			});
 
-		listener(event);
-		await until(() => sent.length === 1);
-		await new Promise((resolve) => setTimeout(resolve, 5));
-		await listener.close();
-		await new Promise((resolve) => setTimeout(resolve, 40));
+			listener(event);
+			// setImmediate is not faked: each turn runs the microtasks the stub
+			// fetch and the memory queue resolve on, until the retry is waiting.
+			for (let turn = 0; !timers.mock.calls.some(([, ms]) => ms === 20); ) {
+				if (++turn > 1_000) throw new Error('no retry was scheduled');
+				await new Promise((resolve) => setImmediate(resolve));
+			}
+			await listener.close();
+			jest.advanceTimersByTime(1_000);
+			await new Promise((resolve) => setImmediate(resolve));
 
-		expect(sent).toHaveLength(1);
+			expect(sent).toHaveLength(1);
+			expect(given).toEqual([
+				[
+					{ event, url, endpoint: '0', attempts: 1 },
+					{ why: 'closed', status: 500, error: null },
+				],
+			]);
+		} finally {
+			timers.mockRestore();
+			jest.useRealTimers();
+		}
 	});
 
 	it('waits for an onGivingUp that takes its time', async () => {

@@ -19,6 +19,11 @@ on:
   push:
     branches: [develop]
 
+# One release at a time, and a run under way is never cancelled: it may be
+# half-way through a publish. A run still *pending* here is replaced by a newer
+# push's, which is harmless — each run publishes every version the registry
+# lacks, so the newer one does the older one's work. No `timeout-minutes` for
+# the same reason: killing a publish half-way is worse than waiting on it.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
