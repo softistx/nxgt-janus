@@ -1,5 +1,6 @@
 import { isId } from '../../ids/id';
 import { invalidCursor, pageLimit } from '../../pagination/cursor-page';
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import {
 	type AnyUser,
@@ -12,7 +13,7 @@ import {
 import type { UserTypeApi } from '../types';
 import { deleteUser } from './delete';
 import { fieldsPatch } from './fields-patch';
-import type { At, Input } from './flow-types';
+import type { Input } from './flow-types';
 import { insert } from './insert';
 
 /**

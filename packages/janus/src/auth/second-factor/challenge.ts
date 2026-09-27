@@ -1,4 +1,5 @@
 import { SecondFactorError, UserInactiveError } from '../../errors/janus-error';
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, findRecord } from '../context';
 import {
@@ -19,11 +20,7 @@ import { acceptCode, isActive, requireSettings } from './factor';
  * redeems it. **Only the challenge's hash is stored**, like a session
  * token's.
  */
-export function challengeFlows(
-	context: Context,
-	type: ResolvedType,
-	at: (operation: string) => string,
-) {
+export function challengeFlows(context: Context, type: ResolvedType, at: At) {
 	return {
 		async issue(
 			record: UserRecord,
@@ -69,7 +66,7 @@ async function confirmChallenge(
 	type: ResolvedType,
 	challenge: string,
 	code: string,
-	at: (operation: string) => string,
+	at: At,
 ): Promise<SignedIn<AnyUser>> {
 	const where = at('secondFactor.confirm');
 	const configured = requireSettings(

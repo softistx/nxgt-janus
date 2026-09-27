@@ -4,6 +4,7 @@
  * everywhere.
  */
 
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import {
 	type AnyUser,
@@ -30,7 +31,7 @@ type ResetPassword = ResetPasswordApi<AnyUser>['resetPassword'];
 export function resetPasswordFlows(
 	context: Context,
 	type: ResolvedType,
-	at: (operation: string) => string,
+	at: At,
 ): ResetPassword {
 	return {
 		async request(email) {
