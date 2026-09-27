@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.8.5
+
+### Patch Changes
+
+- [#80](https://github.com/softistx/nxgt-janus/pull/80) [`fd78107`](https://github.com/softistx/nxgt-janus/commit/fd78107d8906c0eba023ffcb28282c0e417b473d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Conformance: a suite run from the published package now recognises two copies of `@nxgt/janus` — `the error is named StoreFailure but is not @nxgt/janus's StoreFailure: two copies of @nxgt/janus are installed …` — instead of answering `expected StoreFailure2, got StoreFailure`. The bundler renames the class in `dist`, and the probe compared against that renamed name.
+
 ## 0.8.4
 
 ### Patch Changes
