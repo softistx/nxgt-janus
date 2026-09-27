@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.8.7
+
+### Patch Changes
+
+- [#94](https://github.com/softistx/nxgt-janus/pull/94) [`1e3a5c5`](https://github.com/softistx/nxgt-janus/commit/1e3a5c582a1fc280eabf865fea77d25089ed91ee) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The guides point to `@nxgt/janus-mail`, the ready-made e-mails of the flows — in progress and private: e-mail verification and password reset in `email-flows.md`, the sign-in code in `sign-in-code.md`, and the roadmap entry *Sending the e-mails* moves to *Now*. The vocabulary gains *issued* and *notice*, and *integration* names the mail package.
+
 ## 0.8.6
 
 ### Patch Changes
