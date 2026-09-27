@@ -470,7 +470,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above |
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/`, `packages/janus-webhooks-redis/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; three copies of 60 lines are cheaper. The Redis version in them keys the one `.cache/redis`, and `$JANUS_REDIS_VERSION` and `$REDIS_BIN` override it the same way in all three. Byte-identical, and both CI jobs, `ci` and `floors`, key their Redis cache on all three. Change one, change all |
 | The Redis script runner and reply reader — `scriptsOver`, `isNoScript`, `runner` and its `Run`, `stamp`, `readerOf`, `unreadable` | `packages/janus-redis/src/{stores,replies}.ts`, `packages/janus-webhooks-redis/src/{queue,replies}.ts` | Two adapters of two ports in two packages, and neither may depend on the other; a shared package for 80 lines would be a third to publish. The runner is the same but for its failure's message: `webhookQueue.<method>: the queue could not answer` with `operation` only, where janus-redis says `<slot>.<operation>: the store could not answer` with `slot` too. `runner` takes no `slot` here, and this copy's `Run` takes a lazy `argsOf(operation)` builder where janus-redis's takes an eager `args` array, so a refusal names the operation before any I/O. The reader reads dates the same way — any number but `''` and `NaN` — and a count's digits the same way, with two differences: janus-redis's field `count` answers `0` for an absent field (a token of an earlier version) where this copy fails, and janus-redis's reply `count` takes any number where this copy's `toCount` requires a safe integer, 0 or more. `unreadable` differs in the same way as the runner. The webhook copy adds `type` and `failure`, and refuses before any I/O what it could not read back. Change one, change both |
-| `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. A change to how a case opens or fails belongs in both |
+| `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. Both end with the same `redisPerFile()`, the file's server started and stopped around its cases. A change to how a case opens or fails belongs in both |
 | `test/mongo.ts`, the pinned replica set the specs start | `packages/janus-mongo/test/server.ts`, `packages/janus-kit/test/mongo.ts` | Same; the mongod version in both keys the one `.cache/mongodb` |
 | The DDL helper, drizzle-kit's `generateMigration` over `defineJanusTables()` | `packages/janus-drizzle/test/db.ts`, `packages/janus-kit/test/postgres.ts` | Same |
 | The conformance helpers — `equal`, `ok`, `rejects`, `isOurs`, `describeSuite`, `fromGlobals` | `packages/janus/src/conformance/{assert,describe}.ts`, `packages/janus-webhooks/src/conformance/{assert,describe}.ts` | `@nxgt/janus/conformance` exports its suites, not its helpers, and a second port's suite in another package needs them; exporting them would make them a public promise for 150 lines. Both `isOurs` take the error's `name` rather than reading `cls.name`, since `@nxgt/janus`'s bundle renames `StoreFailure` to `StoreFailure2`, and their bodies are identical. The copy has no `isNull`: a queue answers no `null`. Change one, change both |
@@ -480,6 +480,18 @@ The table that exists so a duplication is a decision rather than an accident.
 ## Tests
 
 - `*.spec.ts` colocated in `src/`. `test/` holds helpers only.
+- **A spec split by behaviour becomes sibling files**
+  `<subject>.<behaviour>.spec.ts` next to the module it tests —
+  `deliver.sending.spec.ts`, `deliver.closing.spec.ts`,
+  `deliver.refusals.spec.ts` — each keeping its tests' `describe`/`it`
+  names, so a dump of the full names is identical before and after. What the
+  siblings share goes in one `<subject>.fixtures.ts` beside them, which holds
+  no test and is excluded, in every package's `tsconfig.build.json`, with the
+  specs, so it never ships — a shipped module named `fixtures.ts`, with no
+  dotted prefix, is not matched. What specs of several subjects share stays
+  in `test/`. A split spec's server stays one per file: `redisPerFile()` in
+  `test/case.ts` and the kit's `mongoPerFile()` register its
+  `beforeAll`/`afterAll` in each file that calls them.
 - `test/types/` is typechecked by `tsc --noEmit` and **never run**.
 - MongoDB, in `@nxgt/janus-mongo` and `@nxgt/janus-kit/mongo`:
   `mongodb-memory-server-core` as a single-node replica set, binary cached in
