@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { hasher, person } from '../../test/auth';
-import { type JanusConfig, resolveConfig } from './config';
-import { janus } from './janus';
-import { createMemoryStores } from './port/memory';
+import { hasher, person } from '../../../test/auth';
+import { janus } from '../janus';
+import { createMemoryStores } from '../port/memory';
+import type { JanusConfig } from './janus-config';
+import { resolveConfig } from './resolve-config';
 
 const store = createMemoryStores();
 
