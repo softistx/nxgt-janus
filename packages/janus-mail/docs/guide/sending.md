@@ -54,7 +54,8 @@ Every link is called at send time, and must answer an absolute `http:`,
 `MailRefused`, before the mailer is called. `mailto:` is accepted on purpose:
 `secureAccount: () => 'mailto:security@acme.example'` points a user who made
 no change at your support desk. A link must be answered synchronously, as a
-string — a `URL` object or a promise is a `TypeError` naming the call,
+string — an `async` function or a `URL` object is a compile error in
+TypeScript, and a `TypeError` naming the call at send time in JavaScript,
 `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`.
 Encode a token you put in a query string yourself (`encodeURIComponent`).
 
@@ -156,7 +157,7 @@ defines no error class and wraps nothing:
 | --- | --- | --- | --- |
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
-| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or a link that is not a string — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string` | A bug to fix |
+| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string` | A bug to fix |
 | `Error` from `createMailRenderer` | the renderer | `mails/` is missing where the package runs: a bundler inlined `@nxgt/janus-mail`, or a deploy kept `dist/` only | Keep `@nxgt/janus-mail` external to your bundle and deploy its `mails/` with it; see [troubleshooting](../troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is

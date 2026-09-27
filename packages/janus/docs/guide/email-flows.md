@@ -32,11 +32,11 @@ verified.emailVerified; // true
 ## Ready-made e-mails — `@nxgt/janus-mail`
 
 `sendMail` above is yours to write, or
-[`@nxgt/janus-mail`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/README.md)
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)
 writes it: it takes what `send` and `request` answer, as they answer it, and
 sends the verification and reset e-mails — and the *password changed* and
 *e-mail changed* notices — in English and French, over any `@nxgt/mail`
-transport. In progress, and private until its first release.
+transport.
 
 ```ts
 import { janusMail } from '@nxgt/janus-mail';

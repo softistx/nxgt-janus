@@ -87,7 +87,9 @@ export interface Recipient {
 /**
  * The links of the e-mails, each an absolute `http(s)` URL of your
  * application. Each is called at send time and must answer a string
- * synchronously, else the send throws a `TypeError` naming the call. A
+ * synchronously: an `async` function or a `URL` object is a compile error,
+ * and from JavaScript, or through a cast, the send throws a `TypeError`
+ * naming the call. A
  * `mailto:` URL is accepted too — `secureAccount: () => 'mailto:security@acme.example'`
  * sends the user to your support desk; any other scheme is refused by the
  * renderer with a `MailRefused`. The functions are copied when `janusMail()`

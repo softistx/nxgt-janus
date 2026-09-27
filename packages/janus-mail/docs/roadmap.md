@@ -5,9 +5,7 @@ no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **The first release** — the five e-mails of `@nxgt/janus`'s flows, in
-  English and French, over any `@nxgt/mail` transport: `janusMail()` and
-  `janusTemplates()`. Built and tested in the repository, not yet published.
+Nothing between releases.
 
 ## Next
 
@@ -46,4 +44,9 @@ no dates here, and the version something shipped in is the only number.
 
 ## Shipped
 
-Nothing yet: the package is private until its first release.
+Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The first release, v0.1.0.** The five e-mails of `@nxgt/janus`'s flows,
+  in English and French, over any `@nxgt/mail` transport: `janusMail()` and
+  `janusTemplates()`. Built with Maizzle when the package is built, shipped
+  in `mails/`, and only filled in at send time, every value escaped.

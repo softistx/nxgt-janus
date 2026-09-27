@@ -160,11 +160,10 @@ sign-in completes in the browser that started it.
 Send it to `issued.email`, not to what the visitor typed: it is the address
 the user's field holds, as they registered it.
 
-[`@nxgt/janus-mail`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/README.md)
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)
 sends this e-mail ready-made, in English and French, over any `@nxgt/mail`
-transport — in progress, and private until its first release. It takes the
-whole `IssuedCode` and reads only `code` and `email`: the challenge never
-reaches the e-mail, nor a template of yours.
+transport. It takes the whole `IssuedCode` and reads only `code` and
+`email`: the challenge never reaches the e-mail, nor a template of yours.
 
 ```ts
 if (issued !== null) await mail.signInCode(issued, { locale: 'fr-CA' }); // the recipient's locale: sent in fr

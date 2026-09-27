@@ -32,8 +32,7 @@ CSS inlined for mail clients — and shipped as HTML and text. At send time
 they are only filled in: your brand, the recipient's name, your links, every
 value escaped. No template engine and no Maizzle run in your server.
 
-> **Private, in progress.** Not published yet: the package is built and
-> tested in this repository, and its surface may still change before 0.1.
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 
@@ -180,6 +179,10 @@ send time and must return an `http(s)` or `mailto:` URL as a string: an
 `TypeError` naming the call.
 `links`, `from` and `replyTo` are copied when `janusMail()` is called, so
 changing them afterwards changes nothing.
+
+**Templates are own properties.** A class's methods live on its prototype
+and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
+…`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
 built in those two only, so `locales: ['en', 'fr', 'de']` without all five
