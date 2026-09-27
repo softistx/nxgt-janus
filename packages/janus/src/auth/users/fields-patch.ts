@@ -1,5 +1,4 @@
-import type { ResolvedType } from '../config';
-import { normalizeEmail } from '../config';
+import { normalizeEmail, type ResolvedType } from '../config';
 import { emailOf, loginsOf, validateFields } from '../context';
 import type { UserRecord } from '../port/types';
 import type { Input } from './any-type-api';
