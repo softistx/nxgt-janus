@@ -6,9 +6,9 @@ import {
 	password,
 	rejection,
 	setup,
-} from '../../test/auth';
-import type { JanusError } from '../errors/janus-error';
-import { presentedToken } from './sessions';
+} from '../../../test/auth';
+import type { JanusError } from '../../errors/janus-error';
+import { presentedToken } from './index';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -158,7 +158,7 @@ describe('signing out', () => {
 	});
 
 	it('collects lapsed sessions when the store can, and says UNSUPPORTED when it cannot', async () => {
-		const { createMemoryStores } = await import('./port/memory');
+		const { createMemoryStores } = await import('../port/memory');
 		const { deleteExpiredSessions: _, ...withoutCollect } =
 			createMemoryStores().sessions;
 		const { auth, clock } = setup();

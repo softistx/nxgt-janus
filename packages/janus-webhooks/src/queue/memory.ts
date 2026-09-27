@@ -33,39 +33,6 @@ interface Held {
 export function createMemoryWebhookQueue(): WebhookQueue {
 	const held = new Map<string, Held>();
 
-	/** The deliveries of one endpoint due at `at`, earliest first. */
-	const dueOf = (endpoint: string, at: number): [string, Held][] =>
-		[...held]
-			.filter(([, one]) => one.endpoint === endpoint && one.due <= at)
-			.sort(([, a], [, b]) => a.due - b.due);
-
-	const claim = (
-		endpoints: readonly string[],
-		at: number,
-		leaseUntil: Date,
-		limit: number,
-	): QueuedDelivery[] => {
-		const claimed: QueuedDelivery[] = [];
-		for (const endpoint of new Set(endpoints)) {
-			for (const [id, one] of dueOf(endpoint, at)) {
-				if (claimed.length >= limit) return claimed;
-				one.attempts += 1;
-				one.lease = randomUUID();
-				one.due = leaseUntil.getTime();
-				claimed.push(queuedOf(id, one, one.lease));
-			}
-		}
-		return claimed;
-	};
-
-	/** The delivery, when `lease` is the one it holds. */
-	const leased = (id: string, lease: string): Held | null => {
-		const one = held.get(id);
-		return one !== undefined && one.lease !== null && one.lease === lease
-			? one
-			: null;
-	};
-
 	return {
 		async insertDeliveries(event, endpoints, dueAt) {
 			let inserted = 0;
@@ -86,7 +53,7 @@ export function createMemoryWebhookQueue(): WebhookQueue {
 		},
 
 		async claimDeliveries(endpoints, now, leaseUntil, limit) {
-			return claim(endpoints, now.getTime(), leaseUntil, limit);
+			return claim(held, endpoints, now.getTime(), leaseUntil, limit);
 		},
 
 		async claimOrphanedDeliveries(known, dueBefore, leaseUntil, limit) {
@@ -94,18 +61,18 @@ export function createMemoryWebhookQueue(): WebhookQueue {
 			const orphaned = [...held.values()]
 				.map((one) => one.endpoint)
 				.filter((endpoint) => !kept.has(endpoint));
-			return claim(orphaned, dueBefore.getTime(), leaseUntil, limit);
+			return claim(held, orphaned, dueBefore.getTime(), leaseUntil, limit);
 		},
 
 		async extendLease(id, lease, until) {
-			const one = leased(id, lease);
+			const one = leased(held, id, lease);
 			if (one === null) return false;
 			one.due = until.getTime();
 			return true;
 		},
 
 		async scheduleRetry(id, lease, dueAt, failed) {
-			const one = leased(id, lease);
+			const one = leased(held, id, lease);
 			if (one === null) return false;
 			one.failed = { status: failed.status, error: failed.error };
 			one.lease = null;
@@ -114,11 +81,58 @@ export function createMemoryWebhookQueue(): WebhookQueue {
 		},
 
 		async deleteDelivery(id, lease) {
-			if (leased(id, lease) === null) return false;
+			if (leased(held, id, lease) === null) return false;
 			held.delete(id);
 			return true;
 		},
 	};
+}
+
+/** The deliveries of one endpoint due at `at`, earliest first. */
+function dueOf(
+	held: ReadonlyMap<string, Held>,
+	endpoint: string,
+	at: number,
+): [string, Held][] {
+	return [...held]
+		.filter(([, one]) => one.endpoint === endpoint && one.due <= at)
+		.sort(([, a], [, b]) => a.due - b.due);
+}
+
+/**
+ * Claims up to `limit` deliveries due at `at`, endpoint by endpoint in the
+ * order given: each counts an attempt, and gets a lease of its own.
+ */
+function claim(
+	held: ReadonlyMap<string, Held>,
+	endpoints: readonly string[],
+	at: number,
+	leaseUntil: Date,
+	limit: number,
+): QueuedDelivery[] {
+	const claimed: QueuedDelivery[] = [];
+	for (const endpoint of new Set(endpoints)) {
+		for (const [id, one] of dueOf(held, endpoint, at)) {
+			if (claimed.length >= limit) return claimed;
+			one.attempts += 1;
+			one.lease = randomUUID();
+			one.due = leaseUntil.getTime();
+			claimed.push(queuedOf(id, one, one.lease));
+		}
+	}
+	return claimed;
+}
+
+/** The delivery, when `lease` is the one it holds. */
+function leased(
+	held: ReadonlyMap<string, Held>,
+	id: string,
+	lease: string,
+): Held | null {
+	const one = held.get(id);
+	return one !== undefined && one.lease !== null && one.lease === lease
+		? one
+		: null;
 }
 
 function queuedOf(id: string, one: Held, lease: string): QueuedDelivery {

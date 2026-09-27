@@ -27,14 +27,8 @@ export interface Pump {
 	idle(): Promise<boolean>;
 }
 
-/**
- * **One pump at a time**: it claims up to the free slots of `concurrency`,
- * walking the endpoints from a rotating start so one endpoint's backlog
- * cannot take every slot, starts each delivery claimed, and runs again while
- * it fills every slot or is woken meanwhile. With a queue of the caller's —
- * or while the queue fails — a timer wakes it: the poll, or the backoff.
- */
-export function pumpOf(context: {
+/** What a pump claims from, and what it hands each delivery claimed to. */
+interface PumpContext {
 	readonly queue: WebhookQueue;
 	readonly settings: Settings;
 	readonly guard: Guard;
@@ -43,100 +37,145 @@ export function pumpOf(context: {
 	/** How many requests are in flight. */
 	readonly inFlight: () => number;
 	readonly start: (delivery: QueuedDelivery) => void;
-}): Pump {
-	const { queue, settings, guard } = context;
-	const keys = settings.targets.map((one) => one.key);
-	let pumping: Promise<void> | null = null;
-	let again = false;
-	let dueAtLeast = 0;
-	let saturated = false;
-	let rotation = 0;
-	let backoff = 0;
-	let tick: ReturnType<typeof setTimeout> | undefined;
-	let quiet = false;
-	let stopped = false;
-	let heldAt: number | null = null;
-	let claimedNothing = true;
+}
 
-	/** Claims what is due and starts it. `true` when it took all it could. */
-	const pumpOnce = async (): Promise<boolean> => {
-		const free = settings.concurrency - context.inFlight();
-		if (free <= 0) {
-			saturated = true;
-			return false;
-		}
-		const now = heldAt ?? Math.max(Date.now(), dueAtLeast);
-		dueAtLeast = 0;
-		const first = rotation++ % keys.length;
-		const order = [...keys.slice(first), ...keys.slice(0, first)];
-		const leaseUntil = new Date(now + settings.leaseMs);
-		const batch = await claimed(guard, 'claimDeliveries', () =>
-			queue.claimDeliveries(order, new Date(now), leaseUntil, free),
-		);
-		claimedNothing = batch === null || batch.length === 0;
-		if (batch === null) {
-			backoff = Math.min(Math.max(backoff * 2, settings.pollMs), BACKOFF_MAX);
-			return false;
-		}
-		backoff = 0;
-		for (const delivery of batch) context.start(delivery);
-		saturated = batch.length >= free;
-		return saturated;
-	};
+/** What one pump remembers from a run to the next. */
+interface PumpState {
+	/** The run under way, if any. */
+	pumping: Promise<void> | null;
+	/** Woken while a run was under way: it runs once more. */
+	again: boolean;
+	/** The earliest instant the next claim is made as of. */
+	dueAtLeast: number;
+	/** The last run found no slot free, or filled every one. */
+	saturated: boolean;
+	/** Where the next claim starts walking the endpoints. */
+	rotation: number;
+	/** The wait after a queue failure; `0` while the queue answers. */
+	backoff: number;
+	tick: ReturnType<typeof setTimeout> | undefined;
+	/** No timer is set any more. */
+	quiet: boolean;
+	/** Nothing is claimed any more. */
+	stopped: boolean;
+	/** The instant every claim is made as of, once held. */
+	heldAt: number | null;
+	/** The last claim answered nothing, or failed. */
+	claimedNothing: boolean;
+}
 
-	/** The next wake with no event to cause one: the poll, or a queue failure's backoff. */
-	const arm = (): void => {
-		clearTimeout(tick);
-		if (quiet || (!context.durable && backoff === 0)) return;
-		const ms =
-			backoff > 0 ? backoff : settings.pollMs * (0.8 + Math.random() * 0.4);
-		tick = setTimeout(() => wake(), ms);
-		tick.unref?.();
+/**
+ * **One pump at a time**: it claims up to the free slots of `concurrency`,
+ * walking the endpoints from a rotating start so one endpoint's backlog
+ * cannot take every slot, starts each delivery claimed, and runs again while
+ * it fills every slot or is woken meanwhile. With a queue of the caller's —
+ * or while the queue fails — a timer wakes it: the poll, or the backoff.
+ */
+export function pumpOf(context: PumpContext): Pump {
+	const keys = context.settings.targets.map((one) => one.key);
+	const state: PumpState = {
+		pumping: null,
+		again: false,
+		dueAtLeast: 0,
+		saturated: false,
+		rotation: 0,
+		backoff: 0,
+		tick: undefined,
+		quiet: false,
+		stopped: false,
+		heldAt: null,
+		claimedNothing: true,
 	};
 
 	const wake = (at = 0): void => {
-		if (stopped) return;
-		dueAtLeast = Math.max(dueAtLeast, at);
-		if (pumping !== null) {
-			again = true;
+		if (state.stopped) return;
+		state.dueAtLeast = Math.max(state.dueAtLeast, at);
+		if (state.pumping !== null) {
+			state.again = true;
 			return;
 		}
-		pumping = (async () => {
+		state.pumping = (async () => {
 			for (;;) {
-				again = false;
-				const full = await pumpOnce();
-				if (stopped || !(full || again)) break;
+				state.again = false;
+				const full = await pumpOnce(context, keys, state);
+				if (state.stopped || !(full || state.again)) break;
 			}
-			arm();
+			arm(context, state, wake);
 		})().finally(() => {
-			pumping = null;
+			state.pumping = null;
 		});
 	};
 
 	const silence = (): void => {
-		quiet = true;
-		clearTimeout(tick);
+		state.quiet = true;
+		clearTimeout(state.tick);
 	};
 
-	arm();
+	arm(context, state, wake);
 
 	return {
 		wake,
 		freed() {
-			if (saturated) wake();
+			if (state.saturated) wake();
 		},
 		hold(at) {
-			heldAt = at;
+			state.heldAt = at;
 			silence();
 		},
 		quiet: silence,
 		async stop() {
-			stopped = true;
-			await pumping;
+			state.stopped = true;
+			await state.pumping;
 		},
 		async idle() {
-			while (pumping !== null) await pumping;
-			return claimedNothing;
+			while (state.pumping !== null) await state.pumping;
+			return state.claimedNothing;
 		},
 	};
+}
+
+/** Claims what is due and starts it. `true` when it took all it could. */
+async function pumpOnce(
+	context: PumpContext,
+	keys: readonly string[],
+	state: PumpState,
+): Promise<boolean> {
+	const { queue, settings, guard } = context;
+	const free = settings.concurrency - context.inFlight();
+	if (free <= 0) {
+		state.saturated = true;
+		return false;
+	}
+	const now = state.heldAt ?? Math.max(Date.now(), state.dueAtLeast);
+	state.dueAtLeast = 0;
+	const first = state.rotation++ % keys.length;
+	const order = [...keys.slice(first), ...keys.slice(0, first)];
+	const leaseUntil = new Date(now + settings.leaseMs);
+	const batch = await claimed(guard, 'claimDeliveries', () =>
+		queue.claimDeliveries(order, new Date(now), leaseUntil, free),
+	);
+	state.claimedNothing = batch === null || batch.length === 0;
+	if (batch === null) {
+		state.backoff = Math.min(
+			Math.max(state.backoff * 2, settings.pollMs),
+			BACKOFF_MAX,
+		);
+		return false;
+	}
+	state.backoff = 0;
+	for (const delivery of batch) context.start(delivery);
+	state.saturated = batch.length >= free;
+	return state.saturated;
+}
+
+/** The next wake with no event to cause one: the poll, or a queue failure's backoff. */
+function arm(context: PumpContext, state: PumpState, wake: () => void): void {
+	clearTimeout(state.tick);
+	if (state.quiet || (!context.durable && state.backoff === 0)) return;
+	const ms =
+		state.backoff > 0
+			? state.backoff
+			: context.settings.pollMs * (0.8 + Math.random() * 0.4);
+	state.tick = setTimeout(() => wake(), ms);
+	state.tick.unref?.();
 }
