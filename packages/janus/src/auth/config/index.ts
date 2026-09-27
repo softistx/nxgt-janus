@@ -9,6 +9,7 @@
  * Gathered here from the files beside this one.
  */
 
+export type { PasswordHasher } from './hasher';
 export type {
 	CookieConfig,
 	JanusConfig,
@@ -17,7 +18,7 @@ export type {
 	SingleTypeConfig,
 } from './janus-config';
 export { type Normalize, normalizeEmail } from './normalize';
-export type { PasswordConfig, PasswordHasher } from './password';
+export type { PasswordConfig } from './password-policy';
 export { RESERVED_FIELDS, RESERVED_TYPES, SINGLE_TYPE } from './reserved';
 export { resolveConfig } from './resolve-config';
 export type { ResolvedConfig, ResolvedType } from './resolved';

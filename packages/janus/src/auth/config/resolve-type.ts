@@ -3,7 +3,7 @@
 import { parseDuration } from '../../time/duration';
 import { fieldName } from './names';
 import { normalizer } from './normalize';
-import type { PasswordConfig } from './password';
+import type { PasswordConfig } from './password-policy';
 import type { ResolvedType } from './resolved';
 import type { UserTypeConfig } from './user-type';
 

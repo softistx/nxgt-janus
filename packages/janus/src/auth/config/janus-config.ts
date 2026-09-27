@@ -9,7 +9,7 @@ import type { Duration } from '../../time/duration';
 import type { UserEventListener } from '../events';
 import type { JanusStores } from '../port/types';
 import type { SealingKey } from '../sealing';
-import type { PasswordHasher } from './password';
+import type { PasswordHasher } from './hasher';
 import type { UserSchema, UserTypeConfig } from './user-type';
 
 /** The session cookie. Every default is the strict one. */

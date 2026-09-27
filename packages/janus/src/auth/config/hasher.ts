@@ -1,9 +1,4 @@
-/**
- * Signing in with a password: the policy a user type declares, and the
- * hashing port that writes and checks the hashes.
- */
-
-import type { Normalize } from './normalize';
+/** The password hashing port: what writes a password's hash, and checks one. */
 
 /**
  * A password hashing scheme — the second port.
@@ -24,17 +19,4 @@ export interface PasswordHasher {
 	 * is rewritten. Called with hashes carrying this hasher's prefix only.
 	 */
 	needsRehash?(hash: string): boolean;
-}
-
-/** Signing in with a password. */
-export interface PasswordConfig {
-	/**
-	 * The field users sign in with: a **top-level, required string** field of
-	 * the schema — `'email'`, `'username'`. A typo is a compile error.
-	 */
-	readonly login: string;
-	/** `'lowercaseTrim'` when absent. */
-	readonly normalize?: Normalize;
-	/** At least 1. `8` when absent. */
-	readonly minLength?: number;
 }
