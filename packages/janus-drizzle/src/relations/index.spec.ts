@@ -75,4 +75,11 @@ describe('createDrizzleRelations(), beyond the port suite', () => {
 			await test.close();
 		}
 	});
+
+	it("throws a malformed request's TypeError at once, never as a store failure", () => {
+		// No database: the request is unpacked before any statement runs.
+		const store = createDrizzleRelations({} as never);
+		expect(() => store.findObjects(undefined as never)).toThrow(TypeError);
+		expect(() => store.write(undefined as never)).toThrow(TypeError);
+	});
 });

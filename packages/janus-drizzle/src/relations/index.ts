@@ -36,8 +36,13 @@ export function createDrizzleRelations(
 			run$('findSubjectSets', () => findSubjectSets(context, object, relation)),
 		findEntities: (object, relation) =>
 			run$('findEntities', () => findEntities(context, object, relation)),
-		findObjects: (query) =>
-			run$('findObjects', () => findObjects(context, query)),
+		// The request is unpacked before `run$`, as `write`'s is and as it was
+		// before the split, so a malformed request throws the caller's
+		// TypeError at once instead of reading as an outage.
+		findObjects: ({ type, relation, subject, after, limit }) =>
+			run$('findObjects', () =>
+				findObjects(context, { type, relation, subject, after, limit }),
+			),
 		deleteEntity: (entity) =>
 			run$('deleteEntity', () => deleteEntity(context, entity)),
 	};
