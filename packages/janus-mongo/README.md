@@ -136,3 +136,17 @@ spend the same one.
 - [Guides](docs/README.md) — wiring the stores, syncing the collections
 - [Troubleshooting](docs/troubleshooting.md) — by the error message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
+
+## Type safety, counted
+
+Nine plausible mistakes are refused by the compiler, each with a
+`@ts-expect-error` case in `test/types/adapter.ts`:
+- a connection string instead of a database;
+- `@nxgt/mongo`'s connection instead of its `db`, to `createMongoAdapter`;
+- the driver's `MongoClient` instead of one of its databases;
+- `@nxgt/mongo`'s connection instead of its `db`, to `syncMongoAdapter`;
+- a sync option in the wrong case: `dryrun` for `dryRun`;
+- the whole adapter as `janus()`'s `store`, instead of spreading it;
+- the relation store as `janus()`'s `store`;
+- the whole adapter as `permissions()`'s `store`, instead of `mongo.relations`;
+- the identity stores as `permissions()`'s `store`.
