@@ -18,6 +18,8 @@ included.
 
 ```sh
 bun add @nxgt/janus-webhooks-redis @nxgt/janus-webhooks @nxgt/janus @nxgt/redis
+bun add zod                  # @nxgt/redis's peer, if your application has none
+bun add -d typescript        # 6
 ```
 
 Every peer is required:
@@ -110,7 +112,9 @@ a failover or a `SCRIPT FLUSH`.
   awaits the insert, and Bun's client queues commands while it reconnects.
   With `enableOfflineQueue: false` the insert fails at once, the flow goes
   on, and the event is reported as `JANUS_EVENT_FAILED`.
-- **Redis 7.0 or later.** Tested on 7.4.
+- **Redis 7.0 or later.** Tested on 7.4. The scripts use no command newer
+  than Redis 4, but 7.0 is what `@nxgt/janus-redis` needs, and one Redis
+  usually serves both.
 - **One prefix per application.** Two applications sharing a prefix share
   deliveries, and each gives up the other's endpoints as `endpointRemoved`
   after `orphanGrace`.
