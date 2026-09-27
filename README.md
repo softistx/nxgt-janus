@@ -39,8 +39,8 @@ hoped for.
 ## Working in this repository
 
 ```sh
-bun install
-bun run check && bun run typecheck && bun run build && bun run test
+REDISMS_DISABLE_POSTINSTALL=1 bun install
+bun run check && bun run build && bun run typecheck && bun run test
 bun run verify:artifacts
 bun run changeset:private
 ```

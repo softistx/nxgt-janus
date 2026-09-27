@@ -20,7 +20,8 @@ reason most of this file exists: a published entry point is a promise, and
 **type safety is the selling point**, which means it has to be measured rather
 than claimed.
 
-Read this file, then the package's own `packages/janus/README.md`.
+Read this file, then the README of the package you touch —
+`packages/<name>/README.md`, starting with `packages/janus/README.md`.
 
 ---
 
@@ -44,6 +45,26 @@ What nxgt-data forbids and this repository keeps forbidding: **factoring across
 packages**. `@nxgt/janus-mongo` depends on `@nxgt/janus` as a **required
 peer**, exactly as `@nxgt/mongo-kit` depends on `@nxgt/mongo`, and **defines no
 class of its own** — it throws the peer's, so `instanceof` holds across the two.
+
+**An adapter or integration reaches the library it wraps as a peer too, by
+range.** Every package here that wraps one of nxgt-data's packages peers it —
+`@nxgt/mongo` in `janus-mongo`, `@nxgt/redis` in `janus-redis` and
+`janus-webhooks-redis`, `@nxgt/drizzle` in `janus-drizzle`, all three in
+`janus-kit` — and so does the driver beneath it (`mongodb`, `drizzle-orm`). The
+application already opened its connection with that library, and the package
+must wrap *that* connection, not install a second copy beside it. A sibling
+the kit wires internally is the one exception, by design: `@nxgt/janus-redis`
+is a dependency of `janus-kit`, since the application never imports it —
+while the libraries beneath it stay peers. For an
+nxgt-data package the range is `>=<floor> <1` — `>=0.17.0 <1`, `>=0.3.1 <1`,
+`>=0.6.1 <1` — because a caret on a `0.x` version admits a single minor
+(`^0.17.1` stops at `0.18.0`), and every minor of nxgt-data would then force a
+release here. The same package sits in `devDependencies`, and `bun.lock` holds
+the version the specs actually run on — for `@nxgt/mongo` that is 0.17.1, above
+the 0.17.0 floor. The one wrapped `0.x` library still peered by caret is
+`@nxgt/telemetry: ^0.2.1` in the integration `janus-telemetry`, which admits
+`0.2.x` only while its README says "0.2.1 or later": a fix owed, not a second
+rule.
 
 ### The other three declared divergences
 
@@ -208,9 +229,10 @@ What this commits us to in the code:
 
 ## Layout
 
-One package, several entry points. A published entry point is a **public
-promise**, so a subpath appears in `exports` only once it exports something a
-consumer should call.
+Nine packages under `packages/`: the core `@nxgt/janus`, and the adapters and
+integrations that peer it. The core has several entry points, below. A
+published entry point is a **public promise**, so a subpath appears in
+`exports` only once it exports something a consumer should call.
 
 | Entry point | State |
 | --- | --- |
@@ -238,6 +260,15 @@ comments use the words defined in `packages/janus/docs/guide/vocabulary.md`
 *login*, *subject*, *tuple*, *identity stores*, *relation store*, *adapter*, *integration*.
 A new idea gets a row there before it gets a second name.
 
+**A package's README is its npm page**, and every package's carries the same
+six sections — *Install*, *API*, *Traps*, *Documentation*, *Type safety,
+counted*, *Licence* — beside whatever sections of its own it needs (*Usage*,
+*Subpaths*, *What the database holds*). *API* is every export a consumer calls;
+*Traps* is every mistake that compiles and fails later. Both are on the npm page
+because that page is where a consumer outside this organisation looks first.
+The detail lives in the package's `docs/` — `guide/`, `troubleshooting.md`,
+`roadmap.md` — which *Documentation* links.
+
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied
 from nxgt-data, never shared**. That is the fourth copy, beside nxgt-http and
@@ -245,11 +276,22 @@ nxgt-core, and `nxgt-data/AGENTS.md:460` says to change both when the reason
 holds for both.
 
 **Imports carry no extension**: `from './engine'`, not `'./engine.js'` — in
-the sources, and in what the build emits. Every tsconfig here resolves as a
-bundler does, and Bun runs the specs the same way; a consumer does too, which
-the READMEs' Install sections say. A consumer on `moduleResolution: nodenext`
-is not supported, and "fixing" that by rewriting the emitted declarations was
-tried once and reverted: it is the same rule, broken one step later.
+the sources, and in what the build emits, the `.d.ts` files included.
+**`moduleResolution: bundler` is the contract**: every tsconfig here resolves as
+a bundler does, Bun runs the specs the same way, and a consumer does too, which
+the READMEs' Install sections say. `moduleResolution: nodenext` is out of
+contract. "Fixing" it by rewriting the emitted declarations was merged once
+(#16) and reverted (#17): it is the same rule, broken one step later, and a
+second resolution mode to keep working is a promise nobody measures.
+
+**Generated code goes in a `generated/` folder**, never behind a suffix such as
+`.generated.ts` or `.gen.ts`. No package here generates code yet; when one
+does, its output is `src/generated/` — `src/generated/mail.ts`, say — and that
+folder gets a `!**/generated` entry in `biome.json`'s `files.includes`,
+beside `!**/dist`. The folder says
+what is generated from the tree alone, one path excludes all of it from a
+review or a lint, and the file keeps the name its content deserves, so the
+import reads `./generated/mail` like any other module.
 
 `bunfig.toml` carries the npm token, **never `.npmrc`** — an undefined variable
 in an `.npmrc` sends an **empty** token, and the registry calls that a 401.
@@ -375,14 +417,42 @@ The table that exists so a duplication is a decision rather than an accident.
 ## Verifying
 
 ```sh
-bun install
+REDISMS_DISABLE_POSTINSTALL=1 bun install   # see below
 bun run check        # biome, and the naming convention that holds the casing rule
+bun run build        # before typecheck: siblings resolve through their dist/
 bun run typecheck    # includes test/types/, which is the type-safety measurement
-bun run build
 bun run test
 bun run verify:artifacts   # on the tarball actually packed
 bun run changeset:private  # no changeset names a private or unknown package
 ```
+
+**`build` comes before `typecheck`.** Every package's `exports` points at
+`./dist/*`, so a package that imports a sibling — every adapter imports
+`@nxgt/janus` — reads the sibling's *emitted declarations*. In a fresh checkout
+there are none: measured on 2026-09-27, `bun run typecheck` with no `dist/`
+fails in eight packages of nine, 322 errors starting with `TS2307: Cannot find
+module '@nxgt/janus'`. A working tree with a stale `dist/` hides this, and
+`ci.yml` builds first for the same reason. Pointing `paths` at the sibling's
+sources would make it pass unbuilt, and would stop measuring what a consumer
+compiles against — the declarations — so the order stays instead.
+
+**`bun.lock` is committed, and CI installs with `bun i --frozen-lockfile`**,
+which fails rather than rewrite a lockfile that disagrees with the manifests.
+So a change to a `package.json` lands with the `bun.lock` that `bun install`
+wrote for it, in the same commit. Bun is pinned — `packageManager: bun@1.4.2`,
+and the same version in `.github/actions/setup` — because the lockfile's format
+is Bun's. `changeset:version` runs `bun install --lockfile-only` after the bump
+for a reason of its own: `workspace:^` is published as the version read from
+`bun.lock`, and a stale one publishes a range that leaves out the sibling
+released beside it, which `verify:artifacts` refuses.
+
+**`REDISMS_DISABLE_POSTINSTALL=1` skips a Redis nothing uses.**
+`redis-memory-server` is on Bun's default trusted list, so its postinstall runs
+and compiles the latest Redis from source into `node_modules/.cache` — minutes
+of CPU, measured at 227 s against 31 s for a cold install. The specs never run
+that binary: `test/server.ts` builds the pinned one into `.cache/redis` on
+first use. The setup action sets the variable; a plain `bun install` still
+works, only slower.
 
 `verify:artifacts` is the one that matters most here: it loads **every**
 declared subpath and proves `JanusError` is defined once. That is the check that
@@ -397,3 +467,35 @@ skipping of a `private` package. The first run of those two found that
 reported the package as unbuilt. `scripts/check-changesets.spec.ts` covers the
 changeset check — read with `@changesets/parse`, the parser `changeset version`
 uses, so a shape it accepts is never let through unread.
+
+---
+
+## Commits and merges
+
+**A commit's subject is `<type>(<package>): <Summary>`**, as the history
+practises it:
+
+- **`<type>`** is one of `feat`, `fix`, `docs`, `test`, `refactor`, `chore`,
+  `ci` — and `revert`, used once, for #17. A `!` after the scope marks a
+  breaking change: `feat(janus-drizzle)!: Unprefixed tables, …`.
+- **`<package>`** is the package's directory name, without `@nxgt/`:
+  `fix(janus-webhooks): …`, or `docs(janus, janus-telemetry): …` for two. The
+  scope names the package whose changelog the change belongs to. The early
+  `feat(permissions)` commits named a module, not a package; that is not
+  repeated.
+- **No scope** for a change to the repository rather than to one package:
+  `ci:` for the workflows and the setup action, `chore:` for the skeleton, the
+  changeset scripts and a package made publishable, `docs:` for this file and
+  for documentation across packages.
+- **`<Summary>`** is a capitalised sentence, with no final period, saying what
+  the change does: `fix(janus): Name the subject's type, not its id, in
+  list()'s missing-lookup error`. A summary that opens on an identifier keeps
+  the identifier's case: `fix(janus-hono): bindJanus binds what permission()
+  takes`.
+- The body says why, and what was measured.
+
+**A pull request is merged with a merge commit** (`Merge pull request #N from
+…`), never squashed or rebased, and a branch behind `develop` is brought up to
+date by merging `develop` into it. Each commit then reaches `develop` with its
+own subject, so its own scope, and the merge commit records which pull request
+carried it.

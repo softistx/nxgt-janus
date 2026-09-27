@@ -14,5 +14,14 @@ runs:
       # No token: @nxgt/* are public on npmjs, and installing them needs no
       # authentication. Only the release job authenticates, through bunfig.toml
       # reading NPM_TOKEN.
+      #
+      # Without REDISMS_DISABLE_POSTINSTALL this step took 146 to 219 s.
+      # redis-memory-server is on Bun's default trusted list, so its postinstall
+      # runs and compiles the latest Redis from source into node_modules/.cache
+      # — a binary no spec uses: test/server.ts builds the pinned 7.4.1 into
+      # .cache/redis, in the "Build Redis" step, which CI caches. Measured
+      # locally on a cold Bun cache: 227 s with the postinstall, 31 s without.
       run: bun i --frozen-lockfile
       shell: bash
+      env:
+        REDISMS_DISABLE_POSTINSTALL: '1'
