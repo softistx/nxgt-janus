@@ -11,8 +11,7 @@ It implements the `WebhookQueue` port, and passes the
 `@nxgt/janus-webhooks/conformance` suite against a real Redis 7.4, outages
 included.
 
-> **Not published yet.** This package is private while it is reviewed; the
-> examples below are what it will be.
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 
@@ -94,8 +93,8 @@ runs, so of twenty claims at once, no two answer one delivery. Redis does
 not roll a script back when a command in it fails half-way — a permission
 refused, a key of the wrong type — so **the insert undoes its own writes**
 before it fails, and is all or none. The others are not undone: a claim
-refused half-way costs the deliveries it already took one attempt, and one
-lease before they are claimed again; `deleteDelivery` removes the hash
+refused half-way costs the deliveries it already took one attempt, and at
+most one lease before they are claimed again; `deleteDelivery` removes the hash
 before its member, so what it leaves is a member the next claim drops; and
 `scheduleRetry` refused half-way has released its lease and stored its
 failure, and is retried when the old lease ends — earlier than scheduled. A

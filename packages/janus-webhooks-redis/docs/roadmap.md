@@ -6,11 +6,7 @@ something shipped in.
 
 ## Now
 
-- **The first release.** The Redis queue for `@nxgt/janus-webhooks`: every
-  method one Lua script, claims atomic across processes, an insert all or
-  none, and the `@nxgt/janus-webhooks/conformance` suite passed against Redis
-  7.4 with the server's own faults. Private until it is reviewed and
-  published with a changeset of its own.
+Nothing between releases.
 
 ## Next
 
@@ -35,4 +31,9 @@ Nothing yet.
 
 ## Shipped
 
-Nothing yet.
+Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The first release, v0.1.0.** The Redis queue for `@nxgt/janus-webhooks`: every
+  method one Lua script, claims atomic across processes, an insert all or
+  none, and the `@nxgt/janus-webhooks/conformance` suite passed against Redis
+  7.4 with the server's own faults.
