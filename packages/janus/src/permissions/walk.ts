@@ -10,7 +10,7 @@ import {
 	type ResolvedModel,
 	type ResolvedObjectType,
 	type ResolvedRule,
-} from './resolve';
+} from './resolve/resolved';
 
 /** An object on the walk: its entity, and its data when the caller passed it. */
 export interface Node {

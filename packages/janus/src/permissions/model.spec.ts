@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import {
-	defineModel,
-	fromField,
-	type ModelConfig,
-	resolvedOf,
-	when,
-} from './model';
+import type { ModelConfig } from './model/config';
+import { defineModel, resolvedOf } from './model/define';
+import { fromField } from './model/from-field';
+import { when } from './model/when';
 
 const subjects = ['patient', 'staff'] as const;
 

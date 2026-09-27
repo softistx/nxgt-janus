@@ -15,13 +15,10 @@
  */
 
 import { permissions } from '../../src/permissions/engine';
-import {
-	type Can,
-	type ConfigOf,
-	defineModel,
-	fromField,
-	when,
-} from '../../src/permissions/model';
+import type { Can } from '../../src/permissions/model/can';
+import { type ConfigOf, defineModel } from '../../src/permissions/model/define';
+import { fromField } from '../../src/permissions/model/from-field';
+import { when } from '../../src/permissions/model/when';
 import { createMemoryRelations } from '../../src/permissions/port/memory';
 import { setOf } from '../../src/subjects/subject';
 
