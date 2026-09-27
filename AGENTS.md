@@ -325,7 +325,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | `CursorPage`, `pageLimit` | `src/pagination/` | Four fields are not worth a dependency on a package from another repository |
 | `Clock`, `fixedClock` | `src/time/` | Same, and `fixedClock` is **shipped**, not test-only: a consumer testing session expiry needs it |
 | The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above |
-| `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/`, `packages/janus-webhooks-redis/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; three copies of 60 lines are cheaper. The Redis version in them keys the one `.cache/redis`, and `$JANUS_REDIS_VERSION` and `$REDIS_BIN` override it the same way in all three. Byte-identical, and CI hashes all three. Change one, change all |
+| `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/`, `packages/janus-webhooks-redis/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; three copies of 60 lines are cheaper. The Redis version in them keys the one `.cache/redis`, and `$JANUS_REDIS_VERSION` and `$REDIS_BIN` override it the same way in all three. Byte-identical, and both CI jobs, `ci` and `floors`, key their Redis cache on all three. Change one, change all |
 | The Redis script runner and reply reader — `scriptsOver`, `isNoScript`, `stamp`, `readerOf`, `unreadable` | `packages/janus-redis/src/{stores,replies}.ts`, `packages/janus-webhooks-redis/src/{queue,replies}.ts` | Two adapters of two ports in two packages, and neither may depend on the other; a shared package for 80 lines would be a third to publish. The runner is the same but for its failure's message: `webhookQueue.<method>: the queue could not answer` with `operation` only, where janus-redis says `<slot>.<operation>: the store could not answer` with `slot` too. The reader reads dates the same way — any number but `''` and `NaN` — and a count's digits the same way, with two differences: janus-redis's field `count` answers `0` for an absent field (a token of an earlier version) where this copy fails, and janus-redis's reply `count` takes any number where this copy's `toCount` requires a safe integer, 0 or more. `unreadable` differs in the same way as the runner. The webhook copy adds `type` and `failure`, and refuses before any I/O what it could not read back. Change one, change both |
 | `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. A change to how a case opens or fails belongs in both |
 | `test/mongo.ts`, the pinned replica set the specs start | `packages/janus-mongo/test/server.ts`, `packages/janus-kit/test/mongo.ts` | Same; the mongod version in both keys the one `.cache/mongodb` |
@@ -362,8 +362,11 @@ The table that exists so a duplication is a decision rather than an accident.
   (Valkey's first line, a built binary from download.valkey.io). A README that states a new floor adds it to that job; a
   floor that fails there means the README is wrong, and the owner decides what
   it promises instead; it is never made green by testing a newer version.
-  Locally:
-  `JANUS_REDIS_VERSION=7.0.15 bun test src`, or `REDIS_BIN=<valkey-server>`.
+  Locally: `JANUS_REDIS_VERSION=7.0.15 bun test src` where 7.0.15 compiles —
+  its bundled jemalloc fails with GCC 16, and then `REDIS_BIN` names a 7.0
+  `redis-server` instead, such as the one in the `redis:7.0.15` image
+  (`docker cp <container>:/usr/local/bin/redis-server …`);
+  `REDIS_BIN=<valkey-server>` for Valkey.
 - **Settle an expected rejection where it is created**, with `.then(ok, ko)`. A
   rejection awaited too late is counted unhandled by Bun and fails the test with
   the very error it was checking — *a loaded CI runner fails where an idle

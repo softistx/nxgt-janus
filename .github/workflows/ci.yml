@@ -172,15 +172,20 @@ jobs:
   # README is then wrong, and that is a decision, not a CI change.
   floors:
     name: Floors
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest: the Valkey binary below is built for
+    # this release, and `latest` moves.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       # Read by test/server.ts, which compiles this version instead of its pin.
       JANUS_REDIS_VERSION: 7.0.15
-      # Valkey publishes built binaries per Ubuntu release: `noble` is
-      # ubuntu-latest's, 24.04, on x86_64, which the download step names. 7.2 is Valkey's first line — the fork of Redis
-      # 7.2.4 — so it is the oldest Valkey the READMEs' "or Valkey" can mean.
+      # Valkey publishes built binaries per Ubuntu release: `noble` is 24.04,
+      # the runner pinned above, on x86_64, which the download step names. 7.2
+      # is Valkey's first line — the fork of Redis 7.2.4 — so it is the oldest
+      # Valkey the READMEs' "or Valkey" can mean. The hash is the tarball's,
+      # checked before it is extracted; a new version needs a new hash.
       VALKEY_VERSION: 7.2.14
+      VALKEY_SHA256: fdfbd077802f02aace92f8c611f1851cddc71642c70f64840a25892f0a709712
     services:
       postgres:
         image: postgres:15-alpine
@@ -200,26 +205,31 @@ jobs:
       # Every package's `exports` points at `./dist/*`; see the job above.
       - name: Build packages
         run: bun run build
-      # Keyed on the version alone, and apart from the job above's key: the
-      # two jobs build different servers into the same `.cache/redis`.
+      # Keyed on the version, on the three copies of test/server.ts as the job
+      # above is, and on bun.lock, which pins the redis-memory-server that
+      # builds it — and apart from the job above's key: the two jobs build
+      # different servers into the same `.cache/redis`.
       - name: Cache the Redis 7.0 build
         uses: actions/cache@v4
         with:
           path: .cache/redis
-          key: redis-floor-${{ runner.os }}-${{ runner.arch }}-${{ env.JANUS_REDIS_VERSION }}
+          key: redis-floor-${{ runner.os }}-${{ runner.arch }}-${{ env.JANUS_REDIS_VERSION }}-${{ hashFiles('packages/janus-redis/test/server.ts', 'packages/janus-kit/test/server.ts', 'packages/janus-webhooks-redis/test/server.ts', 'bun.lock') }}
       - name: Build Redis 7.0
         run: bun -e "const { redisBinary } = await import('./packages/janus-redis/test/server.ts'); console.log(await redisBinary())"
       - name: Cache the Valkey binary
         uses: actions/cache@v4
         with:
           path: .cache/valkey
-          key: valkey-${{ runner.os }}-${{ runner.arch }}-${{ env.VALKEY_VERSION }}
+          key: valkey-${{ runner.os }}-${{ runner.arch }}-${{ env.VALKEY_VERSION }}-${{ env.VALKEY_SHA256 }}
       - name: Download Valkey
         run: |
           dir=".cache/valkey/$VALKEY_VERSION"
           if [ ! -x "$dir/bin/valkey-server" ]; then
+            f="$RUNNER_TEMP/valkey.tar.gz"
+            curl -fsSL -o "$f" "https://download.valkey.io/releases/valkey-$VALKEY_VERSION-noble-x86_64.tar.gz"
+            echo "$VALKEY_SHA256  $f" | sha256sum -c -
             mkdir -p "$dir"
-            curl -fsSL "https://download.valkey.io/releases/valkey-$VALKEY_VERSION-noble-x86_64.tar.gz" | tar -xz -C "$dir" --strip-components=1
+            tar -xzf "$f" -C "$dir" --strip-components=1
           fi
           "$dir/bin/valkey-server" --version
       - name: Run the PostgreSQL adapter on PostgreSQL 15, over every driver
