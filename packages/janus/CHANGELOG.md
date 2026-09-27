@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.8.8
+
+### Patch Changes
+
+- [#97](https://github.com/softistx/nxgt-janus/pull/97) [`9f196da`](https://github.com/softistx/nxgt-janus/commit/9f196da2edcd9231fdc3a21a5f928fa085bf5ab4) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the roadmap and the e-mail guides point to `@nxgt/janus-mail`, now released, for the flows' e-mails ready-made in English and French.
+
 ## 0.8.7
 
 ### Patch Changes
