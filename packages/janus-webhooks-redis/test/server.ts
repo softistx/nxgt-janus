@@ -10,9 +10,12 @@ import RedisBinary from 'redis-memory-server/lib/util/RedisBinary';
  * Nobody publishes a prebuilt `redis-server`, so `redis-memory-server`
  * compiles it from source on the first start — about two minutes, measured in
  * nxgt-data — into the repository's git-ignored `.cache/redis`, which CI
- * caches. `$REDIS_BIN` names a `redis-server` to use instead.
+ * caches. `$REDIS_BIN` names a `redis-server` to use instead — CI's `floors`
+ * job points it at a Valkey. `$JANUS_REDIS_VERSION` compiles another version
+ * than the pin, into its own folder of the cache: that job runs the floor the
+ * READMEs promise, 7.0, with it.
  */
-export const REDIS_VERSION = '7.4.1';
+export const REDIS_VERSION = process.env.JANUS_REDIS_VERSION || '7.4.1';
 
 const REDIS_CACHE = join(
 	new URL('../../..', import.meta.url).pathname,
