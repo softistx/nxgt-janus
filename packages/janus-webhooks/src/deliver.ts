@@ -96,10 +96,11 @@ export interface Webhooks {
 	 */
 	(event: UserEvent): Promise<void> | undefined;
 	/**
-	 * Stops sending, and waits for the requests in flight. Without a
-	 * `queue`, gives up every delivery still waiting as `closed` — call it on
-	 * shutdown, or a process that exits loses them without a word. With one,
-	 * gives up nothing: what waits is sent by the next process.
+	 * Waits for the inserts under way and the requests in flight. Without a
+	 * `queue`, first sends every delivery due at the call, then gives up what
+	 * still waits for a retry as `closed` — call it on shutdown, or a process
+	 * that exits loses them without a word. With one, claims nothing more
+	 * and gives up nothing: what waits is sent by the next process.
 	 */
 	close(): Promise<void>;
 }

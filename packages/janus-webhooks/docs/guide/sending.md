@@ -363,12 +363,14 @@ async function resend(event: UserEvent): Promise<void> {
 close(): Promise<void>;
 ```
 
-`close()` stops claiming, and waits for the inserts under way — an event that
-reached the listener before `close()` still gets its first attempt — and for
-the requests in flight, and the reports of those that fail. Without a
-`queue`, it first keeps sending until every delivery due at `close()` has had
-its attempt, `concurrency` at a time: an event taken while every slot was
-busy is sent, not given up with `attempts: 0`. Then it depends on the queue:
+`close()` waits for the inserts under way, for the requests in flight, and
+for the reports of those that fail. Without a `queue`, it first keeps sending
+until every delivery due at `close()` has had its attempt, `concurrency` at a
+time: an event that reached the listener before `close()` — even one taken
+while every slot was busy — is sent, not given up with `attempts: 0`. With a
+`queue`, it claims nothing more from the moment it is called: an event whose
+insert lands during `close()` waits in the queue, with everything else due,
+for the next process. Then it depends on the queue:
 
 | | Without a `queue` | With a `queue` |
 | --- | --- | --- |

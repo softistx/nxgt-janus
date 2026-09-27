@@ -230,6 +230,32 @@ describe('webhooks({ queue })', () => {
 		]);
 	});
 
+	it('on close, claims nothing more while an insert under way lands', async () => {
+		const shared = createMemoryWebhookQueue();
+		// Another process's backlog, due now.
+		for (const type of ['user.created', 'user.deleted'] as const) {
+			await shared.insertDeliveries(eventOf(type), ['crm'], new Date());
+		}
+		const queue: WebhookQueue = {
+			...shared,
+			async insertDeliveries(...args) {
+				await pause(50);
+				return shared.insertDeliveries(...args);
+			},
+		};
+		const { sent, fetch } = endpoint(200);
+		const listener = webhooks({ endpoints, queue, poll: '1h', fetch });
+
+		const inserted = listener(eventOf());
+		await listener.close();
+		await inserted;
+		await pause(20);
+
+		expect(sent).toHaveLength(0);
+		// The backlog and the event just accepted wait for the next process.
+		expect(await waitingIn(shared, ['crm'])).toHaveLength(3);
+	});
+
 	it('takes back a delivery whose process died mid-request once its lease lapses — the crash costs an attempt', async () => {
 		const queue = createMemoryWebhookQueue();
 		const event = eventOf();

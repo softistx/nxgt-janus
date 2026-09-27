@@ -170,6 +170,9 @@ export function startWorker(settings: Settings, report: Report): Worker {
 			for (const timer of reminders) clearTimeout(timer);
 			reminders.clear();
 			clearInterval(sweeper);
+			// With a queue, nothing more is claimed from here: an insert that
+			// lands, or a slot that frees, wakes a stopped pump in vain.
+			if (durable) await pump.stop();
 			await Promise.allSettled([...inserting]);
 			if (!durable) await flush(Date.now());
 			await pump.stop();

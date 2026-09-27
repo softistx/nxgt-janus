@@ -236,7 +236,7 @@ harness)` run them with no test framework — and
 | `queue.notBeforeDue` | a claim that answers a delivery a millisecond early, or `null` for none |
 | `queue.insertIsIdempotent` | a second insert of the same event making a second delivery |
 | `queue.insertNoEndpoint` | an insert for no endpoints that answers anything but `0`, or leaves something |
-| `queue.rejectedInsertLeavesNothing` | an insert that rejects and leaves some endpoints behind — needs `faults` |
+| `queue.rejectedInsertLeavesNothing` | an insert that rejects and leaves some endpoints behind — needs `faults`, and proves all-or-none only when the fault interrupts the write, not when it fails the call before it starts |
 | `queue.endpointsFilter` | a claim that answers an endpoint it was not asked for |
 | `queue.earliestFirstAndLimit` | a claim that ignores due order, the endpoints' order, or `limit` |
 | `lease.hidden`, `lease.expires`, `lease.extend` | a claimed delivery claimable again before its lease ends, or never after |
