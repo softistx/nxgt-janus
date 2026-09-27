@@ -174,6 +174,7 @@ export const userStoreCases: readonly ConformanceCase[] = [
 				isOurs(
 					error,
 					StoreConflict,
+					'StoreConflict',
 					'insertUser should refuse a taken login with StoreConflict',
 				);
 				equal(error.code, 'LOGIN_TAKEN', 'insertUser: the conflict code');
@@ -256,6 +257,7 @@ export const userStoreCases: readonly ConformanceCase[] = [
 			isOurs(
 				error,
 				StoreConflict,
+				'StoreConflict',
 				'updateUser at a stale version should reject with StoreConflict',
 			);
 			equal(error.code, 'VERSION_CONFLICT', 'updateUser: the conflict code');
@@ -286,6 +288,7 @@ export const userStoreCases: readonly ConformanceCase[] = [
 			isOurs(
 				error,
 				NotFoundError,
+				'NotFoundError',
 				'updateUser on an unknown id should reject with NotFoundError, not a version conflict',
 			);
 		},
@@ -452,6 +455,7 @@ export const userStoreCases: readonly ConformanceCase[] = [
 			isOurs(
 				error,
 				StoreConflict,
+				'StoreConflict',
 				'updateUser onto a held login should reject with StoreConflict',
 			);
 			equal(error.code, 'LOGIN_TAKEN', 'updateUser: the conflict code');

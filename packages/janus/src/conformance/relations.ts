@@ -471,7 +471,12 @@ function outage(
 				error instanceof JanusError ||
 				(error as { name?: unknown })?.name === 'StoreFailure'
 			) {
-				isOurs(error, StoreFailure, `relations.${method} under an outage`);
+				isOurs(
+					error,
+					StoreFailure,
+					'StoreFailure',
+					`relations.${method} under an outage`,
+				);
 			}
 			ok(
 				(error as { code?: unknown } | null)?.code !== 'NOT_FOUND',
