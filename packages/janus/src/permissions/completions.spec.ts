@@ -11,6 +11,16 @@ import ts from 'typescript';
  * mistake below and completed nothing at all. `§` marks where the cursor is.
  */
 
+/**
+ * Every describe below starts a TypeScript language service over the package
+ * — its first case does, or its one case: well under a second on an idle
+ * machine, and 5.3 s —
+ * past Bun's default 5 s — measured under CPU load, where the case timed out.
+ * Every case carries the longer limit, since whichever runs first — or alone,
+ * under a filter — pays for the start.
+ */
+const LANGUAGE_SERVICE_MS = 30_000;
+
 const PACKAGE = join(import.meta.dir, '../..');
 const FILE = join(import.meta.dir, '__completions__.ts');
 
@@ -100,37 +110,53 @@ describe('an editor completes a model', () => {
 		return asked[cursor];
 	};
 
-	it("offers a relation's subject types and subject sets", () => {
-		expect(at(0)).toEqual(
-			expect.arrayContaining([
-				'patient',
-				'staff',
-				'team',
-				'record',
-				'team#members',
-				'team#leads',
-				'record#owners',
-			]),
-		);
-		// A fromField is read from one object's data: never a subject set.
-		expect(at(0)).not.toContain('record#doctors');
-	});
+	it(
+		"offers a relation's subject types and subject sets",
+		() => {
+			expect(at(0)).toEqual(
+				expect.arrayContaining([
+					'patient',
+					'staff',
+					'team',
+					'record',
+					'team#members',
+					'team#leads',
+					'record#owners',
+				]),
+			);
+			// A fromField is read from one object's data: never a subject set.
+			expect(at(0)).not.toContain('record#doctors');
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 
-	it("offers a fromField's subject types", () => {
-		expect(at(1)?.sort()).toEqual(['patient', 'record', 'staff', 'team']);
-	});
+	it(
+		"offers a fromField's subject types",
+		() => {
+			expect(at(1)?.sort()).toEqual(['patient', 'record', 'staff', 'team']);
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 
-	it("offers a rule's relations, other permissions and arrows, in when() too", () => {
-		const names = ['owners', 'doctors', 'teams', 'teams->view'];
-		// The cursors sit in `view` and in `edit`: each offers the other.
-		expect(at(2)).toEqual(expect.arrayContaining([...names, 'edit']));
-		expect(at(3)).toEqual(expect.arrayContaining([...names, 'view']));
-	});
+	it(
+		"offers a rule's relations, other permissions and arrows, in when() too",
+		() => {
+			const names = ['owners', 'doctors', 'teams', 'teams->view'];
+			// The cursors sit in `view` and in `edit`: each offers the other.
+			expect(at(2)).toEqual(expect.arrayContaining([...names, 'edit']));
+			expect(at(3)).toEqual(expect.arrayContaining([...names, 'view']));
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 
-	it('never offers a permission its own name: a loop no relation ends', () => {
-		expect(at(2)).not.toContain('view');
-		expect(at(3)).not.toContain('edit');
-	});
+	it(
+		'never offers a permission its own name: a loop no relation ends',
+		() => {
+			expect(at(2)).not.toContain('view');
+			expect(at(3)).not.toContain('edit');
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 });
 
 const QUESTIONS = `
@@ -164,47 +190,63 @@ describe('an editor completes a question', () => {
 		return asked[cursor];
 	};
 
-	it("offers can() the object's relations and permissions, not another type's", () => {
-		// `teams` is record's relation; `members` is team's.
-		expect(at(0)?.sort()).toEqual([
-			'doctors',
-			'owners',
-			'read',
-			'teams',
-			'view',
-		]);
-	});
+	it(
+		"offers can() the object's relations and permissions, not another type's",
+		() => {
+			// `teams` is record's relation; `members` is team's.
+			expect(at(0)?.sort()).toEqual([
+				'doctors',
+				'owners',
+				'read',
+				'teams',
+				'view',
+			]);
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 
-	it('offers list() only what it can reverse', () => {
-		// doctors, and read through it, are read from a field with no lookup.
-		expect(at(1)?.sort()).toEqual(['owners', 'teams', 'view']);
-	});
+	it(
+		'offers list() only what it can reverse',
+		() => {
+			// doctors, and read through it, are read from a field with no lookup.
+			expect(at(1)?.sort()).toEqual(['owners', 'teams', 'view']);
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 
-	it('offers grant() the relations it can write', () => {
-		expect(at(2)?.sort()).toEqual(['owners', 'teams']);
-	});
+	it(
+		'offers grant() the relations it can write',
+		() => {
+			expect(at(2)?.sort()).toEqual(['owners', 'teams']);
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 });
 
 describe('a wrong name in a model', () => {
-	it('is refused with the names it could have been', () => {
-		const [first, ...rest] = MODEL.split('§');
-		// The name to refuse first, then a valid name at each other cursor.
-		const text = ['staf', 'staff', 'owners', 'owners'].reduce(
-			(done, name, at) => done + name + (rest[at] ?? ''),
-			first ?? '',
-		);
-		const [refusal, ...others] = serviceOver(text)
-			.getSemanticDiagnostics(FILE)
-			.map((diagnostic) =>
-				ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+	it(
+		'is refused with the names it could have been',
+		() => {
+			const [first, ...rest] = MODEL.split('§');
+			// The name to refuse first, then a valid name at each other cursor.
+			const text = ['staf', 'staff', 'owners', 'owners'].reduce(
+				(done, name, at) => done + name + (rest[at] ?? ''),
+				first ?? '',
 			);
+			const [refusal, ...others] = serviceOver(text)
+				.getSemanticDiagnostics(FILE)
+				.map((diagnostic) =>
+					ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+				);
 
-		expect(others).toEqual([]);
-		// Spelled out, not the alias that computed them: `SubjectRefOf<…>`
-		// would name the model back instead of the choices.
-		expect(refusal).not.toMatch(/[A-Za-z]Of</);
-		expect(refusal).toContain('"patient"');
-		expect(refusal).toContain('"team#members"');
-		expect(refusal).toContain('Did you mean \'"staff"\'?');
-	});
+			expect(others).toEqual([]);
+			// Spelled out, not the alias that computed them: `SubjectRefOf<…>`
+			// would name the model back instead of the choices.
+			expect(refusal).not.toMatch(/[A-Za-z]Of</);
+			expect(refusal).toContain('"patient"');
+			expect(refusal).toContain('"team#members"');
+			expect(refusal).toContain('Did you mean \'"staff"\'?');
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 });

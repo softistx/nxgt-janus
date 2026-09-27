@@ -159,7 +159,20 @@ describe('webhooks({ queue })', () => {
 	});
 
 	it('a retry failed by one process is sent by the next, signed with the secrets it runs with', async () => {
-		const queue = createMemoryWebhookQueue();
+		// Closed as soon as the retry is scheduled, and not after a sleep: under
+		// load, a sleep could outlast the 20 ms and let this process send the
+		// retry itself. From the resolved write to close() only microtasks
+		// run, so no timer can fire in between.
+		const memory = createMemoryWebhookQueue();
+		const scheduled = Promise.withResolvers<void>();
+		const queue: WebhookQueue = {
+			...memory,
+			async scheduleRetry(...args) {
+				const kept = await memory.scheduleRetry(...args);
+				scheduled.resolve();
+				return kept;
+			},
+		};
 		const first = endpoint(500);
 		const gaveUp = givingUps();
 		const a = webhooks({
@@ -171,9 +184,9 @@ describe('webhooks({ queue })', () => {
 		});
 		const event = eventOf();
 		await a(event);
-		await until(() => first.sent.length === 1);
-		await pause(5);
+		await scheduled.promise;
 		await a.close();
+		expect(first.sent).toHaveLength(1);
 
 		const next = mintWebhookSecret();
 		const second = endpoint(200);
