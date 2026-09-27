@@ -55,16 +55,19 @@ application already opened its connection with that library, and the package
 must wrap *that* connection, not install a second copy beside it. A sibling
 the kit wires internally is the one exception, by design: `@nxgt/janus-redis`
 is a dependency of `janus-kit`, since the application never imports it —
-while the libraries beneath it stay peers. For an
-nxgt-data package the range is `>=<floor> <1` — `>=0.17.0 <1`, `>=0.3.1 <1`,
-`>=0.6.1 <1` — because a caret on a `0.x` version admits a single minor
-(`^0.17.1` stops at `0.18.0`), and every minor of nxgt-data would then force a
+while the libraries beneath it stay peers. For a
+wrapped nxgt `0.x` library — nxgt-data's packages, and `@nxgt/telemetry` from
+nxgt-telemetry — the range is `>=<floor> <1`: `>=0.17.0 <1`, `>=0.3.1 <1`,
+`>=0.6.1 <1`, and `>=0.2.1 <1` for `@nxgt/telemetry` in the integration
+`janus-telemetry`. A caret on a `0.x` version admits a single minor
+(`^0.17.1` stops at `0.18.0`), and every minor upstream would then force a
 release here. The same package sits in `devDependencies`, and `bun.lock` holds
-the version the specs actually run on — for `@nxgt/mongo` that is 0.17.1, above
-the 0.17.0 floor. The one wrapped `0.x` library still peered by caret is
-`@nxgt/telemetry: ^0.2.1` in the integration `janus-telemetry`, which admits
-`0.2.x` only while its README says "0.2.1 or later": a fix owed, not a second
-rule.
+the version the specs actually run on. For `@nxgt/telemetry` that is 0.2.1, the
+floor itself: no later minor was published when the range was widened. For
+`@nxgt/mongo` it is 0.17.1, above the 0.17.0 floor, and CI runs that version
+from the lock. The `janus-mongo` and `janus-kit` suites were also run once by
+hand, outside the lock, against 0.17.0 (the floor) and 0.18.1 (the newest
+minor then published). Both passed, with typecheck clean.
 
 ### The other three declared divergences
 
