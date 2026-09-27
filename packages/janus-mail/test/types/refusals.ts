@@ -162,6 +162,30 @@ const wide: JanusMailTemplates<'en' | 'fr' | 'de'> = {
 // @ts-expect-error
 void mail.templates.welcome;
 
+// 19. A link computed asynchronously: the e-mail needs the string now.
+janusMail({
+	mailer,
+	from: 'noreply@acme.example',
+	brand: 'Acme',
+	links: {
+		...links,
+		// @ts-expect-error
+		verifyEmail: async (token: string) => links.verifyEmail(token),
+	},
+});
+
+// 20. A link answered as a URL object rather than its href.
+janusMail({
+	mailer,
+	from: 'noreply@acme.example',
+	brand: 'Acme',
+	links: {
+		...links,
+		// @ts-expect-error
+		secureAccount: () => new URL('https://acme.example/account'),
+	},
+});
+
 // ── What must keep compiling ────────────────────────────────────────────────
 
 // Every flow's answer, as the flows give it.
