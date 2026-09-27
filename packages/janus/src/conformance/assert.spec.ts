@@ -3,7 +3,7 @@ import { StoreFailure } from '../errors/janus-error';
 import { isOurs } from './assert';
 
 describe('isOurs', () => {
-	const what = 'users.findById under an outage';
+	const what = 'users.findUser under an outage';
 
 	it('passes this package’s own class', () => {
 		expect(() =>

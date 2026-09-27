@@ -1174,7 +1174,7 @@ A process warning, and the outage cases reported as skipped.
 
 ### `expected <Class>, got <value>`
 
-The case's own sentence first — `users.findById under an outage`, `users.insertUser for a taken login`.
+The case's own sentence first — `users.findUser under an outage`, `insertUser should refuse a taken login with StoreConflict`.
 
 **When:** a conformance case that checks the class of an error, and the adapter threw — or answered — something else.
 **Why:** the port names the class: an outage is `StoreFailure`, a taken login `StoreConflict`, an update of an unknown id `NotFoundError`. A driver's own error, or an answer where a rejection was due, fails the case.
@@ -1184,9 +1184,9 @@ The case's own sentence first — `users.findById under an outage`, `users.inser
 try {
 	return await collection.findOne({ _id: id });
 } catch (cause) {
-	throw new StoreFailure('users.findById: the store could not answer', {
+	throw new StoreFailure('users.findUser: the store could not answer', {
 		slot: 'users',
-		operation: 'findById',
+		operation: 'findUser',
 		cause,
 	});
 }
