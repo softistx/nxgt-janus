@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.8.4
+
+### Patch Changes
+
+- [#77](https://github.com/softistx/nxgt-janus/pull/77) [`8bb87ea`](https://github.com/softistx/nxgt-janus/commit/8bb87ea1943dc473c450337f99036e4670eff402) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Permissions: `list()` through a `fromField` with no `lookup` now names the subject's type in its `TypeError` — `…has no lookup to find the records naming a subject of type 'staff' — …` — never the subject's id: a message reports a shape, never a value.
+
 ## 0.8.3
 
 ### Patch Changes
