@@ -17,6 +17,7 @@ import { refuseStale } from '../one-time';
 import type { VerifyEmailApi } from '../types';
 import { issueEmailToken, redeemEmailToken } from './email-token';
 
+/** `verifyEmail` of one user type: `send` a token to its e-mail, then `confirm` it. */
 export function verifyEmailFlows(
 	context: Context,
 	type: ResolvedType,

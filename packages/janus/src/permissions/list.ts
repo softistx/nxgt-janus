@@ -10,6 +10,10 @@ import type { BoundModel } from './bound-model';
 import { subjectOf, typeOf } from './input';
 import { Reverse } from './reverse';
 
+/**
+ * One page of the ids of the objects of `typeName` on which `subject` holds
+ * `permission`, ascending; an empty page for anonymous, before any store call.
+ */
 export async function list(
 	{ model, store, maxDepth }: BoundModel,
 	subject: unknown,

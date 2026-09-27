@@ -6,6 +6,7 @@
 import type { AnyUser, Context } from '../context';
 import type { Session, SharedApi } from '../types';
 
+/** The session cookie's name, and how to set it for a session and clear it. */
 export function cookieOf(context: Context): SharedApi<AnyUser>['cookie'] {
 	const { name, domain, path, sameSite, secure } = context.config.cookie;
 	const attributes = [

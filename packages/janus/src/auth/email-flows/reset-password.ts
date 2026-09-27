@@ -23,6 +23,10 @@ import { issueEmailToken, redeemEmailToken } from './email-token';
 
 type ResetPassword = ResetPasswordApi<AnyUser>['resetPassword'];
 
+/**
+ * `resetPassword` of one user type: `request` a token for the holder of an
+ * e-mail, then `confirm` it with a new password.
+ */
 export function resetPasswordFlows(
 	context: Context,
 	type: ResolvedType,

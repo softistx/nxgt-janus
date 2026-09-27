@@ -8,6 +8,10 @@ import type { BoundModel } from './bound-model';
 import { objectOf, subjectOf, typeOf } from './input';
 import { Walk } from './walk';
 
+/**
+ * Whether `subject` holds `permission` on `object`: `false` for anonymous or
+ * an id no store can keep, before any store call; a failure throws.
+ */
 export async function can(
 	{ model, store, maxDepth }: BoundModel,
 	subject: unknown,
