@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { NotFoundError, StoreConflict } from '../../errors/janus-error';
-import { mintId } from '../../ids/id';
-import { createMemoryStores } from './memory';
-import type { SessionRecord, TokenRecord, UserRecord } from './types';
+import { NotFoundError, StoreConflict } from '../../../errors/janus-error';
+import { mintId } from '../../../ids/id';
+import type { SessionRecord, TokenRecord, UserRecord } from '../types';
+import { createMemoryStores } from './stores';
 
 // These specs pin the reference store's own behaviour. The conformance suite,
 // in `src/conformance/`, is what asks the same questions of every adapter; these

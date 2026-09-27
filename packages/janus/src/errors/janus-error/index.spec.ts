@@ -12,7 +12,7 @@ import {
 	UnsupportedError,
 	UserInactiveError,
 	UserInvalidError,
-} from './janus-error';
+} from './index';
 
 describe('JanusError', () => {
 	it('carries the cause, so the driver error is not lost', () => {
