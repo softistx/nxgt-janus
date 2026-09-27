@@ -30,6 +30,10 @@ const sends: Record<
 			formerEmail: 'ada@example.com',
 			newEmail: 'ada@new.example',
 		}),
+	twoFactorEnabled: (mail, locale) =>
+		mail.twoFactorEnabled({ name, locale, email: 'ada@example.com' }),
+	twoFactorDisabled: (mail, locale) =>
+		mail.twoFactorDisabled({ name, locale, email: 'ada@example.com' }),
 };
 
 const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
@@ -53,6 +57,14 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 	emailChanged: {
 		en: 'Your e-mail address was changed',
 		fr: 'Votre adresse e-mail a été modifiée',
+	},
+	twoFactorEnabled: {
+		en: 'Two-factor authentication was turned on',
+		fr: "L'authentification à deux facteurs a été activée",
+	},
+	twoFactorDisabled: {
+		en: 'Two-factor authentication was turned off',
+		fr: "L'authentification à deux facteurs a été désactivée",
 	},
 };
 
@@ -109,7 +121,9 @@ describe('the default e-mails', () => {
 		await mail.verifyEmail(verification, { name: 'Ada' });
 		await mail.resetPassword(reset, { name: 'Ada' });
 		await mail.passwordChanged({ name: 'Ada', email: 'ada@example.com' });
-		const [verify, resetMail, changed] = options.mailer.sent;
+		await mail.twoFactorEnabled({ name: 'Ada', email: 'ada@example.com' });
+		await mail.twoFactorDisabled({ name: 'Ada', email: 'ada@example.com' });
+		const [verify, resetMail, changed, enabled, disabled] = options.mailer.sent;
 		expect(verify?.html).toContain(
 			'https://acme.example/verify?token=tok-verify-123',
 		);
@@ -119,7 +133,10 @@ describe('the default e-mails', () => {
 		expect(resetMail?.text).toContain(
 			'https://acme.example/reset?token=tok-reset-456',
 		);
-		expect(changed?.text).toContain('https://acme.example/account/security');
+		for (const notice of [changed, enabled, disabled]) {
+			expect(notice?.text).toContain('https://acme.example/account/security');
+			expect(notice?.html).toContain('https://acme.example/account/security');
+		}
 	});
 
 	test('the new address is in the e-mail-changed e-mail', async () => {

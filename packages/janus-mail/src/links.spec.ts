@@ -25,6 +25,14 @@ describe('links', () => {
 			(m) => m.passwordChanged({ name: 'Ada', email: 'ada@example.com' }),
 		],
 		[
+			'janusMail.twoFactorEnabled: links.secureAccount() must answer a string',
+			(m) => m.twoFactorEnabled({ name: 'Ada', email: 'ada@example.com' }),
+		],
+		[
+			'janusMail.twoFactorDisabled: links.secureAccount() must answer a string',
+			(m) => m.twoFactorDisabled({ name: 'Ada', email: 'ada@example.com' }),
+		],
+		[
 			'janusMail.emailChanged: links.secureAccount() must answer a string',
 			(m) =>
 				m.emailChanged({

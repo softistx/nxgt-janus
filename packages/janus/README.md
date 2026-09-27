@@ -587,6 +587,8 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.created` | `create`, `signUp` |
 | `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
+| `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
+| `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor — never for a user who had none, or one still waiting |
 | `user.deleted` | `delete`, once — a replay that deletes nobody sends nothing |
 
 - **The user is named by id, and nothing else**: no login, no e-mail, no
@@ -597,14 +599,28 @@ await auth.signUp({ email, password }); // the listener has the event before thi
   flow answers, so a durable queue has the event by then. `occurredAt` is the
   write's own time. A refused flow sends nothing.
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
-  union of the four types, so a `switch` on `event.type` is exhaustive.
+  union of the six types, so a `switch` on `event.type` is exhaustive.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.
 
+To tell the user their second factor was turned on or off, send
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s notice
+from the listener — or from a queue it feeds:
+
+```ts
+// `mail` is janusMail({ … }), and the user schema holds a name and a locale.
+async events(event) {
+	if (event.type === 'user.secondFactorDisabled') {
+		const user = await auth.get(event.userId);
+		await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
+	}
+},
+```
+
 To post them as signed webhooks:
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks).
-[The user events guide](docs/guide/events.md) has the listener, the four
+[The user events guide](docs/guide/events.md) has the listener, the six
 types, what a failure costs, and a test.
 
 ### Permissions — `@nxgt/janus/permissions`

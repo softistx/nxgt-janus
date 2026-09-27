@@ -178,6 +178,33 @@ through JSON on its way to a queue holds a string — or is already past, is
 a `TypeError`, and nothing reaches the mailer: revive the date with
 `new Date(issued.expiresAt)` when the job runs, or pass `expiresIn`.
 
+### `twoFactorEnabled(to)` and `twoFactorDisabled(to)`
+
+```ts
+// On the user events @nxgt/janus sends once the write landed:
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type !== 'user.secondFactorEnabled' && event.type !== 'user.secondFactorDisabled') return;
+		const user = await auth.get(event.userId);
+		const to = { name: user.name, locale: user.locale, email: user.email };
+		await (event.type === 'user.secondFactorEnabled' ? mail.twoFactorEnabled(to) : mail.twoFactorDisabled(to));
+	},
+});
+```
+
+Two notices: two-factor authentication was turned on, or off, for the
+account at `to.email`, each with a link to `links.secureAccount()` — the
+user's security settings — for a user who did not make the change. Send
+`twoFactorEnabled` on the `user.secondFactorEnabled` event, which
+`auth.secondFactor.activate` sends once the factor is active, and
+`twoFactorDisabled` on `user.secondFactorDisabled`, which
+`auth.secondFactor.disable` sends only when it removed an active factor: a
+`disable` on a user who had none tells nobody anything. The event names the
+user by id alone, so read the name, the locale and the address from the
+user. Calling them right after `activate` or `disable` answered works as
+well — without the events, check `hasSecondFactor` before the `disable`.
+
 ## Where each e-mail goes
 
 | Method | To | Never to |
@@ -187,6 +214,7 @@ a `TypeError`, and nothing reaches the mailer: revive the date with
 | `signInCode` | `issued.email` | the `email` passed to `request` |
 | `passwordChanged` | `to.email` | — |
 | `emailChanged` | `to.formerEmail` | `to.newEmail` |
+| `twoFactorEnabled`, `twoFactorDisabled` | `to.email` | — |
 
 `issued.email` is the address the user's record holds, as they registered
 it; what the visitor typed may differ in case or spacing. The recipient is a

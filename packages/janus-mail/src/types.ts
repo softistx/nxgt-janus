@@ -55,9 +55,19 @@ export interface JanusMailVariables {
 		readonly link: string;
 		readonly newEmail: string;
 	};
+	readonly twoFactorEnabled: {
+		readonly brand: string;
+		readonly name: string;
+		readonly link: string;
+	};
+	readonly twoFactorDisabled: {
+		readonly brand: string;
+		readonly name: string;
+		readonly link: string;
+	};
 }
 
-/** The name of one of the five templates: `verifyEmail`, `resetPassword`, … */
+/** The name of one of the seven templates: `verifyEmail`, `resetPassword`, … */
 export type JanusMailTemplateName = keyof JanusMailVariables;
 
 /**
@@ -70,7 +80,7 @@ export type JanusMailTemplate<V, L extends string = JanusMailLocale> = (
 	variables: V & { readonly locale: L },
 ) => Rendered | PromiseLike<Rendered>;
 
-/** The five templates, each for the locales `L`. */
+/** The seven templates, each for the locales `L`. */
 export type JanusMailTemplates<L extends string = JanusMailLocale> = {
 	readonly [K in JanusMailTemplateName]: JanusMailTemplate<
 		JanusMailVariables[K],
@@ -105,7 +115,11 @@ export interface JanusMailLinks {
 	readonly verifyEmail: (token: string) => string;
 	/** The page that sets a new password, given the one-time token. */
 	readonly resetPassword: (token: string) => string;
-	/** Where a user who did not make a change secures their account — `passwordChanged` and `emailChanged` link to it. */
+	/**
+	 * Where a user who did not make a change secures their account — their
+	 * security settings. `passwordChanged`, `emailChanged`, `twoFactorEnabled`
+	 * and `twoFactorDisabled` link to it.
+	 */
 	readonly secureAccount: () => string;
 }
 
@@ -196,6 +210,22 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 	/** Tells the **former** address that the e-mail changed to `newEmail`, with a link to secure the account. */
 	emailChanged(
 		to: Recipient & { readonly formerEmail: string; readonly newEmail: string },
+	): Promise<SentMail>;
+	/**
+	 * Tells `to.email` two-factor authentication was turned on, with a link to
+	 * secure the account — on the `user.secondFactorEnabled` event, or once
+	 * `auth.secondFactor.activate` answered.
+	 */
+	twoFactorEnabled(
+		to: Recipient & { readonly email: string },
+	): Promise<SentMail>;
+	/**
+	 * Tells `to.email` two-factor authentication was turned off, with a link
+	 * to secure the account — on the `user.secondFactorDisabled` event, which
+	 * `auth.secondFactor.disable` sends only when it removed an active factor.
+	 */
+	twoFactorDisabled(
+		to: Recipient & { readonly email: string },
 	): Promise<SentMail>;
 	/** The templates in use: the defaults, with `templates` over them. */
 	readonly templates: JanusMailTemplates<L>;

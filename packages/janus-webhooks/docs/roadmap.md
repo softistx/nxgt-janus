@@ -31,6 +31,9 @@ Nothing queued.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **The second factor's events, v0.3.0** — `user.secondFactorEnabled` and
+  `user.secondFactorDisabled`, from `@nxgt/janus` 0.9, are signed, posted
+  and verified like the other four, and an endpoint's `types` may name them.
 - **A Redis-backed queue, `@nxgt/janus-webhooks-redis` v0.1.0** — a package
   of its own: `createRedisWebhookQueue(redis)`, a durable `WebhookQueue` to
   pass as `webhooks({ queue })`, shared by every process of the application,

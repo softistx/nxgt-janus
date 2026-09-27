@@ -385,7 +385,7 @@ only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
 `build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
 `@nxgt/mail` 0.1.0 reads and that exactly the
-five e-mails were built) before `../../build.ts`. No `postinstall`: nothing
+seven e-mails were built) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer.
 

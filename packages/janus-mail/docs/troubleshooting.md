@@ -32,7 +32,7 @@ How the messages are shaped:
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
 - [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
-- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged)
+- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged-twofactorenabled-twofactordisabled)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
@@ -150,9 +150,9 @@ A `fallbackLocale` the list does not hold — `'de'` with the default
 
 `templates` given as a list or a function. Key each template by its name.
 
-### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`
+### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled`
 
-A key that is not one of the five — `welcome`, or the e-mail's file name
+A key that is not one of the seven — `welcome`, or the e-mail's file name
 `'verify-email'` rather than the template's, `verifyEmail`. Other e-mails are
 on the [roadmap](roadmap.md); send them with `@nxgt/mail` directly meanwhile.
 
@@ -186,7 +186,7 @@ as it is: fields are own properties.
 ### `janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` leaves some
-out: the defaults could not render them in that locale. Pass all five — see
+out: the defaults could not render them in that locale. Pass all seven — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
 
@@ -223,6 +223,15 @@ anyway: `{ name: user.email }`. `janusMail.verifyEmail: expiresIn must be a
 string` is the third argument's `expiresIn` given as something else — a
 number of seconds: pass the text to show, `{ expiresIn: '1 hour' }`, or
 leave it out.
+
+`janusMail.twoFactorEnabled: email must be a string` (or `twoFactorDisabled`)
+is the user event itself given to the notice: an event names the user by id
+alone. Read the user first:
+
+```ts
+const user = await auth.get(event.userId);
+await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
+```
 
 ### `janusMail.<method>: expiresAt must be a Date`
 
@@ -370,7 +379,7 @@ avoids the read altogether. (In this repository: run `bun run build`.)
 
 The default templates read `mails/` with `node:fs`, through
 `@nxgt/mail/renderer`: Node, Bun or Deno only. On an edge runtime, pass all
-five templates yourself; an inlined build is on the [roadmap](roadmap.md).
+seven templates yourself; an inlined build is on the [roadmap](roadmap.md).
 
 ### An e-mail stays light in dark mode
 
@@ -416,7 +425,7 @@ whole.
 ### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` does not give
-all five. See [Adding a locale](guide/locales.md#adding-a-locale).
+all seven. See [Adding a locale](guide/locales.md#adding-a-locale).
 
 ### `TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`
 

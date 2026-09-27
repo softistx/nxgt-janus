@@ -25,7 +25,7 @@ export const auth = janus({
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.deleted
+	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted
 });
 
 process.on('SIGTERM', async () => {
@@ -44,7 +44,7 @@ bun add zod # the schema of the examples; any Standard Schema library will do
 bun add -d typescript
 ```
 
-Both peers are required: `@nxgt/janus` 0.8 — the exact range is in
+Both peers are required: `@nxgt/janus` 0.9 — the exact range is in
 `peerDependencies` — and `typescript` (6). `@nxgt/janus` is a **peer**, so one copy of it defines
 `UserEvent`. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 It uses `node:crypto`, the global `fetch` and `process.emitWarning`: Bun or
@@ -63,7 +63,7 @@ Node.
 
 `webhooks({ endpoints })` answers the listener `janus({ events })` takes,
 with a `close()` for shutdown. It posts each user event to every endpoint
-whose `types` include it — all four types when `types` is absent:
+whose `types` include it — all six types when `types` is absent:
 
 ```ts
 import { webhooks } from '@nxgt/janus-webhooks';
@@ -219,6 +219,18 @@ answer a second with a `2xx`, doing nothing.
 **Rotate a secret in four steps.** Sign with both
 (`secrets: [old, next]`), let the receiver accept both, then drop the old one
 from the sender, and last from the receiver.
+
+**Upgrade the receiver before the sender.** A receiver's `verifyWebhook`
+answers `null` for a type it does not know, so the delivery fails until it is
+given up — `@nxgt/janus-webhooks` before 0.3.0 knows neither
+`user.secondFactorEnabled` nor `user.secondFactorDisabled`. Until every
+receiver is upgraded, give its endpoint the `types` it knows:
+
+```ts
+webhooks({
+	endpoints: [{ url, secrets: [secret], types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.deleted'] }],
+});
+```
 
 **The warnings name the URL's origin, never the URL.** `JANUS_WEBHOOK_GAVE_UP`
 writes `https://crm.example.com` because a path or query may hold a token of

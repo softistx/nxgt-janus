@@ -59,7 +59,8 @@ interface SharedConfig {
 	readonly secondFactor?: SecondFactorConfig;
 	/**
 	 * Called with every user event — `user.created`, `user.emailVerified`,
-	 * `user.passwordReset`, `user.deleted` — once the write landed,
+	 * `user.passwordReset`, `user.secondFactorEnabled`,
+	 * `user.secondFactorDisabled`, `user.deleted` — once the write landed,
 	 * and awaited before the flow answers. Any function will do;
 	 * `webhooks({ … })` from `@nxgt/janus-webhooks` signs and delivers them.
 	 */

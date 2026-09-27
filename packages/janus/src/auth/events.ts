@@ -9,12 +9,18 @@ import type { Context } from './context';
  *   `resetPassword.confirm` or the code of `signInCode.confirm`, which prove
  *   the e-mail too; never for an e-mail already verified;
  * - `user.passwordReset` — by `resetPassword.confirm`;
+ * - `user.secondFactorEnabled` — by `secondFactor.activate`, once the factor
+ *   is active: not by `enroll`, which leaves it waiting for its first code;
+ * - `user.secondFactorDisabled` — by `secondFactor.disable`, when it removed
+ *   an active factor; never for a user who had none, or one still waiting;
  * - `user.deleted` — by `delete`, once; a replay that finds nobody is none.
  */
 export type UserEventType =
 	| 'user.created'
 	| 'user.emailVerified'
 	| 'user.passwordReset'
+	| 'user.secondFactorEnabled'
+	| 'user.secondFactorDisabled'
 	| 'user.deleted';
 
 /**

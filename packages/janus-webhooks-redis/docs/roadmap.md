@@ -33,6 +33,9 @@ Nothing yet.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **The second factor's events, v0.2.0** — a delivery of
+  `user.secondFactorEnabled` or `user.secondFactorDisabled`, from
+  `@nxgt/janus` 0.9, is written and read back like the other four.
 - **The first release, v0.1.0.** The Redis queue for `@nxgt/janus-webhooks`: every
   method one Lua script, claims atomic across processes, an insert all or
   none, and the `@nxgt/janus-webhooks/conformance` suite passed against Redis

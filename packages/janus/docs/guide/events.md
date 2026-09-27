@@ -1,7 +1,7 @@
 # User events
 
 This page is for hearing what happens to a user once it is written: created,
-e-mail verified, password reset, deleted. Another service can then follow
+e-mail verified, password reset, second factor turned on or off, deleted. Another service can then follow
 without polling. `janus` hands each event to one function you give it;
 **delivering it is yours** — or
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks)'s:
@@ -37,18 +37,20 @@ received[0];
 The words — **user event**, **listener** — are defined in
 [the vocabulary](vocabulary.md#identities).
 
-## The four types
+## The six types
 
 | `type` | Sent by | Not sent |
 | --- | --- | --- |
 | `user.created` | `create`, `signUp` — once the user is inserted, even if `signUp`'s session then fails to open | for a sign-up refused (`LOGIN_TAKEN`, `USER_INVALID`, `PASSWORD_TOO_SHORT`) |
 | `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm`, whose link proves the e-mail; `signInCode.confirm`, whose code does | for an e-mail already verified, or a refused confirm |
 | `user.passwordReset` | `resetPassword.confirm` | for `setPassword` or `changePassword` — they are not resets |
+| `user.secondFactorEnabled` | `secondFactor.activate`, once the first code made the factor active | for `enroll`, which leaves the factor waiting and asked for nowhere; for a code refused |
+| `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an **active** factor | for a user who had no factor, a factor still waiting for its first code — it was never asked for — or a second `disable` |
 | `user.deleted` | `delete`, when it deleted the user | for a replay that finds nobody, or an id of another user type |
 
 A reset whose link verifies the e-mail sends both, `user.passwordReset`
-first. Switch on `type`: the four are a closed set, and TypeScript refuses a
-fifth.
+first. Switch on `type`: the six are a closed set, and TypeScript refuses a
+seventh.
 
 ```ts
 function onUserEvent(event: UserEvent): void {
@@ -59,6 +61,9 @@ function onUserEvent(event: UserEvent): void {
 			return unlockFeatures(event.userId);
 		case 'user.passwordReset':
 			return alertSecurityTeam(event.userId);
+		case 'user.secondFactorEnabled':
+		case 'user.secondFactorDisabled':
+			return noticeTheUser(event); // @nxgt/janus-mail's twoFactorEnabled or twoFactorDisabled
 		case 'user.deleted':
 			return forgetEverywhere(event.userId);
 	}
@@ -100,6 +105,7 @@ Where the listener runs within a flow, and what an outage does to it:
 | `signUp` | after the insert, **before** the session is opened | fails the call; the event is already sent |
 | `verifyEmail.confirm` | after the write — the flow's last step | — |
 | `signInCode.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
+| `secondFactor.activate`, `secondFactor.disable` | after the write — the flow's last step | — |
 | `resetPassword.confirm` | **after** the sessions opened with the old password are revoked and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
 | `delete` | **after** the user's sessions and one-time tokens are removed, and the relation tuples naming them when `relations` is wired | fails the call; the event is sent all the same, from a `finally` |
 
@@ -176,7 +182,13 @@ it('tells the CRM about a sign-up', async () => {
 ## Signatures
 
 ```ts
-type UserEventType = 'user.created' | 'user.emailVerified' | 'user.passwordReset' | 'user.deleted';
+type UserEventType =
+	| 'user.created'
+	| 'user.emailVerified'
+	| 'user.passwordReset'
+	| 'user.secondFactorEnabled'
+	| 'user.secondFactorDisabled'
+	| 'user.deleted';
 
 interface UserEvent {
 	readonly id: Id;           // a UUIDv7, the key to deliver it once
@@ -197,5 +209,6 @@ see [troubleshooting](../troubleshooting.md#janus-events-must-be-a-function-that
 ## See also
 
 - [E-mail verification and password reset](email-flows.md) — the flows that send `user.emailVerified` and `user.passwordReset`
+- [The second factor](second-factor.md) — `activate` and `disable`, which send `user.secondFactorEnabled` and `user.secondFactorDisabled`
 - [Users](users.md) — `create`, `signUp`, `delete`
 - [Troubleshooting](../troubleshooting.md) — `JANUS_EVENT_FAILED`

@@ -85,6 +85,23 @@ half-way.
 
 ## Traps
 
+- **Hold the new event types back until every process sharing a queue is
+  upgraded.** A delivery of `user.secondFactorEnabled` or
+  `user.secondFactorDisabled`, written by 0.2.0, is `STORE_FAILED` (`a reply
+  that is not … a user event type`) in a 0.1.x process that claims it, and
+  that endpoint's claims fail there until every process is upgraded. Upgrade
+  `@nxgt/janus`, `@nxgt/janus-webhooks` and `@nxgt/janus-webhooks-redis`
+  together — their peer ranges move as one — with each endpoint limited to
+  the four `types` the older processes know, and drop the limit once every
+  process runs the new versions:
+
+  ```ts
+  webhooks({
+  	queue,
+  	endpoints: [{ id: 'crm', url, secrets: [secret], types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.deleted'] }],
+  });
+  ```
+
 - **Eviction is data loss.** A Redis whose `maxmemory-policy` evicts keys
   drops deliveries without a word — no retry, no `onGivingUp`. Run this on a
   Redis with `noeviction`; a full one then refuses the insert with `OOM`,

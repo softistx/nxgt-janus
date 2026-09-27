@@ -13,11 +13,9 @@ Nothing between releases.
   `invitation` from `@nxgt/mail-presets`, each once `@nxgt/janus` has a flow
   that sends it: a sign-in link, a sign-in from a new device, a user created,
   an invitation to a user type.
-- **The presets of `@nxgt/mail-presets` 0.4.0** — `two-factor-enabled` and
-  `two-factor-disabled`, sent after `secondFactor.activate` and
-  `secondFactor.disable`; `account-deleted`, after a user is deleted, once
-  `@nxgt/janus` has a deletion a link can undo; and `invitation-accepted`,
-  once it has invitations.
+- **The other presets of `@nxgt/mail-presets` 0.4.0** — `account-deleted`,
+  after a user is deleted, once `@nxgt/janus` has a deletion a link can
+  undo; and `invitation-accepted`, once it has invitations.
 
 ## Later
 
@@ -49,7 +47,13 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
-- **Dark mode, v0.2.2.** The five e-mails follow the reader's dark mode in
+- **The two-factor notices, v0.3.0.** `twoFactorEnabled(to)` and
+  `twoFactorDisabled(to)`, built from `@nxgt/mail-presets` 0.4.0's
+  `two-factor-enabled` and `two-factor-disabled` in English and French, each
+  linking to `links.secureAccount()`: send them on `@nxgt/janus` 0.9's
+  `user.secondFactorEnabled` and `user.secondFactorDisabled` events. Seven
+  e-mails now, and seven templates to pass for a locale beyond `en` and `fr`.
+- **Dark mode, v0.3.0.** The e-mails follow the reader's dark mode in
   every client that supports it, Gmail excepted: a dark page, a dark card and
   light text. Built from `@nxgt/mail-ui` 0.4.0, `@nxgt/mail-presets` 0.4.0
   and `@nxgt/mail-i18n` 0.5.0; the text parts, subjects and variables are

@@ -2,7 +2,8 @@
  * Type safety, measured: each `@ts-expect-error` below is one plausible
  * mistake in a send the compiler refuses, and fails the typecheck the moment
  * it stops being refused. The README counts them with those of
- * `option-refusals.ts` (9 to 20) and `expiry-refusals.ts` (21 to 25). Below
+ * `option-refusals.ts` (9 to 20), `expiry-refusals.ts` (21 to 25) and
+ * `notice-refusals.ts` (26 and 27). Below
  * them, the sends that must keep compiling: a refusal that also refuses the
  * right call is a bug.
  *
