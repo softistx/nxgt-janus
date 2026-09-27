@@ -61,22 +61,32 @@ wrapped nxgt `0.x` library — nxgt-data's packages, and `@nxgt/telemetry` from
 nxgt-telemetry — the range is `>=<floor> <1`: `>=0.17.0 <1`, `>=0.3.1 <1`,
 `>=0.6.1 <1`, and `>=0.2.1 <1` for `@nxgt/telemetry` in the integration
 `janus-telemetry`. A caret on a `0.x` version admits a single minor
-(`^0.17.1` stops at `0.18.0`), and every minor upstream would then force a
+(`^0.4.2` stops at `0.5.0`), and every minor upstream would then force a
 release here. The same package sits in `devDependencies`, and `bun.lock` holds
 the version the specs actually run on — every one of them npm's `latest` when
 last checked, on 2026-09-27. For `@nxgt/telemetry` that is 0.2.1, the
-floor itself: no later minor was published when the range was widened. So are
-`@nxgt/redis` 0.3.1 and `@nxgt/drizzle` 0.6.1. For
+floor itself: no later minor was published when the range was widened.
+`@nxgt/redis` 0.3.1 and `@nxgt/drizzle` 0.6.1 are likewise their floors. For
 `@nxgt/mongo` it is 0.18.1, above the 0.17.0 floor, and CI runs that version
 from the lock. The `janus-mongo` and `janus-kit` suites were also run once by
 hand, outside the lock, against 0.17.0 (the floor) and 0.18.1, when the lock
 still held 0.17.1. Both passed, with typecheck clean, and passed again on
 0.18.1 from the lock. `@nxgt/mail`, from
-nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.5.0 from
-the lock. The `janus-mail` suite was run once by hand, outside the lock,
-against 0.1.0 (the floor), and again against 0.1.0, 0.4.0 and 0.5.0 after the
-move to 0.5.0. All passed, with typecheck clean. The `mails/` build reads the
-same under every one of them.
+nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.5.1 from
+the lock, with `@nxgt/mail-config` 0.2.0, `@nxgt/mail-i18n` 0.3.0,
+`@nxgt/mail-ui` 0.1.1 and `@nxgt/mail-presets` 0.1.2 building `mails/` — whose
+text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, so
+`mail/maizzle.config.ts` sets no `plaintext` of its own. The `janus-mail`
+suite was run by hand, outside the lock, against 0.1.0 (the floor), 0.4.0 and
+0.5.0, and again against 0.1.0, 0.5.0 and 0.5.1 after the move to 0.5.1. All
+passed, with typecheck clean. The `mails/` build reads the same under every
+one of them, and **the build checks that it will**: a renderer reads every
+manifest format up to its own, `@nxgt/mail` 0.1.0 reads format 1, and
+`scripts/build-mail.ts` fails unless the manifest's `formatVersion` is
+`@nxgt/mail-i18n`'s `MANIFEST_FORMAT` and at most `PEER_FLOOR_READS`, 1. A new
+format from `@nxgt/mail-i18n` therefore fails the build here until the peer's
+floor rises to an `@nxgt/mail` that reads it
+(`packages/janus-mail/docs/guide/building.md`).
 
 **A new `@nxgt/*` release is found by a schedule, not by memory.** A range
 admits it the day it is published; the specs meet it only once the lock is
@@ -349,7 +359,8 @@ build-only `@nxgt/mail-config`, `@nxgt/mail-i18n`, `@nxgt/mail-ui` and
 pinned exact and **direct** — under Bun's isolated install, a Tailwind that is
 only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
-`build` runs `scripts/build-mail.ts` (Maizzle, then a check that exactly the
+`build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
+`@nxgt/mail` 0.1.0 reads and that exactly the
 five e-mails were built) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer.

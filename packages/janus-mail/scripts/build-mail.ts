@@ -5,6 +5,10 @@
  *
  * Then, from the manifest:
  *
+ * - it **fails unless the manifest's format is the one `@nxgt/mail-i18n`
+ *   writes, and one `@nxgt/mail` 0.1.0 reads** — the peer is `>=0.1.0 <1`, and
+ *   a renderer reads every format up to its own, so a newer format would
+ *   break an application on the floor;
  * - it **fails unless exactly the five e-mails** of Janus's flows were built,
  *   so a preset added or dropped by a new `@nxgt/mail-presets` is a failed
  *   build here, not a surprise in a consumer's outbox;
@@ -18,6 +22,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { MANIFEST_FORMAT } from '@nxgt/mail-i18n';
 import { $ } from 'bun';
 
 /** The e-mails the package promises, sorted as the manifest sorts them. */
@@ -37,10 +42,47 @@ const LOCALES_MODULE = fileURLToPath(
 	new URL('../src/generated/locales.ts', import.meta.url),
 );
 
+/**
+ * The newest manifest format the oldest `@nxgt/mail` the peer admits reads:
+ * `>=0.1.0 <1`, and 0.1.0 through 0.5.0 read format 1 only. They export no
+ * `MANIFEST_FORMAT`, so the number is written here, and raising it means
+ * raising the peer's floor to the first `@nxgt/mail` that reads the new format.
+ */
+export const PEER_FLOOR_READS = 1;
+
 /** The part of the manifest this script reads. */
 interface BuiltManifest {
+	readonly formatVersion?: unknown;
 	readonly locales: readonly string[];
 	readonly emails: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * Why the manifest's format is not one the package can ship, or `null` when
+ * it is: it must be the format this `@nxgt/mail-i18n` writes (`written`) —
+ * anything else is a `mails/` left by another build — and no newer than what
+ * the peer's floor reads (`readable`), or an application on that
+ * `@nxgt/mail` fails at start-up.
+ */
+export function formatProblem(
+	manifest: BuiltManifest,
+	written: number,
+	readable: number = PEER_FLOOR_READS,
+): string | null {
+	const format = manifest.formatVersion;
+	if (format !== written) {
+		return (
+			`build-mail: mails/mail-manifest.json is manifest format ${String(format)}, ` +
+			`where @nxgt/mail-i18n writes ${written} — a mails/ left by another build; run the build again`
+		);
+	}
+	if (format > readable) {
+		return (
+			`build-mail: mails/mail-manifest.json is manifest format ${format}, and @nxgt/mail 0.1.0, ` +
+			`the peer's floor, reads up to ${readable} — raise the @nxgt/mail peer's floor to the first version that reads it`
+		);
+	}
+	return null;
 }
 
 /** Why a manifest is not the build the package promises, or `null` when it is. */
@@ -80,10 +122,14 @@ async function main(): Promise<void> {
 	}
 
 	const manifest: BuiltManifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
-	const problem = emailsProblem(manifest);
-	if (problem !== null) {
-		console.error(problem);
-		process.exit(1);
+	for (const problem of [
+		formatProblem(manifest, MANIFEST_FORMAT),
+		emailsProblem(manifest),
+	]) {
+		if (problem !== null) {
+			console.error(problem);
+			process.exit(1);
+		}
 	}
 
 	const source = localesModule(manifest.locales);

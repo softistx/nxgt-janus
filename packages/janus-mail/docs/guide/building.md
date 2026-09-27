@@ -41,13 +41,37 @@ packages/janus-mail/
    folder first, so an e-mail removed leaves no file behind.
 2. `@nxgt/mail-i18n` writes `mails/mail-manifest.json` and
    `src/generated/mail.ts` (`rendererTypes`), from the build.
-3. `scripts/build-mail.ts` reads the manifest and **fails unless exactly
-   the five e-mails were built** — a sixth from a new `@nxgt/mail-presets`,
-   or one missing, stops the build.
+3. `scripts/build-mail.ts` reads the manifest and **fails unless its
+   format is one every `@nxgt/mail` the peer admits reads** — see below —
+   and **unless exactly the five e-mails were built**: a sixth from a new
+   `@nxgt/mail-presets`, or one missing, stops the build.
 4. It writes `src/generated/locales.ts` from the manifest's locales, only
    when its content changed.
 
 Then `../../build.ts` builds `dist/`, as for every package.
+
+## The manifest's format keeps the peer honest
+
+The package peers `@nxgt/mail` at `>=0.1.0 <1`, so the build it ships must
+be readable by `@nxgt/mail` 0.1.0. The manifest says which format it is in —
+`formatVersion`, its first key, `MANIFEST_FORMAT` of the `@nxgt/mail-i18n`
+that built it — and within 0.x a renderer reads every format up to its own.
+`@nxgt/mail` 0.1.0 through 0.5.0 read format 1, and a manifest without the
+field is format 1.
+
+`formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build
+when:
+
+| Message | Cause | Fix |
+| --- | --- | --- |
+| `build-mail: mails/mail-manifest.json is manifest format 2, where @nxgt/mail-i18n writes 1 — a mails/ left by another build; run the build again` | `mails/` is not what this `@nxgt/mail-i18n` wrote | Run `bun run build:mail` again |
+| `build-mail: mails/mail-manifest.json is manifest format 2, and @nxgt/mail 0.1.0, the peer's floor, reads up to 1 — raise the @nxgt/mail peer's floor to the first version that reads it` | A new `@nxgt/mail-i18n` writes a format the floor cannot read | Raise the peer's floor, then `PEER_FLOOR_READS` with it |
+
+`PEER_FLOOR_READS` is a constant, `1`, rather than `MANIFEST_FORMAT` from
+`@nxgt/mail/renderer`: the devDependency is newer than the floor, and
+`@nxgt/mail` 0.5.0 and earlier export no `MANIFEST_FORMAT`. The pattern is
+`@nxgt/mail-i18n`'s
+[Shipping a build in a package](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-i18n/docs/guide/manifest.md#shipping-a-build-in-a-package).
 
 ## The brand is a placeholder
 
