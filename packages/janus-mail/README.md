@@ -180,6 +180,10 @@ send time and must return an `http(s)` or `mailto:` URL as a string: an
 `links`, `from` and `replyTo` are copied when `janusMail()` is called, so
 changing them afterwards changes nothing.
 
+**Templates are own properties.** A class's methods live on its prototype
+and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
+…`) pass.
+
 **A locale beyond `en` and `fr` needs every template.** The defaults are
 built in those two only, so `locales: ['en', 'fr', 'de']` without all five
 templates is a compile error, and a `TypeError` in JavaScript.

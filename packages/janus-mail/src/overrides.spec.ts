@@ -98,7 +98,7 @@ describe('templates', () => {
 		}
 	}
 	const inherited = new TypeError(
-		'janusMail: templates.verifyEmail is not an own property — pass a plain object, ' +
+		'janusMail: templates.verifyEmail is not an own enumerable property — pass a plain object, ' +
 			'as { verifyEmail: (variables) => rendered }',
 	);
 
@@ -116,6 +116,15 @@ describe('templates', () => {
 		expect(() =>
 			janusMail({ ...baseOptions(), templates: new Templates() }),
 		).toThrow(inherited);
+	});
+
+	test('an own template that is not enumerable is refused', () => {
+		const templates = {};
+		Object.defineProperty(templates, 'verifyEmail', {
+			value: () => plain('Hallo'),
+			enumerable: false,
+		});
+		expect(() => janusMail({ ...baseOptions(), templates })).toThrow(inherited);
 	});
 
 	test('a class instance with its templates as own properties is accepted', async () => {
