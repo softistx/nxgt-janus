@@ -206,7 +206,8 @@ describeWebhookQueues({
 			const db = await openEmptyDatabase();
 			return {
 				queue: createMyWebhookQueue(db),
-				faults: { fail: async (method) => db.failNext(method) },
+				// Every call to that method fails from now on, until the case closes.
+				faults: { fail: async (method) => db.failEvery(method) },
 				close: () => db.drop(),
 			};
 		},

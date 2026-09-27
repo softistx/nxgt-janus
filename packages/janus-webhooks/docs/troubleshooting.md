@@ -77,6 +77,8 @@ How the messages are shaped:
 **Testing a queue adapter**
 - [`describeWebhookQueues: no test runner on globalThis — pass runner: { describe, it } (under bun test: import them from 'bun:test')`](#describewebhookqueues-no-test-runner-on-globalthis--pass-runner--describe-it--under-bun-test-import-them-from-buntest)
 - [`the error is named StoreFailure but is not @nxgt/janus's StoreFailure: two copies of @nxgt/janus are installed. The adapter must list it as a peer dependency, never a dependency`](#the-error-is-named-storefailure-but-is-not-nxgtjanuss-storefailure-two-copies-of-nxgtjanus-are-installed-the-adapter-must-list-it-as-a-peer-dependency-never-a-dependency)
+- [`expected a rejection, got <answer>`](#expected-a-rejection-got-answer)
+- [`expected StoreFailure, got <error>`](#expected-storefailure-got-error)
 - [`[JANUS_CONFORMANCE_SKIPPED] Warning: <case id> skipped: faults not provided: the outage invariant is not proven for this adapter`](#janus_conformance_skipped-warning-case-id-skipped-faults-not-provided-the-outage-invariant-is-not-proven-for-this-adapter)
 - [`<name> — @nxgt/janus-webhooks queue conformance (WITHOUT faults: faults not provided: the outage invariant is not proven for this adapter)`](#name--nxgtjanus-webhooks-queue-conformance-without-faults-faults-not-provided-the-outage-invariant-is-not-proven-for-this-adapter)
 
@@ -888,6 +890,42 @@ the application:
 
 Then check that one copy is left: `bun pm ls --all | grep @nxgt/janus@`.
 
+### `expected a rejection, got <answer>`
+
+The second line of a failure whose first names the case: `<method> under an
+outage should reject`, with `<answer>` the `[]`, `false` or `0` the method
+returned.
+
+**When:** an `outage.<method>` case, once `faults` made the method fail: the
+adapter answered instead of throwing.
+**Why:** a `catch` that answers an absence — `catch { return [] }` — turns an
+outage into "nothing is due": the worker waits, and deliveries sit unsent
+with nothing reported. The port's rule is that a failure throws.
+**Fix:** let the failure through, as a `StoreFailure` with the driver's error
+as `cause`:
+
+```ts
+try {
+	return await claim(now, until, limit);
+} catch (cause) {
+	throw new StoreFailure('webhookQueue.claimDeliveries: the queue could not answer', {
+		operation: 'claimDeliveries',
+		cause,
+	});
+}
+```
+
+### `expected StoreFailure, got <error>`
+
+The second line of a failure whose first names the case: `<method> under an
+outage`.
+
+**When:** an `outage.<method>` case: the adapter rejected, but with the
+driver's own error, or another class.
+**Why:** an application tells an outage apart with
+`error instanceof StoreFailure`; a driver's error slips past it.
+**Fix:** wrap the driver's error, as in the entry above.
+
 ### `[JANUS_CONFORMANCE_SKIPPED] Warning: <case id> skipped: faults not provided: the outage invariant is not proven for this adapter`
 
 A process warning, not a failure: the case is counted as passed.
@@ -908,7 +946,8 @@ harness: {
 		const db = await openEmptyDatabase();
 		return {
 			queue: createMyWebhookQueue(db),
-			faults: { fail: async (method) => db.failNext(method) },
+			// Every call to that method fails from now on, until the case closes.
+			faults: { fail: async (method) => db.failEvery(method) },
 			close: () => db.drop(),
 		};
 	},

@@ -156,7 +156,7 @@ mintWebhookSecret(); // 'whsec_…': 32 random bytes, base64 — give the same o
 | `WebhooksOptions`, `WebhookEndpoint`, `Webhooks` | What `webhooks()` takes and answers |
 | `Delivery`, `GivingUp`, `Failure` | What `onGivingUp` receives: `{ event, url, endpoint, attempts }` — `url` is `null` for `endpointRemoved` — and `{ why, status, error }`: a `GivingUp` is a `Failure`, what the last attempt got, with the reason |
 | `VerifyOptions`, `HeadersLike`, `WebhookBody` | What `verifyWebhook` takes, and the JSON body on the wire |
-| `@nxgt/janus-webhooks/conformance` | The suite a queue adapter runs: `describeWebhookQueues({ name, harness, runner })`, `runWebhookQueueCase`, the cases as data (`webhookQueueCases`, `webhookQueueOutageCases`, `allWebhookQueueCases`), `referenceWebhookQueueHarness()`, and their types. It imports no test framework |
+| `@nxgt/janus-webhooks/conformance` | The suite a queue adapter runs: `describeWebhookQueues({ name, harness, runner })`, `runWebhookQueueCase`, the cases as data (`webhookQueueCases`, `webhookQueueOutageCases`, `allWebhookQueueCases`), `referenceWebhookQueueHarness()`, `SKIP_REASONS`, and their types. It imports no test framework |
 
 ## Traps
 
