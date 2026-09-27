@@ -95,6 +95,28 @@ the build fails until it holds every message the presets use in `en` (see
 `@nxgt/mail-presets`'
 [Another locale](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-presets/docs/guide/presets.md#another-locale)).
 
+An override in a catalogue uses the presets' own key, in kebab-case since
+`@nxgt/mail-presets` 0.3.0, and nested, never dotted — `presets.link-expires`
+is written:
+
+```json
+{ "presets": { "link-expires": "…" } }
+```
+
+`@nxgt/mail-i18n` accepts a camelCase key too, so an override under a key from
+before presets 0.3.0, such as `presets.linkExpires`, is a key of its own that
+no preset reads. In `en`, the fallback locale, it is ignored without an
+error, and the preset's own text goes out instead — in `fr` too, when `fr`
+carries the same old key. In `fr` alone, the build refuses it:
+
+```text
+Error: i18n: fr: presets.linkExpires is not a key of en, the fallback locale
+```
+
+The presets'
+[Upgrading](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-presets/docs/troubleshooting.md#upgrading)
+entry lists every old and new key.
+
 ## Why `mails/` is not in `dist/`
 
 The root `build.ts` removes from `dist/` every file it did not write itself,

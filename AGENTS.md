@@ -73,11 +73,20 @@ hand, outside the lock, against 0.17.0 (the floor) and 0.18.1, when the lock
 still held 0.17.1. Both passed, with typecheck clean, and passed again on
 0.18.1 from the lock. `@nxgt/mail`, from
 nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.6.0 from
-the lock, with `@nxgt/mail-config` 0.2.1, `@nxgt/mail-i18n` 0.3.1,
-`@nxgt/mail-ui` 0.2.0 and `@nxgt/mail-presets` 0.2.0 building `mails/` — whose
+the lock, with `@nxgt/mail-config` 0.2.1, `@nxgt/mail-i18n` 0.4.0,
+`@nxgt/mail-ui` 0.3.0 and `@nxgt/mail-presets` 0.3.0 building `mails/` — whose
 text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, and keep
 each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it),
-so `mail/maizzle.config.ts` sets no `plaintext` of its own. The `janus-mail`
+so `mail/maizzle.config.ts` sets no `plaintext` of its own. Since
+`@nxgt/mail-presets` 0.3.0 the presets' message keys are kebab-case
+(`presets.link-expires`, `verify-email.*`); `@nxgt/mail-i18n` 0.4.0 accepts a
+camelCase or a kebab-case key, so an override under an old camelCase key is
+a key of its own that no preset reads: in `en`, the fallback, it is ignored
+without an error; in `fr` alone the build refuses it as `not a key of en, the
+fallback locale` (both measured by hand). Nothing here
+names a key — `mail/locales/*.json` are `{}` — so the move built `mails/` byte
+for byte as before. An override added to a catalogue must use the presets'
+kebab-case key. The `janus-mail`
 suite was run by hand, outside the lock, against 0.1.0 (the floor), 0.4.0 and
 0.5.0, again against 0.1.0, 0.5.0 and 0.5.1 after the move to 0.5.1, and
 against 0.1.0 and 0.5.1 after the move to 0.6.0 and presets 0.2.0. All
@@ -214,6 +223,13 @@ Two places where the temptation will be strong:
 **The error codes are `SCREAMING_SNAKE` and that is not an exception**: they are
 data values, not API identifiers — the same shape `code` has in `@nxgt/mongo`
 and `@nxgt/redis`. Every *key* is `camelCase`.
+
+**The mail catalogues are not an exception either**: a message key in
+`packages/janus-mail/mail/locales/*.json` is `@nxgt/mail-presets`' own name
+(`presets.link-expires`, kebab-case since presets 0.3.0), and so is a
+template's file name (`verify-email`). They are upstream's names, read by the
+Maizzle build, never a field, an option or a wire format of this package —
+and JSON, out of Biome's reach.
 
 **SQL identifiers are `snake_case`, and that is the one exception** (decided
 2026-09-25, `@nxgt/janus-drizzle`). A table or column name is PostgreSQL's
