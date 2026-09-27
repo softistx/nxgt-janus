@@ -349,15 +349,17 @@ The table that exists so a duplication is a decision rather than an accident.
   version (7.4.1) from source into `.cache/redis/<version>` the first time.
   `$JANUS_REDIS_VERSION` compiles another version instead; `$REDIS_BIN` names a
   binary to run and skips the build — a Valkey's `valkey-server` works.
-- PostgreSQL, in `@nxgt/janus-drizzle` and `@nxgt/janus-kit/drizzle`: the
-  server `$JANUS_POSTGRES_URL` names, or PGlite without one.
+- PostgreSQL: `@nxgt/janus-drizzle` runs every case on the server
+  `$JANUS_POSTGRES_URL` names, or on PGlite without one. `@nxgt/janus-kit`
+  runs its drizzle cases on PGlite, and only `connectKit() over a PostgreSQL
+  URL` on that server.
 - **The floors the READMEs promise are measured, not claimed.** CI's `ci` job
   runs everything on PostgreSQL 17 and Redis 7.4.1; its `floors` job, in
   parallel, runs only the suites a floor concerns on the oldest version each
-  README allows — `@nxgt/janus-drizzle` and the kit's drizzle specs on
-  PostgreSQL 15, the two Redis adapters and the kit on Redis 7.0 (7.0.15), the
-  two Redis adapters on Valkey 7.2 (Valkey's first line, a built binary from
-  download.valkey.io). A README that states a new floor adds it to that job; a
+  README allows — `@nxgt/janus-drizzle` and the kit's PostgreSQL-URL case
+  on PostgreSQL 15, the two Redis adapters and the kit's drizzle specs, whose
+  Redis is real, on Redis 7.0 (7.0.15), the two Redis adapters on Valkey 7.2
+  (Valkey's first line, a built binary from download.valkey.io). A README that states a new floor adds it to that job; a
   floor that fails there means the README is wrong, and the owner decides what
   it promises instead; it is never made green by testing a newer version.
   Locally:

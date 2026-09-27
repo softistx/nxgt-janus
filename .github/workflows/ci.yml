@@ -162,10 +162,11 @@ jobs:
   # Valkey — measured rather than claimed: the job above runs PostgreSQL 17 and
   # Redis 7.4.1 only. It runs beside it, so the pull request waits for the
   # slower of the two and not their sum, and only the suites a floor concerns
-  # run here: @nxgt/janus-drizzle and @nxgt/janus-kit's drizzle specs on
-  # PostgreSQL 15, @nxgt/janus-redis and @nxgt/janus-webhooks-redis on Redis
-  # 7.0 and on Valkey, and @nxgt/janus-kit's on Redis 7.0 as well, since it
-  # promises the same floor. Each floor is the newest patch of its line.
+  # run here: @nxgt/janus-drizzle, and @nxgt/janus-kit's one case over a
+  # PostgreSQL URL — its other drizzle cases run on PGlite — on PostgreSQL
+  # 15; @nxgt/janus-redis and @nxgt/janus-webhooks-redis on Redis 7.0 and on
+  # Valkey; and @nxgt/janus-kit's drizzle specs, whose Redis is real, on Redis
+  # 7.0 as well, since it promises the same floor. Each floor is the newest patch of its line.
   #
   # A floor that fails here is not fixed by testing a newer version: the
   # README is then wrong, and that is a decision, not a CI change.
@@ -177,7 +178,7 @@ jobs:
       # Read by test/server.ts, which compiles this version instead of its pin.
       JANUS_REDIS_VERSION: 7.0.15
       # Valkey publishes built binaries per Ubuntu release: `noble` is
-      # ubuntu-latest's, 24.04. 7.2 is Valkey's first line — the fork of Redis
+      # ubuntu-latest's, 24.04, on x86_64, which the download step names. 7.2 is Valkey's first line — the fork of Redis
       # 7.2.4 — so it is the oldest Valkey the READMEs' "or Valkey" can mean.
       VALKEY_VERSION: 7.2.14
     services:
@@ -229,7 +230,7 @@ jobs:
           JANUS_DRIVER=postgres-js bun test src
         env:
           JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
-      - name: Run the kit's PostgreSQL side on PostgreSQL 15 and Redis 7.0
+      - name: Run the kit's drizzle specs on Redis 7.0, and its URL case on PostgreSQL 15
         working-directory: packages/janus-kit
         run: bun test src/drizzle
         env:
