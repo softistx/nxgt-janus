@@ -88,11 +88,4 @@ export function clinic(
 export const bearer = (token: string) =>
 	new Headers({ authorization: `Bearer ${token}` });
 
-/** Settles a rejection where it is created, per AGENTS.md. */
-export const rejection = (promise: Promise<unknown>): Promise<unknown> =>
-	promise.then(
-		() => {
-			throw new Error('expected a rejection');
-		},
-		(error: unknown) => error,
-	);
+export { rejection } from './rejection';
