@@ -19,6 +19,9 @@ coverage
 .temp
 .tmp
 
+# Claude Code: an agent's isolated worktree, a checkout of its own
+.claude/worktrees
+
 # OS / editors
 .DS_Store
 .idea
