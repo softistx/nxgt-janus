@@ -10,7 +10,7 @@ written once and kept. The store port is cut where atomicity is not required,
 so no transaction ever spans the two.
 
 It passes the `@nxgt/janus/conformance` suite for these two slots against a
-real Redis 7.4, outages included.
+real Redis, outages included, on every CI run.
 
 > **0.x.** A minor version may still change the surface; the changelog says how.
 
@@ -34,8 +34,8 @@ Every peer is required:
 class and throws the peer's own, so `instanceof StoreFailure` holds in your
 code.
 
-It needs **Redis 7.0 or later**, or Valkey, for `PEXPIREAT … GT` and
-`SET … PXAT`.
+It needs **Redis 7.0 or later**, or Valkey, and is tested on Redis 7.0, 7.4
+and Valkey 7.2: `PEXPIREAT … GT` and `SET … PXAT` are Redis 7.0's.
 
 Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
