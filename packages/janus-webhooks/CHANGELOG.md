@@ -1,5 +1,11 @@
 # @nxgt/janus-webhooks
 
+## 0.2.1
+
+### Patch Changes
+
+- [#84](https://github.com/softistx/nxgt-janus/pull/84) [`1da1969`](https://github.com/softistx/nxgt-janus/commit/1da196993fa8a7885612726e22b441ceaa75c32f) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the README and the roadmap point to `@nxgt/janus-webhooks-redis`, now released, for a queue that survives a restart.
+
 ## 0.2.0
 
 ### Minor Changes
