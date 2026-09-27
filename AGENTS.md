@@ -273,8 +273,9 @@ What this commits us to in the code:
   intersected into the parameter refuses the same mistakes and completes
   nothing, since the literal being typed meets it first. `defineModel` types
   `types` as `Ts extends ModelTypesOf<Subjects[number], Ts>`, and
-  `src/permissions/completions.spec.ts` asks the language service what it
-  offers — measured, like the refusals.
+  `src/permissions/completions.model.spec.ts` and
+  `completions.questions.spec.ts` ask the language service what it offers —
+  measured, like the refusals.
 - A login must name a **top-level, required string field** of the schema,
   refused at compile time: `password: { login: 'emial' }` is a type error on
   `login`. So is a schema declaring a field `janus` sets, and a user type named
@@ -480,22 +481,24 @@ The table that exists so a duplication is a decision rather than an accident.
 ## Tests
 
 - `*.spec.ts` colocated in `src/`. `test/` holds helpers only.
-- A spec that outgrows one file is split **by behaviour** into siblings named
-  `<subject>.<behaviour>.spec.ts` beside the module they test
-  (`type-api.sign-in.spec.ts`, `type-api.delete.spec.ts`), each case keeping its
-  exact `describe`/`it` path. What the siblings share goes in one
-  `<subject>.fixtures.ts` — no case in it. A package's `tsconfig.build.json`
-  must exclude `**/*.fixtures.ts` as it excludes the specs, or the fixtures
-  ship in `dist/`; so far only `packages/janus` has any, and only its config
-  carries the exclude — add it to a package with its first fixtures file. In
-  `packages/janus`, a fixtures file under `src/auth/`, `src/permissions/` or
-  `src/stores/` is read by the scan in `src/auth/outage.scan.spec.ts`: no
-  `catch` and no two-argument `.then` in it — the shared `rejection` lives in
-  `test/auth.ts` for that reason.
-- `test/types/` is typechecked by `tsc --noEmit` and **never run**. A list that
-  outgrows one file becomes a folder, `test/types/<area>/`, one file per
-  behaviour and a `fixtures.ts` holding the values they are written against;
-  `tsconfig.json` includes every file under it, so no case goes unchecked.
+- **A spec split by behaviour becomes siblings**, `<subject>.<behaviour>.spec.ts`
+  next to the module it tests (`engine.keto.spec.ts`,
+  `list.pagination.spec.ts`), and each case keeps its describe path and name.
+  What they share goes in one `<subject>.fixtures.ts` beside them, which holds
+  no test and is imported by specs only; a helper every side uses, such as
+  `rejection`, goes in `test/` instead. Every `tsconfig.build.json` excludes
+  `**/*.fixtures.ts` as it excludes the specs, so none ships, and
+  `verify:artifacts` does not count one as a build input. A fixture that
+  *ships* is named `fixtures.ts` in its folder, with no dotted prefix, as
+  `src/conformance/` does.
+- `test/types/` is typechecked by `tsc --noEmit` and **never run**. A list
+  split by behaviour becomes a folder, `test/types/<area>/`, one file per
+  behaviour and a `fixtures.ts` for what they share
+  (`test/types/permissions/`); the numbering of its cases runs across the
+  folder.
+- In `packages/janus`, a fixtures file under `src/auth/`, `src/permissions/`
+  or `src/stores/` is read by the scan in `src/auth/outage.scan.spec.ts`: no
+  `catch` and no two-argument `.then` in it.
 - MongoDB, in `@nxgt/janus-mongo` and `@nxgt/janus-kit/mongo`:
   `mongodb-memory-server-core` as a single-node replica set, binary cached in
   `.cache/mongodb`, one server per spec file, a clean database per case —

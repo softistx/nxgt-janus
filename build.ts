@@ -15,8 +15,8 @@
  *     `@nxgt/drizzle/pg` would throw its own copy of `NotFoundError`, which
  *     an `instanceof` against the one from `@nxgt/drizzle` rejects.
  *   - Declarations, from `tsc --emitDeclarationOnly` against
- *     `tsconfig.build.json`, which excludes the `*.spec.ts` files that
- *     `tsconfig.json` still typechecks.
+ *     `tsconfig.build.json`, which excludes the `*.spec.ts` files, and the
+ *     `*.fixtures.ts` they share, that `tsconfig.json` still typechecks.
  *
  * Hand-written `.d.ts` files are copied, not emitted: tsc passes them through
  * untouched, so an ambient module augmentation would otherwise never reach

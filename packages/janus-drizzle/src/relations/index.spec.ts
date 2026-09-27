@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { openTestDb } from '../test/db';
-import { createDrizzleRelations } from './relations';
+import { openTestDb } from '../../test/db';
+import { createDrizzleRelations } from './index';
 
 describe('createDrizzleRelations(), beyond the port suite', () => {
 	it('writes all or nothing: a failed addition rolls its removal back', async () => {
@@ -74,5 +74,12 @@ describe('createDrizzleRelations(), beyond the port suite', () => {
 		} finally {
 			await test.close();
 		}
+	});
+
+	it("throws a malformed request's TypeError at once, never as a store failure", () => {
+		// No database: the request is unpacked before any statement runs.
+		const store = createDrizzleRelations({} as never);
+		expect(() => store.findObjects(undefined as never)).toThrow(TypeError);
+		expect(() => store.write(undefined as never)).toThrow(TypeError);
 	});
 });

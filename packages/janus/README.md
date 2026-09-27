@@ -931,20 +931,21 @@ mistake beside the shapes that must keep compiling:
 `test/types/port/` (twenty-two, on the identity stores' port, from the point
 of view of the person implementing it), `test/types/auth/` (thirty-four, on
 `janus()`, from the point of view of the application — eight of them on the
-second factor, three on sign-in codes, three on user events), each a folder
-with one file per behaviour, and `test/types/permissions.ts` (forty-eight, on the
-permission model and the questions asked of it). The rule
+second factor, three on sign-in codes, three on user events) and `test/types/permissions/` (forty-eight, on the
+permission model and the questions asked of it), each a folder with one file
+per behaviour. The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on
 `@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
 that goes down is a visible regression.
 
 Refusing a wrong name is half of it; offering the right ones is the other.
-`src/permissions/completions.spec.ts` asks the TypeScript language service —
-the one every editor asks — what it completes inside `defineModel`: subject
-types and subject sets in a relation, subject types in `fromField`, relations,
-permissions and arrows in a rule and in `when`; and in the questions, what
-`can`, `list` and `grant` accept for the object's type. It also checks that a wrong
+`src/permissions/completions.model.spec.ts` asks the TypeScript language
+service — the one every editor asks — what it completes inside `defineModel`:
+subject types and subject sets in a relation, subject types in `fromField`,
+relations, permissions and arrows in a rule and in `when`; and
+`completions.questions.spec.ts`, in the questions, what `can`, `list` and
+`grant` accept for the object's type. The first also checks that a wrong
 name's error lists the names it could have been.
 
 The gaps, since a measurement that only reports wins is not a measurement:
@@ -957,7 +958,7 @@ The gaps, since a measurement that only reports wins is not a measurement:
   one user — `grant()` and `revoke()` refuse it (case 42). The anonymous
   `null` their subject also takes turns off TypeScript's check of the object
   literal, and a check of its own would refuse a user whose schema has a
-  `relation` field. `engine.spec.ts` asserts the run time reads it as the
+  `relation` field. `engine.user-objects.spec.ts` asserts the run time reads it as the
   user. Write the set with `setOf`.
 
 Each is written down rather than omitted.
