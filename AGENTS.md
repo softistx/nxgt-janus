@@ -93,7 +93,9 @@ request like any other: the devDependency and `bun.lock` in one commit, the
 suites that use it run, and the sentences above updated. It runs the full CI,
 **Floors included**, since a new version upstream can break a floor as well
 as the pinned servers. A peer floor moves only when the new version forces
-it. A lock bump changes nothing published, so it needs no changeset.
+it. A lock bump changes nothing published, so its changeset is an empty one
+(`---` twice): `changeset status` still asks for one, since a `package.json`
+changed.
 
 Not Dependabot, though it has a `bun` ecosystem: its updater reads `bun.lock`
 up to `lockfileVersion` 1 — `MAX_SUPPORTED_LOCKFILE_VERSION` in
