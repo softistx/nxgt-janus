@@ -121,6 +121,21 @@ when the flow knows them — `janus.signOut` carries neither:
 - [Troubleshooting](docs/troubleshooting.md) — what you see, why, and the fix
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
+## Type safety, counted
+
+Six plausible mistakes are refused by the compiler, each with a
+`@ts-expect-error` case in `test/types/instrument.ts`. Three are refusals of
+`@nxgt/janus` that must survive instrumenting, since an instrumented
+instance is typed as the one it wraps:
+- a sign-in without its password;
+- a user type the instance does not have;
+- a permission the model does not declare.
+
+Three are this package's own:
+- something other than a `janus()` instance passed to `instrumentJanus`;
+- a `permissions()` instance passed to `instrumentJanus`;
+- a `janus()` instance passed to `instrumentPermissions`.
+
 ## Licence
 
 MIT
