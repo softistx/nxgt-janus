@@ -7,7 +7,7 @@ store of `@nxgt/janus/permissions`, over one database. It works through your
 [`@nxgt/drizzle`](https://www.npmjs.com/package/@nxgt/drizzle) for
 transactions and error translation.
 
-It passes both `@nxgt/janus/conformance` suites on a real PostgreSQL 17 —
+It passes both `@nxgt/janus/conformance` suites on a real PostgreSQL 17 and 15 —
 over `node-postgres`, postgres.js and Bun's `SQL`, outages and concurrency
 included — and on PGlite. `createDrizzleAdapter(db)`
 returns both sides under the names `janus()` takes, so one spread wires them.

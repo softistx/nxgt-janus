@@ -9,7 +9,8 @@ short is sent again once its lease lapses.
 
 It implements the `WebhookQueue` port, and passes the
 `@nxgt/janus-webhooks/conformance` suite against a real Redis 7.4, outages
-included.
+included — and on every CI run against Redis 7.0 and Valkey 7.2, the floors
+below.
 
 > **0.x.** A minor version may still change the surface; the changelog says how.
 
@@ -30,9 +31,9 @@ Every peer is required:
   so this runs on **Bun**;
 - `typescript` 6.
 
-It needs **Redis 7.0 or later**, or Valkey, and is tested on 7.4: the scripts
-use no command newer than Redis 4, but 7.0 is what `@nxgt/janus-redis` needs,
-and one Redis usually serves both. Like `@nxgt/janus`, it expects
+It needs **Redis 7.0 or later**, or Valkey, and is tested on 7.0, 7.4 and
+Valkey 7.2: the scripts use no command newer than Redis 4, but 7.0 is what
+`@nxgt/janus-redis` needs, and one Redis usually serves both. Like `@nxgt/janus`, it expects
 `"moduleResolution": "bundler"`.
 
 ## Usage

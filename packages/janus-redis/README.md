@@ -10,7 +10,8 @@ written once and kept. The store port is cut where atomicity is not required,
 so no transaction ever spans the two.
 
 It passes the `@nxgt/janus/conformance` suite for these two slots against a
-real Redis 7.4, outages included.
+real Redis 7.4, outages included — and on every CI run against the floors it
+promises too, Redis 7.0 and Valkey 7.2.
 
 > **0.x.** A minor version may still change the surface; the changelog says how.
 

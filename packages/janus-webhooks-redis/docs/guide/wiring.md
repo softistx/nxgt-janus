@@ -97,7 +97,7 @@ for example another database number: `redis://localhost:6379/2`.
 | `maxmemory-policy noeviction` | An evicted key is a delivery lost without a report. With `noeviction`, a full Redis refuses the insert with `OOM`, which is reported |
 | AOF (`appendonly yes`, `appendfsync everysec`) or RDB snapshots | Without persistence, a restart of Redis loses every delivery waiting in it. With AOF `everysec`, a crash loses at most a second of inserts |
 | A single Redis, or a primary with replicas — **not Cluster** | A script touches a delivery's key and its endpoint's, which may hash to different slots |
-| Redis 7.0 or later, or Valkey | Tested on 7.4; the floor `@nxgt/janus-redis` needs, so one Redis serves both |
+| Redis 7.0 or later, or Valkey | Tested on 7.0, 7.4 and Valkey 7.2; the floor `@nxgt/janus-redis` needs, so one Redis serves both |
 
 A Redis user restricted by ACL needs `+@scripting` and the commands the
 scripts run — `HSET`, `HGET`, `HGETALL`, `HINCRBY`, `EXISTS`, `DEL`, `ZADD`,

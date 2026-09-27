@@ -77,8 +77,8 @@ authenticates takes `createDrizzleStores(db)` alone, below.
 | Bun's own `SQL` | `drizzle-orm/bun-sql` |
 | PGlite, for tests | `drizzle-orm/pglite` |
 
-The adapter's specs run on all four: on PGlite, and on PostgreSQL 17 over each
-of the other three, on every CI run.
+The adapter's specs run on all four: on PGlite, and on PostgreSQL 17 and on
+PostgreSQL 15, the floor, over each of the other three, on every CI run.
 
 ## `createDrizzleStores(db, options?)`
 
@@ -104,7 +104,7 @@ twenty concurrent attempts answer twenty distinct counts.
 `spendUserTokens` is one `update … set spent_at = … where user_id = … and kind = …
 and spent_at is null returning` — with `and token_hash <> …` when `except` is given: PostgreSQL re-checks `spent_at is null` on
 a row a racing redemption just committed, so the two never both spend it.
-All three are measured on PostgreSQL 17 on every CI run.
+All three are measured on PostgreSQL 17 and 15 on every CI run.
 
 Every method of the port is implemented, **including the optional
 `deleteExpiredSessions`**. PostgreSQL has no TTL, so

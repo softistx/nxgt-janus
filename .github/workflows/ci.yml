@@ -157,3 +157,90 @@ jobs:
           github.event_name == 'pull_request' &&
           github.head_ref != 'changeset-release/develop'
         run: bun run changeset:status
+
+  # The minimum versions the READMEs promise — PostgreSQL 15, Redis 7.0, and
+  # Valkey — measured rather than claimed: the job above runs PostgreSQL 17 and
+  # Redis 7.4.1 only. It runs beside it, so the pull request waits for the
+  # slower of the two and not their sum, and only the suites a floor concerns
+  # run here: @nxgt/janus-drizzle and @nxgt/janus-kit's drizzle specs on
+  # PostgreSQL 15, @nxgt/janus-redis and @nxgt/janus-webhooks-redis on Redis
+  # 7.0 and on Valkey, and @nxgt/janus-kit's on Redis 7.0 as well, since it
+  # promises the same floor. Each floor is the newest patch of its line.
+  #
+  # A floor that fails here is not fixed by testing a newer version: the
+  # README is then wrong, and that is a decision, not a CI change.
+  floors:
+    name: Floors
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Read by test/server.ts, which compiles this version instead of its pin.
+      JANUS_REDIS_VERSION: 7.0.15
+      # Valkey publishes built binaries per Ubuntu release: `noble` is
+      # ubuntu-latest's, 24.04. 7.2 is Valkey's first line — the fork of Redis
+      # 7.2.4 — so it is the oldest Valkey the READMEs' "or Valkey" can mean.
+      VALKEY_VERSION: 7.2.14
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: janus
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup
+        uses: ./.github/actions/setup
+      # Every package's `exports` points at `./dist/*`; see the job above.
+      - name: Build packages
+        run: bun run build
+      # Keyed on the version alone, and apart from the job above's key: the
+      # two jobs build different servers into the same `.cache/redis`.
+      - name: Cache the Redis 7.0 build
+        uses: actions/cache@v4
+        with:
+          path: .cache/redis
+          key: redis-floor-${{ runner.os }}-${{ runner.arch }}-${{ env.JANUS_REDIS_VERSION }}
+      - name: Build Redis 7.0
+        run: bun -e "const { redisBinary } = await import('./packages/janus-redis/test/server.ts'); console.log(await redisBinary())"
+      - name: Cache the Valkey binary
+        uses: actions/cache@v4
+        with:
+          path: .cache/valkey
+          key: valkey-${{ runner.os }}-${{ runner.arch }}-${{ env.VALKEY_VERSION }}
+      - name: Download Valkey
+        run: |
+          dir=".cache/valkey/$VALKEY_VERSION"
+          if [ ! -x "$dir/bin/valkey-server" ]; then
+            mkdir -p "$dir"
+            curl -fsSL "https://download.valkey.io/releases/valkey-$VALKEY_VERSION-noble-x86_64.tar.gz" | tar -xz -C "$dir" --strip-components=1
+          fi
+          "$dir/bin/valkey-server" --version
+      - name: Run the PostgreSQL adapter on PostgreSQL 15, over every driver
+        working-directory: packages/janus-drizzle
+        run: |
+          bun test src
+          JANUS_DRIVER=node-postgres bun test src
+          JANUS_DRIVER=postgres-js bun test src
+        env:
+          JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
+      - name: Run the kit's PostgreSQL side on PostgreSQL 15 and Redis 7.0
+        working-directory: packages/janus-kit
+        run: bun test src/drizzle
+        env:
+          JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
+      - name: Run the Redis adapters on Redis 7.0
+        run: |
+          (cd packages/janus-redis && bun test src)
+          (cd packages/janus-webhooks-redis && bun test src)
+      # `$REDIS_BIN` replaces the compiled Redis with this binary.
+      - name: Run the Redis adapters on Valkey 7.2
+        run: |
+          export REDIS_BIN="$PWD/.cache/valkey/$VALKEY_VERSION/bin/valkey-server"
+          (cd packages/janus-redis && bun test src)
+          (cd packages/janus-webhooks-redis && bun test src)
