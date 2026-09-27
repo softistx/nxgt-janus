@@ -11,8 +11,7 @@ It implements the `WebhookQueue` port, and passes the
 `@nxgt/janus-webhooks/conformance` suite against a real Redis 7.4, outages
 included.
 
-> **Not published yet.** This package is private while it is reviewed; the
-> examples below are what it will be.
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 
