@@ -3,10 +3,10 @@ import type { PgDatabase } from '@nxgt/drizzle/pg';
 import { mintId, type UserRecord } from '@nxgt/janus';
 import { eq } from 'drizzle-orm';
 import { pgSchema } from 'drizzle-orm/pg-core';
-import { openTestDb } from '../test/db';
-import { createDrizzleAdapter } from './adapter';
-import { createDrizzleStores } from './stores';
-import { defineJanusTables } from './tables';
+import { openTestDb } from '../../test/db';
+import { createDrizzleAdapter } from '../adapter';
+import { defineJanusTables } from '../tables';
+import { createDrizzleStores } from './index';
 
 const at = new Date('2026-01-01T00:00:00.000Z');
 

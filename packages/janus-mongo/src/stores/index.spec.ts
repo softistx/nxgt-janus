@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { mintId } from '@nxgt/janus';
 import { getCollection } from '@nxgt/mongo';
-import { startMongo, type TestServer } from '../test/server';
+import { startMongo, type TestServer } from '../../test/server';
 import {
 	tokens as tokensCollection,
 	users as usersCollection,
-} from './collections';
-import { createMongoStores, syncMongoStores } from './stores';
+} from '../collections';
+import { createMongoStores, syncMongoStores } from './index';
 
 let server: TestServer;
 
