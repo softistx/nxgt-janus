@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test';
 import { createHmac } from 'node:crypto';
 import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
 import { z } from 'zod';
-import { collect, rejection } from '../test/collect';
-import { instrumentJanus } from './flows';
+import { collect, rejection } from '../../test/collect';
+import { instrumentJanus } from './index';
 
 const email = 'ada@example.test';
 const password = 'correct horse battery';
