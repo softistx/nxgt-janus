@@ -9,22 +9,22 @@ import {
 	person,
 	rejection,
 	setup,
-} from '../../test/auth';
-import { userRecord } from '../conformance/fixtures';
+} from '../../../test/auth';
+import { userRecord } from '../../conformance/fixtures';
 import type {
 	CredentialError,
 	JanusError,
 	StoreConflict,
 	UserInvalidError,
-} from '../errors/janus-error';
-import { mintId } from '../ids/id';
-import { createMemoryRelations } from '../permissions/port/memory';
-import type { Subject } from '../subjects/subject';
-import { scryptHasher } from './hashers';
-import { janus } from './janus';
-import { createMemoryStores } from './port/memory';
-import type { JanusStores } from './port/types';
-import { hashSecret } from './secrets';
+} from '../../errors/janus-error';
+import { mintId } from '../../ids/id';
+import { createMemoryRelations } from '../../permissions/port/memory';
+import type { Subject } from '../../subjects/subject';
+import { scryptHasher } from '../hashers';
+import { janus } from '../janus';
+import { createMemoryStores } from '../port/memory';
+import type { JanusStores } from '../port/types';
+import { hashSecret } from '../secrets';
 
 describe('signUp', () => {
 	it('creates the user, signs them in, and hands the token over once', async () => {
@@ -152,9 +152,9 @@ describe('signIn', () => {
 				return hasher.verify(plain, hash);
 			},
 		};
-		const { janus } = await import('./janus');
-		const { createMemoryStores } = await import('./port/memory');
-		const { person } = await import('../../test/auth');
+		const { janus } = await import('../janus');
+		const { createMemoryStores } = await import('../port/memory');
+		const { person } = await import('../../../test/auth');
 		const auth = janus({
 			user: person,
 			password: { login: 'email' },
