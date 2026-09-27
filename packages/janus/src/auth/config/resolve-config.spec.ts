@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { hasher, person } from '../../test/auth';
-import { type JanusConfig, resolveConfig } from './config';
-import { janus } from './janus';
-import { createMemoryStores } from './port/memory';
+import { hasher, person } from '../../../test/auth';
+import { janus } from '../janus';
+import { createMemoryStores } from '../port/memory';
+import type { JanusConfig } from './janus-config';
+import { resolveConfig } from './resolve-config';
 
 const store = createMemoryStores();
 
@@ -166,5 +167,52 @@ describe('refuses, with a bare TypeError, what only wiring produces', () => {
 				},
 			}),
 		).toThrow('janus: users.staff: email must name a top-level field');
+	});
+});
+
+describe('refuses the first fault of several, in a fixed order', () => {
+	/** Resolves from JavaScript: every case below carries more than one fault. */
+	const resolve = (config: Record<string, unknown>) => () =>
+		resolveConfig({ store, ...config } as unknown as JanusConfig, 'janus');
+
+	it('checks the minimum length before the login it names', () => {
+		const call = resolve({
+			users: {
+				a: { schema: person, password: { login: 'id', minLength: 0 } },
+			},
+		});
+
+		expect(call).toThrow(TypeError);
+		expect(call).toThrow(
+			'janus: users.a: password.minLength must be an integer of at least 1',
+		);
+	});
+
+	it('checks the hasher before the durations and the cookie', () => {
+		const call = resolve({
+			user: person,
+			password: { login: 'email' },
+			tokens: { verifyEmail: 'q' },
+			cookie: { name: 'a b' },
+		});
+
+		expect(call).toThrow(TypeError);
+		expect(call).toThrow(
+			'janus: a user type signs in with a password and no hasher is wired — pass hasher: scryptHasher(), or bunHasher() on Bun. There is no silent fallback',
+		);
+	});
+
+	it('checks the durations before the cookie and the second factor', () => {
+		const call = resolve({
+			user: person,
+			tokens: { verifyEmail: 'q' },
+			cookie: { name: 'a b' },
+			secondFactor: { issuer: '' },
+		});
+
+		expect(call).toThrow(TypeError);
+		expect(call).toThrow(
+			'janus: tokens.verifyEmail: "q" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"',
+		);
 	});
 });
