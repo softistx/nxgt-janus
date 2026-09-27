@@ -7,7 +7,7 @@ give the detail.
 | --- | --- |
 | [Sending webhooks](guide/sending.md) | You are wiring `webhooks()` into `janus({ events })`: endpoints, the retry schedule, giving up, shutdown, the wire format, rotating a secret, a test |
 | [Receiving webhooks](guide/receiving.md) | You are writing the endpoint: `verifyWebhook`, the raw body, what to answer, handling each event once, a test |
-| [Queues](guide/queues.md) | Deliveries must survive a restart: the `queue` option, leases, orphans, the `WebhookQueue` port, and writing and testing an adapter |
+| [Queues](guide/queues.md) | Deliveries must survive a restart: the `queue` option, the Redis queue `@nxgt/janus-webhooks-redis`, leases, orphans, the `WebhookQueue` port, and writing and testing an adapter |
 | [Troubleshooting](troubleshooting.md) | A `TypeError` at wiring, a `JANUS_WEBHOOK_*` warning, or a receiver that answers `null` for requests you sent |
 | [Roadmap](roadmap.md) | You want to know what is coming, what shipped, and what is deliberately not planned |
 

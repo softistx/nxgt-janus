@@ -44,11 +44,18 @@ bun add zod # the schema of the examples; any Standard Schema library will do
 bun add -d typescript
 ```
 
-Both peers are required: `@nxgt/janus` (0.8, the release with user events)
-and `typescript` (6). `@nxgt/janus` is a **peer**, so one copy of it defines
+Both peers are required: `@nxgt/janus` 0.8 — the exact range is in
+`peerDependencies` — and `typescript` (6). `@nxgt/janus` is a **peer**, so one copy of it defines
 `UserEvent`. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 It uses `node:crypto`, the global `fetch` and `process.emitWarning`: Bun or
 Node.
+
+## Subpaths
+
+| Import | What it holds |
+| --- | --- |
+| `@nxgt/janus-webhooks` | **Sending and receiving**: `webhooks()`, `verifyWebhook()`, `mintWebhookSecret()`, and the `WebhookQueue` port with its in-memory reference, `createMemoryWebhookQueue()` |
+| `@nxgt/janus-webhooks/conformance` | **For queue adapters**: the suite a `WebhookQueue` runs — see [API](#api) |
 
 ## Usage
 
