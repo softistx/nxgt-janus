@@ -50,7 +50,8 @@ class of its own** — it throws the peer's, so `instanceof` holds across the tw
 range.** Every package here that wraps one of nxgt-data's packages peers it —
 `@nxgt/mongo` in `janus-mongo`, `@nxgt/redis` in `janus-redis` and
 `janus-webhooks-redis`, `@nxgt/drizzle` in `janus-drizzle`, all three in
-`janus-kit` — and so does the driver beneath it (`mongodb`, `drizzle-orm`). The
+`janus-kit`, `@nxgt/mail` in `janus-mail` — and so does the driver beneath it
+(`mongodb`, `drizzle-orm`). The
 application already opened its connection with that library, and the package
 must wrap *that* connection, not install a second copy beside it. A sibling
 the kit wires internally is the one exception, by design: `@nxgt/janus-redis`
@@ -229,7 +230,7 @@ What this commits us to in the code:
 
 ## Layout
 
-Nine packages under `packages/`: the core `@nxgt/janus`, and the adapters and
+Ten packages under `packages/`: the core `@nxgt/janus`, and the adapters and
 integrations that peer it. The core has several entry points, below. A
 published entry point is a **public promise**, so a subpath appears in
 `exports` only once it exports something a consumer should call.
@@ -285,13 +286,41 @@ contract. "Fixing" it by rewriting the emitted declarations was merged once
 second resolution mode to keep working is a promise nobody measures.
 
 **Generated code goes in a `generated/` folder**, never behind a suffix such as
-`.generated.ts` or `.gen.ts`. No package here generates code yet; when one
-does, its output is `src/generated/` — `src/generated/mail.ts`, say — and that
-folder gets a `!**/generated` entry in `biome.json`'s `files.includes`,
-beside `!**/dist`. The folder says
+`.generated.ts` or `.gen.ts`. `@nxgt/janus-mail` is the first package that
+generates code: `src/generated/mail.ts` and `src/generated/locales.ts`, written
+by its build, and `biome.json`'s `files.includes` has `!**/generated` beside
+`!**/dist`. The output is **committed**, so a package type-checks without
+running its generator; CI rebuilds it and diffs `packages/*/src/generated`
+against the commit right after the build, so a stale committed copy fails
+there. The folder says
 what is generated from the tree alone, one path excludes all of it from a
 review or a lint, and the file keeps the name its content deserves, so the
 import reads `./generated/mail` like any other module.
+
+### Maizzle runs at our build, never at the consumer's
+
+`@nxgt/janus-mail` ships e-mails built with Maizzle, and the consumer installs
+no Maizzle, no Vue and no Tailwind: they are **devDependencies**, with the
+build-only `@nxgt/mail-config`, `@nxgt/mail-i18n`, `@nxgt/mail-ui` and
+`@nxgt/mail-presets`. `@maizzle/framework` and `@maizzle/tailwindcss` are
+pinned exact and **direct** — under Bun's isolated install, a Tailwind that is
+only another package's dependency fails silently, and the build succeeds with
+no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
+`build` runs `scripts/build-mail.ts` (Maizzle, then a check that exactly the
+five e-mails were built) before `../../build.ts`. No `postinstall`: nothing
+runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
+a peer.
+
+**What a build writes outside `dist/` goes beside it, never in it.** The root
+`build.ts` removes from `dist/` every file it did not write — that is how a
+deleted module stops shipping — so the built e-mails live in
+`packages/janus-mail/mails/`, listed in `files` and ignored by the package's
+`.gitignore`. The module that resolves the folder (`src/mails.ts`,
+`new URL('../mails/', import.meta.url)`) sits directly under `src/`, so the
+same path is right from `src/` in the specs and from `dist/index.js` in the
+tarball; a second entry point would bundle it into `dist/chunks/` and break
+that, which the package's artifact spec would catch. `verify:artifacts`
+checks that every `files` entry is in the packed tarball.
 
 `bunfig.toml` carries the npm token, **never `.npmrc`** — an undefined variable
 in an `.npmrc` sends an **empty** token, and the registry calls that a 401.
