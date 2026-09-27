@@ -51,6 +51,7 @@ How the messages are shaped:
 - [`MAIL_FAILED` — `MailFailure`](#mail_failed--mailfailure)
 - [`createMailRenderer: …/mails/mail-manifest.json cannot be read — run maizzle build, and deploy its output folder`](#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder)
 - [`Could not resolve "node:fs"` on an edge runtime](#could-not-resolve-nodefs-on-an-edge-runtime)
+- [An e-mail stays light in dark mode](#an-e-mail-stays-light-in-dark-mode)
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
@@ -370,6 +371,22 @@ avoids the read altogether. (In this repository: run `bun run build`.)
 The default templates read `mails/` with `node:fs`, through
 `@nxgt/mail/renderer`: Node, Bun or Deno only. On an edge runtime, pass all
 five templates yourself; an inlined build is on the [roadmap](roadmap.md).
+
+### An e-mail stays light in dark mode
+
+Two causes, neither an error:
+
+- **Gmail.** Its web and mobile clients cannot be targeted from CSS and
+  always show the light e-mail. Every other client that reads
+  `prefers-color-scheme`, or Outlook's `[data-ogsc]`, shows the dark one.
+- **A template of your own.** The dark rules are in the default HTML, built
+  by `@nxgt/mail-ui`. An override that returns its own `html` has none of
+  them; build it with `@nxgt/mail-ui` 0.4.0 or later to follow dark mode:
+
+```ts
+janusMail({ mailer, from, brand, links, templates: { verifyEmail: myVerifyEmail } });
+// myVerifyEmail's html needs its own color-scheme and dark rules
+```
 
 ## Compile errors
 

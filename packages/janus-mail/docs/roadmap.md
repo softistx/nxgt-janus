@@ -13,6 +13,11 @@ Nothing between releases.
   `invitation` from `@nxgt/mail-presets`, each once `@nxgt/janus` has a flow
   that sends it: a sign-in link, a sign-in from a new device, a user created,
   an invitation to a user type.
+- **The presets of `@nxgt/mail-presets` 0.4.0** — `two-factor-enabled` and
+  `two-factor-disabled`, sent after `secondFactor.activate` and
+  `secondFactor.disable`; `account-deleted`, after a user is deleted, once
+  `@nxgt/janus` has a deletion a link can undo; and `invitation-accepted`,
+  once it has invitations.
 
 ## Later
 
@@ -43,6 +48,13 @@ Nothing between releases.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **Dark mode, v0.2.2.** The five e-mails follow the reader's dark mode in
+  every client that supports it, Gmail excepted: a dark page, a dark card and
+  light text. Built from `@nxgt/mail-ui` 0.4.0, `@nxgt/mail-presets` 0.4.0
+  and `@nxgt/mail-i18n` 0.5.0; the text parts, subjects and variables are
+  unchanged, the manifest is still format 1, and the `@nxgt/mail` peer stays
+  `>=0.1.0 <1`.
 
 - **The expiry in the e-mail, v0.2.0.** The verification, reset and sign-in
   code e-mails say how long the link or code lasts — "1 hour", "1 heure" —

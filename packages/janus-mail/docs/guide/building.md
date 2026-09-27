@@ -56,7 +56,7 @@ The package peers `@nxgt/mail` at `>=0.1.0 <1`, so the build it ships must
 be readable by `@nxgt/mail` 0.1.0. The manifest says which format it is in —
 `formatVersion`, its first key, `MANIFEST_FORMAT` of the `@nxgt/mail-i18n`
 that built it — and within 0.x a renderer reads every format up to its own.
-`@nxgt/mail` 0.1.0 through 0.6.0 read format 1, and a manifest without the
+`@nxgt/mail` 0.1.0 through 0.7.0 read format 1, and a manifest without the
 field is format 1.
 
 `formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build
@@ -105,11 +105,13 @@ is written:
 
 `@nxgt/mail-i18n` accepts a camelCase key too, so an override under a key from
 before presets 0.3.0, such as `presets.linkExpires`, is a key of its own that
-no preset reads. In `en`, the fallback locale, it is ignored without an
-error, and the preset's own text goes out instead — in `fr` too, when `fr`
-carries the same old key. In `fr` alone, the build refuses it:
+no preset reads. In both `en` and `fr`, it is ignored without an error, and
+the preset's own text goes out instead. In one locale only, the build
+refuses it — in `en` alone, as missing from
+`fr`; in `fr` alone, as unknown to `en`:
 
 ```text
+Error: i18n: fr: presets.linkExpires is missing — en, the fallback locale, has it
 Error: i18n: fr: presets.linkExpires is not a key of en, the fallback locale
 ```
 

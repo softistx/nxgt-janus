@@ -153,7 +153,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-0.3.0, built with a neutral grey theme and no logo:
+0.4.0, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -171,6 +171,17 @@ client that shows no button, and a text part. The two notices add a warning:
 `verifyEmail`, `resetPassword` and `signInCode` also say how long the link
 or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
 10 minutes." The text part keeps each paragraph on one line.
+
+**The HTML follows dark mode.** Each HTML part declares
+`color-scheme: light dark`. A client that reads `prefers-color-scheme`, or
+Outlook's `[data-ogsc]`, shows a dark page, a dark card and light text to a
+reader in dark mode; Gmail always shows the light e-mail. The dark palette
+is `@nxgt/mail-ui`'s default, a deep navy, since the build sets only the
+primary colour; the primary has no dark value, so the button keeps its
+near-black in both modes. Nothing is passed for it, the text part has no
+colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
+[Dark mode](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-ui/docs/guide/dark-mode.md)
+guide has the technique, client by client.
 
 **The brand is text.** It is written in the header, the body and the footer,
 escaped — no logo and no link, which would need absolute URLs known when the
