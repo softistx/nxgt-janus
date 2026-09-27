@@ -87,5 +87,3 @@ export function clinic(
 /** A request carrying a session token, as a bearer. */
 export const bearer = (token: string) =>
 	new Headers({ authorization: `Bearer ${token}` });
-
-export { rejection } from './rejection';

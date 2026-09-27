@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, password, rejection, setup } from '../../../test/auth';
+import { ada, password, setup } from '../../../test/auth';
+import { rejection } from '../../../test/rejection';
 import type { JanusError } from '../../errors/janus-error';
 
 const HOUR = 3_600_000;

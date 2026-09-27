@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test';
-import { ada, password, rejection } from '../../test/auth';
+import { ada, password } from '../../test/auth';
+import { rejection } from '../../test/rejection';
 import { StoreFailure } from '../errors/janus-error';
 import type { UserEvent } from './events';
 import { setup, types } from './events.fixtures';

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, password, rejection } from '../../../test/auth';
+import { ada, password } from '../../../test/auth';
+import { rejection } from '../../../test/rejection';
 import { enrolled, setup } from './flows.fixtures';
 
 describe('secondFactor.enroll and activate', () => {

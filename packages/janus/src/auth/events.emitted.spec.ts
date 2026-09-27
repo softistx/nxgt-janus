@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, bearer, clinic, password, rejection } from '../../test/auth';
+import { ada, bearer, clinic, password } from '../../test/auth';
+import { rejection } from '../../test/rejection';
 import type { UserEvent } from './events';
 import { setup, types } from './events.fixtures';
 import { createMemoryStores } from './port/memory';

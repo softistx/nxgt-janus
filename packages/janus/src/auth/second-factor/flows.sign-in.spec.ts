@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, bearer, password, rejection } from '../../../test/auth';
+import { ada, bearer, password } from '../../../test/auth';
+import { rejection } from '../../../test/rejection';
 import { challenged, enrolled, setup } from './flows.fixtures';
 
 describe('signIn with a second factor', () => {

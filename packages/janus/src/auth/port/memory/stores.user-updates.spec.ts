@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { rejection } from '../../../../test/auth';
+import { rejection } from '../../../../test/rejection';
 import { NotFoundError, StoreConflict } from '../../../errors/janus-error';
 import { mintId } from '../../../ids/id';
 import { createMemoryStores } from './stores';

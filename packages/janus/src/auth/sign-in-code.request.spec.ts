@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { ada, hasher, password, rejection, setup } from '../../test/auth';
+import { ada, hasher, password, setup } from '../../test/auth';
+import { rejection } from '../../test/rejection';
 import { janus } from './janus';
 import { createMemoryStores } from './port/memory';
 import { hashSecret } from './secrets';

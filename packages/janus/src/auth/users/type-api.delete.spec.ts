@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import {
-	ada,
-	bearer,
-	clinic,
-	password,
-	rejection,
-	setup,
-} from '../../../test/auth';
+import { ada, bearer, clinic, password, setup } from '../../../test/auth';
+import { rejection } from '../../../test/rejection';
 import type { JanusError } from '../../errors/janus-error';
 import { mintId } from '../../ids/id';
 import { createMemoryRelations } from '../../permissions/port/memory';

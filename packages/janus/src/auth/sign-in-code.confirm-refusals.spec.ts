@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import {
-	ada,
-	hasher,
-	password,
-	person,
-	rejection,
-	setup,
-} from '../../test/auth';
+import { ada, hasher, password, person, setup } from '../../test/auth';
+import { rejection } from '../../test/rejection';
 import { fixedClock } from '../time/clock';
 import { janus } from './janus';
 import { createMemoryStores } from './port/memory';

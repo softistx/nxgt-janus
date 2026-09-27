@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, hasher, password, rejection, setup } from '../../../test/auth';
+import { ada, hasher, password, setup } from '../../../test/auth';
+import { rejection } from '../../../test/rejection';
 import type { CredentialError, JanusError } from '../../errors/janus-error';
 
 describe('signIn', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, bearer, password, rejection, setup } from '../../test/auth';
+import { ada, bearer, password, setup } from '../../test/auth';
+import { rejection } from '../../test/rejection';
 import { other } from './sign-in-code.fixtures';
 
 describe('signInCode.confirm', () => {

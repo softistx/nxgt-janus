@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, clinic, password, rejection, setup } from '../../../test/auth';
+import { ada, clinic, password, setup } from '../../../test/auth';
+import { rejection } from '../../../test/rejection';
 import type {
 	CredentialError,
 	JanusError,
