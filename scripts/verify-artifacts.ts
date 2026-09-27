@@ -90,6 +90,11 @@ async function readPackages(): Promise<Pkg[]> {
  *     re-creating. A package self-references through its `name` and `exports`.
  *   - a **license other than MIT, or no `LICENSE` in the tarball**. npm only
  *     ships the `LICENSE` in the package's own directory, never the root's.
+ *   - a **`files` entry the tarball does not hold**. `@nxgt/janus-mail` ships
+ *     `mails/`, a folder its build writes outside `dist/` and its
+ *     `.gitignore` keeps out of the repository: an unbuilt folder, or a packer
+ *     that honours that `.gitignore`, would publish a package whose every
+ *     default e-mail fails.
  */
 export async function manifestProblems(
 	tarballs: string[],
@@ -104,6 +109,7 @@ export async function manifestProblems(
 		manifests.push(manifest);
 		const entries = (await $`tar -tzf ${tgz}`.quiet().text()).split('\n');
 		problems.push(...licenseProblems(manifest, entries));
+		problems.push(...missingFiles(manifest, entries));
 	}
 
 	problems.push(...manifestShapeProblems(manifests, versions));
@@ -148,6 +154,32 @@ export function licenseProblems(
 		problems.push(`${manifest.name}: the tarball has no LICENSE`);
 	}
 	return problems;
+}
+
+/**
+ * Each `files` entry the tarball holds nothing under: neither the file itself
+ * nor anything in the folder it names. A glob is left to npm, unread.
+ */
+export function missingFiles(
+	manifest: Record<string, unknown>,
+	entries: readonly string[],
+): string[] {
+	const files: unknown[] = Array.isArray(manifest.files) ? manifest.files : [];
+	return files
+		.filter((entry): entry is string => typeof entry === 'string')
+		.filter((entry) => !/[*?[{!]/.test(entry))
+		.map((entry) => entry.replace(/^\.\//, '').replace(/\/+$/, ''))
+		.filter(
+			(entry) =>
+				!entries.some(
+					(path) =>
+						path === `package/${entry}` || path.startsWith(`package/${entry}/`),
+				),
+		)
+		.map(
+			(entry) =>
+				`${manifest.name}: files lists ${entry}, which the tarball does not hold — build it first, or drop it from files`,
+		);
 }
 
 /**
@@ -340,8 +372,9 @@ async function main(): Promise<void> {
 			console.error(
 				'\nA `link:` or `file:` no consumer can resolve, a required peer that is\n' +
 					'on no registry, a sibling range that leaves out the sibling beside\n' +
-					'it, an exact pin on a sibling, a package that lists itself, or a\n' +
-					'license other than MIT or no LICENSE shipped. See AGENTS.md.',
+					'it, an exact pin on a sibling, a package that lists itself, a\n' +
+					'license other than MIT or no LICENSE shipped, or a `files` entry\n' +
+					'the tarball does not hold. See AGENTS.md.',
 			);
 			process.exit(1);
 		}
