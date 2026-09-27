@@ -70,6 +70,13 @@ Nothing between releases.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **The second factor in the user events, v0.9.0** —
+  `user.secondFactorEnabled`, once `secondFactor.activate` made a factor
+  active, and `user.secondFactorDisabled`, once `secondFactor.disable`
+  removed an active one: a listener can tell the user, as
+  `@nxgt/janus-mail`'s `twoFactorEnabled` and `twoFactorDisabled` notices
+  do, whoever made the change. `enroll`, a factor still waiting, and a
+  `disable` that found none send nothing.
 - **Sending the e-mails, `@nxgt/janus-mail` v0.1.0** — a package of its
   own, built on the `@nxgt/mail` toolkit: `janusMail({ mailer, from, brand,
   links })` takes what each flow answers —
@@ -139,14 +146,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   on, like a record, and `grant(note, 'readers', setOf(bob, 'managers'))`
   grants everyone who manages bob at once. A user
   passed as it is stays that user, even with a field named `relation`.
-- **The adapters and the kit, each at its first release, v0.1.0, beside
-  `@nxgt/janus` 0.2.2** —
-  [`@nxgt/janus-drizzle`](https://www.npmjs.com/package/@nxgt/janus-drizzle),
-  both sides over one PostgreSQL database on Drizzle;
-  [`@nxgt/janus-redis`](https://www.npmjs.com/package/@nxgt/janus-redis),
-  sessions and one-time tokens in Redis, expired by Redis itself;
-  [`@nxgt/janus-telemetry`](https://www.npmjs.com/package/@nxgt/janus-telemetry),
-  a span per flow and per permission check, and the security events worth an
-  audit trail, never a login, a password, a session token or a one-time token;
-  and [`@nxgt/janus-kit`](https://www.npmjs.com/package/@nxgt/janus-kit), all
-  of it wired in one call.

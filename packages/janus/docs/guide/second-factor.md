@@ -176,7 +176,9 @@ active.hasSecondFactor; // true: from now on, signIn asks for a code
 ```
 
 `activate` proves the user's app holds the secret before anything depends on
-it. Until it succeeds, the factor waits and `signIn` asks for nothing.
+it. Until it succeeds, the factor waits and `signIn` asks for nothing. Once it
+does, it sends a [`user.secondFactorEnabled` event](events.md) — `enroll`
+sends none.
 
 | Rejects with | When |
 | --- | --- |
@@ -343,6 +345,24 @@ user.hasSecondFactor; // false: signIn answers a session again
 `disable` removes the factor, active or enrolled, and answers the user. A
 user without one is answered as they are. A challenge issued before is
 refused afterwards, with `SECOND_FACTOR_NOT_ENROLLED`.
+
+When the factor it removed was **active**, `disable` sends a
+[`user.secondFactorDisabled` event](events.md) — the one to tell the user
+about, since a stolen session may have done it. A user who had no factor, or
+one still waiting for its first code, was never asked for one: no event.
+
+```ts
+// `mail` is janusMail({ … }), and the user schema holds a name and a locale.
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.secondFactorDisabled') {
+			const user = await auth.get(event.userId);
+			await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email }); // @nxgt/janus-mail
+		}
+	},
+});
+```
 
 ### Asking before `enroll` and `disable` is your policy
 
@@ -590,6 +610,7 @@ with `STORE_FAILED`.
 
 - [Sign-in codes](sign-in-code.md) — a sign-in by e-mailed code, which still asks for an active factor, with the same challenge
 - [Sessions](sessions.md) — the cookie `confirm`'s session is sent in, and `authenticatedAt`
+- [User events](events.md) — `user.secondFactorEnabled` and `user.secondFactorDisabled`
 - [Errors](errors.md) — `CODE_INVALID`, `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` and their statuses
 - [Writing an adapter](adapters.md#a-users-password-and-second-factor) — what a store keeps of a factor
 - [`@nxgt/janus-telemetry`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-telemetry/docs/guide/tracing.md) — the events a second factor writes

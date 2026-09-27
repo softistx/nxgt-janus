@@ -6,6 +6,7 @@
 
 import { ada, hasher, password, person } from '../../../test/auth';
 import { fixedClock } from '../../time/clock';
+import type { UserEventListener } from '../events';
 import { janus } from '../janus';
 import { createMemoryStores } from '../port/memory';
 import type { JanusStores } from '../port/types';
@@ -20,6 +21,7 @@ export function setup(
 			{ id: string; key: string },
 			...{ id: string; key: string }[],
 		];
+		events?: UserEventListener;
 	} = {},
 ) {
 	const clock = fixedClock(Date.UTC(2026, 8, 26));
@@ -34,6 +36,7 @@ export function setup(
 			issuer: 'Clinic',
 			keys: options.keys ?? [{ id: 'k1', key: key(1) }],
 		},
+		...(options.events === undefined ? {} : { events: options.events }),
 	});
 	/** The code an authenticator app shows now, `drift` steps away. */
 	const codeOf = (secret: string, drift = 0) =>

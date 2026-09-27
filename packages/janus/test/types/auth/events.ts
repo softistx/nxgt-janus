@@ -21,7 +21,7 @@ function events() {
 		store,
 		events(event) {
 			// ── 33. An event type Janus never sends ──────────────────────
-			// @ts-expect-error there is no user.updated: the four are a closed set
+			// @ts-expect-error there is no user.updated: the six are a closed set
 			if (event.type === 'user.updated') return;
 
 			// ── 34. A field an event never carries ───────────────────────
@@ -33,7 +33,7 @@ function events() {
 
 // ── And the shape that MUST keep compiling ──────────────────────────────────
 
-// A listener that switches on the four types, and one that is async.
+// A listener that switches on the six types, and one that is async.
 const listening = janus({
 	user: Patient,
 	store,
@@ -42,6 +42,8 @@ const listening = janus({
 			case 'user.created':
 			case 'user.emailVerified':
 			case 'user.passwordReset':
+			case 'user.secondFactorEnabled':
+			case 'user.secondFactorDisabled':
 			case 'user.deleted': {
 				const who: string = event.userId;
 				const when: Date = event.occurredAt;

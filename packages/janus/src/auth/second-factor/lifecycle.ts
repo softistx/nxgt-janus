@@ -2,6 +2,7 @@ import { SecondFactorError } from '../../errors/janus-error';
 import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, toUser, writeUser } from '../context';
+import { emit } from '../events';
 import { codeInvalid } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { seal } from '../sealing';
@@ -48,11 +49,12 @@ export function lifecycleFlows(
 		},
 
 		async disable(user, options) {
-			const where = at('secondFactor.disable');
-			return toUser(
-				await writeUser(context, user, type, options, where, () => ({
-					secondFactor: null,
-				})),
+			return disableFactor(
+				context,
+				type,
+				user,
+				options,
+				at('secondFactor.disable'),
 			);
 		},
 	};
@@ -160,6 +162,43 @@ async function activateFactor(
 			return { secondFactor: { ...accepted, confirmedAt: now } };
 		},
 	);
+	// After the write, the flow's last step: the factor is asked for from now.
+	await emit(context, 'user.secondFactorEnabled', written, written.updatedAt);
+	return toUser(written);
+}
+
+/**
+ * Removes the factor, active or waiting. Reported only when an active one
+ * went: a user who had none, or whose factor never received its first code,
+ * was never asked for one, and still is not.
+ */
+async function disableFactor(
+	context: Context,
+	type: ResolvedType,
+	user: UserRef,
+	options: WriteOptions | undefined,
+	where: string,
+): Promise<AnyUser> {
+	let wasActive = false;
+	const written = await writeUser(
+		context,
+		user,
+		type,
+		options,
+		where,
+		(record) => {
+			wasActive = isActive(record.secondFactor);
+			return { secondFactor: null };
+		},
+	);
+	if (wasActive) {
+		await emit(
+			context,
+			'user.secondFactorDisabled',
+			written,
+			written.updatedAt,
+		);
+	}
 	return toUser(written);
 }
 
