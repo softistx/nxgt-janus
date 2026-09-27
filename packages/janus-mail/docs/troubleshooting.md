@@ -1,0 +1,248 @@
+# Troubleshooting `@nxgt/janus-mail`
+
+Each entry is headed by the text you see: a message, an error `code`, or a
+compiler error. Search this page for the words of your message.
+
+How the messages are shaped:
+
+- **Every message starts with the call you wrote**: `janusMail: …` for an
+  option, `janusMail.<method>: …` for a call. Messages from `@nxgt/mail` start
+  with its own calls: `render: …`, `send: …`, `createMailRenderer: …`.
+- **A `TypeError` is a wiring mistake**, from how the application was put
+  together — never from what a recipient did. Fix the code; no handler
+  should answer one.
+- **A message names the option or the field, never its value**: a link in a
+  verification e-mail is a credential, and never reaches a log through an
+  error.
+- **`MailFailure` and `MailRefused` are `@nxgt/mail`'s**, passed through
+  untouched: this package defines no error class.
+
+## Index
+
+**Wiring — `janusMail()`**
+- [`janusMail: options must be an object, as { mailer, from, brand, links }`](#janusmail-options-must-be-an-object-as--mailer-from-brand-links-)
+- [`janusMail: mailer must be a Mailer — an object with a send function`](#janusmail-mailer-must-be-a-mailer--an-object-with-a-send-function)
+- [`janusMail: from must be an address, as 'noreply@example.com' or { name, address }`](#janusmail-from-must-be-an-address-as-noreplyexamplecom-or--name-address-)
+- [`janusMail: replyTo must be an address, as 'support@example.com' or { name, address }`](#janusmail-replyto-must-be-an-address-as-supportexamplecom-or--name-address-)
+- [`janusMail: brand must be the name the e-mails show, as 'Acme'`](#janusmail-brand-must-be-the-name-the-e-mails-show-as-acme)
+- [`janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount }`](#janusmail-links-must-be-an-object-as--verifyemail-resetpassword-secureaccount-)
+- [`janusMail: links.<name> must be a function`](#janusmail-linksname-must-be-a-function)
+- [`janusMail: locales must list at least one locale, as ['en', 'fr']`](#janusmail-locales-must-list-at-least-one-locale-as-en-fr)
+- [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
+- [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
+- [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
+- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged)
+- [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
+- [`janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing)
+
+**Sending**
+- [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
+- [`MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`](#mail_refused--render-email-link-must-be-an-http-https-or-mailto-url)
+- [`MAIL_REFUSED` — from the mailer](#mail_refused--from-the-mailer)
+- [`MAIL_FAILED` — `MailFailure`](#mail_failed--mailfailure)
+- [`createMailRenderer: …/mails/mail-manifest.json cannot be read — run maizzle build, and deploy its output folder`](#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder)
+- [`Could not resolve "node:fs"` on an edge runtime](#could-not-resolve-nodefs-on-an-edge-runtime)
+
+**Compile errors**
+- [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken--user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
+- [`TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`](#ts2739-type----is-missing-the-following-properties-from-type-janusmailtemplates)
+- [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
+
+---
+
+## Wiring — `janusMail()`
+
+Each is a bare `TypeError`, thrown when `janusMail()` is called — at
+start-up, before anything is sent.
+
+### `janusMail: options must be an object, as { mailer, from, brand, links }`
+
+`janusMail()` called with nothing, `null`, or not an object. Pass the options.
+
+### `janusMail: mailer must be a Mailer — an object with a send function`
+
+No `mailer`, or one without `send`. Pass a transport's mailer — or
+`createMemoryMailer()` in a test:
+
+```ts
+import { createResendMailer } from '@nxgt/mail-resend';
+janusMail({ mailer: createResendMailer({ apiKey }), from, brand: 'Acme', links });
+```
+
+### `janusMail: from must be an address, as 'noreply@example.com' or { name, address }`
+
+No `from`, a blank string, or an object without its `address`. A name and an
+address are written `{ name: 'Acme', address: 'noreply@acme.example' }`,
+never `'Acme <noreply@acme.example>'` — the mailer refuses that string with
+`MailRefused` at the first send.
+
+### `janusMail: replyTo must be an address, as 'support@example.com' or { name, address }`
+
+A `replyTo` given, and not an address. Leave it out to reply to `from`.
+
+### `janusMail: brand must be the name the e-mails show, as 'Acme'`
+
+No `brand`, a blank one, or not a string — `{ name: 'Acme' }`, the shape of
+`@nxgt/mail-ui`, included. The brand is the name alone:
+
+```ts
+janusMail({ mailer, from, brand: 'Acme', links });
+```
+
+### `janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount }`
+
+No `links`. All three are required: the notices link to `secureAccount`.
+
+### `janusMail: links.<name> must be a function`
+
+`links.verifyEmail`, `links.resetPassword` or `links.secureAccount` missing,
+or given as a URL. The first two take the one-time token; the third takes
+nothing:
+
+```ts
+links: {
+	verifyEmail: (token) => `https://acme.example/verify?token=${encodeURIComponent(token)}`,
+	resetPassword: (token) => `https://acme.example/reset?token=${encodeURIComponent(token)}`,
+	secureAccount: () => 'https://acme.example/account/security',
+},
+```
+
+### `janusMail: locales must list at least one locale, as ['en', 'fr']`
+
+`locales: []`, `locales: 'en'`, or a list holding something that is not a
+non-empty string. Leave it out for `['en', 'fr']`.
+
+### `janusMail: locales holds the same locale twice`
+
+`['en', 'en']`. List each once.
+
+### `janusMail: fallbackLocale must be one of locales`
+
+A `fallbackLocale` the list does not hold — `'de'` with the default
+`locales`. It is also a compile error; see
+[`TS2322: Type '"de"'…`](#ts2322-type-de-is-not-assignable-to-type-en--fr).
+
+### `janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`
+
+`templates` given as a list or a function. Key each template by its name.
+
+### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`
+
+A key that is not one of the five — `welcome`, or the e-mail's file name
+`'verify-email'` rather than the template's, `verifyEmail`. Other e-mails are
+on the [roadmap](roadmap.md); send them with `@nxgt/mail` directly meanwhile.
+
+### `janusMail: templates.<name> must be a function`
+
+A template given as a string, a `Rendered`, or `undefined`. A template is a
+function of its variables: `signInCode: ({ code }) => ({ subject, html, text })`.
+
+### `janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`
+
+`locales` holds a locale beyond `en` and `fr`, and `templates` leaves some
+out: the defaults could not render them in that locale. Pass all five — see
+[Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
+The message lists the templates missing.
+
+## Sending
+
+### `janusMail.<method>: <field> must be a string`
+
+A `TypeError` from a call, naming the method and the field it could not read
+— `janusMail.resetPassword: token must be a string`,
+`janusMail.verifyEmail: name must be a string`,
+`janusMail.emailChanged: formerEmail must be a string`. The usual cause is
+passing what a flow answered without checking it for `null`:
+
+```ts
+const issued = await auth.resetPassword.request(email);
+if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name });
+```
+
+`issued` needs `token` and `email` (`code` and `email` for `signInCode`), and
+the recipient its `name` — a user whose schema has no name passes one
+anyway: `{ name: user.email }`.
+
+### `MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`
+
+A `MailRefused` from `@nxgt/mail`'s renderer, before the mailer is called
+(`mailer.attempts` stays 0). A link from `links` is not an absolute URL a
+mail client can follow: `/verify?token=…` (relative), `javascript:…`,
+`data:…`, or a URL holding a quote, a space or a line break. Make every
+`links` function answer an absolute `https://` URL:
+
+```ts
+links: { verifyEmail: (token) => new URL(`/verify?token=${encodeURIComponent(token)}`, 'https://acme.example').href, … }
+```
+
+Sending it again fails again: it is a bug, not an outage.
+
+### `MAIL_REFUSED` — from the mailer
+
+The message was refused by `checkMessage` or the provider: an `issued.email`
+or a `to.email` that is not an address, a `from` written
+`'Acme <noreply@acme.example>'`. The message names the field (`send: to is
+not an e-mail address`) — see `@nxgt/mail`'s
+[troubleshooting](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail/docs/troubleshooting.md).
+
+### `MAIL_FAILED` — `MailFailure`
+
+The transport could not hand the e-mail over: a refused connection, a
+timeout, a 5xx. **Nothing is known to have been sent.** The method rejects
+with the mailer's own error — `error === theMailersError` — so its `cause`
+is the transport's. Answer it as an outage, and never as "sent":
+
+```ts
+import { MailError } from '@nxgt/mail';
+
+try {
+	await mail.signInCode(issued);
+} catch (error) {
+	if (error instanceof MailError && error.code === 'MAIL_FAILED') {
+		return Response.json({ code: 'MAIL_FAILED' }, { status: 503 }); // or queue a retry
+	}
+	throw error;
+}
+```
+
+This package retries nothing: a retry is your decision.
+
+### `createMailRenderer: …/mails/mail-manifest.json cannot be read — run maizzle build, and deploy its output folder`
+
+A plain `Error`, the first time a default template renders: the package's
+`mails/` folder is missing. The installed package was copied without it — a
+bundler that inlined `@nxgt/janus-mail` into one file, or a deploy that kept
+`dist/` only. Keep `@nxgt/janus-mail` external to your bundle, and deploy
+`node_modules/@nxgt/janus-mail/mails/` with it. Overriding every template
+avoids the read altogether. (In this repository: run `bun run build`.)
+
+### `Could not resolve "node:fs"` on an edge runtime
+
+The default templates read `mails/` with `node:fs`, through
+`@nxgt/mail/renderer`: Node, Bun or Deno only. On an edge runtime, pass all
+five templates yourself; an inlined build is on the [roadmap](roadmap.md).
+
+## Compile errors
+
+### `TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`
+
+`auth.resetPassword.request(email)` answers `null` for an address nobody
+holds. Check it before sending, and answer the visitor the same either way:
+
+```ts
+const issued = await auth.resetPassword.request(email);
+if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name });
+return new Response(null, { status: 202 });
+```
+
+The same holds for `signInCode.request`.
+
+### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
+
+`locales` holds a locale beyond `en` and `fr`, and `templates` does not give
+all five. See [Adding a locale](guide/locales.md#adding-a-locale).
+
+### `TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`
+
+A `fallbackLocale` outside `locales`. Add it to `locales` — with every
+template, if it is not `en` or `fr` — or pick one of them.
