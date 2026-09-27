@@ -34,6 +34,7 @@ await syncMongoRelations(connection);
 createMongoStores(connectMongo('mongodb://localhost:27017/app'));
 // @ts-expect-error 7. a sync option in the wrong case: `dryRun`
 await syncMongoStores(db, { dryrun: true });
+await syncMongoStores(db, { dryRun: true });
 await syncMongoAdapter(db, { dryRun: true });
 await syncMongoRelations(db);
 
@@ -76,6 +77,10 @@ const model = defineModel({
 });
 
 export const access = permissions({ model, store: mongo.relations });
+export const relationsAlone = permissions({
+	model,
+	store: createMongoRelations(db),
+});
 
 // @ts-expect-error 10. the whole adapter as the relation store: take `mongo.relations`
 permissions({ model, store: mongo });

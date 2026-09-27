@@ -34,6 +34,7 @@ export const access = permissions({ model, store: mongo.relations });
 
 ```sh
 bun add @nxgt/janus-mongo @nxgt/janus @nxgt/mongo mongodb zod
+bun add -d typescript
 ```
 
 Every peer is required: `@nxgt/janus`, `@nxgt/mongo` (`>=0.17 <1`), `mongodb`
@@ -152,3 +153,7 @@ Eleven plausible mistakes are refused by the compiler, each with a
 - the relation store as `janus()`'s `store`;
 - the whole adapter as `permissions()`'s `store`, instead of `mongo.relations`;
 - the identity stores as `permissions()`'s `store`.
+
+## Licence
+
+MIT
