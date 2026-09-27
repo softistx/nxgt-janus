@@ -70,7 +70,8 @@ export function missingFiles(
  * A spec, a snapshot, or the `<subject>.fixtures.ts` specs share, emitted or
  * not. The dotted prefix is what tells a spec's fixtures from a shipped one:
  * `conformance/fixtures.ts` is the suite's, a consumer runs it, and it has
- * none.
+ * none. `NOT_A_BUILD_INPUT` in `stale.ts` names the same files as sources;
+ * a new kind of test file belongs in both.
  */
 export const TEST_CODE =
 	/(^|\/)__snapshots__\/|\.(spec|test)\.[^/]*$|(^|\/)[^/]+\.fixtures\.[^/]*$/;

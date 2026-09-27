@@ -34,7 +34,8 @@ async function newestMtime(dir: string, skip?: RegExp): Promise<number> {
  * file's mtime. CI runs the tests *between* the build and this script, so
  * counting them made a green pipeline fail with
  * `@nxgt/openapi-codegen: src/ is 57s newer than dist/`. Measured on
- * nxgt-http, 2026-09-22.
+ * nxgt-http, 2026-09-22. `TEST_CODE` in `tarball.ts` names the same files
+ * as the tarball holds them; a new kind of test file belongs in both.
  */
 export const NOT_A_BUILD_INPUT =
 	/(^|\/)__snapshots__\/|\.(spec|test|fixtures)\.[cm]?[jt]sx?$/;
