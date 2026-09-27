@@ -3,7 +3,9 @@ import { mintId } from '../ids/id';
 import { parseSubject } from '../subjects/notation';
 import { setOf } from '../subjects/subject';
 import { permissions } from './engine';
-import { defineModel, fromField, when } from './model';
+import { defineModel } from './model/define';
+import { fromField } from './model/from-field';
+import { when } from './model/when';
 import { createMemoryRelations } from './port/memory';
 import type { RelationStore } from './port/types';
 

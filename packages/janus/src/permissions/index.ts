@@ -19,37 +19,37 @@
  */
 
 export { type PermissionsOptions, permissions } from './engine';
+export type { Can } from './model/can';
+export type {
+	ModelConfig,
+	ObjectTypeDef,
+	RelationDef,
+	RuleDef,
+} from './model/config';
+export type { ModelTypesOf } from './model/constraint';
+export type { CtxOf } from './model/ctx';
 export {
-	type Can,
-	type CheckableOf,
 	type ConfigOf,
-	type CtxOf,
 	defineModel,
-	type FieldsOf,
+	type PermissionModel,
+} from './model/define';
+export {
 	type FromField,
 	fromField,
-	type Grant,
-	type GrantableOf,
-	type HolderOf,
-	type List,
-	type ListPage,
 	type Lookup,
-	type LookupGap,
-	type ModelConfig,
-	type ModelTypesOf,
-	type ObjectRef,
-	type ObjectTypeDef,
-	type ObjectTypeOf,
-	type PermissionModel,
-	type Permissions,
-	type RelationDef,
 	type ReversibleFromField,
-	type RuleDef,
-	type SubjectRef,
-	type UserTypeOf,
-	type When,
-	when,
-} from './model';
+} from './model/from-field';
+export type { Grant, GrantableOf, HolderOf } from './model/grant';
+export type { List, ListPage, LookupGap } from './model/list';
+export type { ObjectTypeOf, UserTypeOf } from './model/names';
+export type { Permissions } from './model/permissions';
+export type {
+	CheckableOf,
+	FieldsOf,
+	ObjectRef,
+	SubjectRef,
+} from './model/refs';
+export { type When, when } from './model/when';
 export { createMemoryRelations } from './port/memory';
 export type {
 	ObjectPageRequest,

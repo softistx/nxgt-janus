@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { permissions } from './engine';
-import { defineModel, fromField, when } from './model';
+import { defineModel } from './model/define';
+import { fromField } from './model/from-field';
+import { when } from './model/when';
 import { createMemoryRelations } from './port/memory';
 import type { RelationStore } from './port/types';
 

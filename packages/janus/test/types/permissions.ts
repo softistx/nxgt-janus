@@ -14,15 +14,15 @@
  * refuse; never delete one to make a change pass.
  */
 
-import { permissions } from '../../src/permissions/engine';
 import {
 	type Can,
 	type ConfigOf,
+	createMemoryRelations,
 	defineModel,
 	fromField,
+	permissions,
 	when,
-} from '../../src/permissions/model';
-import { createMemoryRelations } from '../../src/permissions/port/memory';
+} from '../../src/permissions/index';
 import { setOf } from '../../src/subjects/subject';
 
 /** What `auth.types` answers for a clinic with two user types. */
