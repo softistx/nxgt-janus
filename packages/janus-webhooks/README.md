@@ -85,12 +85,17 @@ retries still waiting. Pass a `WebhookQueue` that every process shares, and a
 retry failed by one process is sent by the next:
 
 ```ts
-import { webhooks, type WebhookQueue } from '@nxgt/janus-webhooks';
+import { createMemoryWebhookQueue, webhooks } from '@nxgt/janus-webhooks';
 
-const queue: WebhookQueue = createYourQueue(); // an adapter of the port: a Redis one is on the way
+const secret = process.env.WEBHOOK_SECRET; // whsec_…, from mintWebhookSecret()
+if (!secret) throw new Error('WEBHOOK_SECRET is not set');
+
+// The reference, in memory: swap in a durable adapter of the port — such as
+// the upcoming @nxgt/janus-webhooks-redis — for a queue that survives a restart.
+const queue = createMemoryWebhookQueue();
 
 const listener = webhooks({
-	endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus', secrets: [crmSecret] }],
+	endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus', secrets: [secret] }],
 	queue, // the listener now awaits the insert — one call to the queue, never an endpoint
 });
 

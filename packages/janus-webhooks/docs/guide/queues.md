@@ -6,9 +6,13 @@ testing an adapter of the `WebhookQueue` port. The words — queue, claim,
 lease, endpoint id, orphan — are defined in [the index](../README.md#words).
 
 ```ts
+import { janus } from '@nxgt/janus';
 import { webhooks, type WebhookQueue } from '@nxgt/janus-webhooks';
 
 declare const queue: WebhookQueue; // one every process of the application shares
+declare const options: Omit<Parameters<typeof janus>[0], 'events'>; // your janus() options
+const crmSecret = process.env.CRM_WEBHOOK_SECRET;
+if (!crmSecret) throw new Error('CRM_WEBHOOK_SECRET is not set');
 
 const listener = webhooks({
 	endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus', secrets: [crmSecret] }],

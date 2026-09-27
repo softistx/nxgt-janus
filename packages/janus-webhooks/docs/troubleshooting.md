@@ -7,7 +7,9 @@ How the messages are shaped:
 
 - **Every message starts with the call you wrote**: `webhooks: …` or
   `verifyWebhook: …`. Below, `<call>` stands for either one, where both can
-  print the message.
+  print the message. The conformance suite an adapter runs is the exception:
+  its messages start with `describeWebhookQueues: …`, or with the case that
+  failed.
 - **A `TypeError` is a wiring mistake**: it comes from how the application was
   put together — an endpoint, a secret, a duration, an event rebuilt by hand —
   and never from a request. It is thrown when `webhooks()`, the listener it
@@ -61,7 +63,7 @@ How the messages are shaped:
 - [`[JANUS_WEBHOOK_GAVE_UP] Warning: webhooks: gave up <type> <event id> to <origin> after <n> attempts (<why>, <status or error>)`](#janus_webhook_gave_up-warning-webhooks-gave-up-type-event-id-to-origin-after-n-attempts-why-status-or-error)
 - [`[JANUS_WEBHOOK_REPORT_FAILED] Warning: webhooks: onGivingUp failed on <type> <event id>: <name>`](#janus_webhook_report_failed-warning-webhooks-ongivingup-failed-on-type-event-id-name)
 - [`[JANUS_WEBHOOK_QUEUE_FAILED] Warning: webhooks: the queue failed on <method>: <name> — deliveries wait in it until it answers again`](#janus_webhook_queue_failed-warning-webhooks-the-queue-failed-on-method-name--deliveries-wait-in-it-until-it-answers-again)
-- [`[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: StoreFailure`](#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-storefailure)
+- [`[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`](#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-name)
 - [A redirect is counted as a failure](#a-redirect-is-counted-as-a-failure)
 - [Events are lost when the process exits](#events-are-lost-when-the-process-exits)
 - [Deliveries wait for an endpoint no longer configured](#deliveries-wait-for-an-endpoint-no-longer-configured)
@@ -71,6 +73,12 @@ How the messages are shaped:
 - [`verifyWebhook` answers `null`](#verifywebhook-answers-null)
 - [A webhook is received twice](#a-webhook-is-received-twice)
 - [A webhook is received twice after a restart](#a-webhook-is-received-twice-after-a-restart)
+
+**Testing a queue adapter**
+- [`describeWebhookQueues: no test runner on globalThis — pass runner: { describe, it } (under bun test: import them from 'bun:test')`](#describewebhookqueues-no-test-runner-on-globalthis--pass-runner--describe-it--under-bun-test-import-them-from-buntest)
+- [`the error is named StoreFailure but is not @nxgt/janus's StoreFailure: two copies of @nxgt/janus are installed. The adapter must list it as a peer dependency, never a dependency`](#the-error-is-named-storefailure-but-is-not-nxgtjanuss-storefailure-two-copies-of-nxgtjanus-are-installed-the-adapter-must-list-it-as-a-peer-dependency-never-a-dependency)
+- [`[JANUS_CONFORMANCE_SKIPPED] Warning: <case id> skipped: faults not provided: the outage invariant is not proven for this adapter`](#janus_conformance_skipped-warning-case-id-skipped-faults-not-provided-the-outage-invariant-is-not-proven-for-this-adapter)
+- [`<name> — @nxgt/janus-webhooks queue conformance (WITHOUT faults: faults not provided: the outage invariant is not proven for this adapter)`](#name--nxgtjanus-webhooks-queue-conformance-without-faults-faults-not-provided-the-outage-invariant-is-not-proven-for-this-adapter)
 
 ---
 
@@ -188,30 +196,36 @@ webhooks({
 
 ### `webhooks: retries: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same with `webhooks: timeout:` for the request timeout.
+The same with `webhooks: timeout:` for the request timeout, and with a
+`queue`, `webhooks: lease:`, `webhooks: poll:` and `webhooks: orphanGrace:`.
 
-**When:** calling `webhooks({ … })` with a `retries` entry or a `timeout`
-written in a shape that is not a duration: `'soon'`, `'5 min'`, `'1h30m'`,
-`'5S'`.
+**When:** calling `webhooks({ … })` with a `retries` entry, a `timeout`, a
+`lease`, a `poll` or an `orphanGrace` written in a shape that is not a
+duration: `'soon'`, `'5 min'`, `'1h30m'`, `'5S'`.
 **Why:** a duration is a number of milliseconds, or one number followed by one
 lowercase unit.
 **Fix:**
 
 ```ts
 webhooks({ endpoints, retries: ['30s', '5m', '1h'], timeout: '5s' });
+webhooks({ endpoints, queue, lease: '1m', poll: '5s', orphanGrace: '48h' });
 ```
 
 ### `webhooks: retries: a duration in milliseconds must be a finite number above zero`
 
-Also `webhooks: timeout: a duration in milliseconds must be a finite number
-above zero`, and `webhooks: <retries|timeout>: a duration must be above zero`
-for a string such as `'0s'`.
+Also `webhooks: <timeout|lease|poll|orphanGrace>: a duration in milliseconds
+must be a finite number above zero`, and `webhooks:
+<retries|timeout|lease|poll|orphanGrace>: a duration must be above zero` for a
+string such as `'0s'`.
 
 **When:** calling `webhooks({ … })` with `0`, a negative number, `NaN` or
-`Infinity` as a retry delay or the timeout — often `retries: [0]` meant as
-"retry at once", or `timeout: 0` meant as "no timeout".
+`Infinity` as a retry delay, the timeout, or a queue's `lease`, `poll` or
+`orphanGrace` — often `retries: [0]` meant as "retry at once", or
+`timeout: 0` meant as "no timeout".
 **Why:** each delay and the timeout must be above zero. There is no "no
-timeout": a request that never answers would hold its delivery forever.
+timeout": a request that never answers would hold its delivery forever. The
+same holds for the queue's durations: a lease of zero would hand a delivery
+to every process at once, and a poll of zero would never let the queue rest.
 **Fix:** a short delay for an immediate retry, and a real timeout; to send
 once without any retry, pass an empty list:
 
@@ -573,6 +587,12 @@ was lost, reconcile the receiver's copy against the users themselves, as in
 `scheduleRetry` or `deleteDelivery` after a request, `extendLease` while
 `onGivingUp` ran. `<name>` is the failure's name, `StoreFailure` from a
 well-behaved adapter; never its message, which may hold a connection string.
+A `TypeError` on `claimDeliveries` or `claimOrphanedDeliveries` may be this
+package's own check: the adapter answered a claim with something other than
+a list — `null`, `undefined`, a cursor — and the claim is refused with
+`the queue answered a claim with no list`. The queue is then not down but
+wrong; run [the conformance suite](guide/queues.md#testing-an-adapter)
+against it.
 **Why:** the queue is down or unreachable. The warning is written **once
 per outage**: the next call that succeeds ends it, and the next failure
 warns again. Meanwhile the pump backs off, doubling from `poll` up to 30
@@ -588,11 +608,18 @@ process.on('warning', (warning) => {
 });
 ```
 
-### `[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: StoreFailure`
+For the `TypeError` of a claim, nothing comes back by itself: fix the
+adapter, so a claim answers a list — `[]` when nothing is due — and throws
+when the queue cannot answer.
+
+### `[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`
 
 `@nxgt/janus`'s warning, not this package's: its
-[entry](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md)
-has the general case.
+[entry](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-name)
+has the general case. `<name>` is the failure's name — or its `typeof` when
+what was thrown is not an `Error` — never its message. From this package it
+is usually `StoreFailure`, what a well-behaved queue adapter throws when it
+is down.
 
 **When:** with a `queue`, a flow wrote a user and the listener could not
 insert the event's deliveries: the queue was down. The flow still answered
@@ -810,3 +837,100 @@ process dies between reporting and removing it.
 exactly as for a retry — see [A webhook is received twice](#a-webhook-is-received-twice).
 Keep the processes' clocks on NTP, and key a dead-letter table on
 `delivery.event.id` and `delivery.endpoint` so a second report is a no-op.
+
+## Testing a queue adapter
+
+These come from `@nxgt/janus-webhooks/conformance`, run by the author of a
+`WebhookQueue` adapter — see [testing an adapter](guide/queues.md#testing-an-adapter).
+
+### `describeWebhookQueues: no test runner on globalThis — pass runner: { describe, it } (under bun test: import them from 'bun:test')`
+
+**When:** loading a test file that calls `describeWebhookQueues({ … })`
+without `runner`, under `bun test` — or under vitest without
+`globals: true`.
+**Why:** without `runner`, the suite reads `describe` and `it` from
+`globalThis`, as jest and vitest with `globals: true` put them. `bun test`
+gives a test file `describe` and `it` as bare names, not as properties of
+`globalThis`, so there is nothing to read.
+**Fix:** import them and pass them:
+
+```ts
+import { describe, it } from 'bun:test';
+import { describeWebhookQueues } from '@nxgt/janus-webhooks/conformance';
+
+describeWebhookQueues({ name: 'my queue', harness, runner: { describe, it } });
+```
+
+### `the error is named StoreFailure but is not @nxgt/janus's StoreFailure: two copies of @nxgt/janus are installed. The adapter must list it as a peer dependency, never a dependency`
+
+The second line of a failure whose first names the case: `<method> under an
+outage`.
+
+**When:** an `outage.<method>` case, once `faults` made the method fail: the
+adapter threw an error named `StoreFailure`, but not an instance of the
+`StoreFailure` class the suite imports from `@nxgt/janus`.
+**Why:** two copies of `@nxgt/janus` are installed — almost always because
+the adapter lists it under `dependencies`, so it gets a copy of its own. Its
+`StoreFailure` is another class, and an application's
+`error instanceof StoreFailure` would be `false` for every outage, exactly as
+here.
+**Fix:** make `@nxgt/janus` a peer of the adapter, and install it once, at
+the application:
+
+```json
+{
+  "peerDependencies": {
+    "@nxgt/janus": "^0.8.0",
+    "@nxgt/janus-webhooks": "^0.2.0"
+  }
+}
+```
+
+Then check that one copy is left: `bun pm ls --all | grep @nxgt/janus@`.
+
+### `[JANUS_CONFORMANCE_SKIPPED] Warning: <case id> skipped: faults not provided: the outage invariant is not proven for this adapter`
+
+A process warning, not a failure: the case is counted as passed.
+
+**When:** running the suite without `faults: false`, and a harness whose
+`open()` answers no `faults` — once for each `outage.<method>` case.
+**Why:** the outage cases prove that a method rejects, and never answers
+`[]`, `false` or `0`, when the queue cannot answer. Without a way to make
+the database fail, that is not proven — and a skip is always reported, never
+passed over in silence.
+**Fix:** answer `faults` from the harness, failing the method the way the
+database fails — a cut connection, a revoked permission — not a wrapper that
+throws in front of the adapter:
+
+```ts
+harness: {
+	async open() {
+		const db = await openEmptyDatabase();
+		return {
+			queue: createMyWebhookQueue(db),
+			faults: { fail: async (method) => db.failNext(method) },
+			close: () => db.drop(),
+		};
+	},
+},
+```
+
+When the adapter's store cannot be made to fail, say so up front with
+`faults: false`: see the next entry.
+
+### `<name> — @nxgt/janus-webhooks queue conformance (WITHOUT faults: faults not provided: the outage invariant is not proven for this adapter)`
+
+The title of the suite in the test report, with each `outage.<method>` case
+listed as skipped: `<case> — skipped: faults not provided: …`.
+
+**When:** calling `describeWebhookQueues({ …, faults: false })`.
+**Why:** `faults: false` declares that the harness cannot make a method fail.
+The suite then skips the outage cases, and says so in its title, so the
+report never reads as a full pass: the adapter is not proven to throw when
+its store is down.
+**Fix:** nothing, if that is the truth about the adapter. To prove it, give
+the harness `faults`, as in the entry above, and drop `faults: false`:
+
+```ts
+describeWebhookQueues({ name: 'my queue', harness, runner: { describe, it } });
+```
