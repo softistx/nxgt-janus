@@ -10,6 +10,8 @@ const TYPES: readonly UserEventType[] = [
 	'user.created',
 	'user.emailVerified',
 	'user.passwordReset',
+	'user.secondFactorEnabled',
+	'user.secondFactorDisabled',
 	'user.deleted',
 ];
 
@@ -59,7 +61,7 @@ export const queueCases: readonly WebhookQueueCase[] = [
 	{
 		id: 'queue.everyType',
 		group,
-		name: 'answers each of the four event types as it was written',
+		name: 'answers each of the six event types as it was written',
 		async run({ queue }) {
 			const events = TYPES.map((type) => eventOf({ type }));
 			for (const event of events) {

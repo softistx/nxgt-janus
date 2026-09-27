@@ -54,7 +54,13 @@ The event, frozen:
 ```ts
 interface UserEvent {
 	readonly id: string; // the webhook-id header: the key to handle it once
-	readonly type: 'user.created' | 'user.emailVerified' | 'user.passwordReset' | 'user.deleted';
+	readonly type:
+		| 'user.created'
+		| 'user.emailVerified'
+		| 'user.passwordReset'
+		| 'user.secondFactorEnabled'
+		| 'user.secondFactorDisabled'
+		| 'user.deleted';
 	readonly occurredAt: Date; // the body's timestamp: when the write landed
 	readonly userId: string;
 	readonly userType: string;
@@ -63,7 +69,7 @@ interface UserEvent {
 
 It names the user by id, and nothing else. Read the rest from where it is
 kept — an API of the sender's, `auth.get(event.userId)` when you share its
-store — if you may. [The four types](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md#the-four-types)
+store — if you may. [The six types](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md#the-six-types)
 are a closed union, so a `switch` on `event.type` is exhaustive.
 
 **`null`** when the request is not a user event these secrets signed:
@@ -74,7 +80,7 @@ are a closed union, so a `switch` on `event.type` is exhaustive.
 | `webhook-timestamp` is not whole seconds | a forgery, or a sender that is not a Standard Webhooks one |
 | `webhook-timestamp` is more than `toleranceSeconds` from `now` | a replay, or a clock that drifted — the receiver's or the sender's |
 | no `v1` signature in `webhook-signature` matches one of `secrets` | a forgery; an altered body; the wrong secret; a body that was parsed and serialised again before the check |
-| the body is not JSON, or not a user event | a `type` other than the four, a `timestamp` that is not a date, `data.userId` or `data.userType` not a string |
+| the body is not JSON, or not a user event | a `type` other than the six this version knows, a `timestamp` that is not a date, `data.userId` or `data.userType` not a string |
 
 The signatures are compared in constant time. `null` says nothing about which
 check failed, on purpose: a caller probing the endpoint learns nothing.

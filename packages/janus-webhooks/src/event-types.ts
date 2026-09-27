@@ -2,13 +2,15 @@ import type { UserEventType } from '@nxgt/janus';
 
 /**
  * Every user event type, once: `satisfies` fails to compile the day
- * `@nxgt/janus` adds a fifth, so neither `webhooks()` nor `verifyWebhook`
+ * `@nxgt/janus` adds a seventh, so neither `webhooks()` nor `verifyWebhook`
  * can go on refusing it unnoticed.
  */
 const EVENT_TYPES = {
 	'user.created': true,
 	'user.emailVerified': true,
 	'user.passwordReset': true,
+	'user.secondFactorEnabled': true,
+	'user.secondFactorDisabled': true,
 	'user.deleted': true,
 } as const satisfies Record<UserEventType, true>;
 
