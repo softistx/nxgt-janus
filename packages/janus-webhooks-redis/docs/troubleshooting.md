@@ -21,6 +21,10 @@ are in
 - [`STORE_FAILED` after about 31 seconds, caused by `Max reconnection attempts reached`](#store_failed-after-about-31-seconds-caused-by-max-reconnection-attempts-reached)
 - [`STORE_FAILED`: `webhookQueue.<method>: the queue could not answer`](#store_failed-webhookqueuemethod-the-queue-could-not-answer)
 - [`STORE_FAILED`: `webhookQueue.<method>: a reply that is not … — a key under the prefix this adapter did not write`](#store_failed-webhookqueuemethod-a-reply-that-is-not---a-key-under-the-prefix-this-adapter-did-not-write)
+- [`TypeError: webhookQueue.<method>: <name> is a valid Date`](#typeerror-webhookqueuemethod-name-is-a-valid-date)
+- [`TypeError: webhookQueue.<method>: limit is a whole number of deliveries, 0 or more`](#typeerror-webhookqueuemethod-limit-is-a-whole-number-of-deliveries-0-or-more)
+- [`TypeError: webhookQueue.scheduleRetry: failed.status is null or a whole number`](#typeerror-webhookqueuescheduleretry-failedstatus-is-null-or-a-whole-number)
+- [Every claim of one endpoint fails: a delivery key that cannot be read](#every-claim-of-one-endpoint-fails-a-delivery-key-that-cannot-be-read)
 - [`CROSSSLOT Keys in request don't hash to the same slot`, or `Script attempted to access a non local key in a cluster node`](#crossslot-keys-in-request-dont-hash-to-the-same-slot-or-script-attempted-to-access-a-non-local-key-in-a-cluster-node)
 - [`TypeError: connectRedis: this URI is already connected with other options.`](#typeerror-connectredis-this-uri-is-already-connected-with-other-options)
 - [Deliveries are lost when Redis restarts](#deliveries-are-lost-when-redis-restarts)
@@ -95,8 +99,15 @@ const redis = await connectRedis(process.env.REDIS_URL ?? 'redis://localhost:637
 memory (`OOM`), a replica that refuses writes (`READONLY`), a user without the
 right (`NOPERM`), a key under the prefix of another type (`WRONGTYPE`). With
 `enableOfflineQueue: false`, an outage's `cause` reads `Connection is closed
-and offline queue is disabled`. An insert refused half-way has undone its
-own writes before it fails: nothing of it is left.
+and offline queue is disabled`.
+
+A script refused **half-way** — `NOPERM` on one key of several, `WRONGTYPE`
+on a key someone else wrote — leaves what Redis already ran, since Redis
+does not roll a script back. Only the insert undoes its own writes: nothing
+of an insert refused is left. The other scripts read before they write, so
+they fail before any write — except a claim over several deliveries, which
+keeps those it took before the refusal: each has spent an attempt, and is
+claimed again once its lease ends.
 
 **Why:** the adapter never turns a failure into an absence. An outage is not
 "nothing due", which would hold every delivery back without a word.
@@ -137,6 +148,83 @@ foreign keys:
 ```ts
 createRedisWebhookQueue(redis, { prefix: 'clinic:webhooks:' });
 ```
+
+### `TypeError: webhookQueue.<method>: <name> is a valid Date`
+
+`<name>` is `event.occurredAt` or `dueAt` for `insertDeliveries`, `now`,
+`dueBefore` or `leaseUntil` for a claim, `until` for `extendLease`, `dueAt`
+for `scheduleRetry`.
+
+**When:** calling the queue yourself — in a test, a script, a wrapper — with
+an Invalid Date: `new Date('soon')`, `new Date(NaN)`. `webhooks()` never
+does: it refuses such an event itself, with `webhooks: an event's occurredAt
+is a valid Date`.
+
+**Why:** a date is stored as milliseconds, and an Invalid Date would be
+stored as `NaN`, which no claim could read back: every claim of that
+endpoint would then fail. It is refused before anything is sent. A date
+before 1970 is a negative number, and is kept.
+
+**Fix:** pass a valid `Date`:
+
+```ts
+await queue.insertDeliveries(event, ['crm'], new Date());
+```
+
+### `TypeError: webhookQueue.<method>: limit is a whole number of deliveries, 0 or more`
+
+**When:** `claimDeliveries` or `claimOrphanedDeliveries` called with a
+`limit` of `2.5`, `-1`, `Infinity` or `NaN`.
+
+**Why:** a claim answers at most `limit` deliveries; a limit that is not a
+whole number means none. It is refused before anything is sent.
+
+**Fix:** a whole number: `Math.floor(free)`, where `free` is what you can
+send at once.
+
+### `TypeError: webhookQueue.scheduleRetry: failed.status is null or a whole number`
+
+**When:** `scheduleRetry` called with a `failed.status` of `503.5`, `-1` or
+`NaN`.
+
+**Why:** the status is stored as digits, and read back as a whole number;
+anything else could not be. It is refused before anything is sent.
+
+**Fix:** the response's `status`, or `null` when there was no response.
+
+### Every claim of one endpoint fails: a delivery key that cannot be read
+
+The message is `STORE_FAILED`: `webhookQueue.claimDeliveries: a reply that
+is not … — a key under the prefix this adapter did not write`, again and
+again, with `JANUS_WEBHOOK_QUEUE_FAILED` from `@nxgt/janus-webhooks`.
+
+**When:** a delivery hash under the prefix was changed by hand, or written
+by another version or another application, and a claim reached it. Every
+claim that reaches it fails the same way, so the endpoint's other deliveries
+wait behind it.
+
+**Why:** a delivery the adapter cannot read is a failure, never skipped: a
+queue that skipped what it cannot read would hold that delivery back without
+a word. The claim is refused once Redis has answered it, so every delivery
+it took — the broken one included — has spent an attempt, and is claimed
+again once its lease ends: until the key is fixed, each lease costs the
+endpoint's first deliveries one attempt more.
+
+**Fix:** find the broken key, keep what it holds if you need it, and delete
+it — the next claim drops its member from the due set and goes on:
+
+```sh
+# The endpoint's deliveries, earliest first: the broken one is among the first.
+redis-cli ZRANGE 'janus:webhooks:due:crm' 0 9 WITHSCORES
+# Each is a hash: look for a field missing, or one that is not digits.
+redis-cli HGETALL 'janus:webhooks:delivery:<event id>:<type>:crm'
+redis-cli DEL 'janus:webhooks:delivery:<event id>:<type>:crm'
+```
+
+With your own prefix in place of `janus:webhooks:`. A hash this adapter
+writes holds `eventId`, `type`, `occurredAt` (milliseconds), `userId`,
+`userType`, `endpoint`, `attempts` (digits) and `lease`, and after a failed
+attempt `status` (digits, or empty) and `error`.
 
 ### `CROSSSLOT Keys in request don't hash to the same slot`, or `Script attempted to access a non local key in a cluster node`
 

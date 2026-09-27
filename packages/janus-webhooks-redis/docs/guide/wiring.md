@@ -127,7 +127,7 @@ The adapter defines **no error class**. Every rejection is `@nxgt/janus`'s
 | What happens | What you get |
 | --- | --- |
 | Redis is unreachable, the connection closed, a timeout | `webhookQueue.<method>: the queue could not answer`; `cause` is Bun's `RedisError` |
-| Redis refuses a command: `NOPERM`, `OOM`, `READONLY` on a replica, `WRONGTYPE` | the same; `cause` carries Redis's reply. An insert refused half-way is undone first |
+| Redis refuses a command: `NOPERM`, `OOM`, `READONLY` on a replica, `WRONGTYPE` | the same; `cause` carries Redis's reply. An insert refused half-way is undone first; a claim refused half-way costs what it already took an attempt |
 | A key under the prefix this adapter did not write | `webhookQueue.<method>: a reply that is not … — a key under the prefix this adapter did not write`, with no `cause`: never read as nothing due |
 
 Nothing answers `[]` or `false` for an error: a claim that answered "nothing
