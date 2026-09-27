@@ -1,3 +1,5 @@
+// The building blocks every table is made of: the table factory's type and
+// the column kinds the five tables share.
 import { customType, type pgTable, timestamp } from 'drizzle-orm/pg-core';
 
 /** `pgTable`, or the `table` of the schema the tables live in. */

@@ -1,13 +1,13 @@
 import { createLogger, event } from '@nxgt/telemetry';
 import type { Outcome } from '../traced';
+import type { Call } from './call';
 import {
 	argumentUser,
-	type Call,
 	refusalFields,
 	secondFactorFields,
 	statusOf,
 	userFields,
-} from './call';
+} from './fields';
 
 const log = createLogger('@nxgt/janus');
 

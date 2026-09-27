@@ -1,7 +1,8 @@
 import type { SpanScope } from '@nxgt/telemetry';
 import { fieldsOf, type Outcome, traced } from '../traced';
-import { type Call, statusOf, userFields } from './call';
+import type { Call } from './call';
 import { WRITTEN } from './events';
+import { statusOf, userFields } from './fields';
 
 /** What a span learns from an answer: whose it is, never what it holds. */
 function answered(scope: SpanScope, call: Call, outcome: Outcome): void {
@@ -25,7 +26,8 @@ function answered(scope: SpanScope, call: Call, outcome: Outcome): void {
 /** `cookie` answers synchronously: it is the one part of `janus()` not traced. */
 const UNTRACED = new Set(['cookie']);
 
-export type Split = (path: readonly string[]) => {
+/** Which user type and flow a path names: `['patient', 'signIn']`. */
+type Split = (path: readonly string[]) => {
 	readonly userType: string | undefined;
 	readonly flow: readonly string[];
 };
