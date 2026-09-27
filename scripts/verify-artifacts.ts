@@ -287,15 +287,16 @@ async function newestMtime(dir: string, skip?: RegExp): Promise<number> {
 }
 
 /**
- * Specs and their snapshots live under `src/` but the build does not emit
- * them, so they cannot make `dist/` stale — and `bun test` rewrites a snapshot
+ * Specs, the `<subject>.fixtures.ts` they share, and their snapshots live
+ * under `src/` but the build does not emit them, so they cannot make `dist/`
+ * stale — and `bun test` rewrites a snapshot
  * file's mtime. CI runs the tests *between* the build and this script, so
  * counting them made a green pipeline fail with
  * `@nxgt/openapi-codegen: src/ is 57s newer than dist/`. Measured on
  * nxgt-http, 2026-09-22.
  */
 export const NOT_A_BUILD_INPUT =
-	/(^|\/)__snapshots__\/|\.(spec|test)\.[cm]?[jt]sx?$/;
+	/(^|\/)__snapshots__\/|\.(spec|test|fixtures)\.[cm]?[jt]sx?$/;
 
 /**
  * Packages whose `dist/` is missing, or older than their own `src/`.
