@@ -37,7 +37,7 @@ bun add @nxgt/janus-mongo @nxgt/janus @nxgt/mongo mongodb zod
 bun add -d typescript
 ```
 
-Every peer is required: `@nxgt/janus`, `@nxgt/mongo` (`>=0.17 <1`), `mongodb`
+Every peer is required: `@nxgt/janus`, `@nxgt/mongo` (`>=0.17.0 <1`), `mongodb`
 (7), `zod` (4.6.5 or later, which `@nxgt/mongo` defines collections with) and `typescript`
 (6). `@nxgt/janus` is a **peer**, never a dependency: this package defines no
 error class and throws the peer's own, so `instanceof StoreFailure` holds in

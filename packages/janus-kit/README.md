@@ -85,7 +85,7 @@ Peers of `@nxgt/janus-kit/mongo`, optional in the same way:
 - `@nxgt/mongo` `>=0.17.0 <1` and `mongodb` 7.
 
 `@nxgt/janus-telemetry` is an optional peer, loaded only when `telemetry` is
-`true`. `@nxgt/janus-redis` is a dependency: your code never imports it.
+`true`; it requires `@nxgt/telemetry` `>=0.2.1 <1` as its own peer. `@nxgt/janus-redis` is a dependency: your code never imports it.
 
 It runs on **Bun** only: the kit opens PostgreSQL over Bun's `SQL` and Redis
 over Bun's `RedisClient`. It needs PostgreSQL 15 or later, or MongoDB as a

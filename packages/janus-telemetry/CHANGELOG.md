@@ -1,5 +1,11 @@
 # @nxgt/janus-telemetry
 
+## 0.3.4
+
+### Patch Changes
+
+- [#92](https://github.com/softistx/nxgt-janus/pull/92) [`a0efa15`](https://github.com/softistx/nxgt-janus/commit/a0efa15954c723fe11678db2cb1e6f1f8cf470b0) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Peer `@nxgt/telemetry` by `>=0.2.1 <1` instead of `^0.2.1`, which on a `0.x` version admitted `0.2.x` only: a later minor of `@nxgt/telemetry` no longer raises a peer conflict. The README now states that range exactly.
+
 ## 0.3.3
 
 ### Patch Changes

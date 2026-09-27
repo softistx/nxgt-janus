@@ -1,5 +1,14 @@
 # @nxgt/janus-kit
 
+## 0.1.7
+
+### Patch Changes
+
+- [#92](https://github.com/softistx/nxgt-janus/pull/92) [`a72fbc3`](https://github.com/softistx/nxgt-janus/commit/a72fbc30ae56ea0b178b22a62572bb9fbc2bdcb9) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The README states each peer range exactly as the manifest declares it: `@nxgt/mongo` `>=0.17.0 <1` in `@nxgt/janus-mongo`, and in `@nxgt/janus-kit` the `@nxgt/telemetry` `>=0.2.1 <1` that `telemetry: true` needs through `@nxgt/janus-telemetry`.
+- Updated dependencies [[`a72fbc3`](https://github.com/softistx/nxgt-janus/commit/a72fbc30ae56ea0b178b22a62572bb9fbc2bdcb9), [`a0efa15`](https://github.com/softistx/nxgt-janus/commit/a0efa15954c723fe11678db2cb1e6f1f8cf470b0)]:
+  - @nxgt/janus-mongo@0.4.3
+  - @nxgt/janus-telemetry@0.3.4
+
 ## 0.1.6
 
 ### Patch Changes
