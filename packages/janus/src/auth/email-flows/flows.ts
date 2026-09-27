@@ -1,5 +1,6 @@
 /** The e-mail flows of one user type, assembled from the files beside this one. */
 
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
 import type { ResetPasswordApi, VerifyEmailApi } from '../types';
@@ -15,7 +16,7 @@ import { verifyEmailFlows } from './verify-email';
 export function emailFlows(
 	context: Context,
 	type: ResolvedType,
-	at: (operation: string) => string,
+	at: At,
 ): VerifyEmailApi<AnyUser> & ResetPasswordApi<AnyUser> {
 	return {
 		verifyEmail: verifyEmailFlows(context, type, at),
