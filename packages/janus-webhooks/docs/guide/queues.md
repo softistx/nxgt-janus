@@ -35,7 +35,7 @@ by one process is sent by whichever process claims it when it falls due.
 | --- | --- | --- |
 | Where a retry waits | this process's memory | the queue |
 | A crash | loses every retry waiting | loses nothing: a request cut short is sent again once its lease lapses |
-| The listener | answers nothing; the insert cannot fail | answers the insert, a `Promise`; `janus` awaits it |
+| The listener | answers `undefined`; the insert cannot fail | answers the insert, a `Promise`; `janus` awaits it |
 | An insert that fails | — | rejects: `janus` warns `JANUS_EVENT_FAILED`, with the event's id |
 | `close()` | gives up what waits, as `closed` | gives nothing up |
 | Endpoint id when there is no `id` | the position in `endpoints` | a hash of the URL |

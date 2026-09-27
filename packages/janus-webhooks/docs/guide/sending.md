@@ -369,8 +369,8 @@ until every delivery due at `close()` has had its attempt, `concurrency` at a
 time: an event that reached the listener before `close()` — even one taken
 while every slot was busy — is sent, not given up with `attempts: 0`. With a
 `queue`, it claims nothing more from the moment it is called: an event whose
-insert lands during `close()` waits in the queue, with everything else due,
-for the next process. Then it depends on the queue:
+insert lands during `close()`, or that found every slot busy, waits in the
+queue, with everything else due, for the next process. Then it depends on the queue:
 
 | | Without a `queue` | With a `queue` |
 | --- | --- | --- |
