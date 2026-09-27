@@ -164,6 +164,22 @@ package's `mails/` folder, on the first one sent. On an edge runtime, pass
 every template yourself — or wait for the inlined build on the
 [roadmap](docs/roadmap.md).
 
+**Keep `@nxgt/janus-mail` out of your server bundle.** The default e-mails
+are found beside the code, at `new URL('../mails/', import.meta.url)`.
+Bundling the package into your own server file moves `import.meta.url` to
+your bundle, where there is no `mails/`, and the first e-mail sent throws
+`createMailRenderer: …/mails/mail-manifest.json cannot be read`. Mark it
+external — `external: ['@nxgt/janus-mail']` in esbuild or `Bun.build`,
+`ssr.external` in Vite — and deploy `node_modules/@nxgt/janus-mail/` whole,
+`mails/` included. See
+[troubleshooting](docs/troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder).
+
+**A link answers a string, at once.** Each `links` function is called at
+send time and must return an `http(s)` or `mailto:` URL as a string: an
+`async` function or a `URL` object is a `TypeError` naming the call.
+`links`, `from` and `replyTo` are copied when `janusMail()` is called, so
+changing them afterwards changes nothing.
+
 **A locale beyond `en` and `fr` needs every template.** The defaults are
 built in those two only, so `locales: ['en', 'fr', 'de']` without all five
 templates is a compile error, and a `TypeError` in JavaScript.

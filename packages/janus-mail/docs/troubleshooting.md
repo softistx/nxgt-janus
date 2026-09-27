@@ -38,6 +38,7 @@ How the messages are shaped:
 **Sending**
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`](#mail_refused--render-email-link-must-be-an-http-https-or-mailto-url)
+- [`janusMail.<method>: links.<call> must answer a string`](#janusmailmethod-linkscall-must-answer-a-string)
 - [`render: <email>: link must be a string or a finite number`](#render-email-link-must-be-a-string-or-a-finite-number)
 - [`MAIL_REFUSED` — from the mailer](#mail_refused--from-the-mailer)
 - [`MAIL_FAILED` — `MailFailure`](#mail_failed--mailfailure)
@@ -45,7 +46,7 @@ How the messages are shaped:
 - [`Could not resolve "node:fs"` on an edge runtime](#could-not-resolve-nodefs-on-an-edge-runtime)
 
 **Compile errors**
-- [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken--user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
+- [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
 - [`TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`](#ts2739-type----is-missing-the-following-properties-from-type-janusmailtemplates)
 - [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
 
@@ -178,11 +179,35 @@ links: { verifyEmail: (token) => new URL(`/verify?token=${encodeURIComponent(tok
 
 Sending it again fails again: it is a bug, not an outage.
 
+A `mailto:` URL is accepted — `secureAccount: () => 'mailto:security@acme.example'`
+sends a user who did not make the change to your support desk.
+
+### `janusMail.<method>: links.<call> must answer a string`
+
+A `TypeError` from a call, before anything is rendered or sent
+(`mailer.attempts` stays 0) — `janusMail.verifyEmail: links.verifyEmail(token)
+must answer a string`, `janusMail.emailChanged: links.secureAccount() must
+answer a string`. The `links` function answered something other than a
+string: a `URL` object, `undefined`, or a promise — an `async` function.
+Answer `url.href`, and compute the link synchronously:
+
+```ts
+const base = new URL('https://acme.example');
+links: {
+	verifyEmail: (token) => new URL(`/verify?token=${encodeURIComponent(token)}`, base).href,
+	…
+}
+```
+
+A link that needs a lookup — a tenant's domain — is looked up before the
+call, and the `links` function reads what was looked up.
+
 ### `render: <email>: link must be a string or a finite number`
 
-A `TypeError` from the renderer: a `links` function answered something other
-than a string — a `URL` object, a promise, `undefined`. Answer `url.href`,
-and compute the link synchronously. The renderer's other messages —
+A `TypeError` from the renderer, when `janusTemplates()` or
+`mail.templates.*` is called directly with a `link` that is not a string;
+`janusMail()`'s methods check the link first, and throw the entry above
+instead. The renderer's other messages —
 `render: the locale asked for is not one of the build's, en, fr` and
 `render: <email> needs the variable <name>` — come from calling
 `janusTemplates()` or `mail.templates.*` directly with a locale not built or

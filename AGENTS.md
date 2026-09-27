@@ -68,7 +68,12 @@ floor itself: no later minor was published when the range was widened. For
 `@nxgt/mongo` it is 0.17.1, above the 0.17.0 floor, and CI runs that version
 from the lock. The `janus-mongo` and `janus-kit` suites were also run once by
 hand, outside the lock, against 0.17.0 (the floor) and 0.18.1 (the newest
-minor then published). Both passed, with typecheck clean.
+minor then published). Both passed, with typecheck clean. `@nxgt/mail`, from
+nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.5.0 from
+the lock. The `janus-mail` suite was run once by hand, outside the lock,
+against 0.1.0 (the floor), and again against 0.1.0, 0.4.0 and 0.5.0 after the
+move to 0.5.0. All passed, with typecheck clean. The `mails/` build reads the
+same under every one of them.
 
 ### The other three declared divergences
 

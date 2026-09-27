@@ -134,7 +134,11 @@ function resolveTemplates(
 	const built = locales.every((locale) =>
 		(LOCALES as readonly string[]).includes(locale),
 	);
-	const missing = TEMPLATE_NAMES.filter((name) => !(name in given));
+	// Own enumerable keys, the ones the spread below copies: a template on a
+	// prototype, or hidden from `Object.keys`, is not passed, so it cannot
+	// satisfy this guard either.
+	const passed = Object.keys(given);
+	const missing = TEMPLATE_NAMES.filter((name) => !passed.includes(name));
 	if (!built && missing.length > 0) {
 		refuse(
 			`the default templates are built in ${LOCALES.join(' and ')} only — with another ` +
@@ -147,7 +151,31 @@ function resolveTemplates(
 	return Object.freeze({ ...defaults, ...given }) as JanusMailTemplates<string>;
 }
 
-/** Checks `janusMail()`'s options and answers them resolved, or throws a `TypeError`. */
+/** A frozen copy of a checked address: a later change to the caller's object is not seen. */
+function frozenAddress(address: Address): Address {
+	return typeof address === 'string'
+		? address
+		: Object.freeze({ name: address.name, address: address.address });
+}
+
+/**
+ * A frozen copy of the checked links, each bound to the caller's object — a
+ * class instance's methods keep their `this` — so replacing a link after
+ * `janusMail()` cannot undo the check.
+ */
+function frozenLinks(links: JanusMailLinks): JanusMailLinks {
+	return Object.freeze({
+		verifyEmail: links.verifyEmail.bind(links),
+		resetPassword: links.resetPassword.bind(links),
+		secureAccount: links.secureAccount.bind(links),
+	});
+}
+
+/**
+ * Checks `janusMail()`'s options and answers them resolved, or throws a
+ * `TypeError`. What was checked is copied and frozen, so the guarantee made
+ * here holds at every send.
+ */
 export function resolveOptions(options: unknown): ResolvedOptions {
 	if (!isObject(options)) {
 		refuse('options must be an object, as { mailer, from, brand, links }');
@@ -156,10 +184,13 @@ export function resolveOptions(options: unknown): ResolvedOptions {
 	const { locales, fallbackLocale } = resolveLocales(options);
 	return Object.freeze({
 		mailer: options.mailer as Mailer,
-		from: options.from as Address,
-		replyTo: options.replyTo as Address | undefined,
+		from: frozenAddress(options.from as Address),
+		replyTo:
+			options.replyTo === undefined
+				? undefined
+				: frozenAddress(options.replyTo as Address),
 		brand: options.brand as string,
-		links: options.links as unknown as JanusMailLinks,
+		links: frozenLinks(options.links as unknown as JanusMailLinks),
 		locales,
 		fallbackLocale,
 		templates: resolveTemplates(options, locales),

@@ -77,6 +77,41 @@ describe('templates', () => {
 		);
 	});
 
+	test('a template on a prototype does not count as given', () => {
+		// Every template is a method of the class, none an own property: none
+		// would be copied, so the guard must see all five missing.
+		class Templates {
+			verifyEmail() {
+				return plain('Hallo');
+			}
+			resetPassword() {
+				return plain('Hallo');
+			}
+			signInCode() {
+				return plain('Hallo');
+			}
+			passwordChanged() {
+				return plain('Hallo');
+			}
+			emailChanged() {
+				return plain('Hallo');
+			}
+		}
+		expect(() =>
+			janusMail({
+				...baseOptions(),
+				locales: ['en', 'fr', 'de'],
+				templates: new Templates(),
+			}),
+		).toThrow(
+			new TypeError(
+				'janusMail: the default templates are built in en and fr only — with another ' +
+					'locale in locales, pass every template in templates; verifyEmail, ' +
+					'resetPassword, signInCode, passwordChanged, emailChanged missing',
+			),
+		);
+	});
+
 	test('a locale beyond en and fr works once every template is given', async () => {
 		const options = baseOptions();
 		const own =

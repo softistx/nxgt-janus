@@ -170,7 +170,7 @@ reaches the e-mail, nor a template of yours.
 if (issued !== null) await mail.signInCode(issued, { locale: 'fr-CA' }); // the recipient's locale: sent in fr
 ```
 
-Its send rejects when the transport fails, so the `void sendMail(…)` above
+Its send rejects with the mailer's `MailFailure` when the transport fails, so the `void sendMail(…)` above
 does not carry over: to send after the answer, hand `mail.signInCode` to a
 queue that awaits it and retries a `MailFailure` — a promise nobody awaits
 turns an outage into an unhandled rejection.

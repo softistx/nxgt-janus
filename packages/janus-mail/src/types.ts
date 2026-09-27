@@ -84,7 +84,15 @@ export interface Recipient {
 	readonly locale?: WantedLocales;
 }
 
-/** The links of the e-mails, each an absolute `http(s)` URL of your application. */
+/**
+ * The links of the e-mails, each an absolute `http(s)` URL of your
+ * application. Each is called at send time and must answer a string
+ * synchronously, else the send throws a `TypeError` naming the call. A
+ * `mailto:` URL is accepted too — `secureAccount: () => 'mailto:security@acme.example'`
+ * sends the user to your support desk; any other scheme is refused by the
+ * renderer with a `MailRefused`. The functions are copied when `janusMail()`
+ * is called: replacing one afterwards changes nothing.
+ */
 export interface JanusMailLinks {
 	/** The page that confirms an e-mail, given the one-time token: `(token) => \`https://app.example/verify?token=${token}\`` */
 	readonly verifyEmail: (token: string) => string;

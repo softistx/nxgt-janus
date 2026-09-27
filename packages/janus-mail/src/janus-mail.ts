@@ -27,6 +27,20 @@ function field(method: string, value: unknown, key: string): string {
 	return read;
 }
 
+/**
+ * What a `links` function answered, or a `TypeError` naming the method and
+ * the call. Its scheme is the renderer's to check: `http(s)` and `mailto:`
+ * pass, anything else is its `MailRefused`.
+ */
+function link(method: string, value: unknown, call: string): string {
+	if (typeof value !== 'string') {
+		throw new TypeError(
+			`janusMail.${method}: links.${call} must answer a string`,
+		);
+	}
+	return value;
+}
+
 /** The locale the recipient gets: the first they want that is sent in, else the fallback. */
 function localeFor(options: ResolvedOptions, to: unknown): string {
 	const wanted =
@@ -78,7 +92,11 @@ function methods(
 				{
 					brand,
 					name: field('verifyEmail', to, 'name'),
-					link: links.verifyEmail(token),
+					link: link(
+						'verifyEmail',
+						links.verifyEmail(token),
+						'verifyEmail(token)',
+					),
 					locale: localeFor(options, to),
 				},
 			);
@@ -92,7 +110,11 @@ function methods(
 				{
 					brand,
 					name: field('resetPassword', to, 'name'),
-					link: links.resetPassword(token),
+					link: link(
+						'resetPassword',
+						links.resetPassword(token),
+						'resetPassword(token)',
+					),
 					locale: localeFor(options, to),
 				},
 			);
@@ -113,7 +135,11 @@ function methods(
 				{
 					brand,
 					name: field('passwordChanged', to, 'name'),
-					link: links.secureAccount(),
+					link: link(
+						'passwordChanged',
+						links.secureAccount(),
+						'secureAccount()',
+					),
 					locale: localeFor(options, to),
 				},
 			);
@@ -127,7 +153,7 @@ function methods(
 				{
 					brand,
 					name: field('emailChanged', to, 'name'),
-					link: links.secureAccount(),
+					link: link('emailChanged', links.secureAccount(), 'secureAccount()'),
 					newEmail: field('emailChanged', to, 'newEmail'),
 					locale: localeFor(options, to),
 				},

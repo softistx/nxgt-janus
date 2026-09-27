@@ -59,8 +59,12 @@ if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name }
 ```
 
 Each e-mail goes to `issued.email`. A send that fails rejects with the
-transport's `MailFailure` — never report it as sent — and one refused, a link
-that is not `http(s)` or an address that is not one, with `MailRefused`.
+mailer's `MailFailure` — never report it as sent — and one refused, a link
+that is not `http(s)` or `mailto:` or an address that is not one, with
+`MailRefused`. A `mailto:` link is accepted on purpose —
+`secureAccount: () => 'mailto:security@app.example'` points a user who made
+no change at your support desk. Each link must answer a string at once: an
+`async` function is a `TypeError` naming the call.
 
 ## Which types have these flows
 

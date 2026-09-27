@@ -51,8 +51,16 @@ time one is sent, and kept.
 
 Every link is called at send time, and must answer an absolute `http:`,
 `https:` or `mailto:` URL: a default template refuses anything else with
-`MailRefused`, before the mailer is called. Encode a token you put in a query
-string yourself (`encodeURIComponent`).
+`MailRefused`, before the mailer is called. `mailto:` is accepted on purpose:
+`secureAccount: () => 'mailto:security@acme.example'` points a user who made
+no change at your support desk. A link must be answered synchronously, as a
+string — a `URL` object or a promise is a `TypeError` naming the call,
+`janusMail.verifyEmail: links.verifyEmail(token) must answer a string`.
+Encode a token you put in a query string yourself (`encodeURIComponent`).
+
+`links`, `from` and `replyTo` are copied and frozen when `janusMail()` is
+called: what was checked then is what every send uses, and changing your
+object afterwards changes nothing.
 
 A wrong option is a bare `TypeError` when `janusMail()` is called, naming the
 option and never its value — every message is in
@@ -148,8 +156,8 @@ defines no error class and wraps nothing:
 | --- | --- | --- | --- |
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
-| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` | A bug to fix |
-| `Error` from `createMailRenderer` | the renderer | `mails/` is missing from the installed package | Reinstall; see [troubleshooting](../troubleshooting.md) |
+| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or a link that is not a string — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string` | A bug to fix |
+| `Error` from `createMailRenderer` | the renderer | `mails/` is missing where the package runs: a bundler inlined `@nxgt/janus-mail`, or a deploy kept `dist/` only | Keep `@nxgt/janus-mail` external to your bundle and deploy its `mails/` with it; see [troubleshooting](../troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is
 a peer: one copy defines them.
