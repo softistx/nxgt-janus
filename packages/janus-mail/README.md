@@ -224,7 +224,7 @@ without the same `clock` here, a clock set in the past makes every send an
 **Locales are BCP 47 tags: `fr-CA`, never `fr_CA`.** The expiry is
 formatted by `Intl` in the locale picked, so a locale `Intl` refuses is a
 `TypeError` from `janusMail()`:
-[`locales must be BCP 47 language tags, as 'fr-CA'`](docs/troubleshooting.md#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca).
+[`janusMail: locales must be BCP 47 language tags, as 'fr-CA'`](docs/troubleshooting.md#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca).
 
 **The expiry is formatted by the runtime's `Intl`.** A locale the runtime has
 no data for is formatted in its default language, and French puts a no-break

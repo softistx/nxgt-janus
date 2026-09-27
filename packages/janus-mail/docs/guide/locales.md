@@ -50,7 +50,7 @@ override can branch on it.
 
 Each locale must be a BCP 47 tag — `fr-CA`, never `fr_CA` — and `janusMail()`
 refuses anything else with a `TypeError`:
-[`locales must be BCP 47 language tags, as 'fr-CA'`](../troubleshooting.md#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca).
+[`janusMail: locales must be BCP 47 language tags, as 'fr-CA'`](../troubleshooting.md#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca).
 
 **Fewer locales.** `locales: ['en']` sends English to everyone, a French
 speaker included; the defaults still fit, and `templates` stays partial.
