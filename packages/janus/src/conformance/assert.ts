@@ -61,22 +61,27 @@ export function rejects(
  *
  * The probe says what breaks; `verify:artifacts` says whether a duplicate is
  * present. Both are needed.
+ *
+ * `name` is the error's own `name` field, passed rather than read from
+ * `cls.name`: a bundler renames a class that collides — `StoreFailure2` in
+ * `dist` — and the probe would then never recognise the duplicate.
  */
 export function isOurs<T>(
 	error: unknown,
 	cls: abstract new (...args: never[]) => T,
+	name: string,
 	what: string,
 ): asserts error is T {
 	if (error instanceof cls) return;
 
 	// Same name, not the same class: the duplicate the probe exists for.
-	if ((error as { name?: unknown } | null)?.name === cls.name) {
+	if ((error as { name?: unknown } | null)?.name === name) {
 		throw new Error(
-			`${what}\n  the error is named ${cls.name} but is not @nxgt/janus's ${cls.name}: two copies of @nxgt/janus are installed. The adapter must list it as a peer dependency, never a dependency`,
+			`${what}\n  the error is named ${name} but is not @nxgt/janus's ${name}: two copies of @nxgt/janus are installed. The adapter must list it as a peer dependency, never a dependency`,
 		);
 	}
 
-	throw new Error(`${what}\n  expected ${cls.name}, got ${show(error)}`);
+	throw new Error(`${what}\n  expected ${name}, got ${show(error)}`);
 }
 
 interface Difference {

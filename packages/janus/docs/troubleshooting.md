@@ -107,6 +107,7 @@ How the messages are shaped:
 - [`describeJanusStores: no test runner on globalThis …`](#describejanusstores-no-test-runner-on-globalthis--pass-runner--describe-it--under-bun-test-import-them-from-buntest)
 - [`JANUS_CONFORMANCE_SKIPPED` — `faults not provided: the outage invariant is not proven for this adapter`](#janus_conformance_skipped--faults-not-provided-the-outage-invariant-is-not-proven-for-this-adapter)
 - [`the error is named <Class> but is not @nxgt/janus's <Class>: two copies of @nxgt/janus are installed …`](#the-error-is-named-class-but-is-not-nxgtjanuss-class-two-copies-of-nxgtjanus-are-installed-the-adapter-must-list-it-as-a-peer-dependency-never-a-dependency)
+- [`expected <Class>, got <value>`](#expected-class-got-value)
 - [`expected null, got undefined — an absence is null; undefined is a store that forgot to answer`](#expected-null-got-undefined--an-absence-is-null-undefined-is-a-store-that-forgot-to-answer)
 
 ---
@@ -1167,9 +1168,29 @@ A process warning, and the outage cases reported as skipped.
 
 ### `the error is named <Class> but is not @nxgt/janus's <Class>: two copies of @nxgt/janus are installed. The adapter must list it as a peer dependency, never a dependency`
 
-**When:** a conformance case that checks the class of an error — the outage and conflict cases.
-**Why:** the adapter imports its own copy of `@nxgt/janus`, so its `StoreFailure` or `StoreConflict` is not the core's, and `instanceof` fails.
+**When:** a conformance case that checks the class of an error — the outage, conflict and not-found cases.
+**Why:** the adapter imports its own copy of `@nxgt/janus`, so its `StoreFailure`, `StoreConflict` or `NotFoundError` is not the core's, and `instanceof` fails.
 **Fix:** move `@nxgt/janus` to `peerDependencies` (and `devDependencies` for the tests), then reinstall.
+
+### `expected <Class>, got <value>`
+
+The case's own sentence first — `users.findUser under an outage`, `insertUser should refuse a taken login with StoreConflict`.
+
+**When:** a conformance case that checks the class of an error, and the adapter threw — or answered — something else.
+**Why:** the port names the class: an outage is `StoreFailure`, a taken login `StoreConflict`, an update of an unknown id `NotFoundError`. A driver's own error, or an answer where a rejection was due, fails the case.
+**Fix:** wrap the driver's failure in the core's class, with the driver's error as `cause`:
+
+```ts
+try {
+	return await collection.findOne({ _id: id });
+} catch (cause) {
+	throw new StoreFailure('users.findUser: the store could not answer', {
+		slot: 'users',
+		operation: 'findUser',
+		cause,
+	});
+}
+```
 
 ### `expected null, got undefined — an absence is null; undefined is a store that forgot to answer`
 
