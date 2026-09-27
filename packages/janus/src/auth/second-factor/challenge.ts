@@ -24,10 +24,6 @@ export function challengeFlows(
 	type: ResolvedType,
 	at: (operation: string) => string,
 ) {
-	const { store, clock } = context;
-	const spend = (challenge: string, where: string) =>
-		spendOneTime(context, challenge, 'secondFactor', where, 'challenge');
-
 	return {
 		async issue(
 			record: UserRecord,
@@ -54,69 +50,88 @@ export function challengeFlows(
 		},
 
 		async confirm(challenge: string, code: string): Promise<SignedIn<AnyUser>> {
-			const where = at('secondFactor.confirm');
-			const configured = requireSettings(
-				context,
-				where,
-				'a second factor is being confirmed',
-			);
-			const secret = String(challenge);
-
-			const { token, attemptsLeft } = await countCodeAttempt(
-				context,
-				secret,
-				'secondFactor',
-				where,
-				type.name,
-			);
-
-			// A user gone since, or of another type, is as good as no challenge.
-			const record = await findRecord(context, token.userId, type.name);
-			if (record === null) {
-				throw await unknownChallenge(context, token, secret, where);
-			}
-			if (!record.active) {
-				await spend(secret, where);
-				throw new UserInactiveError(`${where}: the user is inactive`, {
-					userId: record.id,
-					userType: type.name,
-				});
-			}
-			if (!isActive(record.secondFactor)) {
-				await spend(secret, where);
-				throw new SecondFactorError(
-					'SECOND_FACTOR_NOT_ENROLLED',
-					`${where}: the user no longer has a second factor — sign in again`,
-					{ operation: where, userId: record.id, userType: type.name },
-				);
-			}
-
-			const now = clock.now();
-			const accepted = acceptCode(
-				configured,
-				record,
-				record.secondFactor,
-				String(code),
-				now,
-				where,
-			);
-			if (accepted === null) {
-				// The last attempt, and a wrong code: the challenge is spent.
-				if (attemptsLeft === 0) {
-					await burnOneTime(context, secret, 'secondFactor');
-				}
-				throw codeInvalid(where, record.id, type.name, attemptsLeft);
-			}
-
-			// Read, decided, then written under the version read: of two codes
-			// accepted at once, the second write is VERSION_CONFLICT.
-			const written = await store.users.updateUser(
-				record.id,
-				{ secondFactor: accepted, updatedAt: now },
-				record.version,
-			);
-			await spend(secret, where);
-			return openSession(context, type, written);
+			return confirmChallenge(context, type, challenge, code, at);
 		},
 	};
+}
+
+/** Spends a second-factor challenge, refusing it when this call did not. */
+const spendChallenge = (context: Context, challenge: string, where: string) =>
+	spendOneTime(context, challenge, 'secondFactor', where, 'challenge');
+
+/**
+ * Redeems a challenge with its code: counted first, then refused for a user
+ * gone, inactive or without a factor any more, then compared — and the factor
+ * written under the version read before the session opens.
+ */
+async function confirmChallenge(
+	context: Context,
+	type: ResolvedType,
+	challenge: string,
+	code: string,
+	at: (operation: string) => string,
+): Promise<SignedIn<AnyUser>> {
+	const where = at('secondFactor.confirm');
+	const configured = requireSettings(
+		context,
+		where,
+		'a second factor is being confirmed',
+	);
+	const secret = String(challenge);
+
+	const { token, attemptsLeft } = await countCodeAttempt(
+		context,
+		secret,
+		'secondFactor',
+		where,
+		type.name,
+	);
+
+	// A user gone since, or of another type, is as good as no challenge.
+	const record = await findRecord(context, token.userId, type.name);
+	if (record === null) {
+		throw await unknownChallenge(context, token, secret, where);
+	}
+	if (!record.active) {
+		await spendChallenge(context, secret, where);
+		throw new UserInactiveError(`${where}: the user is inactive`, {
+			userId: record.id,
+			userType: type.name,
+		});
+	}
+	if (!isActive(record.secondFactor)) {
+		await spendChallenge(context, secret, where);
+		throw new SecondFactorError(
+			'SECOND_FACTOR_NOT_ENROLLED',
+			`${where}: the user no longer has a second factor — sign in again`,
+			{ operation: where, userId: record.id, userType: type.name },
+		);
+	}
+
+	const now = context.clock.now();
+	const accepted = acceptCode(
+		configured,
+		record,
+		record.secondFactor,
+		String(code),
+		now,
+		where,
+	);
+	if (accepted === null) {
+		// The last attempt, and a wrong code: the challenge is spent.
+		if (attemptsLeft === 0) {
+			await burnOneTime(context, secret, 'secondFactor');
+		}
+		throw codeInvalid(where, record.id, type.name, attemptsLeft);
+	}
+
+	// Read, decided, then written under the version read: of two codes
+	// accepted at once, the second write is VERSION_CONFLICT.
+	const written = await context.store.users.updateUser(
+		record.id,
+		{ secondFactor: accepted, updatedAt: now },
+		record.version,
+	);
+	await spendChallenge(context, secret, where);
+	return openSession(context, type, written);
 }
