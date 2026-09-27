@@ -19,14 +19,17 @@ export interface RedisCase {
 	close(): Promise<void>;
 }
 
-const METHODS: readonly WebhookQueueMethod[] = [
-	'insertDeliveries',
-	'claimDeliveries',
-	'claimOrphanedDeliveries',
-	'extendLease',
-	'scheduleRetry',
-	'deleteDelivery',
-];
+/** Every method, once: a method the port gains fails to compile here. */
+const EVERY_METHOD = {
+	insertDeliveries: true,
+	claimDeliveries: true,
+	claimOrphanedDeliveries: true,
+	extendLease: true,
+	scheduleRetry: true,
+	deleteDelivery: true,
+} as const satisfies Record<WebhookQueueMethod, true>;
+
+const METHODS = Object.keys(EVERY_METHOD) as readonly WebhookQueueMethod[];
 
 /**
  * Opens a case as Redis users of its own — one per method — allowed only the

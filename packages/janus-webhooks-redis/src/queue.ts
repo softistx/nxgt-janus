@@ -3,7 +3,15 @@ import { StoreFailure } from '@nxgt/janus';
 import type { WebhookQueue } from '@nxgt/janus-webhooks';
 import type { RedisConnection } from '@nxgt/redis';
 import type { RedisClient } from 'bun';
-import { type Method, stamp, toCount, toDeliveries, toHeld } from './replies';
+import {
+	limitOf,
+	type Method,
+	stampOf,
+	statusOf,
+	toCount,
+	toDeliveries,
+	toHeld,
+} from './replies';
 import {
 	CLAIM_DELIVERIES,
 	CLAIM_ORPHANED_DELIVERIES,
@@ -46,28 +54,36 @@ export function createRedisWebhookQueue(
 ): WebhookQueue {
 	const prefix = options.prefix ?? 'janus:webhooks:';
 	const evaluate = scriptsOver(redis.client);
-	const run = <T>(
+	/**
+	 * Runs `operation`'s script over the arguments `argsOf` builds — which
+	 * refuses, before any I/O, what the script would store and no claim could
+	 * read back — and decodes its reply.
+	 */
+	const run = async <T>(
 		operation: Method,
 		script: string,
-		args: readonly string[],
+		argsOf: (operation: Method) => readonly string[],
 		decode: (reply: unknown, operation: Method) => T,
-	): Promise<T> =>
-		evaluate(operation, script, [prefix, ...args]).then((reply) =>
-			decode(reply, operation),
+	): Promise<T> => {
+		const args = argsOf(operation);
+		return decode(
+			await evaluate(operation, script, [prefix, ...args]),
+			operation,
 		);
+	};
 
 	return {
 		insertDeliveries: (event, endpoints, dueAt) =>
 			run(
 				'insertDeliveries',
 				INSERT_DELIVERIES,
-				[
+				(operation) => [
 					event.id,
 					event.type,
-					stamp(event.occurredAt),
+					stampOf(event.occurredAt, operation, 'event.occurredAt'),
 					event.userId,
 					event.userType,
-					stamp(dueAt),
+					stampOf(dueAt, operation, 'dueAt'),
 					...endpoints,
 				],
 				toCount,
@@ -78,10 +94,10 @@ export function createRedisWebhookQueue(
 			run(
 				'claimDeliveries',
 				CLAIM_DELIVERIES,
-				[
-					stamp(now),
-					stamp(leaseUntil),
-					String(limit),
+				(operation) => [
+					stampOf(now, operation, 'now'),
+					stampOf(leaseUntil, operation, 'leaseUntil'),
+					limitOf(limit, operation),
 					randomUUID(),
 					...endpoints,
 				],
@@ -92,10 +108,10 @@ export function createRedisWebhookQueue(
 			run(
 				'claimOrphanedDeliveries',
 				CLAIM_ORPHANED_DELIVERIES,
-				[
-					stamp(dueBefore),
-					stamp(leaseUntil),
-					String(limit),
+				(operation) => [
+					stampOf(dueBefore, operation, 'dueBefore'),
+					stampOf(leaseUntil, operation, 'leaseUntil'),
+					limitOf(limit, operation),
 					randomUUID(),
 					...known,
 				],
@@ -103,24 +119,29 @@ export function createRedisWebhookQueue(
 			),
 
 		extendLease: (id, lease, until) =>
-			run('extendLease', EXTEND_LEASE, [id, lease, stamp(until)], toHeld),
+			run(
+				'extendLease',
+				EXTEND_LEASE,
+				(operation) => [id, lease, stampOf(until, operation, 'until')],
+				toHeld,
+			),
 
 		scheduleRetry: (id, lease, dueAt, failed) =>
 			run(
 				'scheduleRetry',
 				SCHEDULE_RETRY,
-				[
+				(operation) => [
 					id,
 					lease,
-					stamp(dueAt),
-					failed.status === null ? '' : String(failed.status),
+					stampOf(dueAt, operation, 'dueAt'),
+					statusOf(failed.status, operation),
 					failed.error ?? '',
 				],
 				toHeld,
 			),
 
 		deleteDelivery: (id, lease) =>
-			run('deleteDelivery', DELETE_DELIVERY, [id, lease], toHeld),
+			run('deleteDelivery', DELETE_DELIVERY, () => [id, lease], toHeld),
 	};
 }
 

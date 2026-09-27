@@ -26,20 +26,29 @@
  * first, into `out`, and answers how many it may still claim. A member
  * whose hash is gone — a key deleted by hand — is dropped on the way, and
  * the walk goes on past it.
+ *
+ * `seen` holds the ids this call already claimed: a lease that ends at `now`
+ * or earlier leaves a delivery in range, and the walk past a stale member
+ * reads the range again — it must not answer that delivery twice.
  */
 const CLAIM_FROM = `
-local function claimFrom(p, endpoint, now, leaseUntil, lease, remaining, out)
+local function claimFrom(p, endpoint, now, leaseUntil, lease, remaining, out, seen)
 	local due = p .. 'due:' .. endpoint
+	local here = 0
 	local stale
 	repeat
 		stale = false
-		local ids = redis.call('ZRANGEBYSCORE', due, '-inf', now, 'LIMIT', 0, remaining)
+		local ids = redis.call('ZRANGEBYSCORE', due, '-inf', now, 'LIMIT', 0, remaining + here)
 		for _, id in ipairs(ids) do
 			local key = p .. 'delivery:' .. id
-			if redis.call('EXISTS', key) == 0 then
+			if seen[id] or remaining <= 0 then
+				-- claimed by this call already, or the limit is reached
+			elseif redis.call('EXISTS', key) == 0 then
 				redis.call('ZREM', due, id)
 				stale = true
 			else
+				seen[id] = true
+				here = here + 1
 				redis.call('HINCRBY', key, 'attempts', 1)
 				redis.call('HSET', key, 'lease', lease)
 				redis.call('ZADD', due, leaseUntil, id)
@@ -123,10 +132,15 @@ return redis.error_reply(tostring(failure))
 export const CLAIM_DELIVERIES = `${CLAIM_FROM}
 local p, now, leaseUntil, lease = ARGV[1], ARGV[2], ARGV[3], ARGV[5]
 local remaining = tonumber(ARGV[4])
-local out = {}
+local out, seen, walked = {}, {}, {}
 for i = 6, #ARGV do
 	if remaining <= 0 then break end
-	remaining = claimFrom(p, ARGV[i], now, leaseUntil, lease, remaining, out)
+	local endpoint = ARGV[i]
+	-- An endpoint named twice is walked once, as the memory queue does.
+	if not walked[endpoint] then
+		walked[endpoint] = true
+		remaining = claimFrom(p, endpoint, now, leaseUntil, lease, remaining, out, seen)
+	end
 end
 return out
 `;
@@ -146,10 +160,10 @@ for _, endpoint in ipairs(redis.call('SMEMBERS', p .. 'endpoints')) do
 	if not known[endpoint] then orphaned[#orphaned + 1] = endpoint end
 end
 table.sort(orphaned)
-local out = {}
+local out, seen = {}, {}
 for _, endpoint in ipairs(orphaned) do
 	if remaining <= 0 then break end
-	remaining = claimFrom(p, endpoint, dueBefore, leaseUntil, lease, remaining, out)
+	remaining = claimFrom(p, endpoint, dueBefore, leaseUntil, lease, remaining, out, seen)
 end
 return out
 `;
@@ -172,8 +186,9 @@ export const SCHEDULE_RETRY = `${LEASED}
 local p, id = ARGV[1], ARGV[2]
 local key = leased(p, id, ARGV[3])
 if not key then return 0 end
-redis.call('HSET', key, 'status', ARGV[5], 'error', ARGV[6], 'lease', '')
+-- Every read before the first write: what can fail then fails before any.
 local endpoint = redis.call('HGET', key, 'endpoint')
+redis.call('HSET', key, 'status', ARGV[5], 'error', ARGV[6], 'lease', '')
 redis.call('ZADD', p .. 'due:' .. endpoint, ARGV[4], id)
 return 1
 `;
@@ -188,8 +203,10 @@ local key = leased(p, id, ARGV[3])
 if not key then return 0 end
 local endpoint = redis.call('HGET', key, 'endpoint')
 local due = p .. 'due:' .. endpoint
-redis.call('ZREM', due, id)
+-- The hash first: a member left without it is dropped by the next claim,
+-- where a hash left without its member would wait for ever.
 redis.call('DEL', key)
+redis.call('ZREM', due, id)
 if redis.call('ZCARD', due) == 0 then
 	redis.call('SREM', p .. 'endpoints', endpoint)
 end

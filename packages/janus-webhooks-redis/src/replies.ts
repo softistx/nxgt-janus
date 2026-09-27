@@ -21,6 +21,39 @@ export function stamp(at: Date): string {
 	return String(at.getTime());
 }
 
+/**
+ * A time the caller passed, as milliseconds — or a `TypeError`, before any
+ * I/O, for an Invalid Date: `stamp` would write `'NaN'`, which no claim could
+ * read back. A date before 1970 is a negative number, and reads back.
+ */
+export function stampOf(at: Date, operation: Method, name: string): string {
+	if (!(at instanceof Date) || Number.isNaN(at.getTime())) {
+		throw new TypeError(`webhookQueue.${operation}: ${name} is a valid Date`);
+	}
+	return stamp(at);
+}
+
+/** A claim's `limit`, or a `TypeError`: a whole number of deliveries, 0 or more. */
+export function limitOf(limit: number, operation: Method): string {
+	if (!Number.isSafeInteger(limit) || limit < 0) {
+		throw new TypeError(
+			`webhookQueue.${operation}: limit is a whole number of deliveries, 0 or more`,
+		);
+	}
+	return String(limit);
+}
+
+/** A failure's `status`, or a `TypeError`: `null`, or a whole number. */
+export function statusOf(status: number | null, operation: Method): string {
+	if (status === null) return '';
+	if (!Number.isSafeInteger(status) || status < 0) {
+		throw new TypeError(
+			`webhookQueue.${operation}: failed.status is null or a whole number`,
+		);
+	}
+	return String(status);
+}
+
 /** `[[id, field, value, …], …]` as the deliveries a claim took. */
 export function toDeliveries(
 	reply: unknown,
@@ -102,7 +135,15 @@ function readerOf(reply: readonly unknown[], operation: Method) {
 	return {
 		text,
 		count: (name: string) => digits(name, `a count in \`${name}\``),
-		date: (name: string) => new Date(digits(name, `a date in \`${name}\``)),
+		/** As `@nxgt/janus-redis` reads one: before 1970 is negative; '' and 'NaN' are not dates. */
+		date: (name: string): Date => {
+			const value = text(name);
+			const at = new Date(Number(value));
+			if (value === '' || Number.isNaN(at.getTime())) {
+				throw unreadable(operation, `a date in \`${name}\``);
+			}
+			return at;
+		},
 		type: (name: string): UserEventType => {
 			const value = text(name);
 			if (!Object.hasOwn(TYPES, value))
