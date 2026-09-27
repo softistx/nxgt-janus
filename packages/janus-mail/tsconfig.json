@@ -1,0 +1,10 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"rootDirs": ["src"],
+		"outDir": "dist",
+		"noImplicitAny": true,
+		"exactOptionalPropertyTypes": true
+	},
+	"exclude": ["node_modules", "dist", "mails", "mail/.maizzle"]
+}

@@ -1,0 +1,72 @@
+{
+	"name": "@nxgt/janus-mail",
+	"version": "0.0.0",
+	"private": true,
+	"description": "The e-mails of @nxgt/janus's flows — e-mail verification, password reset, sign-in code, password changed, e-mail changed — rendered in English and French from a prebuilt Maizzle build, with your brand, sent through any @nxgt/mail transport",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"mails",
+		"docs",
+		"README.md",
+		"package.json",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"keywords": [
+		"identity",
+		"authentication",
+		"email",
+		"transactional",
+		"janus",
+		"typescript"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/softistx/nxgt-janus.git",
+		"directory": "packages/janus-mail"
+	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org",
+		"access": "public"
+	},
+	"scripts": {
+		"build": "bun run build:mail && bun run ../../build.ts",
+		"build:mail": "bun run scripts/build-mail.ts",
+		"test": "bun test src scripts",
+		"typecheck": "tsc --noEmit"
+	},
+	"nxgt": {
+		"entrypoints": [
+			"src/index.ts"
+		]
+	},
+	"devDependencies": {
+		"@maizzle/framework": "6.1.7",
+		"@maizzle/tailwindcss": "1.5.6",
+		"@nxgt/janus": "workspace:^",
+		"@nxgt/mail": "0.4.0",
+		"@nxgt/mail-config": "0.1.0",
+		"@nxgt/mail-i18n": "0.1.0",
+		"@nxgt/mail-presets": "0.1.0",
+		"@nxgt/mail-ui": "0.1.0",
+		"@types/bun": "^1.4.2",
+		"vue": "3.5.43",
+		"vue-tsc": "^3.3.11"
+	},
+	"peerDependencies": {
+		"@nxgt/janus": "workspace:^",
+		"@nxgt/mail": ">=0.1.0 <1",
+		"typescript": "^6.0.3"
+	}
+}
