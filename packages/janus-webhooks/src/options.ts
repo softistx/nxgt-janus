@@ -110,8 +110,10 @@ function delaysOf(
 	}
 	return list.map((delay: Duration) => {
 		const ms = parseDuration(delay, `${where}: retries`);
-		// Past it, setTimeout fires at once: a retry meant for a month
-		// later would be sent immediately.
+		// The worker caps a retry's reminder at LONGEST, since setTimeout
+		// fires at once past it, and the reminder claims as of the retry's
+		// due time: a retry meant for a month later would be sent after
+		// 24.8 days.
 		if (ms > LONGEST) {
 			throw new TypeError(`${where}: retries wait at most 24 days each`);
 		}

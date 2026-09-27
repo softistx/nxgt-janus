@@ -130,7 +130,7 @@ webhooks({ endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus/v2
 | `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.deleted` | a type `janus` never sends, or `types` not a list |
 | `webhooks: retries: …`, `webhooks: timeout: …` | a duration `parseDuration` refuses: `'soon'`, `-1` |
 | `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
-| `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, which `setTimeout` would fire at once |
+| `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, the longest `setTimeout` waits: the retry would be sent early |
 | `webhooks: an endpoint's id is 1 to 64 letters, digits, '.', '_' or '-'` | an `id` that is not a string, is empty or too long, or holds another character — a URL, a space |
 | `webhooks: two endpoints have one id — …` | two `id`s written alike, or, with a `queue`, two endpoints with the same URL and no `id`, or an `id` written that is another's hashed URL. Without a `queue`, an `id` written such as `'1'` may equal another endpoint's position: each is sent under its position |
 | `webhooks: queue is not a WebhookQueue — it has no <method>` | a `queue` missing one of the port's six methods |

@@ -17,7 +17,7 @@ included.
 
 ```sh
 bun add @nxgt/janus-webhooks-redis @nxgt/janus-webhooks @nxgt/janus @nxgt/redis
-bun add zod                  # @nxgt/redis's peer, if your application has none
+bun add zod                  # @nxgt/redis's peer, zod 4, if your application has none
 bun add -d typescript        # 6
 ```
 
@@ -30,9 +30,10 @@ Every peer is required:
   so this runs on **Bun**;
 - `typescript` 6.
 
-It needs **Redis 7.0 or later**, or Valkey. Like `@nxgt/janus`, it expects
-`"moduleResolution": "bundler"`. `@nxgt/redis` itself requires `zod` 4 as a
-peer: `bun add zod` if your application does not already use it.
+It needs **Redis 7.0 or later**, or Valkey, and is tested on 7.4: the scripts
+use no command newer than Redis 4, but 7.0 is what `@nxgt/janus-redis` needs,
+and one Redis usually serves both. Like `@nxgt/janus`, it expects
+`"moduleResolution": "bundler"`.
 
 ## Usage
 
@@ -74,35 +75,13 @@ the prefix, and what Redis must be configured with.
 
 ## What Redis holds
 
-Each key starts with the prefix.
-
-| Key | Holds |
-| --- | --- |
-| `delivery:<event id>:<type>:<endpoint id>` | the delivery, as a hash: the event's five fields, the endpoint id, `attempts`, the claim's `lease`, and the last failure's `status` and `error` |
-| `due:<endpoint id>` | the endpoint's deliveries, as a sorted set scored by when each is due — or, while claimed, when its lease ends |
-| `endpoints` | the endpoint ids with deliveries waiting, as a set: what the orphan claim walks |
-
-No URL and no secret is stored: the queue holds the endpoint's id, and the
-URL and secrets are read from the running configuration at each attempt.
-Dates are milliseconds since the epoch, passed in by `@nxgt/janus-webhooks` —
-never Redis's clock. A delivery's keys go with its last delete: an empty
-queue holds nothing.
-
-**Every method is one Lua script.** Redis runs nothing else while a script
-runs, so of twenty claims at once, no two answer one delivery. Redis does
-not roll a script back when a command in it fails half-way — a permission
-refused, a key of the wrong type — so **the insert undoes its own writes**
-before it fails, and is all or none. The others are not undone: a claim
-refused half-way costs the deliveries it already took one attempt, and at
-most one lease before they are claimed again; `deleteDelivery` removes the hash
-before its member, so what it leaves is a member the next claim drops; and
-`scheduleRetry` refused half-way has released its lease and stored its
-failure, and is retried when the old lease ends — earlier than scheduled. A
-time, a `limit` or a `failed.status` the queue could not read back — an
-Invalid Date, a limit of `2.5`, a status of `503.5` — is refused with a
-`TypeError` before anything is sent. The scripts are sent by SHA
-(`EVALSHA`), and in full only when Redis has forgotten them after a restart,
-a failover or a `SCRIPT FLUSH`.
+Three kinds of key under the prefix — a hash per delivery, a sorted set of
+due deliveries per endpoint, and the set of endpoints — and **never a URL
+or a secret**. Every method is one Lua script, so no two claims answer one
+delivery, and an insert refused half-way is undone.
+[Wiring](docs/guide/wiring.md#what-redis-holds-and-for-how-long) has each
+key, how long it stays, and what a script leaves when Redis refuses it
+half-way.
 
 ## Traps
 
@@ -120,9 +99,6 @@ a failover or a `SCRIPT FLUSH`.
   awaits the insert, and Bun's client queues commands while it reconnects.
   With `enableOfflineQueue: false` the insert fails at once, the flow goes
   on, and the event is reported as `JANUS_EVENT_FAILED`.
-- **Redis 7.0 or later.** Tested on 7.4. The scripts use no command newer
-  than Redis 4, but 7.0 is what `@nxgt/janus-redis` needs, and one Redis
-  usually serves both.
 - **One prefix per application.** Two applications sharing a prefix share
   deliveries, and each gives up the other's endpoints as `endpointRemoved`
   after `orphanGrace`.
