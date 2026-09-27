@@ -26,7 +26,7 @@
  */
 
 import { guardRelations } from '../stores/guard';
-import type { Bound } from './bound';
+import type { BoundModel } from './bound-model';
 import { can } from './can';
 import { tupleOf } from './input';
 import { list } from './list';
@@ -82,10 +82,10 @@ export function permissions<C extends ModelConfig>(
 	}
 	const store = guardRelations(options.store);
 
-	const bound: Bound = { model, store, maxDepth };
+	const bound: BoundModel = { model, store, maxDepth };
 	// `can` and `list` over what this call bound, as the API takes them.
-	const over =
-		<A extends unknown[], R>(call: (bound: Bound, ...rest: A) => R) =>
+	const withBoundModel =
+		<A extends unknown[], R>(call: (bound: BoundModel, ...rest: A) => R) =>
 		(...rest: A): R =>
 			call(bound, ...rest);
 
@@ -100,8 +100,8 @@ export function permissions<C extends ModelConfig>(
 
 	return Object.freeze({
 		model: options.model,
-		can: over(can) as Permissions<C>['can'],
-		list: over(list) as Permissions<C>['list'],
+		can: withBoundModel(can) as Permissions<C>['can'],
+		list: withBoundModel(list) as Permissions<C>['list'],
 		grant: change('grant') as Permissions<C>['grant'],
 		revoke: change('revoke') as Permissions<C>['revoke'],
 	});

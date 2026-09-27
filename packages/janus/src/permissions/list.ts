@@ -6,12 +6,12 @@
 import type { CursorPage } from '../pagination/cursor-page';
 import { pageLimit } from '../pagination/cursor-page';
 import { isStorable } from '../stores/storable';
-import type { Bound } from './bound';
+import type { BoundModel } from './bound-model';
 import { subjectOf, typeOf } from './input';
 import { Reverse } from './reverse';
 
 export async function list(
-	{ model, store, maxDepth }: Bound,
+	{ model, store, maxDepth }: BoundModel,
 	subject: unknown,
 	permission: string,
 	typeName: unknown,

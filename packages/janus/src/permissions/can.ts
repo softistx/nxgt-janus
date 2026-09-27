@@ -4,12 +4,12 @@
  */
 
 import { isStorable } from '../stores/storable';
-import type { Bound } from './bound';
+import type { BoundModel } from './bound-model';
 import { objectOf, subjectOf, typeOf } from './input';
 import { Walk } from './walk';
 
 export async function can(
-	{ model, store, maxDepth }: Bound,
+	{ model, store, maxDepth }: BoundModel,
 	subject: unknown,
 	permission: string,
 	object: unknown,

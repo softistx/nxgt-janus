@@ -9,9 +9,6 @@ import { emailOf } from '../context';
 import type { TokenRecord, UserRecord } from '../port/types';
 
 /**
- * The rules every one-time token shares — an e-mail link, a second-factor
- * challenge — kept in one place so the two cannot drift apart.
- *
  * `noun` is what the messages call it: `token` for a link, `challenge` for
  * what `signIn` answers. No message names the secret or its hash.
  */

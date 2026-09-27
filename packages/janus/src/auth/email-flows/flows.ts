@@ -1,3 +1,5 @@
+/** The e-mail flows of one user type, assembled from the files beside this one. */
+
 import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
 import type { ResetPasswordApi, VerifyEmailApi } from '../types';

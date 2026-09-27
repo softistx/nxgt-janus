@@ -26,11 +26,17 @@ export function lifecycleFlows(
 ): Lifecycle {
 	return {
 		async enroll(user, options) {
-			return enroll(context, type, user, options, at('secondFactor.enroll'));
+			return enrollFactor(
+				context,
+				type,
+				user,
+				options,
+				at('secondFactor.enroll'),
+			);
 		},
 
 		async activate(user, code, options) {
-			return activate(
+			return activateFactor(
 				context,
 				type,
 				user,
@@ -52,7 +58,7 @@ export function lifecycleFlows(
 }
 
 /** Writes a factor waiting for its first code, and answers the secret to show. */
-async function enroll(
+async function enrollFactor(
 	context: Context,
 	type: ResolvedType,
 	user: UserRef,
@@ -101,7 +107,7 @@ async function enroll(
 }
 
 /** Confirms a waiting factor with its first code: from then on, it is asked for. */
-async function activate(
+async function activateFactor(
 	context: Context,
 	type: ResolvedType,
 	user: UserRef,
