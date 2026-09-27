@@ -52,7 +52,7 @@ export function createRedisWebhookQueue(
 	redis: RedisConnection,
 	options: RedisWebhookQueueOptions = {},
 ): WebhookQueue {
-	const run = runnerOf(
+	const run = runner(
 		scriptsOver(redis.client),
 		options.prefix ?? 'janus:webhooks:',
 	);
@@ -125,7 +125,7 @@ type Run = <T>(
 ) => Promise<T>;
 
 /** A runner whose every script gets `prefix` as its first argument. */
-function runnerOf(evaluate: Evaluate, prefix: string): Run {
+function runner(evaluate: Evaluate, prefix: string): Run {
 	return async (operation, script, argsOf, decode) => {
 		const args = argsOf(operation);
 		return decode(

@@ -35,7 +35,7 @@ export function senderOf(context: SenderContext): Sender {
 }
 
 /** The endpoint a delivery names, by the key the queue holds it under. */
-function targetOf(
+function configuredTarget(
 	settings: Settings,
 	claimed: QueuedDelivery,
 ): Target | undefined {
@@ -68,7 +68,7 @@ async function giveUp(
 	const heartbeat = setInterval(() => void extend(), settings.leaseMs / 3);
 	heartbeat.unref?.();
 	try {
-		const target = targetOf(settings, claimed);
+		const target = configuredTarget(settings, claimed);
 		const url = target?.url ?? null;
 		const endpoint = target?.endpoint ?? claimed.endpoint;
 		await report(
@@ -124,7 +124,7 @@ async function attempt(
 	claimed: QueuedDelivery,
 ): Promise<void> {
 	const { queue, settings, guard } = context;
-	const target = targetOf(settings, claimed);
+	const target = configuredTarget(settings, claimed);
 	if (target === undefined) return abandon(context, claimed, 'endpointRemoved');
 	const { id, lease } = claimed;
 	const failed = await request(settings, target, claimed);
