@@ -48,6 +48,10 @@ override can branch on it.
 | `locales` | `['en', 'fr']`, the built ones | The locales an e-mail can be sent in. Its type is inferred as written: `['en']` makes `L` `'en'` |
 | `fallbackLocale` | `'en'` when in `locales`, else the first of them | Sent when the recipient wants none of `locales`. Must be one of them: another is a compile error, and a `TypeError` |
 
+Each locale must be a BCP 47 tag — `fr-CA`, never `fr_CA` — and `janusMail()`
+refuses anything else with a `TypeError`:
+[`janusMail: locales must be BCP 47 language tags, as 'fr-CA'`](../troubleshooting.md#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca).
+
 **Fewer locales.** `locales: ['en']` sends English to everyone, a French
 speaker included; the defaults still fit, and `templates` stays partial.
 

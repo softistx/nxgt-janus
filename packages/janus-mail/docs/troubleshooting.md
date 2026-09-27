@@ -28,13 +28,13 @@ How the messages are shaped:
 - [`janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount }`](#janusmail-links-must-be-an-object-as--verifyemail-resetpassword-secureaccount-)
 - [`janusMail: links.<name> must be a function`](#janusmail-linksname-must-be-a-function)
 - [`janusMail: locales must list at least one locale, as ['en', 'fr']`](#janusmail-locales-must-list-at-least-one-locale-as-en-fr)
+- [`janusMail: locales must be BCP 47 language tags, as 'fr-CA'`](#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca)
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
 - [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
 - [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
-- [`janusMail: locales must be BCP 47 language tags, with hyphens, as 'fr-CA'`](#janusmail-locales-must-be-bcp-47-language-tags-with-hyphens-as-fr-ca)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
 - [`janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing)
 
@@ -122,6 +122,19 @@ links: {
 `locales: []`, `locales: 'en'`, or a list holding something that is not a
 non-empty string. Leave it out for `['en', 'fr']`.
 
+### `janusMail: locales must be BCP 47 language tags, as 'fr-CA'`
+
+A `TypeError` when `janusMail()` is called: a locale in `locales` is one
+`Intl` refuses — `de_DE` with an underscore, a grandfathered `i-klingon`, a
+bare private-use `x-…`. The expiry is formatted by `Intl` in the locale
+picked, so a locale it cannot parse would fail at the first send; it is
+refused here instead. Write a tag `Intl` takes — `de-DE`, not `de_DE`; `tlh`,
+not `i-klingon`:
+
+```ts
+janusMail({ mailer, from, brand: 'Acme', links, locales: ['en', 'fr', 'de-DE'], templates });
+```
+
 ### `janusMail: locales holds the same locale twice`
 
 `['en', 'en']`. List each once.
@@ -175,18 +188,6 @@ as it is: fields are own properties.
 out: the defaults could not render them in that locale. Pass all five — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
-
-### `janusMail: locales must be BCP 47 language tags, with hyphens, as 'fr-CA'`
-
-A `TypeError` when `janusMail()` is called: a locale in `locales` is one
-`Intl` refuses — `de_DE` with an underscore, a grandfathered `i-klingon`, a
-bare private-use `x-…`. The expiry is formatted by `Intl` in the locale
-picked, so a locale it cannot parse would fail at the first send; it is
-refused here instead. Write the tag with hyphens:
-
-```ts
-janusMail({ mailer, from, brand: 'Acme', links, locales: ['en', 'fr', 'de-DE'], templates });
-```
 
 ### `janusMail: clock must be a Clock — an object with a now function`
 
