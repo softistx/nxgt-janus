@@ -37,7 +37,7 @@ webhooks({ endpoints: [{ url, secrets: [] }] });
 webhooks({ endpoints: [{ url, secrets: [process.env.WEBHOOK_SECRET] }] });
 
 // A type janus never sends.
-// @ts-expect-error the four user event types, no other
+// @ts-expect-error the six user event types, no other
 webhooks({ endpoints: [{ url, secrets: [secret], types: ['user.signedIn'] }] });
 
 // A retry written as a bare string.

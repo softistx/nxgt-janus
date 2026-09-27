@@ -85,6 +85,17 @@ half-way.
 
 ## Traps
 
+- **Upgrade every process that shares a queue before one sends a new event
+  type.** A delivery of `user.secondFactorEnabled` or
+  `user.secondFactorDisabled`, written by 0.2.0, is `STORE_FAILED` (`a
+  reply that is not … a user event type`) in a 0.1.x process that claims it,
+  and that endpoint's claims fail there until every process is upgraded.
+  Roll the upgrade out to all of them, then upgrade `@nxgt/janus`:
+
+  ```sh
+  bun add @nxgt/janus-webhooks-redis@^0.2.0 @nxgt/janus-webhooks@^0.3.0   # every process first
+  bun add @nxgt/janus@^0.9.0                                              # then the sender
+  ```
 - **Eviction is data loss.** A Redis whose `maxmemory-policy` evicts keys
   drops deliveries without a word — no retry, no `onGivingUp`. Run this on a
   Redis with `noeviction`; a full one then refuses the insert with `OOM`,
