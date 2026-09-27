@@ -169,10 +169,14 @@ waiting — a retry, a request cut short by a crash — the next one sends.
 lease, and a process that dies mid-request loses nothing: once the lease
 lapses, another process sends it again — so a receiver may see one twice,
 and a crash costs one attempt of the schedule. Receivers deduplicate on
-`webhook-id`, as they already must for a retry.
+`webhook-id`, as they already must for a retry. A `lease` is at least
+`timeout` plus one second: the worker extends it before reporting a failure,
+so a slow `onGivingUp` does not hand the delivery to another process.
 
-**Call `close()` on shutdown.** Without a `queue`, it waits for the requests
-in flight and gives up the deliveries waiting for a retry, each reported as
+**Call `close()` on shutdown.** Without a `queue`, it first sends every
+delivery due at `close()` — `concurrency` at a time, so an event taken while
+every slot was busy still gets its attempt — waits for the requests in
+flight, and gives up the deliveries waiting for a retry, each reported as
 `closed` — without it they vanish without a word. With one, it waits for the
 requests in flight and gives nothing up. `process.on('SIGTERM', () =>
 listener.close())`.
@@ -218,15 +222,17 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Ten plausible mistakes, ten refused at compile time.**
+**Eleven plausible mistakes, eleven refused at compile time.**
 `test/types/webhooks.ts` holds one `@ts-expect-error` per mistake, beside the
 wiring that must keep compiling (`janus({ events: webhooks(…) })`, with and
 without a `queue`): an endpoint with no secret, a secret read from the
 environment and not checked (`string | undefined`), a type `janus` never
 sends, a retry that is not a `Duration`, a receiver with no secret, reading a
 verified event before checking it for `null`, a queue missing a method, a
-`concurrency` written as a string, an endpoint `id` written as a number, and
-a `switch` over `reason.why` that forgets `endpointRemoved`.
+`concurrency` written as a string, an endpoint `id` written as a number, a
+`switch` over `reason.why` that forgets `endpointRemoved`, and an
+`onGivingUp` that reads `delivery.url` without checking it for `null` — the
+URL of an endpoint no longer configured.
 
 ## Documentation
 

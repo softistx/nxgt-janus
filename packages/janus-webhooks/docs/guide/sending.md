@@ -50,7 +50,7 @@ webhooks({ endpoints, retries?, timeout?, onGivingUp?, fetch?, queue?, concurren
 | `fetch` | `typeof fetch` | the global `fetch` | What the requests go through: a proxy, an instrumented `fetch`, a fake in a test |
 | `queue` | `WebhookQueue` | none: deliveries wait in this process's memory | Where deliveries wait, shared by every process that passes the same one — see [queues](queues.md) |
 | `concurrency` | `number` | `64` | How many requests this process sends at once, all endpoints together; the rest wait their turn in the queue |
-| `lease` | `Duration` | `timeout` plus `'30s'` | How long a delivery being sent is hidden from every other claim. Longer than `timeout` |
+| `lease` | `Duration` | `timeout` plus `'30s'` | How long a delivery being sent is hidden from every other claim. At least `timeout` plus `'1s'`: the margin extends the lease before a failure is reported |
 | `poll` | `Duration` | `'1s'`, give or take a fifth | With a `queue` only: how often it is asked for what other processes left due |
 | `orphanGrace` | `Duration` | `'24h'` | With a `queue` only: how long a delivery to an endpoint no process is configured with waits before it is given up as `endpointRemoved` |
 
@@ -132,11 +132,12 @@ webhooks({ endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus/v2
 | `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
 | `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, which `setTimeout` would fire at once |
 | `webhooks: an endpoint's id is 1 to 64 letters, digits, '.', '_' or '-'` | an `id` that is not a string, is empty or too long, or holds another character — a URL, a space |
-| `webhooks: two endpoints have one id — …` | two `id`s alike, or, with a `queue`, two endpoints with the same URL and no `id` |
+| `webhooks: two endpoints have one id — …` | two `id`s written alike, or, with a `queue`, two endpoints with the same URL and no `id`, or an `id` written that is another's hashed URL. Without a `queue`, an `id` written such as `'1'` may equal another endpoint's position: each is sent under its position |
 | `webhooks: queue is not a WebhookQueue — it has no <method>` | a `queue` missing one of the port's six methods |
 | `webhooks: concurrency is a whole number of requests, 1 or more` | `concurrency: '4'`, `0`, `2.5` |
 | `webhooks: poll and orphanGrace take effect with a queue only — …` | `poll` or `orphanGrace` without a `queue`: nothing polls a process's own memory |
-| `webhooks: lease must be longer than timeout — …` | a `lease` no longer than `timeout`: a request outliving its lease is sent twice |
+| `webhooks: lease must be at least timeout plus 1s — …` | a `lease` shorter than `timeout` plus a second: a request outliving its lease is sent twice |
+| `webhooks: timeout is too long — the default lease, timeout plus 30s, waits at most 24 days` | no `lease`, and a `timeout` within 30 seconds of 2³¹ − 1 ms |
 | `webhooks: lease: …`, `webhooks: poll: …`, `webhooks: orphanGrace: …` | a duration `parseDuration` refuses |
 | `webhooks: lease waits at most 24 days`, `webhooks: poll waits at most 24 days` | a timer past 2³¹ − 1 ms |
 
@@ -273,6 +274,11 @@ it to the next one, which takes it back once the lease lapses — sends it
 once more, and reports it again when that fails. Reporting is at least once
 too: key a dead-letter table on `delivery.event.id` and `delivery.endpoint`.
 
+With a `queue`, the lease is extended **before** the report — the attempt may
+have spent most of it — and every third of it while `onGivingUp` runs, so a
+slow report does not hand the delivery to another claim. When the lease is no
+longer held by then, nothing is reported: the claim that holds it decides.
+
 ### `onGivingUp`
 
 Keep what it receives where you can act on it — a dead-letter table, an
@@ -358,8 +364,10 @@ close(): Promise<void>;
 
 `close()` stops claiming, and waits for the inserts under way — an event that
 reached the listener before `close()` still gets its first attempt — and for
-the requests in flight, and the reports of those that fail. Then it depends
-on the queue:
+the requests in flight, and the reports of those that fail. Without a
+`queue`, it first keeps sending until every delivery due at `close()` has had
+its attempt, `concurrency` at a time: an event taken while every slot was
+busy is sent, not given up with `attempts: 0`. Then it depends on the queue:
 
 | | Without a `queue` | With a `queue` |
 | --- | --- | --- |
@@ -391,7 +399,12 @@ await listener.close();
 ```
 
 A request in flight is aborted after `timeout`, so `close()` waits for it
-no longer than that — plus the time `onGivingUp` takes.
+no longer than that — plus the time `onGivingUp` takes. Without a `queue`,
+the deliveries due at `close()` are sent `concurrency` at a time, so it waits
+about `timeout` for each batch of `concurrency` still unsent.
+
+An event no endpoint's `types` takes is dropped by the listener at once: it
+answers `undefined`, and nothing is inserted in the queue.
 
 ## The wire format
 

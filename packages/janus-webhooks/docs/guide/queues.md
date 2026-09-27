@@ -49,7 +49,8 @@ see [handling each event once](receiving.md#handling-each-event-once).
 ## How deliveries move
 
 1. **Insert.** The listener inserts one delivery per endpoint whose `types`
-   take the event, due now, and awaits that insert — never the request. Its
+   take the event, due now, and awaits that insert — never the request. An
+   event no endpoint takes inserts nothing. Its
    id is `` `${event.id}:${event.type}:${endpoint}` ``, so inserting the
    same event twice keeps one.
 2. **Claim.** One pump per process claims what is due, up to the
@@ -62,12 +63,15 @@ see [handling each event once](receiving.md#handling-each-event-once).
    and posted.
 4. **Then**: a `2xx` deletes it; a failure with a retry left schedules it,
    due after the delay, and releases the lease; a failure with none left is
-   given up — reported, then deleted.
+   given up — the lease extended, reported, then deleted.
 
 The pump is woken by an insert, by a timer this process sets for its own
 retries, and by a **poll** of the queue — every `poll` (`'1s'`, give or take
 a fifth) — which picks up retries other processes scheduled and leases that
-lapsed. While `onGivingUp` runs, the lease is extended every third of it.
+lapsed. Before `onGivingUp` runs, the lease is extended — the attempt may
+have spent most of it — then every third of it while it runs; when the
+extension answers `false`, another claim holds the delivery and nothing is
+reported.
 
 A delivery that waits for an endpoint id no configuration has — the endpoint
 was removed, or its URL changed without an `id` — is an **orphan**. Once it
@@ -80,6 +84,10 @@ When the queue fails, a `JANUS_WEBHOOK_QUEUE_FAILED` warning says so — once
 per outage — and the pump backs off, doubling from `poll` up to 30 seconds.
 Deliveries wait in the queue meanwhile. A write that fails after a request —
 a retry, a delete — leaves the lease to lapse, and the delivery is sent again.
+A claim that answers no list counts as a failure too. A delivery whose event
+cannot be written as a body — an adapter that answers a broken `occurredAt` —
+is counted as a failed attempt, with a warning, and given up once the
+schedule runs out, instead of looping.
 
 ## Choosing the options
 
@@ -89,13 +97,14 @@ webhooks({
 	queue,
 	concurrency: 64, // requests in flight per process, all endpoints together
 	timeout: '10s', // per request
-	lease: '40s', // > timeout: how long a claimed delivery is hidden
+	lease: '40s', // ≥ timeout + 1s: how long a claimed delivery is hidden
 	poll: '1s', // how often the queue is asked for what others left due
 	orphanGrace: '24h', // how long a delivery to an unknown endpoint waits
 });
 ```
 
-- **`lease`** must exceed `timeout`, and should leave room for clock skew
+- **`lease`** must be at least `timeout` plus a second — the margin extends
+  the lease before a failure is reported — and should leave room for clock skew
   between the processes: the time a lease is compared against is each
   process's own. Keep the processes on NTP.
 - **`poll`** is one call to the queue per second per process. Raise it to
@@ -127,7 +136,7 @@ interface WebhookQueue {
 
 | Method | Answers | Does |
 | --- | --- | --- |
-| `insertDeliveries` | how many were new | One delivery per endpoint, due at `dueAt`, **all or none**; an id already held is kept as it is |
+| `insertDeliveries` | how many were new, `0` for no endpoints | One delivery per endpoint, due at `dueAt`, **all or none**; an id already held is kept as it is — claimed or waiting for a retry, its lease, attempts and failure untouched |
 | `claimDeliveries` | the deliveries, `[]` when none | Up to `limit` due at `now`, the endpoints in the order given and each one's earliest first; each gets `attempts + 1`, a fresh lease, and is hidden until `leaseUntil` |
 | `claimOrphanedDeliveries` | the deliveries, `[]` when none | The same claim, for endpoints **not** in `known`, due at `dueBefore` or earlier |
 | `extendLease` | `false` when the lease is no longer held | Hides the delivery until `until` |
@@ -223,16 +232,21 @@ harness)` run them with no test framework — and
 | Case | What fails it |
 | --- | --- |
 | `queue.roundTrip` | an event that comes back altered, a date as a string, `attempts` not `1` after one claim |
+| `queue.everyType` | an event type stored or answered as another, or as a fixed one |
 | `queue.notBeforeDue` | a claim that answers a delivery a millisecond early, or `null` for none |
 | `queue.insertIsIdempotent` | a second insert of the same event making a second delivery |
-| `queue.insertIsAllOrNone` | an insert that fails half-way and leaves some endpoints |
+| `queue.insertNoEndpoint` | an insert for no endpoints that answers anything but `0`, or leaves something |
+| `queue.rejectedInsertLeavesNothing` | an insert that rejects and leaves some endpoints behind — needs `faults` |
 | `queue.endpointsFilter` | a claim that answers an endpoint it was not asked for |
 | `queue.earliestFirstAndLimit` | a claim that ignores due order, the endpoints' order, or `limit` |
 | `lease.hidden`, `lease.expires`, `lease.extend` | a claimed delivery claimable again before its lease ends, or never after |
+| `lease.insertKeepsClaim`, `lease.insertKeepsRetry` | an insert of the same event again that overwrites a delivery claimed or waiting for a retry — answers more than `0`, shows it, resets its attempts or its failure |
 | `lease.staleLease` | a write with a lease another claim took over that answers `true`, or changes anything |
 | `lease.scheduleRetry`, `lease.delete` | a retry due early, a failure forgotten, a delivery that comes back |
+| `lease.failureRoundTrip` | a failure with no status — `{ status: null, error: 'TimeoutError' }` — stored as another, or its error dropped |
 | `lease.concurrentClaims` | 20 claims at once answering one delivery twice |
 | `orphans.onlyUnknownAndOverdue` | an orphan claim that takes a known endpoint's delivery, or one not overdue |
+| `orphans.limit` | an orphan claim that ignores `limit` |
 | `outage.<method>` | a method that answers `[]`, `false` or `0` when the queue cannot answer |
 
 In a test of your own application, share one `createMemoryWebhookQueue()`

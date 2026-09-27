@@ -45,7 +45,8 @@ How the messages are shaped:
 - [`webhooks: queue is not a WebhookQueue — it has no <method>`](#webhooks-queue-is-not-a-webhookqueue--it-has-no-method)
 - [`webhooks: concurrency is a whole number of requests, 1 or more`](#webhooks-concurrency-is-a-whole-number-of-requests-1-or-more)
 - [`webhooks: poll and orphanGrace take effect with a queue only — pass one, or leave them out`](#webhooks-poll-and-orphangrace-take-effect-with-a-queue-only--pass-one-or-leave-them-out)
-- [`webhooks: lease must be longer than timeout — a request outliving its lease is sent twice`](#webhooks-lease-must-be-longer-than-timeout--a-request-outliving-its-lease-is-sent-twice)
+- [`webhooks: lease must be at least timeout plus 1s — a request that outlives its lease is sent twice`](#webhooks-lease-must-be-at-least-timeout-plus-1s--a-request-that-outlives-its-lease-is-sent-twice)
+- [`webhooks: timeout is too long — the default lease, timeout plus 30s, waits at most 24 days`](#webhooks-timeout-is-too-long--the-default-lease-timeout-plus-30s-waits-at-most-24-days)
 - [`webhooks: <lease or poll> waits at most 24 days`](#webhooks-lease-or-poll-waits-at-most-24-days)
 - [`webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.deleted, a userId and a userType`](#webhooks-the-listener-takes-a-user-event--an-id-one-of-usercreated-useremailverified-userpasswordreset-userdeleted-a-userid-and-a-usertype)
 - [`webhooks: an event's occurredAt is a valid Date`](#webhooks-an-events-occurredat-is-a-valid-date)
@@ -63,6 +64,7 @@ How the messages are shaped:
 - [`[JANUS_WEBHOOK_GAVE_UP] Warning: webhooks: gave up <type> <event id> to <origin> after <n> attempts (<why>, <status or error>)`](#janus_webhook_gave_up-warning-webhooks-gave-up-type-event-id-to-origin-after-n-attempts-why-status-or-error)
 - [`[JANUS_WEBHOOK_REPORT_FAILED] Warning: webhooks: onGivingUp failed on <type> <event id>: <name>`](#janus_webhook_report_failed-warning-webhooks-ongivingup-failed-on-type-event-id-name)
 - [`[JANUS_WEBHOOK_QUEUE_FAILED] Warning: webhooks: the queue failed on <method>: <name> — deliveries wait in it until it answers again`](#janus_webhook_queue_failed-warning-webhooks-the-queue-failed-on-method-name--deliveries-wait-in-it-until-it-answers-again)
+- [`[JANUS_WEBHOOK_QUEUE_FAILED] Warning: webhooks: the queue answered a delivery that cannot be sent (<name>) — counted as a failed attempt`](#janus_webhook_queue_failed-warning-webhooks-the-queue-answered-a-delivery-that-cannot-be-sent-name--counted-as-a-failed-attempt)
 - [`[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`](#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-name)
 - [A redirect is counted as a failure](#a-redirect-is-counted-as-a-failure)
 - [Events are lost when the process exits](#events-are-lost-when-the-process-exits)
@@ -297,7 +299,10 @@ webhooks({
 ```
 
 Without a `queue`, two endpoints with the same URL and no `id` stay legal,
-as in 0.1.0: each is named by its position.
+as in 0.1.0: each is named by its position. So does an `id` written that
+equals another endpoint's position — `[{ url: a, id: '1' }, { url: b }]` —
+since without a queue each is sent under its position; only two `id`s
+written alike are refused.
 
 ### `webhooks: queue is not a WebhookQueue — it has no <method>`
 
@@ -339,25 +344,40 @@ process leaves any: the options would do nothing, silently.
 webhooks({ endpoints, queue, poll: '5s', orphanGrace: '48h' });
 ```
 
-### `webhooks: lease must be longer than timeout — a request outliving its lease is sent twice`
+### `webhooks: lease must be at least timeout plus 1s — a request that outlives its lease is sent twice`
 
-**When:** calling `webhooks({ lease, timeout })` with a `lease` no longer
-than `timeout` — often `timeout` raised without `lease`.
+**When:** calling `webhooks({ lease, timeout })` with a `lease` shorter than
+`timeout` plus one second — often `timeout` raised without `lease`.
 **Why:** a claimed delivery is hidden for `lease`. A request that could run
 longer would be claimed and sent again by another process while it is still
-running.
+running. The second past `timeout` is what the worker needs to extend the
+lease before it reports a failure: without it, a slow `onGivingUp` let
+another claim take the delivery, and send and report it again.
 **Fix:** leave `lease` out — it defaults to `timeout` plus 30 seconds — or
-keep that margin:
+keep a margin of seconds, not milliseconds:
 
 ```ts
 webhooks({ endpoints, queue, timeout: '30s', lease: '1m' });
 ```
 
+### `webhooks: timeout is too long — the default lease, timeout plus 30s, waits at most 24 days`
+
+**When:** calling `webhooks({ queue, timeout })` with no `lease` and a
+`timeout` within 30 seconds of 2³¹ − 1 ms, about 24.8 days.
+**Why:** the default lease is `timeout` plus 30 seconds, and a lease is
+waited on by `setTimeout`, which fires at once past 2³¹ − 1 ms. The message
+names `timeout` because no `lease` was passed.
+**Fix:** a request is seconds; a `timeout` of days is almost certainly a
+unit written wrong — `'30s'`, not `30` days:
+
+```ts
+webhooks({ endpoints, queue, timeout: '30s' });
+```
+
 ### `webhooks: <lease or poll> waits at most 24 days`
 
 **When:** calling `webhooks({ … })` with a `lease` or a `poll` longer than
-2³¹ − 1 ms, about 24.8 days — or a `timeout` so long that the default lease,
-`timeout` plus 30 seconds, is.
+2³¹ − 1 ms, about 24.8 days.
 **Why:** both are waited on by `setTimeout`, which fires at once past that.
 **Fix:** a shorter one: a poll is seconds, a lease a little more than a
 request can take.
@@ -614,6 +634,23 @@ For the `TypeError` of a claim, nothing comes back by itself: fix the
 adapter, so a claim answers a list — `[]` when nothing is due — and throws
 when the queue cannot answer.
 
+### `[JANUS_WEBHOOK_QUEUE_FAILED] Warning: webhooks: the queue answered a delivery that cannot be sent (<name>) — counted as a failed attempt`
+
+**When:** with a `queue`, a claim answered a delivery whose event cannot be
+written as a body — an `occurredAt` that is not a valid `Date`
+(`RangeError`). Written once per such attempt.
+**Why:** the adapter stored or read the event wrongly. The attempt is
+counted as failed, with no request sent and `<name>` as its error, so the
+delivery follows the retry schedule and is given up as `retriesRanOut` when
+it runs out — instead of being claimed and failing for ever. A rarer
+variant, `webhooks: the queue answered a delivery that cannot be handled
+(<name>)`, is a delivery broken past even that; its lease lapses and it is
+claimed again.
+**Fix:** run [the conformance suite](guide/queues.md#testing-an-adapter)
+against the adapter — `queue.roundTrip` and `queue.everyType` fail one that
+does not answer the event as it was written. The deliveries given up are in
+`onGivingUp`, with `reason.error` the `<name>` above.
+
 ### `[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`
 
 `@nxgt/janus`'s warning, not this package's: its
@@ -665,9 +702,9 @@ endpoint that was down for a moment never receives some events — and no
 `JANUS_WEBHOOK_GAVE_UP` warning or `onGivingUp` call says so.
 **Why:** without a `queue`, deliveries wait **in this process's memory**, on
 timers that do not hold the process open. A process that exits without
-calling `close()` drops them with no trace. `close()` waits for the requests
-in flight and gives up each retry still waiting as `closed`, so it reaches
-`onGivingUp`. A crash (`SIGKILL`, out of memory) runs nothing at all.
+calling `close()` drops them with no trace. `close()` sends every delivery
+due when it is called, waits for the requests in flight, and gives up each
+retry still waiting as `closed`, so it reaches `onGivingUp`. A crash (`SIGKILL`, out of memory) runs nothing at all.
 **Fix:** pass a `queue` every process shares, and what one process leaves
 waiting — a retry, a request a crash cut short — the next one sends. See
 [queues](guide/queues.md):
