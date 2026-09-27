@@ -1,3 +1,4 @@
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import type { Context } from '../context';
 import { emailFlows } from '../email-flows';
@@ -12,7 +13,7 @@ import { recordFlows } from './record-flows';
  * its password, its second factor, its sign-in code and its e-mails.
  */
 export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
-	const at = (operation: string) =>
+	const at: At = (operation) =>
 		context.config.single ? operation : `${type.name}.${operation}`;
 	const secondFactor = secondFactorFlows(context, type, at);
 	const signInCode = signInCodeFlows(context, type, at, secondFactor.finish);
