@@ -32,8 +32,7 @@ CSS inlined for mail clients — and shipped as HTML and text. At send time
 they are only filled in: your brand, the recipient's name, your links, every
 value escaped. No template engine and no Maizzle run in your server.
 
-> **Private, in progress.** Not published yet: the package is built and
-> tested in this repository, and its surface may still change before 0.1.
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 

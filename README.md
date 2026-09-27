@@ -22,7 +22,7 @@ packages/janus-drizzle @nxgt/janus-drizzle — the PostgreSQL adapter on Drizzle
 packages/janus-redis   @nxgt/janus-redis — sessions and one-time tokens in Redis, on @nxgt/redis
 packages/janus-webhooks-redis @nxgt/janus-webhooks-redis — the durable webhook queue in Redis, on @nxgt/redis
 packages/janus-kit     @nxgt/janus-kit — Janus wired in one call, one subpath per database (/drizzle, /mongo), with Redis, telemetry, health and close
-packages/janus-mail    @nxgt/janus-mail — the flows' e-mails, prebuilt in en and fr, sent through any @nxgt/mail transport (private, in progress)
+packages/janus-mail    @nxgt/janus-mail — the flows' e-mails, prebuilt in en and fr, sent through any @nxgt/mail transport
 ```
 
 ## Two things it is trying to be

@@ -5,21 +5,7 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **Sending the e-mails — in progress, private** — in a package of its own,
-  `@nxgt/janus-mail`, built on the `@nxgt/mail` toolkit shared with
-  applications that are not about sign-in: its `Mailer` port takes your
-  transport (SMTP, Resend…), and a transport that fails throws, like a store.
-  `janusMail({ mailer, from, brand, links })` takes what each flow answers —
-  `await mail.verifyEmail(await auth.verifyEmail.send(user), { name, locale })`
-  — and sends five e-mails, in English and French: e-mail verification,
-  password reset, sign-in code, and the notices *password changed* and
-  *e-mail changed*. They are built once, when the package is built, with
-  Maizzle and Tailwind CSS — CSS inlined for mail clients, the text in ICU
-  catalogues — and only filled at send time, every value escaped, your brand
-  included: no template engine in your server. Any one of them can be your
-  own function — React Email, a string — and a language beyond the two takes
-  all five. Built and tested in this repository, not yet published; see its
-  [README](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/README.md).
+Nothing between releases.
 
 ## Next
 
@@ -84,6 +70,16 @@ dates here, and the version something shipped in is the only number.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Sending the e-mails, `@nxgt/janus-mail` v0.1.0** — a package of its
+  own, built on the `@nxgt/mail` toolkit: `janusMail({ mailer, from, brand,
+  links })` takes what each flow answers —
+  `await mail.verifyEmail(await auth.verifyEmail.send(user), { name, locale })`
+  — and sends five e-mails, in English and French, over any `@nxgt/mail`
+  transport: e-mail verification, password reset, sign-in code, and the
+  notices *password changed* and *e-mail changed*. They are built once with
+  Maizzle when the package is built, and only filled in at send time, every
+  value escaped: no template engine in your server. A transport that fails
+  throws, like a store.
 - **A permission id no store can keep is held by nobody** — an object or
   subject id holding a NUL character or a lone surrogate answers `false` from
   `can()` and an empty page from `list()`, before any store call, and a
@@ -154,7 +150,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   audit trail, never a login, a password, a session token or a one-time token;
   and [`@nxgt/janus-kit`](https://www.npmjs.com/package/@nxgt/janus-kit), all
   of it wired in one call.
-- **A NUL character or a lone surrogate never reaches a store** — refused in
-  fields with `USER_INVALID` on every adapter, rather than `STORE_FAILED` on
-  PostgreSQL alone; a login holding one is nobody's. The conformance suite
-  holds every adapter to round-tripping every other character. — v0.2.1
