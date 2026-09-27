@@ -14,10 +14,20 @@ export interface WebhookEndpoint {
 	readonly secrets: readonly [string, ...string[]];
 	/** The event types this endpoint receives. Every type when absent. */
 	readonly types?: readonly UserEventType[];
+	/**
+	 * What a queue knows the endpoint by: 1 to 64 letters, digits, `.`, `_`
+	 * or `-`. Absent, a hash of the URL with a `queue`, and the endpoint's
+	 * position in `endpoints` without one. Set it before changing the URL of
+	 * an endpoint whose deliveries wait in a queue: a new URL is a new hash,
+	 * and what waited for the old one is given up as `endpointRemoved`.
+	 */
+	readonly id?: string;
 }
 
 /** An endpoint, checked once when `webhooks()` is called. */
 export interface Target {
+	/** The endpoint's id: what a queued delivery names. */
+	readonly endpoint: string;
 	readonly url: string;
 	/** What a warning names: never the path or query, which may hold a token. */
 	readonly origin: string;
@@ -38,7 +48,18 @@ export interface Failure {
 
 const LOCAL = new Set(['localhost', '127.0.0.1', '[::1]']);
 
-export function targetOf(endpoint: WebhookEndpoint, where: string): Target {
+/** What an endpoint's id may hold: nothing a warning would leak, no URL. */
+const ID = /^[A-Za-z0-9._-]{1,64}$/;
+
+/**
+ * The endpoint checked, or a wiring refusal. `idOf` names it when it has no
+ * `id` of its own, from its URL as `new URL()` writes it.
+ */
+export function targetOf(
+	endpoint: WebhookEndpoint,
+	where: string,
+	idOf: (href: string) => string,
+): Target {
 	let url: URL;
 	try {
 		url = new URL(endpoint?.url);
@@ -66,7 +87,14 @@ export function targetOf(endpoint: WebhookEndpoint, where: string): Target {
 			`${where}: an endpoint's types are user event types — ${USER_EVENT_TYPES.join(', ')}`,
 		);
 	}
+	const id: unknown = endpoint.id;
+	if (id !== undefined && (typeof id !== 'string' || !ID.test(id))) {
+		throw new TypeError(
+			`${where}: an endpoint's id is 1 to 64 letters, digits, '.', '_' or '-'`,
+		);
+	}
 	return {
+		endpoint: id ?? idOf(url.href),
 		url: url.href,
 		origin: url.origin,
 		keys: secrets.map((secret) => keyOf(secret, where)),
