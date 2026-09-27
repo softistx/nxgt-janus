@@ -1,71 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
-import { ada, bearer, type MedicalRecord, password, setup } from '../test/app';
-import { janusErrors } from './errors';
-import { byParam, permission } from './permission';
-import { provide } from './provide';
+import { ada, app, bearer, password } from '../test/app';
+import { permission } from './permission';
 import { session } from './session';
 
-function app() {
-	const context = setup();
-	const { auth, access } = context;
-	const records = new Map<string, MedicalRecord>([
-		['r1', { id: 'r1', doctorId: null, title: 'Blood test' }],
-	]);
-	const loads: string[] = [];
-	// `c.req.param()` in a middleware is `string | undefined`: Hono types the
-	// path in the route's own handler only.
-	const load = (id: string | undefined) => {
-		if (id === undefined) return null;
-		loads.push(id);
-		return records.get(id) ?? null;
-	};
-
-	const routes = new Hono()
-		.use(session(auth))
-		.get(
-			'/records/:id',
-			permission(access, 'view', 'record', byParam('id', load)),
-			(c) => c.json({ title: c.var.object.title }),
-		)
-		// A route with no :id: byParam answers null, which is a 404.
-		.get(
-			'/records',
-			permission(access, 'view', 'record', byParam('id', load)),
-			(c) => c.json({ title: c.var.object.title }),
-		)
-		.put(
-			'/records/:id',
-			permission(access, 'edit', 'record', (c) => load(c.req.param('id')), {
-				ctx: (c) => ({ locked: c.req.header('x-locked') === 'yes' }),
-			}),
-			(c) => c.body(null, 204),
-		)
-		.get(
-			'/as/:subject/records/:id',
-			permission(access, 'view', 'record', (c) => load(c.req.param('id')), {
-				subject: (c) => ({ type: 'patient', id: c.req.param('subject') ?? '' }),
-			}),
-			(c) => c.json({ title: c.var.object.title }),
-		)
-		.post(
-			'/records',
-			session(auth, { type: 'patient', required: true }),
-			provide({ access }),
-			async (c) => {
-				const record = { id: 'r2', doctorId: null, title: 'X-ray' };
-				records.set(record.id, record);
-				await c.var.access.grant(
-					{ type: 'record', id: record.id },
-					'owners',
-					c.var.user,
-				);
-				return c.json({ id: record.id }, 201);
-			},
-		);
-	routes.onError(janusErrors());
-	return { ...context, routes, records, loads };
-}
+// What permission() answers a request: the route run with its object, or a
+// 401, 403, 404 or 503.
 
 describe('permission()', () => {
 	it('runs the route with the loaded object when the subject holds the permission', async () => {
@@ -151,27 +91,6 @@ describe('permission()', () => {
 		expect(await response.json()).toEqual({ code: 'STORE_FAILED' });
 	});
 
-	it('refuses to run without session() or a subject: a wiring error, not a 401', async () => {
-		const { access } = app();
-		const bare = new Hono().get(
-			'/',
-			permission(access, 'view', 'record', () => ({
-				id: 'r1',
-				doctorId: null,
-			})),
-			(c) => c.body(null),
-		);
-		let thrown: unknown;
-		bare.onError((error, c) => {
-			thrown = error;
-			return c.body(null, 500);
-		});
-
-		expect((await bare.request('/')).status).toBe(500);
-		expect(thrown).toBeInstanceOf(TypeError);
-		expect((thrown as Error).message).toContain('put session(auth) before it');
-	});
-
 	it('reads the fields of a class instance through its getters', async () => {
 		const { auth, access } = app();
 		const { user, token } = await auth.staff.signUp({
@@ -202,27 +121,6 @@ describe('permission()', () => {
 		expect(await response.json()).toEqual({ same: true, type: 'lab' });
 	});
 
-	it('refuses a second permission() on one route: both would claim c.var.object', async () => {
-		const { auth, access } = app();
-		const { user, token } = await auth.patient.signUp({ ...ada, password });
-		await access.grant({ type: 'record', id: 'r1' }, 'owners', user);
-		const record = { id: 'r1', doctorId: null };
-		const twice = new Hono().use(session(auth)).get(
-			'/',
-			permission(access, 'view', 'record', () => record),
-			permission(access, 'view', 'record', () => record),
-			(c) => c.body(null),
-		);
-		let thrown: unknown;
-		twice.onError((error, c) => {
-			thrown = error;
-			return c.body(null, 500);
-		});
-
-		expect((await twice.request('/', bearer(token))).status).toBe(500);
-		expect((thrown as Error).message).toContain('one permission() per route');
-	});
-
 	it('treats a subject answered as undefined as anonymous', async () => {
 		const { access } = app();
 		let loaded = false;
@@ -242,35 +140,5 @@ describe('permission()', () => {
 		);
 		expect((await routes.request('/')).status).toBe(401);
 		expect(loaded).toBe(false);
-	});
-});
-
-describe('provide()', () => {
-	it('puts the permissions instance on the context, for a route to grant through', async () => {
-		const { auth, routes } = app();
-		const { token } = await auth.patient.signUp({ ...ada, password });
-
-		const created = await routes.request('/records', {
-			method: 'POST',
-			...bearer(token),
-		});
-		expect(created.status).toBe(201);
-		expect((await routes.request('/records/r2', bearer(token))).status).toBe(
-			200,
-		);
-	});
-
-	it('sets only what it was given', async () => {
-		const { auth } = app();
-		const seen = new Hono().get('/', provide({ auth }), (c) =>
-			c.json({
-				auth: c.var.auth === auth,
-				access: c.get('access' as never) ?? null,
-			}),
-		);
-		expect(await (await seen.request('/')).json()).toEqual({
-			auth: true,
-			access: null,
-		});
 	});
 });
