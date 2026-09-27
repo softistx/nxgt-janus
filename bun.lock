@@ -114,11 +114,11 @@
         "@maizzle/framework": "6.1.7",
         "@maizzle/tailwindcss": "1.5.6",
         "@nxgt/janus": "workspace:^",
-        "@nxgt/mail": "0.5.0",
-        "@nxgt/mail-config": "0.1.0",
-        "@nxgt/mail-i18n": "0.2.0",
-        "@nxgt/mail-presets": "0.1.1",
-        "@nxgt/mail-ui": "0.1.0",
+        "@nxgt/mail": "0.5.1",
+        "@nxgt/mail-config": "0.2.0",
+        "@nxgt/mail-i18n": "0.3.0",
+        "@nxgt/mail-presets": "0.1.2",
+        "@nxgt/mail-ui": "0.1.1",
         "@types/bun": "^1.4.2",
         "vue": "3.5.43",
         "vue-tsc": "^3.3.11",
@@ -417,15 +417,15 @@
 
     "@nxgt/janus-webhooks-redis": ["@nxgt/janus-webhooks-redis@workspace:packages/janus-webhooks-redis"],
 
-    "@nxgt/mail": ["@nxgt/mail@0.5.0", "", { "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-8vz38qQmaA45EChfAVFqjzidO+8ncFGgLAkaqBmhEXpKtNNBMAZsRHRnrDWpRkHxKj5cyUQdDnyNdVqqcZjD2Q=="],
+    "@nxgt/mail": ["@nxgt/mail@0.5.1", "", { "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-kWf7E3fZWcQHZoeJEVujVMpSO/9zLPQeYOfLA9ofHQaO0Y1iRZIZP6fPU6MRH+A88nzAeZ9pPxEYQKXromnvaw=="],
 
-    "@nxgt/mail-config": ["@nxgt/mail-config@0.1.0", "", { "dependencies": { "defu": "^6.1.4" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@maizzle/tailwindcss": "^1.5.6", "typescript": "^6.0.3" } }, "sha512-ZnSPenc8DzFhV8Dr2Pzzf8WyK1WVRSI5xTEJmr49kyvHfemPyRQ+PKGu6ylKIq4o+t1eyNQ+7HAN63BsCVU5Lw=="],
+    "@nxgt/mail-config": ["@nxgt/mail-config@0.2.0", "", { "dependencies": { "defu": "^6.1.4" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@maizzle/tailwindcss": "^1.5.6", "typescript": "^6.0.3" } }, "sha512-XwqT5o7t8fomAiJZnfS43fWSthMraJbY0iuf/A7xfmbbef5zvSebIbJ27htb+9c4tuidgZAnqZ0/IWBvLIme4Q=="],
 
-    "@nxgt/mail-i18n": ["@nxgt/mail-i18n@0.2.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "intl-messageformat": "^12.1.2" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.1.0", "typescript": "^6.0.3", "vue": "^3.5.0" }, "optionalPeers": ["vue"] }, "sha512-lcD9M58h4YNwJXkBZlMXmsD+rbELhH+3/89h6Lb4LPyYpZ8vybCHaI3VaTaxoIfJAgS/fqk4/zJmrbI1Y1omBw=="],
+    "@nxgt/mail-i18n": ["@nxgt/mail-i18n@0.3.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "intl-messageformat": "^12.1.2" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.2.0", "typescript": "^6.0.3", "vue": "^3.5.0" }, "optionalPeers": ["vue"] }, "sha512-qlvWWNRyYhaMETk+w7ZfqZ0UXfEkxVxh9ASzMZ9eNbOvohD+DjPUkiZThJJzMXaaa+0vZdfSqKFgxoBpLKTNyw=="],
 
-    "@nxgt/mail-presets": ["@nxgt/mail-presets@0.1.1", "", { "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-i18n": "^0.2.0", "@nxgt/mail-ui": "^0.1.0", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-TRRag6n7wWkZO8rmZ08EXGzo6We1Emi4pkPCMQy0JNGMObiIrpWsbB+uPW4hVt/bnb9aKqSZwnqUjvtseh8ITA=="],
+    "@nxgt/mail-presets": ["@nxgt/mail-presets@0.1.2", "", { "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-i18n": "^0.3.0", "@nxgt/mail-ui": "^0.1.1", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-sLXoydaQ0dV0A7ntPUjHPJnWeA/NOMJ+J56vlCdzdvaBE8wcg9avn3IRCxMhetDSny0DiEYl4Yvne17/I6qgSw=="],
 
-    "@nxgt/mail-ui": ["@nxgt/mail-ui@0.1.0", "", { "dependencies": { "unplugin-vue-components": "^32.1.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.1.0", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-xQvsCpQUZTD7YpnRCyT7193o6eLSrD+MlgqgOep/vRAUq3kuwhlBLOKR1zRXtZ2bCsLvH04bXpsAghwN1yCeSw=="],
+    "@nxgt/mail-ui": ["@nxgt/mail-ui@0.1.1", "", { "dependencies": { "unplugin-vue-components": "^32.1.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.2.0", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-XcBQkt8Szqa3zQbZ7/jebY1YKJ2gRnMOmwICDJt02PG18YSi9xTYjn7hH8Uj7RmFAv1E46MzeG8ZFIU/Kg7VTQ=="],
 
     "@nxgt/mongo": ["@nxgt/mongo@0.18.1", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-zAWoeevcvw25eOXiF81uzJ9LjCj0RXF8t5HF5Uv2t33mlBB8y+cR/VN1oGtVecX8/U2KcrKBAKVpwfh1N1ZKPQ=="],
 
