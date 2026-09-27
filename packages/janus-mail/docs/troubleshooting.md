@@ -38,6 +38,7 @@ How the messages are shaped:
 **Sending**
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`](#mail_refused--render-email-link-must-be-an-http-https-or-mailto-url)
+- [`render: <email>: link must be a string or a finite number`](#render-email-link-must-be-a-string-or-a-finite-number)
 - [`MAIL_REFUSED` — from the mailer](#mail_refused--from-the-mailer)
 - [`MAIL_FAILED` — `MailFailure`](#mail_failed--mailfailure)
 - [`createMailRenderer: …/mails/mail-manifest.json cannot be read — run maizzle build, and deploy its output folder`](#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder)
@@ -177,6 +178,17 @@ links: { verifyEmail: (token) => new URL(`/verify?token=${encodeURIComponent(tok
 
 Sending it again fails again: it is a bug, not an outage.
 
+### `render: <email>: link must be a string or a finite number`
+
+A `TypeError` from the renderer: a `links` function answered something other
+than a string — a `URL` object, a promise, `undefined`. Answer `url.href`,
+and compute the link synchronously. The renderer's other messages —
+`render: the locale asked for is not one of the build's, en, fr` and
+`render: <email> needs the variable <name>` — come from calling
+`janusTemplates()` or `mail.templates.*` directly with a locale not built or
+a variable left out; `janusMail()`'s methods never do either. See `@nxgt/mail`'s
+[troubleshooting](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail/docs/troubleshooting.md).
+
 ### `MAIL_REFUSED` — from the mailer
 
 The message was refused by `checkMessage` or the provider: an `issued.email`
@@ -235,7 +247,9 @@ if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name }
 return new Response(null, { status: 202 });
 ```
 
-The same holds for `signInCode.request`.
+The same holds for `signInCode.request`, whose answer passed unchecked reads
+`Argument of type 'IssuedCode<…> | null' is not assignable to parameter of
+type 'Pick<IssuedCode<unknown>, "email" | "code">'`.
 
 ### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
 

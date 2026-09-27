@@ -58,8 +58,9 @@ const issued = await auth.resetPassword.request(email);
 if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name });
 ```
 
-Each e-mail goes to `issued.email`, and a send that fails rejects with the
-transport's `MailFailure`: never report it as sent.
+Each e-mail goes to `issued.email`. A send that fails rejects with the
+transport's `MailFailure` — never report it as sent — and one refused, a link
+that is not `http(s)` or an address that is not one, with `MailRefused`.
 
 ## Which types have these flows
 

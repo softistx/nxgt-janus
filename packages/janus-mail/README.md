@@ -48,7 +48,7 @@ transports of 0.4 included), which defines the `Mailer` port and the errors;
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
-It reads its prebuilt e-mails with `node:fs`: **Node or Bun**, not an edge
+It reads its prebuilt e-mails with `node:fs`: **Node, Bun or Deno**, not an edge
 runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 ## API

@@ -148,7 +148,7 @@ defines no error class and wraps nothing:
 | --- | --- | --- | --- |
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
-| `TypeError` | this package | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` | A bug to fix |
+| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` | A bug to fix |
 | `Error` from `createMailRenderer` | the renderer | `mails/` is missing from the installed package | Reinstall; see [troubleshooting](../troubleshooting.md) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is
