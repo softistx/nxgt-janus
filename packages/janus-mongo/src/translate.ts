@@ -108,6 +108,17 @@ export function loginTaken(
 	);
 }
 
+/** A duplicate on the login index as the port's conflict, and any other as a bug. */
+export function refuseDuplicate(
+	operation: string,
+	duplicate: DuplicateKey,
+): StoreConflict | StoreFailure {
+	const taken = takenLogin(duplicate);
+	return taken === null
+		? unexpectedDuplicate('users', operation, duplicate)
+		: loginTaken(operation, taken, duplicate);
+}
+
 /** A duplicate on an index the adapter never meant to collide on: a bug, reported as one. */
 export function unexpectedDuplicate(
 	slot: 'users' | 'sessions' | 'tokens',
