@@ -1,6 +1,7 @@
+import { afterAll, beforeAll } from 'bun:test';
 import type { WebhookQueueMethod } from '@nxgt/janus-webhooks/conformance';
 import { connectRedis, type RedisConnection } from '@nxgt/redis';
-import type { TestServer } from './server';
+import { startRedis, type TestServer } from './server';
 
 let opened = 0;
 
@@ -91,6 +92,48 @@ export async function openCase(server: TestServer): Promise<RedisCase> {
 			for (const [method, redis] of entries) {
 				await redis.close();
 				await server.admin.send('ACL', ['DELUSER', userOf(method)]);
+			}
+		},
+	};
+}
+
+export interface RedisPerFile {
+	/** The file's server, between its beforeAll and its afterAll; a throw outside. */
+	readonly server: TestServer;
+	/** Runs `body` against a case of its own, closed whatever happens. */
+	withCase(body: (test: RedisCase) => Promise<void>): Promise<void>;
+}
+
+/**
+ * Starts a real Redis before the calling spec file's cases and stops it after
+ * them: one server per file, as `test/server.ts` has it.
+ */
+export function redisPerFile(): RedisPerFile {
+	let server: TestServer | undefined;
+	const started = () => {
+		if (server === undefined) throw new Error('Redis is not running');
+		return server;
+	};
+
+	beforeAll(async () => {
+		server = await startRedis();
+	}, 300_000);
+
+	afterAll(async () => {
+		await server?.stop();
+		server = undefined;
+	});
+
+	return {
+		get server() {
+			return started();
+		},
+		async withCase(body) {
+			const test = await openCase(started());
+			try {
+				await body(test);
+			} finally {
+				await test.close();
 			}
 		},
 	};

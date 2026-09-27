@@ -1,0 +1,157 @@
+import { describe, expect, it } from 'bun:test';
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
+/**
+ * The files allowed a `catch`: the shared guard, outage.ts, sealing.ts —
+ * whose one catch wraps a decipher, never a store, and throws — and
+ * events.ts, whose one catch wraps the application's listener, never a
+ * store, and warns.
+ */
+const GUARD = join(import.meta.dir, '..', 'stores', 'guard.ts');
+const OUTAGE = join(import.meta.dir, 'outage.ts');
+const SEALING = join(import.meta.dir, 'sealing.ts');
+const EVENTS = join(import.meta.dir, 'events.ts');
+const ALLOWED = new Set([GUARD, OUTAGE, SEALING, EVENTS]);
+
+/** The body of every `catch` in a file, comments out, whitespace collapsed. */
+async function catchBodies(path: string): Promise<string[]> {
+	const source = await Bun.file(path).text();
+	return [...source.matchAll(/catch \((\w+)\) \{([^}]*)\}/g)].map((match) =>
+		(match[2] ?? '')
+			.replace(/\/\/.*$/gm, '')
+			.replace(/\s+/g, ' ')
+			.trim(),
+	);
+}
+
+describe('the scan: no catch around a store call, in auth, permissions or stores, anywhere but the guard and outage.ts', () => {
+	// The failure this whole design exists to prevent is a single careless
+	// `catch { return null }`. So this spec reads the source and refuses any
+	// `catch` — and any two-argument `.then`, the same thing spelled
+	// differently — in the core outside the guard and `outage.ts`.
+	it('finds none', async () => {
+		const offenders: string[] = [];
+
+		const walk = async (dir: string): Promise<void> => {
+			for (const entry of await readdir(dir, { withFileTypes: true })) {
+				const path = join(dir, entry.name);
+				if (entry.isDirectory()) {
+					await walk(path);
+				} else if (
+					entry.name.endsWith('.ts') &&
+					!entry.name.endsWith('.spec.ts') &&
+					!ALLOWED.has(path)
+				) {
+					offenders.push(
+						...forbiddenIn(await Bun.file(path).text()).map(
+							(line) => `${path}:${line}`,
+						),
+					);
+				}
+			}
+		};
+		await walk(import.meta.dir);
+		// The permission engine keeps the same invariant: a denial is false,
+		// and a failure throws — so no catch there either.
+		await walk(join(import.meta.dir, '..', 'permissions'));
+		await walk(join(import.meta.dir, '..', 'stores'));
+
+		expect(offenders).toEqual([]);
+	});
+
+	it('sees a two-argument then however it is spelled — measured: the first regex missed two', () => {
+		// A mutation of the permission engine, `.then((x) => x, () => false)`
+		// around a store call, passed the line-by-line regex: it stopped at the
+		// first `)`, and a call split over lines never matched at all.
+		expect(forbiddenIn('store.has(t).then((x) => x, () => false);')).toEqual([
+			1,
+		]);
+		expect(
+			forbiddenIn('store.has(t).then(\n\t(x) => x,\n\t() => false,\n);'),
+		).toEqual([1]);
+		expect(forbiddenIn('try { a() } catch { return null }')).toEqual([1]);
+		// One argument, even with the trailing comma a formatter writes.
+		expect(forbiddenIn('p.then((x) => f(x, y));')).toEqual([]);
+		expect(forbiddenIn('p.then(\n\t(x) => f(x, y),\n);')).toEqual([]);
+		// Comments quote the forbidden line in order to forbid it.
+		expect(
+			forbiddenIn('// never catch { return null }\n/* .then(a, b) */'),
+		).toEqual([]);
+	});
+
+	it("and of the two allowed, the guard's always rethrows and outage.ts's absorbs one named conflict", async () => {
+		// Every catch and two-argument then, bound or not: one each, no more.
+		for (const path of ALLOWED) {
+			expect(forbiddenIn(await Bun.file(path).text())).toHaveLength(1);
+		}
+
+		const guard = await catchBodies(GUARD);
+		expect(guard).toHaveLength(1);
+		expect(guard[0]).toContain('throw');
+		expect(guard[0]).not.toContain('return');
+
+		// unlessVersionConflict's: `null` for a version conflict, and nothing
+		// else — every other rejection rethrown. Held to the letter, so a
+		// widened condition is a failing spec and a reviewed change.
+		const outage = await catchBodies(OUTAGE);
+		expect(outage).toHaveLength(1);
+		expect(outage[0]).toBe(
+			"if (error instanceof StoreConflict && error.on === 'version') return null; throw error;",
+		);
+
+		// emit's: the try holds the listener alone — a store call moved
+		// inside it would be caught too — and the catch warns, and nothing
+		// else. Both held to the letter, from `try {` to the end of emit, the
+		// last function of the file.
+		const events = await Bun.file(EVENTS).text();
+		expect(
+			events.slice(events.indexOf('try {')).replace(/\s+/g, ' ').trim(),
+		).toBe(
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: the source, verbatim
+			"try { await listener(event); } catch (failure) { process.emitWarning( `janus: the events listener failed on ${type} ${event.id} for user ${user.id}: ${failure instanceof Error ? failure.name : typeof failure}`, { code: 'JANUS_EVENT_FAILED' }, ); } }",
+		);
+	});
+});
+
+/**
+ * The lines, 1-based, holding a `catch` or a two-argument `.then` — the same
+ * thing spelled differently. Comments are blanked first, line breaks kept, and
+ * each `.then(` is read to its closing parenthesis, so neither a parameter in
+ * parentheses nor a call split over lines hides its second argument.
+ */
+function forbiddenIn(text: string): number[] {
+	const source = text
+		.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
+		.replace(/\/\/[^\n]*/g, (comment) => ' '.repeat(comment.length));
+	const lineAt = (index: number) => source.slice(0, index).split('\n').length;
+	const lines = new Set<number>();
+
+	for (const match of source.matchAll(/\bcatch\b/g))
+		lines.add(lineAt(match.index));
+
+	for (const match of source.matchAll(/\.then\(/g)) {
+		let depth = 0;
+		const commas: number[] = [];
+		for (let i = match.index + match[0].length; i < source.length; i += 1) {
+			const char = source[i];
+			if (char === '(' || char === '[' || char === '{') depth += 1;
+			else if (char === ')' || char === ']' || char === '}') {
+				if (depth === 0) {
+					// An argument after a comma is a second argument; a comma
+					// followed only by whitespace is a formatter's trailing one.
+					const ends = [...commas.slice(1), i];
+					if (
+						commas.some((at, k) => source.slice(at + 1, ends[k]).trim() !== '')
+					) {
+						lines.add(lineAt(match.index));
+					}
+					break;
+				}
+				depth -= 1;
+			} else if (char === ',' && depth === 0) commas.push(i);
+		}
+	}
+
+	return [...lines].sort((a, b) => a - b);
+}
