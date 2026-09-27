@@ -8,7 +8,7 @@
  * error, which is how Keto's historical endpoint answers and why a denial and
  * an outage look alike there. A failure throws — never `false`, which would
  * deny everybody everything during an outage and say nothing. The store is
- * reached only through `guardRelations`, and `outage.spec.ts` refuses a `catch`
+ * reached only through `guardRelations`, and `outage.scan.spec.ts` refuses a `catch`
  * anywhere in this directory.
  *
  * **What is walked.** A relation holds when the tuple is stored, or through a

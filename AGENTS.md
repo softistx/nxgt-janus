@@ -500,6 +500,9 @@ The table that exists so a duplication is a decision rather than an accident.
   behaviour and a `fixtures.ts` for what they share
   (`test/types/permissions/`); the numbering of its cases runs across the
   folder.
+- In `packages/janus`, a fixtures file under `src/auth/`, `src/permissions/`
+  or `src/stores/` is read by the scan in `src/auth/outage.scan.spec.ts`: no
+  `catch` and no two-argument `.then` in it.
 - MongoDB, in `@nxgt/janus-mongo` and `@nxgt/janus-kit/mongo`:
   `mongodb-memory-server-core` as a single-node replica set, binary cached in
   `.cache/mongodb`, one server per spec file, a clean database per case —

@@ -9,7 +9,7 @@
  * - `undefined` where the port says `null` is a store that forgot to answer,
  *   and becomes `StoreFailure` rather than "not found".
  *
- * The `catch` below always rethrows; `src/auth/outage.spec.ts` holds it to that.
+ * The `catch` below always rethrows; `src/auth/outage.scan.spec.ts` holds it to that.
  */
 
 import {
