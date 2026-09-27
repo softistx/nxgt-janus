@@ -928,10 +928,11 @@ two gaps, named.**
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary),
-`test/types/port.ts` (twenty-two, on the identity stores' port, from the point
-of view of the person implementing it), `test/types/auth.ts` (thirty-four, on
+`test/types/port/` (twenty-two, on the identity stores' port, from the point
+of view of the person implementing it), `test/types/auth/` (thirty-four, on
 `janus()`, from the point of view of the application — eight of them on the
-second factor, three on sign-in codes, three on user events) and `test/types/permissions.ts` (forty-eight, on the
+second factor, three on sign-in codes, three on user events), each a folder
+with one file per behaviour, and `test/types/permissions.ts` (forty-eight, on the
 permission model and the questions asked of it). The rule
 comes from `nxgt-data`, and so does the reason to
 distrust the claim without the files: when it was last measured on

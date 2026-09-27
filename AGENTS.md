@@ -480,7 +480,22 @@ The table that exists so a duplication is a decision rather than an accident.
 ## Tests
 
 - `*.spec.ts` colocated in `src/`. `test/` holds helpers only.
-- `test/types/` is typechecked by `tsc --noEmit` and **never run**.
+- A spec that outgrows one file is split **by behaviour** into siblings named
+  `<subject>.<behaviour>.spec.ts` beside the module they test
+  (`type-api.sign-in.spec.ts`, `type-api.delete.spec.ts`), each case keeping its
+  exact `describe`/`it` path. What the siblings share goes in one
+  `<subject>.fixtures.ts` — no case in it. A package's `tsconfig.build.json`
+  must exclude `**/*.fixtures.ts` as it excludes the specs, or the fixtures
+  ship in `dist/`; so far only `packages/janus` has any, and only its config
+  carries the exclude — add it to a package with its first fixtures file. In
+  `packages/janus`, a fixtures file under `src/auth/`, `src/permissions/` or
+  `src/stores/` is read by the scan in `src/auth/outage.scan.spec.ts`: no
+  `catch` and no two-argument `.then` in it — the shared `rejection` lives in
+  `test/auth.ts` for that reason.
+- `test/types/` is typechecked by `tsc --noEmit` and **never run**. A list that
+  outgrows one file becomes a folder, `test/types/<area>/`, one file per
+  behaviour and a `fixtures.ts` holding the values they are written against;
+  `tsconfig.json` includes every file under it, so no case goes unchecked.
 - MongoDB, in `@nxgt/janus-mongo` and `@nxgt/janus-kit/mongo`:
   `mongodb-memory-server-core` as a single-node replica set, binary cached in
   `.cache/mongodb`, one server per spec file, a clean database per case —

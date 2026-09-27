@@ -10,7 +10,7 @@
  * and {@link unlessVersionConflict} absorbs one named conflict and rethrows
  * everything else.
  *
- * `outage.spec.ts` reads every other file of `src/auth/`, `src/permissions/`
+ * `outage.scan.spec.ts` reads every other file of `src/auth/`, `src/permissions/`
  * and `src/stores/` and fails if a `catch` appears in one, because the failure
  * this design exists to prevent is a single careless `catch { return null }`.
  */
