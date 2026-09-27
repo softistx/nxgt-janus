@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.8.3
+
+### Patch Changes
+
+- [#75](https://github.com/softistx/nxgt-janus/pull/75) [`1c179bd`](https://github.com/softistx/nxgt-janus/commit/1c179bd3a0fd834b8ac2826e01440475c879eb95) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Permissions: an object or subject id holding a NUL character or a lone surrogate — which no store can keep — is held by nobody. `can()` answers `false` and `list()` an empty page for one before any store call, a `fromField` whose value holds one names nobody, `list()` leaves out one a `lookup` answers, and `grant()` and `revoke()` refuse one with a `TypeError` instead of reaching the store, where PostgreSQL alone failed with `STORE_FAILED`. The relation store conformance suite adds `relations.edgeCharacters`: every other character in an id round-trips.
+
 ## 0.8.2
 
 ### Patch Changes
