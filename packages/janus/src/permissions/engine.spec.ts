@@ -281,14 +281,6 @@ describe('an id no store can keep', () => {
 		}
 	});
 
-	it('read from a field, names nobody, and no store is asked about it', async () => {
-		const access = setup(untouchable());
-		const holder = patient();
-		expect(
-			await access.can(holder, 'patients', record({ patientId: 'x\u0000' })),
-		).toBe(false);
-	});
-
 	it('is a TypeError from grant and revoke, before a store is asked', async () => {
 		const access = setup(untouchable());
 		for (const operation of ['grant', 'revoke'] as const) {

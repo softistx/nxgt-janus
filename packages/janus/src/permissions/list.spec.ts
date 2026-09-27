@@ -499,7 +499,8 @@ describe('list()', () => {
 					model: unreversible,
 					store: createMemoryRelations(),
 				}).list(ada, 'view' as never, 'record'),
-			'record.doctors is read from a field, and has no lookup',
+			// The subject's type, never its id.
+			"record.doctors is read from a field, and has no lookup to find the records naming a staff — fromField('doctorId', 'staff', { lookup })",
 		],
 		[
 			'a condition with no ctx',
