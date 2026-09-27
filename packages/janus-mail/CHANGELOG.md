@@ -1,5 +1,13 @@
 # @nxgt/janus-mail
 
+## 0.2.1
+
+### Patch Changes
+
+- [#102](https://github.com/softistx/nxgt-janus/pull/102) [`174478e`](https://github.com/softistx/nxgt-janus/commit/174478e444b5471810910e0db988e21b78899693) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The `TypeError` for a locale that `Intl` rejects now reads `janusMail: locales must be BCP 47 language tags, as 'fr-CA'`. The words "with hyphens" are gone: they misled for `i-klingon` or `x-foo`, which already hold hyphens and are refused anyway. The check itself is unchanged. Code that matches the old message text must match the new one.
+
+- [#104](https://github.com/softistx/nxgt-janus/pull/104) [`26d0b69`](https://github.com/softistx/nxgt-janus/commit/26d0b69cae5d66ab0eb8367a5b153a26bdac4878) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The e-mails are now built with `@nxgt/mail-i18n` 0.4.0, `@nxgt/mail-ui` 0.3.0 and `@nxgt/mail-presets` 0.3.0, whose message keys moved to kebab-case. The package names no key, so the built `mails/` is byte for byte the same as before: the e-mails, their subjects, their variables and the manifest (format 1) are unchanged. The `@nxgt/mail` peer is unchanged.
+
 ## 0.2.0
 
 ### Minor Changes
