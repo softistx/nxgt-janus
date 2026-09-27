@@ -3,8 +3,7 @@ import { NotFoundError, StoreConflict } from '@nxgt/janus';
 import { getCollection, type TypedCollection } from '@nxgt/mongo';
 import type { Db } from 'mongodb';
 import { users } from '../collections';
-import { run, settle } from '../translate';
-import { refuseDuplicate } from './logins';
+import { refuseDuplicate, run, settle } from '../translate';
 import { toUser, toUserDocument, toUserSet } from './records';
 
 type Users = TypedCollection<typeof users>;

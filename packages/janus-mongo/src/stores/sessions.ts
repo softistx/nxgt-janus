@@ -1,9 +1,11 @@
 import type { SessionStore } from '@nxgt/janus';
-import { getCollection } from '@nxgt/mongo';
+import { getCollection, type TypedCollection } from '@nxgt/mongo';
 import type { Db } from 'mongodb';
 import { sessions } from '../collections';
 import { run, settle, unexpectedDuplicate } from '../translate';
 import { toSession, toSessionDocument } from './records';
+
+type Sessions = TypedCollection<typeof sessions>;
 
 export function sessionStore(db: Db): SessionStore {
 	const collection = getCollection(db, sessions);
@@ -46,25 +48,12 @@ export function sessionStore(db: Db): SessionStore {
 			}),
 
 		revokeSession: (id, at) =>
-			run$('revokeSession', async () => {
-				// A pipeline, so a session already revoked keeps its first
-				// `revokedAt` and still counts as matched.
-				const result = await collection.raw.updateOne({ _id: id }, [
-					{ $set: { revokedAt: { $ifNull: ['$revokedAt', at] } } },
-				]);
-				return result.matchedCount === 1;
-			}),
+			run$('revokeSession', () => revokeSession(collection, id, at)),
 
 		revokeUserSessions: (userId, at, except) =>
-			run$('revokeUserSessions', async () => {
-				const result = await collection.raw.updateMany(
-					except === undefined
-						? { userId, revokedAt: null }
-						: { userId, revokedAt: null, _id: { $ne: except } },
-					{ $set: { revokedAt: at } },
-				);
-				return result.modifiedCount;
-			}),
+			run$('revokeUserSessions', () =>
+				revokeUserSessions(collection, userId, at, except),
+			),
 
 		deleteUserSessions: (userId) =>
 			run$('deleteUserSessions', async () => {
@@ -72,4 +61,32 @@ export function sessionStore(db: Db): SessionStore {
 				return result.deletedCount;
 			}),
 	};
+}
+
+async function revokeSession(
+	collection: Sessions,
+	id: string,
+	at: Date,
+): Promise<boolean> {
+	// A pipeline, so a session already revoked keeps its first
+	// `revokedAt` and still counts as matched.
+	const result = await collection.raw.updateOne({ _id: id }, [
+		{ $set: { revokedAt: { $ifNull: ['$revokedAt', at] } } },
+	]);
+	return result.matchedCount === 1;
+}
+
+async function revokeUserSessions(
+	collection: Sessions,
+	userId: string,
+	at: Date,
+	except: string | undefined,
+): Promise<number> {
+	const result = await collection.raw.updateMany(
+		except === undefined
+			? { userId, revokedAt: null }
+			: { userId, revokedAt: null, _id: { $ne: except } },
+		{ $set: { revokedAt: at } },
+	);
+	return result.modifiedCount;
 }

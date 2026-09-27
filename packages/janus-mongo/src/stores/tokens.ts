@@ -1,9 +1,11 @@
-import type { TokenStore } from '@nxgt/janus';
-import { getCollection } from '@nxgt/mongo';
+import type { TokenKind, TokenRecord, TokenStore } from '@nxgt/janus';
+import { getCollection, type TypedCollection } from '@nxgt/mongo';
 import type { Db } from 'mongodb';
 import { tokens } from '../collections';
 import { run, settle } from '../translate';
 import { toToken, toTokenDocument } from './records';
+
+type Tokens = TypedCollection<typeof tokens>;
 
 export function tokenStore(db: Db): TokenStore {
 	const collection = getCollection(db, tokens);
@@ -18,32 +20,10 @@ export function tokenStore(db: Db): TokenStore {
 			}),
 
 		consumeToken: (tokenHash, kind, at) =>
-			run$('consumeToken', async () => {
-				// **One conditional write**, answering the document as it was
-				// before it. The pipeline keeps a first `spentAt`, so exactly one
-				// caller ever reads `spentAt: null`.
-				const before = await collection.raw.findOneAndUpdate(
-					{ _id: tokenHash, kind },
-					[{ $set: { spentAt: { $ifNull: ['$spentAt', at] } } }],
-					{ returnDocument: 'before' },
-				);
-				return before === null ? null : toToken(before);
-			}),
+			run$('consumeToken', () => consumeToken(collection, tokenHash, kind, at)),
 
 		countAttempt: (tokenHash, kind) =>
-			run$('countAttempt', async () => {
-				// **One conditional write**, answering the document after it: an
-				// unspent token gets one more attempt, atomically. A spent one is
-				// matched by the second read below, and written nothing.
-				const after = await collection.raw.findOneAndUpdate(
-					{ _id: tokenHash, kind, spentAt: null },
-					{ $inc: { attempts: 1 } },
-					{ returnDocument: 'after' },
-				);
-				if (after !== null) return toToken(after);
-				const spent = await collection.raw.findOne({ _id: tokenHash, kind });
-				return spent === null ? null : toToken(spent);
-			}),
+			run$('countAttempt', () => countAttempt(collection, tokenHash, kind)),
 
 		spendUserTokens: (userId, kind, at, except) =>
 			run$('spendUserTokens', async () => {
@@ -68,4 +48,39 @@ export function tokenStore(db: Db): TokenStore {
 				return result.deletedCount;
 			}),
 	};
+}
+
+async function consumeToken(
+	collection: Tokens,
+	tokenHash: string,
+	kind: TokenKind,
+	at: Date,
+): Promise<TokenRecord | null> {
+	// **One conditional write**, answering the document as it was
+	// before it. The pipeline keeps a first `spentAt`, so exactly one
+	// caller ever reads `spentAt: null`.
+	const before = await collection.raw.findOneAndUpdate(
+		{ _id: tokenHash, kind },
+		[{ $set: { spentAt: { $ifNull: ['$spentAt', at] } } }],
+		{ returnDocument: 'before' },
+	);
+	return before === null ? null : toToken(before);
+}
+
+async function countAttempt(
+	collection: Tokens,
+	tokenHash: string,
+	kind: TokenKind,
+): Promise<TokenRecord | null> {
+	// **One conditional write**, answering the document after it: an
+	// unspent token gets one more attempt, atomically. A spent one is
+	// matched by the second read below, and written nothing.
+	const after = await collection.raw.findOneAndUpdate(
+		{ _id: tokenHash, kind, spentAt: null },
+		{ $inc: { attempts: 1 } },
+		{ returnDocument: 'after' },
+	);
+	if (after !== null) return toToken(after);
+	const spent = await collection.raw.findOne({ _id: tokenHash, kind });
+	return spent === null ? null : toToken(spent);
 }
