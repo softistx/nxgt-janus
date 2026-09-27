@@ -11,9 +11,9 @@ import {
 import { endSignInsWaiting } from '../password-written';
 import { openSession } from '../sessions';
 import type { PasswordApi, SignInResult } from '../types';
-import type { At, Finish, Input } from './any-type-api';
 import { byLogin } from './by-login';
 import { changePassword } from './change-password';
+import type { At, Finish, Input } from './flow-types';
 import { insert } from './insert';
 import { signIn } from './sign-in';
 

@@ -10,9 +10,9 @@ import {
 	writeUser,
 } from '../context';
 import type { UserTypeApi } from '../types';
-import type { At, Input } from './any-type-api';
 import { deleteUser } from './delete';
 import { fieldsPatch } from './fields-patch';
+import type { At, Input } from './flow-types';
 import { insert } from './insert';
 
 /**

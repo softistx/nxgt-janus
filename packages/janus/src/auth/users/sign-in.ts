@@ -14,8 +14,8 @@ import {
 } from '../context';
 import { heldByPassword } from '../password-written';
 import type { SignInResult } from '../types';
-import type { Finish, Input } from './any-type-api';
 import { byLogin } from './by-login';
+import type { Finish, Input } from './flow-types';
 
 /**
  * Checks the password and answers what `finish` answers for the user. One

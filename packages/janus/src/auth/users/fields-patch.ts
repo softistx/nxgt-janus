@@ -1,7 +1,7 @@
 import { normalizeEmail, type ResolvedType } from '../config';
 import { emailOf, loginsOf, validateFields } from '../context';
 import type { UserRecord } from '../port/types';
-import type { Input } from './any-type-api';
+import type { Input } from './flow-types';
 
 /**
  * What `update` writes: the patch merged over the stored fields, the whole

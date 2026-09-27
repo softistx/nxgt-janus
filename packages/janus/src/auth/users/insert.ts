@@ -9,7 +9,7 @@ import {
 } from '../context';
 import { emit } from '../events';
 import type { UserRecord } from '../port/types';
-import type { Input } from './any-type-api';
+import type { Input } from './flow-types';
 
 /** Validates, hashes, writes once. What `create` and `signUp` share. */
 export async function insert(
