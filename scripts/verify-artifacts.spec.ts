@@ -244,4 +244,12 @@ describe('staleBuilds', () => {
 		expect(NOT_A_BUILD_INPUT.test('__snapshots__/a.snap')).toBe(true);
 		expect(NOT_A_BUILD_INPUT.test('identities/create.ts')).toBe(false);
 	});
+
+	test('does not count the fixtures specs share, and counts a shipped fixtures.ts', () => {
+		expect(NOT_A_BUILD_INPUT.test('permissions/engine.fixtures.ts')).toBe(true);
+		expect(NOT_A_BUILD_INPUT.test('conformance/fixtures.ts')).toBe(false);
+		expect(NOT_A_BUILD_INPUT.test('conformance/relations/fixtures.ts')).toBe(
+			false,
+		);
+	});
 });

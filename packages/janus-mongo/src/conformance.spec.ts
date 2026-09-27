@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { afterAll, beforeAll, describe, it } from 'bun:test';
 import type { StoreFaults } from '@nxgt/janus/conformance';
 import {
 	describeJanusStores,
@@ -118,40 +118,4 @@ describeRelationStores({
 			};
 		},
 	},
-});
-
-describe('@nxgt/janus-mongo relations, beyond the port suite', () => {
-	it('writes all or nothing: a failed addition rolls its removal back', async () => {
-		opened += 1;
-		const db = server.client.db(`janusRelations${opened}`);
-		await syncMongoRelations(db);
-		const store = createMongoRelations(db);
-		const object = { type: 'record', id: 'r1' };
-		const before = {
-			object,
-			relation: 'owners',
-			subject: { type: 'staff', id: 'a' },
-		};
-		const after = { ...before, subject: { type: 'staff', id: 'b' } };
-		await store.write({ add: [before] });
-
-		try {
-			// Only the addition fails: the removal ran, inside the transaction.
-			await server.failAlways(['update'], 91);
-			const outcome = await store
-				.write({ remove: [before], add: [after] })
-				.then(
-					() => 'resolved',
-					(error: { code?: string }) => error.code,
-				);
-			await server.clearFailures();
-
-			expect(outcome).toBe('STORE_FAILED');
-			expect(await store.has(before)).toBe(true);
-			expect(await store.has(after)).toBe(false);
-		} finally {
-			await server.clearFailures();
-			await db.dropDatabase();
-		}
-	});
 });

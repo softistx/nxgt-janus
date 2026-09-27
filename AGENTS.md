@@ -156,8 +156,8 @@ Declared here so the review agent does not flag them on every pass.
   wrote, and **never contains a URI** — a connection string holds a password.
 - `process.emitWarning` is the only logging channel. A library does not own
   stdout.
-- `*.spec.ts` colocated in `src/`; `test/` holds helpers only; `test/types/` is
-  typechecked and never run.
+- `*.spec.ts` colocated in `src/`; `test/` holds cross-subject helpers only;
+  `test/types/` is typechecked and never run.
 
 ---
 
@@ -273,8 +273,9 @@ What this commits us to in the code:
   intersected into the parameter refuses the same mistakes and completes
   nothing, since the literal being typed meets it first. `defineModel` types
   `types` as `Ts extends ModelTypesOf<Subjects[number], Ts>`, and
-  `src/permissions/completions.spec.ts` asks the language service what it
-  offers — measured, like the refusals.
+  `src/permissions/completions.model.spec.ts` and
+  `completions.questions.spec.ts` ask the language service what it offers —
+  measured, like the refusals.
 - A login must name a **top-level, required string field** of the schema,
   refused at compile time: `password: { login: 'emial' }` is a type error on
   `login`. So is a schema declaring a field `janus` sets, and a user type named
@@ -479,20 +480,26 @@ The table that exists so a duplication is a decision rather than an accident.
 
 ## Tests
 
-- `*.spec.ts` colocated in `src/`. `test/` holds helpers only.
-- **A spec split by behaviour becomes sibling files**
-  `<subject>.<behaviour>.spec.ts` next to the module it tests —
-  `deliver.sending.spec.ts`, `deliver.closing.spec.ts`,
-  `deliver.refusals.spec.ts` — each keeping its tests' `describe`/`it`
-  names, so a dump of the full names is identical before and after. What the
-  siblings share goes in one `<subject>.fixtures.ts` beside them, which holds
-  no test and is excluded, in every package's `tsconfig.build.json`, with the
-  specs, so it never ships — a shipped module named `fixtures.ts`, with no
-  dotted prefix, is not matched. What specs of several subjects share stays
-  in `test/`. A split spec's server stays one per file: `redisPerFile()` in
-  `test/case.ts` and the kit's `mongoPerFile()` register its
-  `beforeAll`/`afterAll` in each file that calls them.
-- `test/types/` is typechecked by `tsc --noEmit` and **never run**.
+- `*.spec.ts` colocated in `src/`. `test/` holds cross-subject helpers only.
+- **A spec split by behaviour becomes siblings**, `<subject>.<behaviour>.spec.ts`
+  next to the module it tests (`engine.keto.spec.ts`,
+  `list.pagination.spec.ts`), and each case keeps its describe path and name.
+  What they share goes in one `<subject>.fixtures.ts` beside them, which holds
+  no test, is imported by specs only and imports no other fixtures file; a
+  helper several subjects use, such as `rejection` or janus-webhooks'
+  `test/deliveries.ts`, goes in `test/` instead. Every `tsconfig.build.json`
+  excludes `**/*.fixtures.ts` as it excludes the specs, so none ships, and
+  `verify:artifacts` does not count one as a build input. A fixture that
+  *ships* is named `fixtures.ts` in its folder, with no dotted prefix, as
+  `src/conformance/` does. A split spec's server stays one per file:
+  `redisPerFile()` in the Redis adapters' `test/case.ts`, and `mongoPerFile()`
+  in `packages/janus-kit/src/mongo/connect.fixtures.ts`, register its
+  `beforeAll`/`afterAll` in each spec file that calls them.
+- `test/types/` is typechecked by `tsc --noEmit` and **never run**. A list
+  split by behaviour becomes a folder, `test/types/<area>/`, one file per
+  behaviour and a `fixtures.ts` for what they share
+  (`test/types/permissions/`); the numbering of its cases runs across the
+  folder.
 - MongoDB, in `@nxgt/janus-mongo` and `@nxgt/janus-kit/mongo`:
   `mongodb-memory-server-core` as a single-node replica set, binary cached in
   `.cache/mongodb`, one server per spec file, a clean database per case —
