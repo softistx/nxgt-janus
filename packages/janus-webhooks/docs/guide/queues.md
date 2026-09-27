@@ -6,15 +6,15 @@ testing an adapter of the `WebhookQueue` port. The words — queue, claim,
 lease, endpoint id, orphan — are defined in [the index](../README.md#words).
 
 A durable queue is an adapter of the port. One is published:
-[`@nxgt/janus-webhooks-redis`](https://www.npmjs.com/package/@nxgt/janus-webhooks-redis), whose `createRedisWebhookQueue(redis)`
-keeps the deliveries in Redis. For another database,
+[`@nxgt/janus-webhooks-redis`](https://www.npmjs.com/package/@nxgt/janus-webhooks-redis),
+whose `createRedisWebhookQueue(redis)` keeps the deliveries in Redis. For another database,
 [write an adapter](#writing-an-adapter).
 
 ```ts
 import { janus } from '@nxgt/janus';
 import { webhooks, type WebhookQueue } from '@nxgt/janus-webhooks';
 
-declare const queue: WebhookQueue; // one every process of the application shares — createRedisWebhookQueue(redis), for one
+declare const queue: WebhookQueue; // one every process of the application shares — for example, createRedisWebhookQueue(redis)
 declare const options: Omit<Parameters<typeof janus>[0], 'events'>; // your janus() options
 const crmSecret = process.env.CRM_WEBHOOK_SECRET;
 if (!crmSecret) throw new Error('CRM_WEBHOOK_SECRET is not set');
@@ -172,10 +172,12 @@ hold a receiver's token) **and never a secret**.
 
 ## Writing an adapter
 
-On Redis, use [`@nxgt/janus-webhooks-redis`](https://www.npmjs.com/package/@nxgt/janus-webhooks-redis) rather than writing one:
-it passes this suite against a real Redis, outages included, and its
-[sources](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-webhooks-redis/src) show a database adapter of this port — one Lua script
-per method.
+On Redis, use
+[`@nxgt/janus-webhooks-redis`](https://www.npmjs.com/package/@nxgt/janus-webhooks-redis)
+rather than writing one: it passes this suite against a real Redis, outages
+included, and its
+[sources](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-webhooks-redis/src)
+show a database adapter of this port — one Lua script per method.
 
 The memory reference, `createMemoryWebhookQueue()`, is the shortest correct
 adapter: a `Map`, and every method doing all its work before its first

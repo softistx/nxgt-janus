@@ -105,7 +105,7 @@ half-way.
 
 ## Documentation
 
-- [Guides](docs/README.md): wiring the queue, the prefix, what Redis must be configured with
+- [Guides](docs/README.md): wiring the queue, the prefix, what Redis must be configured with, what Redis holds and how each method stays atomic
 - [Troubleshooting](docs/troubleshooting.md): look up the error message you see
 - [Roadmap](docs/roadmap.md): what is next, and what is not planned
 - [`@nxgt/janus-webhooks`'s queues guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-webhooks/docs/guide/queues.md): claims, leases, orphans, and what a queue must do
