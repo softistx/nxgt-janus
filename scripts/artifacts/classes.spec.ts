@@ -1,10 +1,15 @@
-import { describe, expect, test } from 'bun:test';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { duplicateClasses } from './classes';
 
 describe('duplicateClasses — the highest packaging risk in AGENTS.md', () => {
+	const dirs: string[] = [];
+	afterAll(() =>
+		Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true }))),
+	);
+
 	test('finds a class defined in two entry bundles', () => {
 		expect(
 			duplicateClasses([
@@ -39,6 +44,7 @@ describe('duplicateClasses — the highest packaging risk in AGENTS.md', () => {
 	test('catches what Bun.build does without splitting, and passes what it does with it', async () => {
 		// Measured, not assumed: two entry points sharing one class module.
 		const dir = await mkdtemp(join(tmpdir(), 'janus-splitting-'));
+		dirs.push(dir);
 		await writeFile(
 			join(dir, 'errors.ts'),
 			'export class StoreFailure extends Error {}\n',

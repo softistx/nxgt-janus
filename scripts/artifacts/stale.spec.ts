@@ -1,12 +1,18 @@
-import { describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, utimes, writeFile } from 'node:fs/promises';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NOT_A_BUILD_INPUT, staleBuilds } from './stale';
 
 describe('staleBuilds', () => {
+	const dirs: string[] = [];
+	afterAll(() =>
+		Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true }))),
+	);
+
 	test('reports a missing dist/, and a src/ newer than dist/', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'janus-stale-'));
+		dirs.push(root);
 		const pkg = (name: string) => ({ name, dir: join(root, name) });
 
 		for (const name of ['fresh', 'stale', 'unbuilt']) {

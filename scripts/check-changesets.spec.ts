@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { namesIn, read, refusals } from './check-changesets';
@@ -89,8 +89,14 @@ describe('refusals', () => {
 });
 
 describe('read', () => {
+	const dirs: string[] = [];
+	afterAll(() =>
+		Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true }))),
+	);
+
 	test('reads the changesets and the packages, private or not, and nothing else', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'check-changesets-'));
+		dirs.push(root);
 		await mkdir(join(root, '.changeset'));
 		await writeFile(join(root, '.changeset', 'README.md'), '# Changesets\n');
 		await writeFile(join(root, '.changeset', 'config.json'), '{}\n');
