@@ -3,6 +3,7 @@
  * address verified.
  */
 
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import {
 	type AnyUser,
@@ -21,7 +22,7 @@ import { issueEmailToken, redeemEmailToken } from './email-token';
 export function verifyEmailFlows(
 	context: Context,
 	type: ResolvedType,
-	at: (operation: string) => string,
+	at: At,
 ): VerifyEmailApi<AnyUser>['verifyEmail'] {
 	return {
 		async send(user) {
