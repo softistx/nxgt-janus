@@ -11,8 +11,8 @@ import { z } from 'zod';
  * in the code. A subject set carries `relation`, an entity does not, so
  * `team:t1#members` and `team:t1` are two keys.
  *
- * The key is always built by `keyOf`, in `./tuples`, in one field order: MongoDB
- * compares embedded documents field by field, in order.
+ * The key is always built in one fixed field order: MongoDB compares
+ * embedded documents field by field, in order.
  */
 export const relations = defineCollection({
 	name: 'relations',

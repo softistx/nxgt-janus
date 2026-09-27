@@ -45,8 +45,8 @@ export function createMongoRelations(db: Db): RelationStore {
 			run$('findSubjectSets', () => findSubjectSets(context, object, relation)),
 		findEntities: (object, relation) =>
 			run$('findEntities', () => findEntities(context, object, relation)),
-		// Unpacked before `run$`, as the port's other methods: a malformed
-		// request is the caller's bug, thrown as it is, never an outage.
+		// Unpacked before `run$`, as `write`'s is and as on develop, so a
+		// malformed request throws instead of reading as an outage.
 		findObjects: ({ type, relation, subject, after, limit }) =>
 			run$('findObjects', () =>
 				findObjects(context, { type, relation, subject, after, limit }),
