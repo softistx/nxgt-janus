@@ -1,5 +1,13 @@
 # @nxgt/janus-webhooks
 
+## 0.2.2
+
+### Patch Changes
+
+- [#86](https://github.com/softistx/nxgt-janus/pull/86) [`36d37dc`](https://github.com/softistx/nxgt-janus/commit/36d37dcd85e9ae4fca6f53b88fefecae7a2753f6) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the README gains a Subpaths section and states the `@nxgt/janus` peer as 0.8, pointing to `peerDependencies` for the exact range. The queues guide and the troubleshooting entry for events lost on exit name `@nxgt/janus-webhooks-redis` as the Redis queue. The reason a retry delay past 24 days is refused now matches the worker, which caps the timer: such a retry would be sent early, not at once.
+- Updated dependencies [[`24b2067`](https://github.com/softistx/nxgt-janus/commit/24b20673eea1f96316a216b2b2c973bbd493330e)]:
+  - @nxgt/janus@0.8.6
+
 ## 0.2.1
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @nxgt/janus-telemetry
 
+## 0.3.3
+
+### Patch Changes
+
+- [#88](https://github.com/softistx/nxgt-janus/pull/88) [`f110240`](https://github.com/softistx/nxgt-janus/commit/f110240ee02a4ce3b34b1313c172d3de5d3b5bb9) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the README gains "Type safety, counted": the six plausible mistakes `test/types/instrument.ts` measures — three refusals of `@nxgt/janus` that survive instrumenting, and three of this package's own.
+- Updated dependencies [[`24b2067`](https://github.com/softistx/nxgt-janus/commit/24b20673eea1f96316a216b2b2c973bbd493330e)]:
+  - @nxgt/janus@0.8.6
+
 ## 0.3.2
 
 ### Patch Changes

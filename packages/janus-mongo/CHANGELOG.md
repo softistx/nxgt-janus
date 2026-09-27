@@ -1,5 +1,13 @@
 # @nxgt/janus-mongo
 
+## 0.4.2
+
+### Patch Changes
+
+- [#88](https://github.com/softistx/nxgt-janus/pull/88) [`f110240`](https://github.com/softistx/nxgt-janus/commit/f110240ee02a4ce3b34b1313c172d3de5d3b5bb9) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the README gains "Type safety, counted": eleven plausible mistakes the compiler refuses — a connection string, `@nxgt/mongo`'s connection, its promise not awaited or the driver's client instead of a database, a sync option in the wrong case, and the adapter or one of its stores passed where another is expected — each measured by a `@ts-expect-error` case in `test/types/adapter.ts`. The README also names `typescript` in its install block, and gains its Licence section.
+- Updated dependencies [[`24b2067`](https://github.com/softistx/nxgt-janus/commit/24b20673eea1f96316a216b2b2c973bbd493330e)]:
+  - @nxgt/janus@0.8.6
+
 ## 0.4.1
 
 ### Patch Changes
