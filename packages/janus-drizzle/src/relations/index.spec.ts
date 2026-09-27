@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { openTestDb } from '../test/db';
-import { createDrizzleRelations } from './relations';
+import { openTestDb } from '../../test/db';
+import { createDrizzleRelations } from './index';
 
 describe('createDrizzleRelations(), beyond the port suite', () => {
 	it('writes all or nothing: a failed addition rolls its removal back', async () => {
