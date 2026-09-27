@@ -33,7 +33,8 @@ bun add @nxgt/janus-telemetry @nxgt/janus @nxgt/telemetry
 bun add -d typescript
 ```
 
-Every peer is required: `@nxgt/janus` (0.6, the release with sign-in codes), `@nxgt/telemetry` (`>=0.2.1 <1`, any 0.x from 0.2.1) and
+Every peer is required: `@nxgt/janus` 0.8 (the exact range is in
+`peerDependencies`), `@nxgt/telemetry` (`>=0.2.1 <1`, any 0.x from 0.2.1) and
 `typescript` (6). `@nxgt/janus` and `@nxgt/telemetry` are **peers**: one copy of `@nxgt/janus`, so
 `instanceof JanusError` holds, and one of `@nxgt/telemetry`, so there is one
 current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
