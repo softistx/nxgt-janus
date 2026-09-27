@@ -1,4 +1,5 @@
 import { SecondFactorError } from '../../errors/janus-error';
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, toUser, writeUser } from '../context';
 import { codeInvalid } from '../one-time';
@@ -22,7 +23,7 @@ type Lifecycle = Pick<
 export function lifecycleFlows(
 	context: Context,
 	type: ResolvedType,
-	at: (operation: string) => string,
+	at: At,
 ): Lifecycle {
 	return {
 		async enroll(user, options) {

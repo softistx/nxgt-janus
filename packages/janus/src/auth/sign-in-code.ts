@@ -1,4 +1,5 @@
 import { UserInactiveError } from '../errors/janus-error';
+import type { At } from './at';
 import type { ResolvedType } from './config';
 import {
 	type AnyUser,
@@ -41,7 +42,7 @@ import type { IssuedCode, SignInCodeApi, SignInResult } from './types';
 export function signInCodeFlows(
 	context: Context,
 	type: ResolvedType,
-	at: (operation: string) => string,
+	at: At,
 	finish: Finish,
 ): SignInCodeApi<AnyUser, SignInResult<AnyUser>>['signInCode'] {
 	return {
@@ -101,7 +102,7 @@ async function confirmCode(
 	finish: Finish,
 	challenge: string,
 	code: string,
-	at: (operation: string) => string,
+	at: At,
 ): Promise<SignInResult<AnyUser>> {
 	const where = at('signInCode.confirm');
 	const secret = String(challenge);

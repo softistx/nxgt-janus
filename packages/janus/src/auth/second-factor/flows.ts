@@ -1,3 +1,4 @@
+import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
 import type { UserRecord } from '../port/types';
@@ -14,7 +15,7 @@ import { lifecycleFlows } from './lifecycle';
 export function secondFactorFlows(
 	context: Context,
 	type: ResolvedType,
-	at: (operation: string) => string,
+	at: At,
 ) {
 	const challenges = challengeFlows(context, type, at);
 	const api: SecondFactorApi<AnyUser>['secondFactor'] = {
