@@ -148,7 +148,7 @@ mintWebhookSecret(); // 'whsec_…': 32 random bytes, base64 — give the same o
 
 | Export | What it is |
 | --- | --- |
-| `webhooks(options)` | The listener for `janus({ events })`, and `close()`. Options: `endpoints` (each `{ url, secrets, types?, id? }`), `retries`, `timeout`, `onGivingUp`, `fetch`, `queue`, `concurrency`, `lease`, `poll`, `orphanGrace`. With a `queue` the listener answers the insert, a `Promise`; without one, nothing. Wiring mistakes are a `TypeError` when it is called, and so is an event rebuilt by hand that is not one, when the listener is |
+| `webhooks(options)` | The listener for `janus({ events })`, and `close()`. Options: `endpoints` (each `{ url, secrets, types?, id? }`), `retries`, `timeout`, `onGivingUp`, `fetch`, `queue`, `concurrency`, `lease`, `poll`, `orphanGrace`. With a `queue` the listener answers the insert, a `Promise`; without one, or for an event no endpoint takes, `undefined`. Wiring mistakes are a `TypeError` when it is called, and so is an event rebuilt by hand that is not one, when the listener is |
 | `verifyWebhook(options)` | `{ secrets, headers, body, toleranceSeconds?, now? }` → `UserEvent \| null`. Headers as a fetch `Headers` or a Node header record. No secret, a malformed one, a `toleranceSeconds` that is not a finite number of seconds, or a `now` that is not a valid `Date` is a `TypeError` |
 | `mintWebhookSecret()` | A new `whsec_` secret for an endpoint |
 | `createMemoryWebhookQueue()` | The reference `WebhookQueue`, in memory: what `webhooks()` uses without a `queue`, and one to share between two `webhooks()` in a test |

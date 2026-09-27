@@ -200,8 +200,9 @@ webhooks({
 
 ### `webhooks: retries: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same with `webhooks: timeout:` for the request timeout, and with a
-`queue`, `webhooks: lease:`, `webhooks: poll:` and `webhooks: orphanGrace:`.
+The same with `webhooks: timeout:` for the request timeout,
+`webhooks: lease:`, and — with a `queue` — `webhooks: poll:` and
+`webhooks: orphanGrace:`.
 
 **When:** calling `webhooks({ … })` with a `retries` entry, a `timeout`, a
 `lease`, a `poll` or an `orphanGrace` written in a shape that is not a
@@ -223,7 +224,7 @@ must be a finite number above zero`, and `webhooks:
 string such as `'0s'`.
 
 **When:** calling `webhooks({ … })` with `0`, a negative number, `NaN` or
-`Infinity` as a retry delay, the timeout, or a queue's `lease`, `poll` or
+`Infinity` as a retry delay, the timeout, the `lease`, or a queue's `poll` or
 `orphanGrace` — often `retries: [0]` meant as "retry at once", or
 `timeout: 0` meant as "no timeout".
 **Why:** each delay and the timeout must be above zero. There is no "no
@@ -362,7 +363,7 @@ webhooks({ endpoints, queue, timeout: '30s', lease: '1m' });
 
 ### `webhooks: timeout is too long — the default lease, timeout plus 30s, waits at most 24 days`
 
-**When:** calling `webhooks({ queue, timeout })` with no `lease` and a
+**When:** calling `webhooks({ timeout })`, with or without a `queue`, with no `lease` and a
 `timeout` within 30 seconds of 2³¹ − 1 ms, about 24.8 days.
 **Why:** the default lease is `timeout` plus 30 seconds, and a lease is
 waited on by `setTimeout`, which fires at once past 2³¹ − 1 ms. The message
@@ -968,7 +969,8 @@ driver's own error, or another class.
 A process warning, not a failure: the case is counted as passed.
 
 **When:** running the suite without `faults: false`, and a harness whose
-`open()` answers no `faults` — once for each `outage.<method>` case.
+`open()` answers no `faults` — once for each case that needs them: every
+`outage.<method>` case, and `queue.rejectedInsertLeavesNothing`.
 **Why:** the outage cases prove that a method rejects, and never answers
 `[]`, `false` or `0`, when the queue cannot answer. Without a way to make
 the database fail, that is not proven — and a skip is always reported, never
@@ -996,7 +998,8 @@ When the adapter's store cannot be made to fail, say so up front with
 
 ### `<name> — @nxgt/janus-webhooks queue conformance (WITHOUT faults: faults not provided: the outage invariant is not proven for this adapter)`
 
-The title of the suite in the test report, with each `outage.<method>` case
+The title of the suite in the test report, with each case that needs
+`faults` — every `outage.<method>`, and `queue.rejectedInsertLeavesNothing` —
 listed as skipped: `<case> — skipped: faults not provided: …`.
 
 **When:** calling `describeWebhookQueues({ …, faults: false })`.

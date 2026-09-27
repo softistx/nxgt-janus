@@ -202,7 +202,8 @@ retry of one it already handled by that id: see
 Every delivery goes through a queue — the `queue` you pass, or one in the
 process's memory. The listener inserts the event's deliveries, one per
 endpoint whose `types` take it, and returns: `signUp` waits for that insert,
-never for an endpoint. The first attempt starts at once, not on a timer, and
+never for an endpoint. An event no endpoint's `types` takes is dropped at
+once: the listener answers `undefined` and inserts nothing. The first attempt starts at once, not on a timer, and
 the request under way keeps the process alive until it ends. Retries wait on
 timers that **do not** keep the process alive.
 
@@ -402,9 +403,6 @@ A request in flight is aborted after `timeout`, so `close()` waits for it
 no longer than that — plus the time `onGivingUp` takes. Without a `queue`,
 the deliveries due at `close()` are sent `concurrency` at a time, so it waits
 about `timeout` for each batch of `concurrency` still unsent.
-
-An event no endpoint's `types` takes is dropped by the listener at once: it
-answers `undefined`, and nothing is inserted in the queue.
 
 ## The wire format
 
