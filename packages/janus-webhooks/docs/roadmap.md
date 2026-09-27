@@ -5,10 +5,7 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **A Redis-backed queue, `@nxgt/janus-webhooks-redis`** — a durable
-  `WebhookQueue` to pass as `webhooks({ queue })`, shared by every process
-  of the application, so a retry waiting when one process crashes or
-  restarts is sent by the next.
+Nothing between releases.
 
 ## Next
 
@@ -34,6 +31,11 @@ Nothing queued.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A Redis-backed queue, `@nxgt/janus-webhooks-redis` v0.1.0** — a package
+  of its own: `createRedisWebhookQueue(redis)`, a durable `WebhookQueue` to
+  pass as `webhooks({ queue })`, shared by every process of the application,
+  so a retry waiting when one process crashes or restarts is sent by the
+  next.
 - **A durable queue for deliveries** — every delivery goes through a
   `WebhookQueue`, and one passed as `webhooks({ queue })` outlives the
   process: a retry failed by one process is sent by the next, and a request

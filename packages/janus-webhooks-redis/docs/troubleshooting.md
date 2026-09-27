@@ -113,9 +113,11 @@ does not roll a script back. Only the insert undoes its own writes: nothing
 of an insert refused is left. For the others:
 
 - a claim keeps the deliveries it took before the refusal: each has spent
-  an attempt, and is claimed again once its lease ends;
+  an attempt, and is claimed again once its lease ends — or at once, for
+  the one whose lease the refusal cut short;
 - `deleteDelivery` removes the hash before its member, so a refusal between
-  the two leaves only a member, which the next claim drops;
+  the two leaves only a member — or, past both, an endpoint with nothing
+  due — which the next claim drops;
 - `scheduleRetry` refused between its two writes has released its lease and
   stored its failure, but the delivery is still due when the old lease
   ends: it is retried then — earlier than scheduled.

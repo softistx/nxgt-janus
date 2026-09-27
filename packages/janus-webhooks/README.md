@@ -91,7 +91,8 @@ const secret = process.env.WEBHOOK_SECRET; // whsec_…, from mintWebhookSecret(
 if (!secret) throw new Error('WEBHOOK_SECRET is not set');
 
 // The reference, in memory: swap in a durable adapter of the port — such as
-// the upcoming @nxgt/janus-webhooks-redis — for a queue that survives a restart.
+// createRedisWebhookQueue(redis) from @nxgt/janus-webhooks-redis — for a
+// queue that survives a restart.
 const queue = createMemoryWebhookQueue();
 
 const listener = webhooks({
