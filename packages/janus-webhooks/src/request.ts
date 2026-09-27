@@ -26,8 +26,13 @@ export interface WebhookEndpoint {
 
 /** An endpoint, checked once when `webhooks()` is called. */
 export interface Target {
-	/** The endpoint's id: what a queued delivery names. */
+	/** The endpoint's id: what a `Delivery` names. */
 	readonly endpoint: string;
+	/**
+	 * What the queue holds its deliveries under: the id with a queue of the
+	 * caller's, the position in `endpoints` without one.
+	 */
+	readonly key: string;
 	readonly url: string;
 	/** What a warning names: never the path or query, which may hold a token. */
 	readonly origin: string;
@@ -95,6 +100,7 @@ export function targetOf(
 	}
 	return {
 		endpoint: id ?? idOf(url.href),
+		key: id ?? idOf(url.href),
 		url: url.href,
 		origin: url.origin,
 		keys: secrets.map((secret) => keyOf(secret, where)),

@@ -1,6 +1,22 @@
 import type { ConformanceRunner } from '@nxgt/janus/conformance';
-import { allWebhookQueueCases } from './cases';
+import { leaseCases } from './cases/lease';
+import { orphanCases } from './cases/orphans';
+import { webhookQueueOutageCases } from './cases/outage';
+import { queueCases } from './cases/queue';
 import type { WebhookQueueCase, WebhookQueueHarness } from './types';
+
+/** Every case but the outages: what a queue must do when it answers. */
+export const webhookQueueCases: readonly WebhookQueueCase[] = [
+	...queueCases,
+	...leaseCases,
+	...orphanCases,
+];
+
+/** Every case, in the order they are described. */
+export const allWebhookQueueCases: readonly WebhookQueueCase[] = [
+	...webhookQueueCases,
+	...webhookQueueOutageCases,
+];
 
 /** Why a case did not run. A skip is always reported with its reason, never silent. */
 export const SKIP_REASONS = {

@@ -125,7 +125,7 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 	const settings = settingsOf(options, where);
 	const { targets } = settings;
 	const durable = settings.queue !== null;
-	const giveUp = reporterOf(options.onGivingUp, targets);
+	const giveUp = reporterOf(options.onGivingUp);
 	const worker = startWorker(settings, giveUp);
 	let closed = false;
 
@@ -136,16 +136,19 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 		const to = targets.filter(
 			(target) => target.types === null || target.types.has(event.type),
 		);
+		// No endpoint takes this type: nothing to insert, nothing to wait for.
+		if (to.length === 0) return undefined;
 		if (closed && !durable) {
-			for (const { url, endpoint } of to) {
+			for (const { url, endpoint, origin } of to) {
 				const delivery: Delivery = { event, url, endpoint, attempts: 0 };
-				void giveUp(delivery, { why: 'closed', status: null, error: null });
+				const reason = { why: 'closed', status: null, error: null } as const;
+				void giveUp(delivery, reason, origin);
 			}
 			return undefined;
 		}
 		const inserted = worker.accept(
 			event,
-			to.map((target) => target.endpoint),
+			to.map((target) => target.key),
 		);
 		return durable ? inserted : undefined;
 	};

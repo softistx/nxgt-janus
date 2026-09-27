@@ -16,22 +16,33 @@ import type { WebhookQueueHarness } from './types';
 export function referenceWebhookQueueHarness(): WebhookQueueHarness {
 	return {
 		async open() {
-			const failing = new Set<string>();
+			const failing = new Set<WebhookQueueMethod>();
 			const inner = createMemoryWebhookQueue();
-			const queue = Object.fromEntries(
-				Object.entries(inner).map(([method, fn]) => [
-					method,
-					(...args: unknown[]) =>
-						failing.has(method)
-							? Promise.reject(
-									new StoreFailure(
-										`webhookQueue.${method}: the queue could not answer`,
-										{ operation: method },
-									),
-								)
-							: (fn as (...a: unknown[]) => unknown).apply(inner, args),
-				]),
-			) as unknown as WebhookQueue;
+			/** The failure of `method`, when it is made to fail; `null` otherwise. */
+			const fault = (method: WebhookQueueMethod) =>
+				failing.has(method)
+					? Promise.reject(
+							new StoreFailure(
+								`webhookQueue.${method}: the queue could not answer`,
+								{ operation: method },
+							),
+						)
+					: null;
+			const queue: WebhookQueue = {
+				insertDeliveries: (...args) =>
+					fault('insertDeliveries') ?? inner.insertDeliveries(...args),
+				claimDeliveries: (...args) =>
+					fault('claimDeliveries') ?? inner.claimDeliveries(...args),
+				claimOrphanedDeliveries: (...args) =>
+					fault('claimOrphanedDeliveries') ??
+					inner.claimOrphanedDeliveries(...args),
+				extendLease: (...args) =>
+					fault('extendLease') ?? inner.extendLease(...args),
+				scheduleRetry: (...args) =>
+					fault('scheduleRetry') ?? inner.scheduleRetry(...args),
+				deleteDelivery: (...args) =>
+					fault('deleteDelivery') ?? inner.deleteDelivery(...args),
+			};
 
 			return {
 				queue,

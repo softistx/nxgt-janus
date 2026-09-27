@@ -393,9 +393,14 @@ describe('webhooks({ queue, … }) refuses, as wiring', () => {
 			'webhooks: concurrency is a whole number of requests, 1 or more',
 		],
 		[
-			'a lease no longer than timeout',
-			{ endpoints, queue, timeout: '10s', lease: '10s' },
-			'webhooks: lease must be longer than timeout',
+			'a lease less than timeout plus 1s',
+			{ endpoints, queue, timeout: '10s', lease: '10999ms' },
+			'webhooks: lease must be at least timeout plus 1s',
+		],
+		[
+			'a timeout whose default lease would wait past 24 days',
+			{ endpoints, queue, timeout: '2147483000ms' },
+			'webhooks: timeout is too long — the default lease, timeout plus 30s, waits at most 24 days',
 		],
 		[
 			'a poll without a queue',
@@ -450,6 +455,24 @@ describe('webhooks({ queue, … }) refuses, as wiring', () => {
 					{ url, secrets: [secret] },
 				],
 			}),
+		).not.toThrow();
+	});
+
+	it('takes, without a queue, an id written that is the position of another', () => {
+		// Without a queue a position is a key no id written can take.
+		expect(() =>
+			webhooks({
+				endpoints: [
+					{ id: '1', url, secrets: [secret] },
+					{ url: 'https://other.example.test', secrets: [secret] },
+				],
+			}),
+		).not.toThrow();
+	});
+
+	it('takes a lease of exactly timeout plus 1s', () => {
+		expect(() =>
+			webhooks({ endpoints, queue, timeout: '10s', lease: '11s' }),
 		).not.toThrow();
 	});
 });

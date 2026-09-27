@@ -18,6 +18,11 @@ const SCHEDULE: readonly Duration[] = [
 /** The longest delay `setTimeout` keeps: 2³¹ − 1 ms, about 24.8 days. */
 export const LONGEST = 2 ** 31 - 1;
 
+/** The least a lease must exceed `timeout` by. */
+const LEASE_MARGIN = 1_000;
+/** What the default lease exceeds `timeout` by. */
+const DEFAULT_LEASE_MARGIN = 30_000;
+
 /** `webhooks()`'s options, checked once when it is called. */
 export interface Settings {
 	readonly targets: readonly Target[];
@@ -69,14 +74,24 @@ function targetsOf(
 	// With a queue, an id outlives the process, so it cannot be a position:
 	// removing the first endpoint would hand its deliveries to the second.
 	// It is never the URL either, whose query may hold a token.
-	const targets = options.endpoints.map((endpoint, index) =>
-		targetOf(endpoint, where, (href) =>
+	const targets = options.endpoints.map((endpoint, index) => {
+		const target = targetOf(endpoint, where, (href) =>
 			durable
 				? createHash('sha256').update(href).digest('hex').slice(0, 32)
 				: String(index),
-		),
-	);
-	if (new Set(targets.map((one) => one.endpoint)).size !== targets.length) {
+		);
+		// Without one, the memory queue keys each by its position, which no
+		// two share: an id, written or not, only names it in a Delivery.
+		return durable ? target : { ...target, key: String(index) };
+	});
+	// With a queue every id is a key, so none may repeat. Without one only
+	// the ids written must differ: no position is a key they could take.
+	const named = durable
+		? targets.map((one) => one.endpoint)
+		: options.endpoints.flatMap((one) =>
+				one.id === undefined ? [] : [one.id],
+			);
+	if (new Set(named).size !== named.length) {
 		throw new TypeError(
 			`${where}: two endpoints have one id — give each an id of its own; with a queue, two with the same url need one`,
 		);
@@ -140,23 +155,44 @@ function queueingOf(
 			`${where}: poll and orphanGrace take effect with a queue only — pass one, or leave them out`,
 		);
 	}
-	// A request is aborted at timeout, so a lease past it covers the whole
-	// request: no other process claims a delivery still being sent.
-	const leaseMs = timerOf(options.lease ?? timeoutMs + 30_000, 'lease', where);
-	if (leaseMs <= timeoutMs) {
-		throw new TypeError(
-			`${where}: lease must be longer than timeout — a request outliving its lease is sent twice`,
-		);
-	}
 	return {
 		concurrency: concurrency as number,
-		leaseMs,
+		leaseMs: leaseOf(options.lease, timeoutMs, where),
 		pollMs: timerOf(options.poll ?? '1s', 'poll', where),
 		orphanGraceMs: parseDuration(
 			options.orphanGrace ?? '24h',
 			`${where}: orphanGrace`,
 		),
 	};
+}
+
+/**
+ * How long a claim hides a delivery. A request is aborted at `timeout`, so a
+ * lease a margin past it covers the whole request, and leaves the margin to
+ * extend the lease before the report of a failure: no other claim takes a
+ * delivery still being sent, or reported.
+ */
+function leaseOf(
+	lease: Duration | undefined,
+	timeoutMs: number,
+	where: string,
+): number {
+	if (lease === undefined) {
+		const ms = timeoutMs + DEFAULT_LEASE_MARGIN;
+		if (ms > LONGEST) {
+			throw new TypeError(
+				`${where}: timeout is too long — the default lease, timeout plus 30s, waits at most 24 days`,
+			);
+		}
+		return ms;
+	}
+	const ms = timerOf(lease, 'lease', where);
+	if (ms < timeoutMs + LEASE_MARGIN) {
+		throw new TypeError(
+			`${where}: lease must be at least timeout plus 1s — a request that outlives its lease is sent twice`,
+		);
+	}
+	return ms;
 }
 
 /** A duration a timer waits for: at most what `setTimeout` keeps. */

@@ -17,15 +17,13 @@
  * It imports no test framework and no assertion library.
  */
 
+export { webhookQueueOutageCases } from './cases/outage';
 export {
 	allWebhookQueueCases,
-	webhookQueueCases,
-	webhookQueueOutageCases,
-} from './cases';
-export {
 	describeWebhookQueues,
 	runWebhookQueueCase,
 	SKIP_REASONS,
+	webhookQueueCases,
 } from './describe';
 export { referenceWebhookQueueHarness } from './reference';
 export type {

@@ -50,15 +50,16 @@ verifyWebhook({ secrets: [], headers: {}, body: '' });
 
 // A queue shared by every process, and the listener janus takes from it.
 const queue = createMemoryWebhookQueue();
+const queued = webhooks({
+	endpoints: [{ id: 'crm', url, secrets: [secret] }],
+	queue,
+});
 janus({
 	user: z.strictObject({ email: z.email() }),
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: webhooks({
-		endpoints: [{ id: 'crm', url, secrets: [secret] }],
-		queue,
-	}),
+	events: queued,
 });
 
 // A queue missing a method would lose deliveries on the first retry.
@@ -89,8 +90,16 @@ function explain(reason: GivingUp): string {
 	}
 }
 
+// A delivery to an endpoint no longer configured names no URL.
+webhooks({
+	endpoints: [{ id: 'crm', url, secrets: [secret] }],
+	queue,
+	// @ts-expect-error url is string | null: null once the endpoint is removed
+	onGivingUp: (delivery) => delivery.url.length,
+});
+
 // With a queue, the listener's answer is the insert, to await.
-const inserted: Promise<void> | undefined = listener({
+const inserted: Promise<void> | undefined = queued({
 	id: '0199a0db-f800-7000-8000-000000000001',
 	type: 'user.created',
 	occurredAt: new Date(),
