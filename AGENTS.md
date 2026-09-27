@@ -540,7 +540,8 @@ reported the package as unbuilt. `scripts/check-changesets.spec.ts` covers the
 changeset check — read with `@changesets/parse`, the parser `changeset version`
 uses, so a shape it accepts is never let through unread.
 `scripts/check-nxgt-versions.spec.ts` covers which devDependencies are
-tracked, what counts as behind, and the reading of this repository's own
+tracked, what counts as behind, a registry that fails or answers no version,
+and the reading of this repository's own
 `bun.lock`.
 
 ---

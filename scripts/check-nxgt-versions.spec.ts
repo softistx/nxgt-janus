@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, spyOn, test } from 'bun:test';
 import {
 	behind,
+	latestOf,
 	type Manifest,
 	read,
 	report,
@@ -172,6 +173,41 @@ describe('report', () => {
 			'@nxgt/mongo: 0.17.1 → 0.18.1 (packages/janus-kit, packages/janus-mongo)',
 			'@nxgt/redis: not in bun.lock → 0.3.1 (packages/janus-kit)',
 		]);
+	});
+});
+
+describe('latestOf', () => {
+	const answer = (body: unknown, status = 200) =>
+		spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify(body), { status }),
+		);
+
+	afterEach(() => {
+		(
+			globalThis.fetch as unknown as { mockRestore?: () => void }
+		).mockRestore?.();
+	});
+
+	test("reads the latest dist-tag's version, at the scoped name escaped", async () => {
+		const spy = answer({ version: '0.18.1' });
+		expect(await latestOf('@nxgt/mongo')).toBe('0.18.1');
+		expect(spy).toHaveBeenCalledWith(
+			'https://registry.npmjs.org/@nxgt%2fmongo/latest',
+		);
+	});
+
+	test('throws when the registry does not answer 2xx, rather than calling it current', async () => {
+		answer({ error: 'Not found' }, 404);
+		await expect(latestOf('@nxgt/x')).rejects.toThrow(
+			'the registry answered 404 for @nxgt/x',
+		);
+	});
+
+	test('throws on an answer with no version', async () => {
+		answer({});
+		await expect(latestOf('@nxgt/x')).rejects.toThrow(
+			"no version in @nxgt/x's latest",
+		);
 	});
 });
 

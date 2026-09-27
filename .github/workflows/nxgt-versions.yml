@@ -44,7 +44,8 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          # packageManager in package.json holds the pin, as the lock requires.
+          bun-version-file: package.json
       # Exit 1 is "behind", 2 is "could not tell": only 0 and 1 are answers.
       - name: Compare with npm
         id: check
@@ -64,11 +65,11 @@ jobs:
             echo
             cat "$RUNNER_TEMP/outdated.txt"
             echo
-            echo 'Bump each devDependency, commit `bun.lock` with it, and run the suites that use it; AGENTS.md says which, and what the specs run on.'
+            echo 'Bump each devDependency, commit `bun.lock` with it and an empty changeset, and run the suites that use it; AGENTS.md says which, and what the specs run on.'
             echo
             echo "Found by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           } > "$RUNNER_TEMP/body.md"
-          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number,title --jq "map(select(.title == env.TITLE))[0].number // empty")
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 500 --json number,title --jq "map(select(.title == env.TITLE))[0].number // empty")
           if [ -n "$number" ]; then
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/body.md"
           else
@@ -78,7 +79,7 @@ jobs:
       - name: Close the issue
         if: steps.check.outputs.status == '0'
         run: |
-          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number,title --jq "map(select(.title == env.TITLE))[0].number // empty")
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 500 --json number,title --jq "map(select(.title == env.TITLE))[0].number // empty")
           if [ -n "$number" ]; then
             gh issue close "$number" --repo "$GITHUB_REPOSITORY" --comment "Every @nxgt/* devDependency is at npm latest: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           fi
