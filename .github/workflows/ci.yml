@@ -92,7 +92,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/redis
-          key: redis-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-redis/test/server.ts') }}
+          key: redis-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-redis/test/server.ts', 'packages/janus-kit/test/server.ts', 'packages/janus-webhooks-redis/test/server.ts') }}
       - name: Build Redis
         run: bun -e "const { redisBinary } = await import('./packages/janus-redis/test/server.ts'); console.log(await redisBinary())"
       # Per package, then the scripts' own specs.
