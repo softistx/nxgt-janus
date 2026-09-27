@@ -109,7 +109,7 @@
     },
     "packages/janus-mail": {
       "name": "@nxgt/janus-mail",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "devDependencies": {
         "@maizzle/framework": "6.1.7",
         "@maizzle/tailwindcss": "1.5.6",
