@@ -1,7 +1,7 @@
 # Troubleshooting `@nxgt/janus-mail`
 
-Each entry is headed by the text you see: a message, an error `code`, or a
-compiler error. Search this page for the words of your message.
+Each entry is headed by the text you see: a message, an error `code`, a
+compiler error — or, where nothing is thrown, what the e-mail says. Search this page for the words of your message.
 
 How the messages are shaped:
 
@@ -41,7 +41,7 @@ How the messages are shaped:
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`janusMail.<method>: expiresAt must be a Date`](#janusmailmethod-expiresat-must-be-a-date)
 - [`janusMail.<method>: expiresAt is past — the link or code would not work`](#janusmailmethod-expiresat-is-past--the-link-or-code-would-not-work)
-- [The expiry reads in the wrong language, or "1 hour" where you meant 90 minutes](#the-expiry-reads-in-the-wrong-language-or-1-hour-where-you-meant-90-minutes)
+- [`This link expires in 1 hour.` — in the wrong language, or shorter than the `tokens` TTL](#this-link-expires-in-1-hour--in-the-wrong-language-or-shorter-than-the-tokens-ttl)
 - [`MAIL_REFUSED` — `render: <email>: link must be an http:, https: or mailto: URL`](#mail_refused--render-email-link-must-be-an-http-https-or-mailto-url)
 - [`janusMail.<method>: links.<call> must answer a string`](#janusmailmethod-linkscall-must-answer-a-string)
 - [`render: <email>: link must be a string or a finite number`](#render-email-link-must-be-a-string-or-a-finite-number)
@@ -231,10 +231,10 @@ that waited too long, an `expiresAt` from another record, or, in tests,
 `janusMail()`, so a date in the clock's past is measured against today. Nothing is
 sent: an e-mail whose link fails helps nobody. Issue a new one
 (`auth.verifyEmail.send(user)`, `auth.signInCode.request(email)`) and send
-that; if a queue can hold a send that long, lengthen the flow's lifetime in
+that; if a queue can hold a send that long, lengthen the `tokens` TTL in
 `janus({ tokens })`.
 
-### The expiry reads in the wrong language, or "1 hour" where you meant 90 minutes
+### `This link expires in 1 hour.` — in the wrong language, or shorter than the `tokens` TTL
 
 `expiresIn` is formatted by the runtime's `Intl.NumberFormat`, in the locale
 picked for the recipient. A locale the runtime has no data for — a Node

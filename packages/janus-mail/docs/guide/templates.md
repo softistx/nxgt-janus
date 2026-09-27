@@ -72,7 +72,7 @@ call, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
 the send's own `expiresIn` ([Sending](sending.md#the-expiry)).
 
 `signInCode` is **never given the challenge**: it is not in its variables,
-and the method never reads it. An override states the lifetime from
+and the method never reads it. An override states the expiry from
 `expiresIn`, already formatted:
 
 ```ts
@@ -109,7 +109,7 @@ another locale, it takes **all five** — see
 rest — frozen:
 
 ```ts
-const rendered = await mail.templates.verifyEmail({ brand: 'Acme', name: 'Ada', link, locale: 'fr' });
+const rendered = await mail.templates.verifyEmail({ brand: 'Acme', name: 'Ada', link, expiresIn: '1 heure', locale: 'fr' });
 ```
 
 ## The defaults alone — `janusTemplates()`
@@ -122,6 +122,7 @@ const { subject, html, text } = await defaults.resetPassword({
 	brand: 'Acme',
 	name: 'Ada',
 	link: 'https://acme.example/reset?token=abc',
+	expiresIn: '1 heure',
 	locale: 'fr',
 });
 ```

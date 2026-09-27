@@ -205,7 +205,7 @@ defines no error class and wraps nothing:
 | --- | --- | --- | --- |
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
-| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string` | A bug to fix |
+| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`. For [the expiry](#the-expiry): `janusMail.<method>: expiresAt must be a Date`, `janusMail.<method>: expiresAt is past — the link or code would not work`, `janusMail.<method>: expiresIn must be a string` | A bug to fix — for a past `expiresAt`, issue a new token or code and send that |
 | `Error` from `createMailRenderer` | the renderer | `mails/` is missing where the package runs: a bundler inlined `@nxgt/janus-mail`, or a deploy kept `dist/` only | Keep `@nxgt/janus-mail` external to your bundle and deploy its `mails/` with it; see [troubleshooting](../troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is
@@ -245,8 +245,13 @@ fail:
 
 ```ts
 import { expect, it } from 'bun:test';
+import { fixedClock } from '@nxgt/janus';
 import { createMemoryMailer, MailFailure } from '@nxgt/mail';
 import { janusMail } from '@nxgt/janus-mail';
+
+// The clock given to janus({ clock }) too: the codes it issues expire ten minutes on.
+const clock = fixedClock(Date.UTC(2026, 0, 1, 9));
+const expiresAt = new Date(Date.UTC(2026, 0, 1, 9, 10));
 
 const links = {
 	verifyEmail: (token: string) => `https://acme.example/verify?token=${token}`,
@@ -256,24 +261,25 @@ const links = {
 
 it('sends the code, and never the challenge', async () => {
 	const mailer = createMemoryMailer();
-	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links });
-	const issued = { code: '042817', challenge: 'secret', email: 'ada@example.com' };
+	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links, clock });
+	const issued = { code: '042817', challenge: 'secret', email: 'ada@example.com', expiresAt };
 
 	await mail.signInCode(issued, { locale: 'fr-CA' });
 
 	const [sent] = mailer.sent;
 	expect(sent?.to).toBe('ada@example.com');
 	expect(sent?.subject).toBe('Votre code de connexion : 042817');
+	expect(sent?.text).toContain('10 minutes.');
 	expect(`${sent?.html}${sent?.text}`).not.toContain('secret');
 });
 
 it('says so when the mailer is down', async () => {
 	const mailer = createMemoryMailer();
 	mailer.failNext();
-	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links });
+	const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links, clock });
 
 	const error = await mail
-		.signInCode({ code: '042817', email: 'ada@example.com' })
+		.signInCode({ code: '042817', email: 'ada@example.com', expiresAt })
 		.then(() => null, (e: unknown) => e); // settled where it is created
 
 	expect(error).toBeInstanceOf(MailFailure);
