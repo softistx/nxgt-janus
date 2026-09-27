@@ -1,9 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, text } from 'drizzle-orm/pg-core';
-import { at, key, type TableOf } from './columns';
+import { at, key, type TableFactory } from './columns';
 
 /** One-time tokens, keyed by their hash. */
-export function tokensTable(table: TableOf) {
+export function tokensTable(table: TableFactory) {
 	return table(
 		'tokens',
 		{

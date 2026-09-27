@@ -1,9 +1,10 @@
 import { type PgSchema, pgTable } from 'drizzle-orm/pg-core';
-import type { TableOf } from './columns';
+import type { TableFactory } from './columns';
+import { loginsTable } from './logins';
 import { relationsTable } from './relations';
 import { sessionsTable } from './sessions';
 import { tokensTable } from './tokens';
-import { loginsTable, usersTable } from './users';
+import { usersTable } from './users';
 
 /**
  * The five tables, as Drizzle definitions: **your migrations create them**.
@@ -55,7 +56,7 @@ export interface JanusTablesOptions {
  */
 export function defineJanusTables(options: JanusTablesOptions = {}) {
 	const { schema } = options;
-	const table = (schema === undefined ? pgTable : schema.table) as TableOf;
+	const table = (schema === undefined ? pgTable : schema.table) as TableFactory;
 	const users = usersTable(table);
 	const logins = loginsTable(table, users);
 	const sessions = sessionsTable(table);

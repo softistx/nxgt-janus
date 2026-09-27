@@ -1,12 +1,12 @@
 import { index, unique } from 'drizzle-orm/pg-core';
-import { at, key, type TableOf } from './columns';
+import { at, key, type TableFactory } from './columns';
 
 /**
  * Sessions. No foreign key to the user: deleting a user deletes the user,
  * and the core deletes the sessions next — as it does when they live
  * elsewhere, in Redis.
  */
-export function sessionsTable(table: TableOf) {
+export function sessionsTable(table: TableFactory) {
 	return table(
 		'sessions',
 		{

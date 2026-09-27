@@ -3,7 +3,7 @@
 import { customType, type pgTable, timestamp } from 'drizzle-orm/pg-core';
 
 /** `pgTable`, or the `table` of the schema the tables live in. */
-export type TableOf = typeof pgTable;
+export type TableFactory = typeof pgTable;
 
 /**
  * A key compared byte by byte, as the port asks (rule 4): `collate "C"`. Under

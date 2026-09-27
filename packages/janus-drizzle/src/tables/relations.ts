@@ -1,5 +1,5 @@
 import { index, unique } from 'drizzle-orm/pg-core';
-import { key, type TableOf } from './columns';
+import { key, type TableFactory } from './columns';
 
 /**
  * Permission tuples, one row each: `record:r1#owners@patient:u1`, or
@@ -11,7 +11,7 @@ import { key, type TableOf } from './columns';
  * Its column order is the reverse index `findObjects` pages: every equality
  * first, the object id last.
  */
-export function relationsTable(table: TableOf) {
+export function relationsTable(table: TableFactory) {
 	return table(
 		'relations',
 		{

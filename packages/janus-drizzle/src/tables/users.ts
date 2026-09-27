@@ -2,21 +2,19 @@ import { sql } from 'drizzle-orm';
 import {
 	boolean,
 	check,
-	foreignKey,
 	index,
 	integer,
 	jsonb,
-	primaryKey,
 	text,
 	unique,
 } from 'drizzle-orm/pg-core';
-import { at, key, type TableOf } from './columns';
+import { at, key, type TableFactory } from './columns';
 
 /**
  * Users and their passwords: one row each. `logins` is the port's array,
  * verbatim and in order; its uniqueness is `logins`' primary key.
  */
-export function usersTable(table: TableOf) {
+export function usersTable(table: TableFactory) {
 	return table(
 		'users',
 		{
@@ -64,36 +62,6 @@ export function usersTable(table: TableOf) {
 				'users_second_factor_values',
 				sql`${t.secondFactorMethod} in ('totp') and ${t.secondFactorLastStep} >= 0`,
 			),
-		],
-	);
-}
-
-/**
- * **The uniqueness of a login, per type** (rule 3): one row per login a
- * user holds, and the primary key refuses a second holder. PostgreSQL has
- * no unique index over the elements of an array, so this table is that
- * index, written in the same transaction as the user. Deleting the user
- * deletes its rows.
- */
-export function loginsTable(
-	table: TableOf,
-	users: ReturnType<typeof usersTable>,
-) {
-	return table(
-		'logins',
-		{
-			type: key('type').notNull(),
-			login: key('login').notNull(),
-			userId: key('user_id').notNull(),
-		},
-		(t) => [
-			primaryKey({ name: 'logins_pkey', columns: [t.type, t.login] }),
-			foreignKey({
-				name: 'logins_user_fk',
-				columns: [t.userId, t.type],
-				foreignColumns: [users.id, users.type],
-			}).onDelete('cascade'),
-			index('logins_user_id').on(t.userId),
 		],
 	);
 }
