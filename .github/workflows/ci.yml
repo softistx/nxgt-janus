@@ -128,8 +128,8 @@ jobs:
           JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
       # And on PGlite, which the README and the adapters guide say it passes
       # on, and which is what a contributor without a server runs: with no
-      # JANUS_POSTGRES_URL, test/db.ts opens one PGlite per case. About two
-      # minutes, measured locally.
+      # JANUS_POSTGRES_URL, test/db.ts opens one PGlite per case. About three
+      # minutes on the runner, two locally.
       - name: Run the PostgreSQL adapter on PGlite
         working-directory: packages/janus-drizzle
         run: bun test src
