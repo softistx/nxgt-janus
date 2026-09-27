@@ -74,7 +74,7 @@
         "@nxgt/janus-drizzle": "workspace:^",
         "@nxgt/janus-mongo": "workspace:^",
         "@nxgt/janus-telemetry": "workspace:^",
-        "@nxgt/mongo": "^0.17.1",
+        "@nxgt/mongo": "^0.18.1",
         "@nxgt/redis": "0.3.1",
         "@nxgt/telemetry": "0.2.1",
         "@types/bun": "^1.4.2",
@@ -134,7 +134,7 @@
       "version": "0.4.3",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
-        "@nxgt/mongo": "^0.17.1",
+        "@nxgt/mongo": "^0.18.1",
         "@types/bun": "^1.4.2",
         "mongodb": "^7.6.0",
         "mongodb-memory-server-core": "11.2.0",
@@ -427,7 +427,7 @@
 
     "@nxgt/mail-ui": ["@nxgt/mail-ui@0.1.0", "", { "dependencies": { "unplugin-vue-components": "^32.1.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.1.0", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-xQvsCpQUZTD7YpnRCyT7193o6eLSrD+MlgqgOep/vRAUq3kuwhlBLOKR1zRXtZ2bCsLvH04bXpsAghwN1yCeSw=="],
 
-    "@nxgt/mongo": ["@nxgt/mongo@0.17.1", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-mkG+G9ebZImja9qJgywhyzonSHDYXH7eAEGt2y6hEj29qnw++Z7U38LI3cH4mdXqZpxi6VO06AG2BpsOm7tfNA=="],
+    "@nxgt/mongo": ["@nxgt/mongo@0.18.1", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-zAWoeevcvw25eOXiF81uzJ9LjCj0RXF8t5HF5Uv2t33mlBB8y+cR/VN1oGtVecX8/U2KcrKBAKVpwfh1N1ZKPQ=="],
 
     "@nxgt/redis": ["@nxgt/redis@0.3.1", "", { "peerDependencies": { "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-PYfjvKt25IcZ/RPJhUTBnuuAIVpidgA+r14mGGghRj2AXZBgYL5d0N+jzbhQDFPS5dm/b6gea4K654z+TkpvwQ=="],
 
