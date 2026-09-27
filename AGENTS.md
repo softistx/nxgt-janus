@@ -20,7 +20,8 @@ reason most of this file exists: a published entry point is a promise, and
 **type safety is the selling point**, which means it has to be measured rather
 than claimed.
 
-Read this file, then the package's own `packages/janus/README.md`.
+Read this file, then the README of the package you touch —
+`packages/<name>/README.md`, starting with `packages/janus/README.md`.
 
 ---
 
@@ -51,7 +52,10 @@ range.** Every package here that wraps one of nxgt-data's packages peers it —
 `janus-webhooks-redis`, `@nxgt/drizzle` in `janus-drizzle`, all three in
 `janus-kit` — and so does the driver beneath it (`mongodb`, `drizzle-orm`). The
 application already opened its connection with that library, and the package
-must wrap *that* connection, not install a second copy beside it. For an
+must wrap *that* connection, not install a second copy beside it. A sibling
+the kit wires internally is the one exception, by design: `@nxgt/janus-redis`
+is a dependency of `janus-kit`, since the application never imports it —
+while the libraries beneath it stay peers. For an
 nxgt-data package the range is `>=<floor> <1` — `>=0.17.0 <1`, `>=0.3.1 <1`,
 `>=0.6.1 <1` — because a caret on a `0.x` version admits a single minor
 (`^0.17.1` stops at `0.18.0`), and every minor of nxgt-data would then force a
@@ -225,9 +229,10 @@ What this commits us to in the code:
 
 ## Layout
 
-One package, several entry points. A published entry point is a **public
-promise**, so a subpath appears in `exports` only once it exports something a
-consumer should call.
+Nine packages under `packages/`: the core `@nxgt/janus`, and the adapters and
+integrations that peer it. The core has several entry points, below. A
+published entry point is a **public promise**, so a subpath appears in
+`exports` only once it exports something a consumer should call.
 
 | Entry point | State |
 | --- | --- |
@@ -282,7 +287,8 @@ second resolution mode to keep working is a promise nobody measures.
 **Generated code goes in a `generated/` folder**, never behind a suffix such as
 `.generated.ts` or `.gen.ts`. No package here generates code yet; when one
 does, its output is `src/generated/` — `src/generated/mail.ts`, say — and that
-path goes in `biome.json`'s ignores. The folder says
+folder gets a `!**/generated` entry in `biome.json`'s `files.includes`,
+beside `!**/dist`. The folder says
 what is generated from the tree alone, one path excludes all of it from a
 review or a lint, and the file keeps the name its content deserves, so the
 import reads `./generated/mail` like any other module.
