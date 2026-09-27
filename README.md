@@ -20,6 +20,7 @@ packages/janus-telemetry @nxgt/janus-telemetry — spans and security events on 
 packages/janus-webhooks @nxgt/janus-webhooks — user events as signed Standard Webhooks: retries through a pluggable durable queue, rotating secrets, verifyWebhook for receivers
 packages/janus-drizzle @nxgt/janus-drizzle — the PostgreSQL adapter on Drizzle and @nxgt/drizzle, for either side
 packages/janus-redis   @nxgt/janus-redis — sessions and one-time tokens in Redis, on @nxgt/redis
+packages/janus-webhooks-redis @nxgt/janus-webhooks-redis — the durable webhook queue in Redis, on @nxgt/redis (private until published)
 packages/janus-kit     @nxgt/janus-kit — Janus wired in one call, one subpath per database (/drizzle, /mongo), with Redis, telemetry, health and close
 ```
 
