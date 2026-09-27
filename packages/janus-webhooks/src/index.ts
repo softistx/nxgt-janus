@@ -7,7 +7,10 @@
  *   retrying on failure, and reports each delivery it gives up;
  * - `verifyWebhook({ secrets, headers, body })` — the receiving side: the
  *   event a request carries, or `null` when it is not one the secrets signed;
- * - `mintWebhookSecret()` — a new `whsec_` secret for an endpoint.
+ * - `mintWebhookSecret()` — a new `whsec_` secret for an endpoint;
+ * - `WebhookQueue` — the port a durable queue implements, so a delivery
+ *   waiting for a retry outlives the process; `createMemoryWebhookQueue()`
+ *   is its reference, and `@nxgt/janus-webhooks/conformance` its suite.
  */
 
 export {
@@ -25,4 +28,6 @@ export {
 	verifyWebhook,
 	type WebhookBody,
 } from './payload';
+export { createMemoryWebhookQueue } from './queue/memory';
+export type { QueuedDelivery, WebhookQueue } from './queue/types';
 export { mintWebhookSecret } from './signature';
