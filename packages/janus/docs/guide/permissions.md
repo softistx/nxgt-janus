@@ -498,7 +498,8 @@ request first ([troubleshooting](../troubleshooting.md#call-limit-must-be-an-int
 Your editor completes `permission` with what `list()` can answer only: a name
 reaching a `fromField` with no `lookup` is neither offered nor accepted.
 `null` answers an empty page before any store call, and so does a subject
-whose id no store can keep.
+whose id no store can keep; an id a `lookup` answers that no store can keep is
+left out of the page.
 
 `list()` walks backwards from the subject, reading every page of the reverse
 index for every id each step reaches. That is fine for what one user can see,
