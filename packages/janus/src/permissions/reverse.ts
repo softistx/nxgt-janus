@@ -9,7 +9,7 @@ import {
 	type ResolvedModel,
 	type ResolvedObjectType,
 	type ResolvedRule,
-} from './resolve';
+} from './resolve/resolved';
 
 /**
  * One `list()`: the objects a subject holds a name on, found backwards —

@@ -2,7 +2,11 @@
 
 import { isStorable, UNSTORABLE } from '../stores/storable';
 import { isSetOf, type Subject } from '../subjects/subject';
-import { admits, type ResolvedModel, type ResolvedObjectType } from './resolve';
+import {
+	admits,
+	type ResolvedModel,
+	type ResolvedObjectType,
+} from './resolve/resolved';
 
 /** What no part of an id may hold: the notation would read it two ways. */
 const RESERVED = /[@#()]/;
