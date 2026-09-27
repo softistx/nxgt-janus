@@ -87,6 +87,13 @@ jobs:
       # building from nothing works.
       - name: Build packages
         run: bun run build
+      # A package that generates code commits it under `src/generated/` —
+      # `@nxgt/janus-mail` writes the e-mails' variables and locales there
+      # from its Maizzle build. The build above rewrites it; a diff means the
+      # committed copy is stale, and the code that sends type-checked against
+      # a build that no longer exists.
+      - name: Generated code is committed
+        run: git diff --exit-code -- 'packages/*/src/generated'
       - name: Type checking
         run: bun run typecheck
       # @nxgt/janus-mongo's specs start a real mongod, as a single-node replica
