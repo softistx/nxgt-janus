@@ -926,18 +926,17 @@ that sends one, since it is awaited: queue the event and return.
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
-mistake beside the shapes that must keep compiling:
-`test/types/refusals.ts` (fourteen, on the shared vocabulary),
-`test/types/port/` (twenty-two, on the identity stores' port, from the point
-of view of the person implementing it), `test/types/auth/` (thirty-four, on
-`janus()`, from the point of view of the application — eight of them on the
-second factor, three on sign-in codes, three on user events) and `test/types/permissions/` (forty-eight, on the
-permission model and the questions asked of it), each a folder with one file
-per behaviour. The rule
-comes from `nxgt-data`, and so does the reason to
-distrust the claim without the files: when it was last measured on
-`@nxgt/mongo`, *seven of twelve plausible mistakes still compiled*. A count
-that goes down is a visible regression.
+mistake beside the shapes that must keep compiling. One is a single file:
+`test/types/refusals.ts` (fourteen, on the shared vocabulary). The other three
+are folders with one file per behaviour: `test/types/port/` (twenty-two, on
+the identity stores' port, from the point of view of the person implementing
+it), `test/types/auth/` (thirty-four, on `janus()`, from the point of view of
+the application — eight of them on the second factor, three on sign-in codes,
+three on user events) and `test/types/permissions/` (forty-eight, on the
+permission model and the questions asked of it). The rule comes from
+`nxgt-data`, and so does the reason to distrust the claim without the files:
+when it was last measured on `@nxgt/mongo`, *seven of twelve plausible
+mistakes still compiled*. A count that goes down is a visible regression.
 
 Refusing a wrong name is half of it; offering the right ones is the other.
 `src/permissions/completions.model.spec.ts` asks the TypeScript language
