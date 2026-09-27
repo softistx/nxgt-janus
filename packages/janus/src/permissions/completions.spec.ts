@@ -12,8 +12,9 @@ import ts from 'typescript';
  */
 
 /**
- * The first case of each describe below starts a TypeScript language service
- * over the package: well under a second on an idle machine, and 5.3 s —
+ * Every describe below starts a TypeScript language service over the package
+ * — its first case does, or its one case: well under a second on an idle
+ * machine, and 5.3 s —
  * past Bun's default 5 s — measured under CPU load, where the case timed out.
  * Every case carries the longer limit, since whichever runs first — or alone,
  * under a filter — pays for the start.
@@ -223,25 +224,29 @@ describe('an editor completes a question', () => {
 });
 
 describe('a wrong name in a model', () => {
-	it('is refused with the names it could have been', () => {
-		const [first, ...rest] = MODEL.split('§');
-		// The name to refuse first, then a valid name at each other cursor.
-		const text = ['staf', 'staff', 'owners', 'owners'].reduce(
-			(done, name, at) => done + name + (rest[at] ?? ''),
-			first ?? '',
-		);
-		const [refusal, ...others] = serviceOver(text)
-			.getSemanticDiagnostics(FILE)
-			.map((diagnostic) =>
-				ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+	it(
+		'is refused with the names it could have been',
+		() => {
+			const [first, ...rest] = MODEL.split('§');
+			// The name to refuse first, then a valid name at each other cursor.
+			const text = ['staf', 'staff', 'owners', 'owners'].reduce(
+				(done, name, at) => done + name + (rest[at] ?? ''),
+				first ?? '',
 			);
+			const [refusal, ...others] = serviceOver(text)
+				.getSemanticDiagnostics(FILE)
+				.map((diagnostic) =>
+					ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+				);
 
-		expect(others).toEqual([]);
-		// Spelled out, not the alias that computed them: `SubjectRefOf<…>`
-		// would name the model back instead of the choices.
-		expect(refusal).not.toMatch(/[A-Za-z]Of</);
-		expect(refusal).toContain('"patient"');
-		expect(refusal).toContain('"team#members"');
-		expect(refusal).toContain('Did you mean \'"staff"\'?');
-	});
+			expect(others).toEqual([]);
+			// Spelled out, not the alias that computed them: `SubjectRefOf<…>`
+			// would name the model back instead of the choices.
+			expect(refusal).not.toMatch(/[A-Za-z]Of</);
+			expect(refusal).toContain('"patient"');
+			expect(refusal).toContain('"team#members"');
+			expect(refusal).toContain('Did you mean \'"staff"\'?');
+		},
+		LANGUAGE_SERVICE_MS,
+	);
 });

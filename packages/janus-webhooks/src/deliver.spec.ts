@@ -5,6 +5,7 @@ import {
 	expect,
 	it,
 	jest,
+	mock,
 	spyOn,
 } from 'bun:test';
 import type { UserEvent } from '@nxgt/janus';
@@ -244,6 +245,13 @@ describe('webhooks', () => {
 });
 
 describe('close(), racing a request in flight', () => {
+	// A case on the fake clock that times out never reaches its finally:
+	// restored here too, or every later case's sleep would hang.
+	afterEach(() => {
+		mock.restore();
+		jest.useRealTimers();
+	});
+
 	/** A fetch whose answer the spec gives by hand, once the request is sent. */
 	function held() {
 		const sent: string[] = [];
@@ -307,6 +315,8 @@ describe('close(), racing a request in flight', () => {
 			listener(event);
 			// setImmediate is not faked: each turn runs the microtasks the stub
 			// fetch and the memory queue resolve on, until the retry is waiting.
+			// Its delay is exactly 20 because the fake clock freezes Date.now()
+			// too: the retry is due 20 ms from an instant that never moves.
 			for (let turn = 0; !timers.mock.calls.some(([, ms]) => ms === 20); ) {
 				if (++turn > 1_000) throw new Error('no retry was scheduled');
 				await new Promise((resolve) => setImmediate(resolve));
