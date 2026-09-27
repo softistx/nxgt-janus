@@ -25,7 +25,7 @@ const mail = janusMail({
 
 // ── The refusals ────────────────────────────────────────────────────────────
 
-// 26. The user event itself: it names the user by id, never by address.
+// 26. The user event itself: it names the user by id, with neither a name nor an address.
 // @ts-expect-error
 await mail.twoFactorDisabled(event);
 

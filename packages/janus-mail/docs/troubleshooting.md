@@ -224,6 +224,15 @@ string` is the third argument's `expiresIn` given as something else — a
 number of seconds: pass the text to show, `{ expiresIn: '1 hour' }`, or
 leave it out.
 
+`janusMail.twoFactorEnabled: email must be a string` (or `twoFactorDisabled`)
+is the user event itself given to the notice: an event names the user by id
+alone. Read the user first:
+
+```ts
+const user = await auth.get(event.userId);
+await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
+```
+
 ### `janusMail.<method>: expiresAt must be a Date`
 
 A `TypeError` from `verifyEmail`, `resetPassword` or `signInCode`: the e-mail

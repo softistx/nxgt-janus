@@ -323,10 +323,10 @@ the two-factor notices, 26 and 27:
 23. `expiresIn` given as a number of seconds rather than the text to show.
 24. `expiresIn` given with the recipient rather than as the send's option.
 25. `clock` given as a function rather than `@nxgt/janus`'s `Clock`.
-26. The user event itself given to `twoFactorDisabled`: it has no address.
+26. The user event itself given to `twoFactorDisabled`: it has neither a name nor an address.
 27. `twoFactorEnabled` given `emailChanged`'s `formerEmail` rather than `email`.
 
-In JavaScript, 19 to 23 are a `TypeError` at send time instead, naming the
+In JavaScript, 19 to 23, 26 and 27 are a `TypeError` at send time instead, naming the
 call or the field, and 25 one from `janusMail()`.
 
 [`test/types/variables.ts`](test/types/variables.ts) also holds

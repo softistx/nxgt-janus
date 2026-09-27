@@ -53,7 +53,7 @@ Newest first; from the first release on, the package's CHANGELOG holds every one
   linking to `links.secureAccount()`: send them on `@nxgt/janus` 0.9's
   `user.secondFactorEnabled` and `user.secondFactorDisabled` events. Seven
   e-mails now, and seven templates to pass for a locale beyond `en` and `fr`.
-- **Dark mode, v0.2.2.** The five e-mails follow the reader's dark mode in
+- **Dark mode, v0.3.0.** The e-mails follow the reader's dark mode in
   every client that supports it, Gmail excepted: a dark page, a dark card and
   light text. Built from `@nxgt/mail-ui` 0.4.0, `@nxgt/mail-presets` 0.4.0
   and `@nxgt/mail-i18n` 0.5.0; the text parts, subjects and variables are

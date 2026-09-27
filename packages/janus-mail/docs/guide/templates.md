@@ -22,7 +22,7 @@ const mail = janusMail({
 });
 ```
 
-The sign-in code e-mail is now yours; the four others stay the defaults.
+The sign-in code e-mail is now yours; the six others stay the defaults.
 
 ## What a template is
 
