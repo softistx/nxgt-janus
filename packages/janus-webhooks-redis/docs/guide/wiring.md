@@ -4,6 +4,7 @@ This page covers:
 - passing the Redis queue to `webhooks()`, in every process;
 - the prefix, and the connection options that matter;
 - what Redis must be configured with;
+- what Redis holds, and how each method stays atomic;
 - what a failure looks like.
 
 How a queue is used — inserts, claims, leases, orphans — is
@@ -107,17 +108,35 @@ the keys `~janus:webhooks:*`, or `~<your prefix>*`.
 
 | Key | Holds |
 | --- | --- |
-| `<prefix>delivery:<event id>:<type>:<endpoint id>` | the delivery, as a hash |
+| `<prefix>delivery:<event id>:<type>:<endpoint id>` | the delivery, as a hash: the event's five fields, the endpoint id, `attempts`, the claim's `lease`, and the last failure's `status` and `error` |
 | `<prefix>due:<endpoint id>` | the endpoint's deliveries, as a sorted set scored by when each is due, or when its lease ends while claimed |
-| `<prefix>endpoints` | the endpoint ids with deliveries waiting |
+| `<prefix>endpoints` | the endpoint ids with deliveries waiting, as a set: what the orphan claim walks |
+
+**No URL and no secret is stored**: the queue holds the endpoint's id, and
+the URL and secrets are read from the running configuration at each attempt.
+Dates are milliseconds since the epoch, passed in by `@nxgt/janus-webhooks` —
+never Redis's clock.
 
 Nothing expires by itself: a delivery stays until it is delivered or given
-up, and its keys go with it. What waits is bounded by what your endpoints
-refuse — at most eight attempts over about 28 hours with the default
-schedule — and by `orphanGrace` for an endpoint removed.
+up, and its keys go with its last delete — an empty queue holds nothing.
+What waits is bounded by what your endpoints refuse — at most eight attempts
+over about 28 hours with the default schedule — and by `orphanGrace` for an
+endpoint removed.
 
 A claim reads each endpoint's sorted set from its earliest delivery, so it
 costs the deliveries it claims, not the deliveries waiting.
+
+## One Lua script per method
+
+Redis runs nothing else while a script runs, so of twenty claims at once, no
+two answer one delivery. Redis does not roll a script back when a command in
+it fails half-way — a permission refused, a key of the wrong type — so **the
+insert undoes its own writes** before it fails, and is all or none. The
+others are not undone; what each leaves is in
+[troubleshooting](../troubleshooting.md#store_failed-webhookqueuemethod-the-queue-could-not-answer).
+
+The scripts are sent by SHA (`EVALSHA`), and in full only when Redis has
+forgotten them after a restart, a failover or a `SCRIPT FLUSH`.
 
 ## What a failure looks like
 

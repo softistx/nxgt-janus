@@ -7,6 +7,6 @@ are `@nxgt/janus-webhooks`'s, defined in
 
 | Page | Read it when |
 | --- | --- |
-| [Wiring the queue to Redis](guide/wiring.md) | You are passing the queue to `webhooks()`, choosing a prefix and the connection's options, configuring Redis, or handling what a failure throws |
+| [Wiring the queue to Redis](guide/wiring.md) | You are passing the queue to `webhooks()`, choosing a prefix and the connection's options, configuring Redis, reading what Redis holds and how each method stays atomic, or handling what a failure throws |
 | [Troubleshooting](troubleshooting.md) | You have an error message and want its cause and its fix |
 | [Roadmap](roadmap.md) | You want to know what is coming, what shipped, and what is deliberately not planned |

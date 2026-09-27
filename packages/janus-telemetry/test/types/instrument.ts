@@ -47,7 +47,7 @@ const access = instrumentPermissions(
 
 async function questions() {
 	const patient = { type: 'patient', id: 'u1' } as const;
-	// @ts-expect-error 3. a permission record does not declare
+	// @ts-expect-error 3. a permission the model does not declare
 	await access.can(patient, 'view', { type: 'record', id: 'r1' });
 	return access.can(patient, 'owners', { type: 'record', id: 'r1' });
 }

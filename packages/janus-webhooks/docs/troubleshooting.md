@@ -254,8 +254,9 @@ webhooks({ endpoints, retries: ['5s'] }); // two attempts
 
 **When:** calling `webhooks({ … })` with a retry delay longer than 2³¹ − 1 ms,
 about 24.8 days — `'30d'`, `'720h'`.
-**Why:** `setTimeout` cannot wait longer: past it, the timer fires at once, and
-a retry meant for a month later would be sent immediately.
+**Why:** `setTimeout` cannot wait longer, so the timer for a retry is capped
+there, and when it fires the retry is claimed as due: a retry meant for a
+month later would be sent after 24.8 days.
 **Fix:** a shorter delay. The cap holds with a `queue` too: the process that
 fails an attempt sets a timer for its retry. More attempts, spaced out, reach
 as far:
@@ -707,11 +708,21 @@ calling `close()` drops them with no trace. `close()` sends every delivery
 due when it is called, waits for the requests in flight, and gives up each
 retry still waiting as `closed`, so it reaches `onGivingUp`. A crash (`SIGKILL`, out of memory) runs nothing at all.
 **Fix:** pass a `queue` every process shares, and what one process leaves
-waiting — a retry, a request a crash cut short — the next one sends. See
-[queues](guide/queues.md):
+waiting — a retry, a request a crash cut short — the next one sends. On
+Redis, that queue is
+[`@nxgt/janus-webhooks-redis`](https://www.npmjs.com/package/@nxgt/janus-webhooks-redis);
+for another database, see [queues](guide/queues.md):
 
 ```ts
-const listener = webhooks({ endpoints, queue, onGivingUp });
+import { createRedisWebhookQueue } from '@nxgt/janus-webhooks-redis';
+import { connectRedis } from '@nxgt/redis';
+
+const redis = await connectRedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+  enableOfflineQueue: false, // an outage fails the insert at once, not after 31 s
+});
+const queue = createRedisWebhookQueue(redis); // the same Redis and prefix in every process
+
+const listener = webhooks({ endpoints, queue, onGivingUp }); // give each endpoint an id
 const auth = janus({ ...options, events: listener });
 
 process.on('SIGTERM', async () => {
