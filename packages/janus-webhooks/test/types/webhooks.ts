@@ -6,7 +6,13 @@
 
 import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
 import { z } from 'zod';
-import { verifyWebhook, webhooks } from '../../src/index';
+import {
+	createMemoryWebhookQueue,
+	type GivingUp,
+	verifyWebhook,
+	type WebhookQueue,
+	webhooks,
+} from '../../src/index';
 
 const secret = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
 const url = 'https://hooks.example.test/janus';
@@ -42,9 +48,69 @@ webhooks({ endpoints: [{ url, secrets: [secret] }], retries: ['soon'] });
 // @ts-expect-error secrets holds at least one
 verifyWebhook({ secrets: [], headers: {}, body: '' });
 
+// A queue shared by every process, and the listener janus takes from it.
+const queue = createMemoryWebhookQueue();
+const queued = webhooks({
+	endpoints: [{ id: 'crm', url, secrets: [secret] }],
+	queue,
+});
+janus({
+	user: z.strictObject({ email: z.email() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
+	hasher: scryptHasher(),
+	events: queued,
+});
+
+// A queue missing a method would lose deliveries on the first retry.
+const { extendLease: _, ...partial } = queue;
+// @ts-expect-error a WebhookQueue implements all six methods
+webhooks({ endpoints: [{ url, secrets: [secret] }], queue: partial });
+
+// A concurrency read from the environment, not parsed.
+// @ts-expect-error a number of requests
+webhooks({ endpoints: [{ url, secrets: [secret] }], concurrency: '4' });
+
+// An endpoint id written as a number.
+// @ts-expect-error an id is a string
+webhooks({ endpoints: [{ id: 1, url, secrets: [secret] }] });
+
+// A switch written for 0.1.0's two reasons misses the third.
+function explain(reason: GivingUp): string {
+	switch (reason.why) {
+		case 'retriesRanOut':
+			return 'every attempt failed';
+		case 'closed':
+			return 'close() came first';
+		default: {
+			// @ts-expect-error 'endpointRemoved' is a reason too
+			const exhausted: never = reason.why;
+			return exhausted;
+		}
+	}
+}
+
+// A delivery to an endpoint no longer configured names no URL.
+webhooks({
+	endpoints: [{ id: 'crm', url, secrets: [secret] }],
+	queue,
+	// @ts-expect-error url is string | null: null once the endpoint is removed
+	onGivingUp: (delivery) => delivery.url.length,
+});
+
+// With a queue, the listener's answer is the insert, to await.
+const inserted: Promise<void> | undefined = queued({
+	id: '0199a0db-f800-7000-8000-000000000001',
+	type: 'user.created',
+	occurredAt: new Date(),
+	userId: '0199a0db-f800-7000-8000-000000000002',
+	userType: 'user',
+});
+const shared: WebhookQueue = queue;
+
 // A verified request may be a forgery: null until checked.
 const received = verifyWebhook({ secrets: [secret], headers: {}, body: '' });
 // @ts-expect-error UserEvent | null
 const userId: string = received.userId;
 
-export { closing, userId };
+export { closing, explain, inserted, shared, userId };

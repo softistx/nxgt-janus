@@ -175,7 +175,7 @@ describe('webhooks', () => {
 		expect(sent).toHaveLength(3);
 		expect(given).toEqual([
 			[
-				{ event, url, attempts: 3 },
+				{ event, url, endpoint: '0', attempts: 3 },
 				{ why: 'retriesRanOut', status: 503, error: null },
 			],
 		]);
@@ -274,7 +274,7 @@ describe('close(), racing a request in flight', () => {
 		expect(sent).toHaveLength(1);
 		expect(given).toEqual([
 			[
-				{ event, url, attempts: 1 },
+				{ event, url, endpoint: '0', attempts: 1 },
 				{ why: 'closed', status: 500, error: null },
 			],
 		]);

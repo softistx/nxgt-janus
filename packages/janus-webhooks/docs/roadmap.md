@@ -5,13 +5,14 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **A Redis-backed queue, `@nxgt/janus-webhooks-redis`** — a durable
+  `WebhookQueue` to pass as `webhooks({ queue })`, shared by every process
+  of the application, so a retry waiting when one process crashes or
+  restarts is sent by the next.
 
 ## Next
 
-- **A durable queue for retries** — a pluggable queue for deliveries waiting
-  on a retry, so they survive a restart instead of living in memory; a
-  Redis-backed one first.
+Nothing queued.
 
 ## Later
 
@@ -33,6 +34,12 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A durable queue for deliveries** — every delivery goes through a
+  `WebhookQueue`, and one passed as `webhooks({ queue })` outlives the
+  process: a retry failed by one process is sent by the next, and a request
+  cut short by a crash is sent again once its lease lapses. The port, its
+  memory reference `createMemoryWebhookQueue()`, and the conformance suite
+  `@nxgt/janus-webhooks/conformance` an adapter runs — v0.2.0.
 - **The first release, v0.1.0** — `webhooks({ endpoints })`, the listener
   `janus({ events })` takes: each `@nxgt/janus` user event signed by the
   Standard Webhooks specification (HMAC-SHA256, `webhook-id`,

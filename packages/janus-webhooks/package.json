@@ -1,7 +1,7 @@
 {
 	"name": "@nxgt/janus-webhooks",
 	"version": "0.1.0",
-	"description": "Signed webhooks for @nxgt/janus user events: Standard Webhooks signatures, retries with backoff, rotating secrets, and deliveries that run out reported — never dropped in silence",
+	"description": "Signed webhooks for @nxgt/janus user events: Standard Webhooks signatures, retries with backoff through a pluggable durable queue, rotating secrets, and deliveries that run out reported — never dropped in silence",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -18,6 +18,11 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
+		},
+		"./conformance": {
+			"types": "./dist/conformance/index.d.ts",
+			"import": "./dist/conformance/index.js",
+			"default": "./dist/conformance/index.js"
 		},
 		"./package.json": "./package.json"
 	},
@@ -45,7 +50,8 @@
 	},
 	"nxgt": {
 		"entrypoints": [
-			"src/index.ts"
+			"src/index.ts",
+			"src/conformance/index.ts"
 		]
 	},
 	"devDependencies": {

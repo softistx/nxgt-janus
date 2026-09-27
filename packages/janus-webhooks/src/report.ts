@@ -1,16 +1,29 @@
 import type { Delivery, GivingUp, WebhooksOptions } from './deliver';
-import type { Target } from './request';
 
-/** The warning for a delivery given up with no `onGivingUp`: the origin, never the URL. */
+/**
+ * How a delivery given up is reported. `origin` is the endpoint's, for the
+ * warning — `null` for one no longer configured. Never rejects.
+ */
+export type Report = (
+	delivery: Delivery,
+	reason: GivingUp,
+	origin: string | null,
+) => Promise<void>;
+
+/**
+ * The warning for a delivery given up with no `onGivingUp`: the origin, never
+ * the URL — or the endpoint's id, for one no longer configured.
+ */
 function gaveUp(
 	delivery: Delivery,
 	reason: GivingUp,
-	origin: string | undefined,
+	origin: string | null,
 ): string {
 	const { attempts, event } = delivery;
 	const plural = attempts === 1 ? '' : 's';
 	const got = reason.status ?? reason.error ?? 'no answer';
-	return `webhooks: gave up ${event.type} ${event.id} to ${origin} after ${attempts} attempt${plural} (${reason.why}, ${got})`;
+	const to = origin ?? `endpoint ${delivery.endpoint}`;
+	return `webhooks: gave up ${event.type} ${event.id} to ${to} after ${attempts} attempt${plural} (${reason.why}, ${got})`;
 }
 
 /**
@@ -18,14 +31,10 @@ function gaveUp(
  * `JANUS_WEBHOOK_GAVE_UP` warning without one — never silence. The returned
  * function never rejects: an `onGivingUp` that throws is a warning too.
  */
-export function reporterOf(
-	onGivingUp: WebhooksOptions['onGivingUp'],
-	targets: readonly Target[],
-): (delivery: Delivery, reason: GivingUp) => Promise<void> {
-	return async (delivery, reason) => {
+export function reporterOf(onGivingUp: WebhooksOptions['onGivingUp']): Report {
+	return async (delivery, reason, origin) => {
 		if (onGivingUp === undefined) {
-			const target = targets.find((one) => one.url === delivery.url);
-			process.emitWarning(gaveUp(delivery, reason, target?.origin), {
+			process.emitWarning(gaveUp(delivery, reason, origin), {
 				code: 'JANUS_WEBHOOK_GAVE_UP',
 			});
 			return;
