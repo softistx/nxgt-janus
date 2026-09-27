@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { StoreFailure } from '../errors/janus-error';
-import { createMemoryRelations } from '../permissions/port/memory';
+import { StoreFailure } from '../../errors/janus-error';
+import { createMemoryRelations } from '../../permissions/port/memory';
 import {
 	allRelationCases,
 	describeRelationStores,
 	referenceRelationHarness,
 	runRelationCase,
-} from './relations';
+} from './index';
 
 // The suite proved against the reference store, outages included, before any
 // adapter runs it.
