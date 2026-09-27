@@ -1,5 +1,5 @@
-import type { Refuse } from './refuse';
 import type { ResolvedObjectType } from './resolved';
+import type { Refuse } from './step';
 
 /**
  * A permission that reaches itself through names alone — `view: ['edit']`,

@@ -1,7 +1,7 @@
 /** One relation of an object type: its holders, or the field `fromField` reads. */
 
-import { isRecord, type Refuse } from './refuse';
 import type { Holder, ResolvedRelation } from './resolved';
+import { isRecord, type Refuse } from './step';
 
 /** A field `fromField` reads: a top-level property. */
 const FIELD = /^[A-Za-z_$][A-Za-z0-9_$]*$/;

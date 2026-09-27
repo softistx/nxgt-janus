@@ -1,5 +1,5 @@
-import type { Refuse } from './refuse';
 import type { ResolvedObjectType } from './resolved';
+import type { Refuse } from './step';
 
 /**
  * A `fromField` is read from the object `can()` was given — the route loaded

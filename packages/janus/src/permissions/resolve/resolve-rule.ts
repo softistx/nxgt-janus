@@ -1,7 +1,7 @@
 /** One rule of a permission: a name, an arrow, or either under `when()`. */
 
-import { isRecord, type Refuse } from './refuse';
 import type { ResolvedRelation, ResolvedRule } from './resolved';
+import { isRecord, type Refuse } from './step';
 
 export function resolveRule(
 	value: unknown,

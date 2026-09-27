@@ -1,9 +1,10 @@
 /** The signature of `can()`, and the options a check requires. */
 
 import type { ModelConfig } from './config';
-import type { CtxOf, UnionToIntersection } from './ctx';
+import type { CtxOf } from './ctx';
 import type { ObjectTypeOf } from './names';
 import type { CheckableOf, ObjectRef, SubjectRef } from './refs';
+import type { UnionToIntersection } from './unions';
 
 /**
  * The options of a check: `ctx` required exactly when a condition is

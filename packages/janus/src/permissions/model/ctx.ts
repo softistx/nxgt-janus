@@ -2,15 +2,8 @@
 
 import type { ModelConfig } from './config';
 import type { ArrowTargets, NameOfRule, ObjectTypeOf, TypesOf } from './names';
+import type { UnionToIntersection } from './unions';
 import type { When } from './when';
-
-export type UnionToIntersection<U> = (
-	U extends unknown
-		? (union: U) => void
-		: never
-) extends (intersection: infer I) => void
-	? I
-	: never;
 
 type CtxOfRule<E> = E extends When<string, infer X> ? X : never;
 

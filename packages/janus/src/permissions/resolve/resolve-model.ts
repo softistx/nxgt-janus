@@ -1,6 +1,6 @@
 /**
- * A model, resolved: every string parsed once, every reference checked, every
- * refusal a `TypeError` naming where it is.
+ * Resolves a model: parses every string once, checks every reference, and
+ * refuses with a `TypeError` naming where it is.
  *
  * The types refuse most of these first. This is what refuses them for a model
  * built at run time or written in JavaScript, and what refuses what the types
@@ -15,7 +15,6 @@ import {
 	objectTypeNamesOf,
 	subjectTypesOf,
 } from './declared-names';
-import { isRecord, type Refuse } from './refuse';
 import { refuseDataBeyondRoot } from './refuse-data-beyond-root';
 import { refuseLoops } from './refuse-loops';
 import { resolveRelation } from './resolve-relation';
@@ -26,6 +25,7 @@ import type {
 	ResolvedRelation,
 	ResolvedRule,
 } from './resolved';
+import { isRecord, type Refuse } from './step';
 
 export function resolveModel(
 	config: ModelConfig,

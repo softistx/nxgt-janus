@@ -15,9 +15,10 @@
  *   `can()` then requires, and only for the permissions whose rules reach it.
  *
  * The model is a flat `const` literal, and everything the compiler can check
- * about it is checked here: a relation naming a subject type that does not
- * exist, a permission naming a relation that does not exist, an arrow to a
- * permission its target does not have. What only running it can check —
+ * about it is checked by `ModelTypesOf`, in `./constraint`: a relation naming
+ * a subject type that does not exist, a permission naming a relation that does
+ * not exist, an arrow to a permission its target does not have. What only
+ * running it can check —
  * names, cycles — is refused by {@link defineModel} with a `TypeError`.
  */
 

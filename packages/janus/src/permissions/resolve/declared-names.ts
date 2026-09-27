@@ -4,7 +4,7 @@
  */
 
 import type { ModelConfig } from '../model/config';
-import { isRecord, type Refuse } from './refuse';
+import { isRecord, type Refuse } from './step';
 
 /** camelCase, as every name in this package — and never `#`, `-`, `>` or `:`, which the notation uses. */
 const NAME = /^[a-z][A-Za-z0-9]*$/;
