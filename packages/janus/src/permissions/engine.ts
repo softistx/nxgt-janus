@@ -1,7 +1,8 @@
 /**
  * The engine: `permissions({ model, store })`, the traversal behind `can()`,
- * and the same traversal run backwards behind `list()` — `walk.ts` and
- * `reverse.ts`; what a caller passes is read in `input.ts`.
+ * and the same traversal run backwards behind `list()` — `can.ts` over
+ * `walk.ts`, `list.ts` over `reverse.ts`; what a caller passes is read in
+ * `input.ts`.
  *
  * **The invariant, permission side.** A denial is `false` — never a thrown
  * error, which is how Keto's historical endpoint answers and why a denial and
@@ -24,17 +25,15 @@
  * nothing, and `false` would hide it.
  */
 
-import type { CursorPage } from '../pagination/cursor-page';
-import { pageLimit } from '../pagination/cursor-page';
 import { guardRelations } from '../stores/guard';
-import { isStorable } from '../stores/storable';
-import { objectOf, subjectOf, tupleOf, typeOf } from './input';
+import type { Bound } from './bound';
+import { can } from './can';
+import { tupleOf } from './input';
+import { list } from './list';
 import type { ModelConfig } from './model/config';
 import { type PermissionModel, resolvedOf } from './model/define';
 import type { Permissions } from './model/permissions';
 import type { RelationStore } from './port/types';
-import { Reverse } from './reverse';
-import { Walk } from './walk';
 
 /** Deep enough for any hierarchy a person draws; OpenFGA's default too. */
 const DEFAULT_MAX_DEPTH = 25;
@@ -83,95 +82,12 @@ export function permissions<C extends ModelConfig>(
 	}
 	const store = guardRelations(options.store);
 
-	const check = async (
-		subject: unknown,
-		permission: string,
-		object: unknown,
-		options?: { readonly ctx?: unknown },
-	): Promise<boolean> => {
-		// Anonymous, before anything else — and before the store.
-		if (subject === null || subject === undefined) return false;
-
-		const root = objectOf(model, object, 'can');
-		const type = typeOf(model, root.type, 'can');
-		if (!type.relations.has(permission) && !type.permissions.has(permission)) {
-			throw new TypeError(
-				`can: "${permission}" is not a relation or a permission of ${type.name}`,
-			);
-		}
-
-		const who = subjectOf(model, subject, 'can');
-		// An id no store can keep is held by nobody, and no store is asked:
-		// the same answer on every adapter, as for an anonymous subject.
-		if (!isStorable(root.id) || !isStorable(who.id)) return false;
-
-		return new Walk(
-			model,
-			store,
-			maxDepth,
-			options?.ctx,
-			`${type.name}#${permission}`,
-		).holds(
-			who,
-			{ entity: { type: root.type, id: root.id }, data: root.data },
-			permission,
-			0,
-		);
-	};
-
-	const list = async (
-		subject: unknown,
-		permission: string,
-		typeName: unknown,
-		options?: {
-			readonly ctx?: unknown;
-			readonly after?: string | null;
-			readonly limit?: number;
-		},
-	): Promise<CursorPage<string>> => {
-		const limit = pageLimit(options?.limit, 'list');
-		const after = options?.after ?? null;
-		if (after !== null && typeof after !== 'string') {
-			throw new TypeError(
-				'list: after must be the nextCursor of a page, or null',
-			);
-		}
-		// Anonymous holds nothing, and the store is not asked.
-		if (subject === null || subject === undefined) {
-			return { items: [], nextCursor: null };
-		}
-
-		if (typeof typeName !== 'string') {
-			throw new TypeError('list: the type must be an object type of the model');
-		}
-		const type = typeOf(model, typeName, 'list');
-		if (!type.relations.has(permission) && !type.permissions.has(permission)) {
-			throw new TypeError(
-				`list: "${permission}" is not a relation or a permission of ${type.name}`,
-			);
-		}
-
-		const who = subjectOf(model, subject, 'list');
-		// A subject no store can keep holds nothing, and no store is asked.
-		if (!isStorable(who.id)) return { items: [], nextCursor: null };
-
-		const ids = await new Reverse(
-			model,
-			store,
-			maxDepth,
-			options?.ctx,
-			who,
-			`${type.name}#${permission}`,
-		).objects(type.name, permission);
-
-		const rest = [...ids].sort().filter((id) => after === null || id > after);
-		const items = rest.slice(0, limit);
-		const last = items.at(-1);
-		return {
-			items,
-			nextCursor: rest.length > limit && last !== undefined ? last : null,
-		};
-	};
+	const bound: Bound = { model, store, maxDepth };
+	// `can` and `list` over what this call bound, as the API takes them.
+	const over =
+		<A extends unknown[], R>(call: (bound: Bound, ...rest: A) => R) =>
+		(...rest: A): R =>
+			call(bound, ...rest);
 
 	const change =
 		(operation: 'grant' | 'revoke') =>
@@ -184,8 +100,8 @@ export function permissions<C extends ModelConfig>(
 
 	return Object.freeze({
 		model: options.model,
-		can: check as Permissions<C>['can'],
-		list: list as Permissions<C>['list'],
+		can: over(can) as Permissions<C>['can'],
+		list: over(list) as Permissions<C>['list'],
 		grant: change('grant') as Permissions<C>['grant'],
 		revoke: change('revoke') as Permissions<C>['revoke'],
 	});

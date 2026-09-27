@@ -5,7 +5,12 @@ import { codeInvalid } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { seal } from '../sealing';
 import { mintTotpSecret, otpauthUri } from '../totp';
-import type { SecondFactorApi } from '../types';
+import type {
+	SecondFactorApi,
+	SecondFactorEnrolment,
+	UserRef,
+	WriteOptions,
+} from '../types';
 import { acceptCode, isActive, requireSettings } from './factor';
 
 type Lifecycle = Pick<
@@ -19,116 +24,20 @@ export function lifecycleFlows(
 	type: ResolvedType,
 	at: (operation: string) => string,
 ): Lifecycle {
-	/** The login a user signs in with: the account name the app shows. */
-	const accountOf = (record: UserRecord, where: string): string => {
-		if (type.password === null) {
-			throw new TypeError(
-				`${where}: the ${type.name} type does not sign in with a password, so it has no second factor`,
-			);
-		}
-		return String(record.fields[type.password.login]);
-	};
-
-	const refuse = (
-		code: 'SECOND_FACTOR_NOT_ENROLLED' | 'SECOND_FACTOR_ACTIVE',
-		message: string,
-		where: string,
-		record: UserRecord,
-	) =>
-		new SecondFactorError(code, `${where}: ${message}`, {
-			operation: where,
-			userId: record.id,
-			userType: type.name,
-		});
-
 	return {
 		async enroll(user, options) {
-			const where = at('secondFactor.enroll');
-			const configured = requireSettings(
-				context,
-				where,
-				'a second factor is being enrolled',
-			);
-			const secret = mintTotpSecret();
-
-			const written = await writeUser(
-				context,
-				user,
-				type,
-				options,
-				where,
-				(record) => {
-					if (isActive(record.secondFactor)) {
-						throw refuse(
-							'SECOND_FACTOR_ACTIVE',
-							"the user's second factor is active — disable it first",
-							where,
-							record,
-						);
-					}
-					accountOf(record, where);
-					return {
-						secondFactor: {
-							method: 'totp',
-							secret: seal(configured.sealer, secret, record.id),
-							confirmedAt: null,
-							lastStep: null,
-						},
-					};
-				},
-			);
-
-			return {
-				secret,
-				uri: otpauthUri(configured.issuer, accountOf(written, where), secret),
-			};
+			return enroll(context, type, user, options, at('secondFactor.enroll'));
 		},
 
 		async activate(user, code, options) {
-			const where = at('secondFactor.activate');
-			const configured = requireSettings(
+			return activate(
 				context,
-				where,
-				'a second factor is being activated',
-			);
-
-			const written = await writeUser(
-				context,
-				user,
 				type,
+				user,
+				code,
 				options,
-				where,
-				(record, now) => {
-					const factor = record.secondFactor;
-					if (factor === null) {
-						throw refuse(
-							'SECOND_FACTOR_NOT_ENROLLED',
-							'the user has no second factor waiting — call enroll first',
-							where,
-							record,
-						);
-					}
-					if (isActive(factor)) {
-						throw refuse(
-							'SECOND_FACTOR_ACTIVE',
-							"the user's second factor is already active",
-							where,
-							record,
-						);
-					}
-					const accepted = acceptCode(
-						configured,
-						record,
-						factor,
-						String(code),
-						now,
-						where,
-					);
-					if (accepted === null) throw codeInvalid(where, record.id, type.name);
-					return { secondFactor: { ...accepted, confirmedAt: now } };
-				},
+				at('secondFactor.activate'),
 			);
-			return toUser(written);
 		},
 
 		async disable(user, options) {
@@ -141,3 +50,136 @@ export function lifecycleFlows(
 		},
 	};
 }
+
+/** Writes a factor waiting for its first code, and answers the secret to show. */
+async function enroll(
+	context: Context,
+	type: ResolvedType,
+	user: UserRef,
+	options: WriteOptions | undefined,
+	where: string,
+): Promise<SecondFactorEnrolment> {
+	const configured = requireSettings(
+		context,
+		where,
+		'a second factor is being enrolled',
+	);
+	const secret = mintTotpSecret();
+
+	const written = await writeUser(
+		context,
+		user,
+		type,
+		options,
+		where,
+		(record) => {
+			if (isActive(record.secondFactor)) {
+				throw refusal(
+					type,
+					'SECOND_FACTOR_ACTIVE',
+					"the user's second factor is active — disable it first",
+					where,
+					record,
+				);
+			}
+			accountOf(type, record, where);
+			return {
+				secondFactor: {
+					method: 'totp',
+					secret: seal(configured.sealer, secret, record.id),
+					confirmedAt: null,
+					lastStep: null,
+				},
+			};
+		},
+	);
+
+	return {
+		secret,
+		uri: otpauthUri(configured.issuer, accountOf(type, written, where), secret),
+	};
+}
+
+/** Confirms a waiting factor with its first code: from then on, it is asked for. */
+async function activate(
+	context: Context,
+	type: ResolvedType,
+	user: UserRef,
+	code: string,
+	options: WriteOptions | undefined,
+	where: string,
+): Promise<AnyUser> {
+	const configured = requireSettings(
+		context,
+		where,
+		'a second factor is being activated',
+	);
+
+	const written = await writeUser(
+		context,
+		user,
+		type,
+		options,
+		where,
+		(record, now) => {
+			const factor = record.secondFactor;
+			if (factor === null) {
+				throw refusal(
+					type,
+					'SECOND_FACTOR_NOT_ENROLLED',
+					'the user has no second factor waiting — call enroll first',
+					where,
+					record,
+				);
+			}
+			if (isActive(factor)) {
+				throw refusal(
+					type,
+					'SECOND_FACTOR_ACTIVE',
+					"the user's second factor is already active",
+					where,
+					record,
+				);
+			}
+			const accepted = acceptCode(
+				configured,
+				record,
+				factor,
+				String(code),
+				now,
+				where,
+			);
+			if (accepted === null) throw codeInvalid(where, record.id, type.name);
+			return { secondFactor: { ...accepted, confirmedAt: now } };
+		},
+	);
+	return toUser(written);
+}
+
+/** The login a user signs in with: the account name the app shows. */
+function accountOf(
+	type: ResolvedType,
+	record: UserRecord,
+	where: string,
+): string {
+	if (type.password === null) {
+		throw new TypeError(
+			`${where}: the ${type.name} type does not sign in with a password, so it has no second factor`,
+		);
+	}
+	return String(record.fields[type.password.login]);
+}
+
+/** The refusal of a lifecycle step, naming the user and its type. */
+const refusal = (
+	type: ResolvedType,
+	code: 'SECOND_FACTOR_NOT_ENROLLED' | 'SECOND_FACTOR_ACTIVE',
+	message: string,
+	where: string,
+	record: UserRecord,
+) =>
+	new SecondFactorError(code, `${where}: ${message}`, {
+		operation: where,
+		userId: record.id,
+		userType: type.name,
+	});

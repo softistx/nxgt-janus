@@ -1,3 +1,4 @@
+import type { CursorPage } from '../../pagination/cursor-page';
 import { formatTuple } from '../../subjects/notation';
 import {
 	type Entity,
@@ -6,7 +7,7 @@ import {
 	type Subject,
 	type SubjectSet,
 } from '../../subjects/subject';
-import type { RelationStore } from './types';
+import type { ObjectPageRequest, RelationStore } from './types';
 
 /**
  * The reference implementation of the relation store, in memory.
@@ -24,16 +25,6 @@ import type { RelationStore } from './types';
  */
 export function createMemoryRelations(): RelationStore {
 	const tuples = new Map<string, RelationTuple>();
-
-	const sameEntity = (a: Entity, b: Entity) =>
-		a.type === b.type && a.id === b.id;
-	const sameSubject = (a: Subject, b: Subject) =>
-		sameEntity(a, b) &&
-		(isSubjectSet(a)
-			? isSubjectSet(b) && a.relation === b.relation
-			: !isSubjectSet(b));
-	const on = (tuple: RelationTuple, object: Entity, relation: string) =>
-		tuple.relation === relation && sameEntity(tuple.object, object);
 
 	return {
 		async write({ add = [], remove = [] }) {
@@ -65,27 +56,8 @@ export function createMemoryRelations(): RelationStore {
 			return entities;
 		},
 
-		async findObjects({ type, relation, subject, after, limit }) {
-			const ids = [
-				...new Set(
-					[...tuples.values()]
-						.filter(
-							(tuple) =>
-								tuple.object.type === type &&
-								tuple.relation === relation &&
-								sameSubject(tuple.subject, subject) &&
-								(after === null || tuple.object.id > after),
-						)
-						.map((tuple) => tuple.object.id),
-				),
-			].sort();
-			const items = ids.slice(0, limit);
-			const last = items.at(-1);
-
-			return {
-				items,
-				nextCursor: ids.length > limit && last !== undefined ? last : null,
-			};
+		async findObjects(request) {
+			return findObjects(tuples.values(), request);
 		},
 
 		async deleteEntity(entity) {
@@ -101,6 +73,44 @@ export function createMemoryRelations(): RelationStore {
 			}
 			return deleted;
 		},
+	};
+}
+
+const sameEntity = (a: Entity, b: Entity) => a.type === b.type && a.id === b.id;
+
+const sameSubject = (a: Subject, b: Subject) =>
+	sameEntity(a, b) &&
+	(isSubjectSet(a)
+		? isSubjectSet(b) && a.relation === b.relation
+		: !isSubjectSet(b));
+
+const on = (tuple: RelationTuple, object: Entity, relation: string) =>
+	tuple.relation === relation && sameEntity(tuple.object, object);
+
+/** One page of the ids of the objects `subject` is related to, ascending. */
+function findObjects(
+	tuples: Iterable<RelationTuple>,
+	{ type, relation, subject, after, limit }: ObjectPageRequest,
+): CursorPage<string> {
+	const ids = [
+		...new Set(
+			[...tuples]
+				.filter(
+					(tuple) =>
+						tuple.object.type === type &&
+						tuple.relation === relation &&
+						sameSubject(tuple.subject, subject) &&
+						(after === null || tuple.object.id > after),
+				)
+				.map((tuple) => tuple.object.id),
+		),
+	].sort();
+	const items = ids.slice(0, limit);
+	const last = items.at(-1);
+
+	return {
+		items,
+		nextCursor: ids.length > limit && last !== undefined ? last : null,
 	};
 }
 
