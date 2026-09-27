@@ -3,6 +3,7 @@
  * wiring mistake, so a bare `TypeError` naming the option — never its value —
  * thrown before anything is sent.
  */
+import type { Clock } from '@nxgt/janus';
 import type { Address, Mailer } from '@nxgt/mail';
 import { LOCALES } from './generated/locales';
 import { janusTemplates } from './templates';
@@ -33,7 +34,11 @@ export interface ResolvedOptions {
 	readonly locales: readonly string[];
 	readonly fallbackLocale: string;
 	readonly templates: JanusMailTemplates<string>;
+	readonly clock: Clock;
 }
+
+/** The system clock, written here: `@nxgt/janus` is a peer for its types only. */
+const SYSTEM_CLOCK: Clock = Object.freeze({ now: () => new Date() });
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -82,6 +87,15 @@ function checkSending(options: Record<string, unknown>): void {
 			refuse(`links.${name} must be a function`);
 		}
 	}
+}
+
+/** `clock`, bound to the caller's object, or the system clock. */
+function resolveClock(clock: unknown): Clock {
+	if (clock === undefined) return SYSTEM_CLOCK;
+	if (!isObject(clock) || typeof clock.now !== 'function') {
+		refuse('clock must be a Clock — an object with a now function');
+	}
+	return Object.freeze({ now: (clock.now as () => Date).bind(clock) });
 }
 
 /** `locales` and `fallbackLocale`, with their defaults. */
@@ -202,5 +216,6 @@ export function resolveOptions(options: unknown): ResolvedOptions {
 		locales,
 		fallbackLocale,
 		templates: resolveTemplates(options, locales),
+		clock: resolveClock(options.clock),
 	});
 }

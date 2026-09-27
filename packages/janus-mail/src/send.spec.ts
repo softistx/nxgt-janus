@@ -80,7 +80,12 @@ describe('sending', () => {
 			},
 		});
 		await mail.signInCode(signIn);
-		expect(seen).toEqual({ brand: 'Acme', code: '042817', locale: 'en' });
+		expect(seen).toEqual({
+			brand: 'Acme',
+			code: '042817',
+			expiresIn: '1 hour',
+			locale: 'en',
+		});
 	});
 
 	test('what a template answers besides its three parts is not sent', async () => {

@@ -164,9 +164,11 @@ describe('templates', () => {
 		const rendered = await janusTemplates().signInCode({
 			brand: 'Acme',
 			code: '123456',
+			expiresIn: '10 minutes',
 			locale: 'fr',
 		});
 		expect(rendered.subject).toBe('Votre code de connexion : 123456');
 		expect(rendered.text).toContain('Acme');
+		expect(rendered.text).toContain('Ce code expire dans 10 minutes.');
 	});
 });

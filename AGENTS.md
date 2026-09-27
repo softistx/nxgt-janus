@@ -72,13 +72,15 @@ from the lock. The `janus-mongo` and `janus-kit` suites were also run once by
 hand, outside the lock, against 0.17.0 (the floor) and 0.18.1, when the lock
 still held 0.17.1. Both passed, with typecheck clean, and passed again on
 0.18.1 from the lock. `@nxgt/mail`, from
-nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.5.1 from
-the lock, with `@nxgt/mail-config` 0.2.0, `@nxgt/mail-i18n` 0.3.0,
-`@nxgt/mail-ui` 0.1.1 and `@nxgt/mail-presets` 0.1.2 building `mails/` — whose
-text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, so
-`mail/maizzle.config.ts` sets no `plaintext` of its own. The `janus-mail`
+nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.6.0 from
+the lock, with `@nxgt/mail-config` 0.2.1, `@nxgt/mail-i18n` 0.3.1,
+`@nxgt/mail-ui` 0.2.0 and `@nxgt/mail-presets` 0.2.0 building `mails/` — whose
+text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, and keep
+each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it),
+so `mail/maizzle.config.ts` sets no `plaintext` of its own. The `janus-mail`
 suite was run by hand, outside the lock, against 0.1.0 (the floor), 0.4.0 and
-0.5.0, and again against 0.1.0, 0.5.0 and 0.5.1 after the move to 0.5.1. All
+0.5.0, again against 0.1.0, 0.5.0 and 0.5.1 after the move to 0.5.1, and
+against 0.1.0 and 0.5.1 after the move to 0.6.0 and presets 0.2.0. All
 passed, with typecheck clean. The `mails/` build reads the same under every
 one of them, and **the build checks that it will**: a renderer reads every
 manifest format up to its own, `@nxgt/mail` 0.1.0 reads format 1, and

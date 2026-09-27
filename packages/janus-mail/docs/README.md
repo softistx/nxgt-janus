@@ -30,5 +30,6 @@ They mean the same here. These pages add:
 | **issued** | What a flow answered: an `IssuedToken` from `verifyEmail.send` or `resetPassword.request`, an `IssuedCode` from `signInCode.request` | "result", "payload" |
 | **recipient** | Who an e-mail is for besides the address: a `Recipient`, `{ name, locale? }` | "user" — a user is a record of `@nxgt/janus`; "to" is the address |
 | **notice** | An e-mail that tells, and asks for nothing: `passwordChanged`, `emailChanged`. It links to `links.secureAccount()` | "alert", "notification" |
+| **expiry** | How long a link or a code lasts, as the e-mail says it: `expiresIn`, derived from the flow's `expiresAt` in the recipient's locale — "1 hour", "1 heure" — or passed per send | "TTL" — the TTL is `@nxgt/janus`'s `tokens` option, which sets `expiresAt` |
 | **brand** | The name the e-mails show, `janusMail({ brand })`: text, filled at send time | "logo", "company" |
 | **the build** | The e-mails as `scripts/build-mail.ts` writes them to `mails/`: HTML and text per locale, and the manifest | "dist" — `mails/` is not `dist/` |

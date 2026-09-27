@@ -21,6 +21,7 @@ export type {
 	JanusMailLinks,
 	JanusMailLocale,
 	JanusMailOptions,
+	JanusMailSendOptions,
 	JanusMailTemplate,
 	JanusMailTemplateName,
 	JanusMailTemplates,

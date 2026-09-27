@@ -72,6 +72,19 @@ describe('the default e-mails', () => {
 		}
 	}
 
+	test('the text part breaks between paragraphs only, never mid-sentence', async () => {
+		for (const template of Object.keys(sends) as JanusMailTemplateName[]) {
+			for (const locale of ['en', 'fr'] as const) {
+				const options = baseOptions();
+				await sends[template](janusMail(options), locale);
+				const text = options.mailer.sent[0]?.text ?? '';
+				for (const paragraph of text.trim().split('\n\n')) {
+					expect(paragraph).not.toContain('\n');
+				}
+			}
+		}
+	});
+
 	test('a value is HTML-escaped in the html, and written as is in the text', async () => {
 		const options = baseOptions();
 		await janusMail(options).verifyEmail(verification, { name });

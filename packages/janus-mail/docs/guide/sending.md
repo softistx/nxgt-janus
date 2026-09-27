@@ -48,6 +48,7 @@ time one is sent, and kept.
 | `locales` | `readonly L[]` | `['en', 'fr']` | The locales sent in — see [Locales](locales.md) |
 | `fallbackLocale` | one of `locales` | `'en'`, else the first of `locales` | The locale when the recipient wants none of `locales` |
 | `templates` | `Partial<JanusMailTemplates<L>>` | none | Your own templates, over the defaults — see [Templates](templates.md) |
+| `clock` | `Clock` from `@nxgt/janus` | the system clock | What the time left until a flow's `expiresAt` is measured against — pass the one `janus({ clock })` was given; see [The expiry](#the-expiry) |
 
 Every link is called at send time, and must answer an absolute `http:`,
 `https:` or `mailto:` URL: a default template refuses anything else with
@@ -72,16 +73,17 @@ option and never its value — every message is in
 Each method renders its e-mail with its template, hands it to the mailer,
 and answers the mailer's `SentMail` (`{ messageId }`).
 
-### `verifyEmail(issued, to)`
+### `verifyEmail(issued, to, options?)`
 
 ```ts
 const issued = await auth.verifyEmail.send(user); // IssuedToken: { token, email, expiresAt }
 await mail.verifyEmail(issued, { name: user.name, locale: user.locale });
 ```
 
-Sent to `issued.email`, with the link `links.verifyEmail(issued.token)`.
+Sent to `issued.email`, with the link `links.verifyEmail(issued.token)` and
+how long it lasts — see [The expiry](#the-expiry).
 
-### `resetPassword(issued, to)`
+### `resetPassword(issued, to, options?)`
 
 ```ts
 const issued = await auth.resetPassword.request(email); // (IssuedToken & { user }) | null
@@ -92,16 +94,18 @@ if (issued !== null) {
 
 `request` answers `null` for an address nobody holds, and the compiler
 refuses `null` here: check it first, and answer the visitor the same either
-way. Sent to `issued.email`, with `links.resetPassword(issued.token)`.
+way. Sent to `issued.email`, with `links.resetPassword(issued.token)` and how
+long it lasts.
 
-### `signInCode(issued, to?)`
+### `signInCode(issued, to?, options?)`
 
 ```ts
 const issued = await auth.signInCode.request(email); // IssuedCode: { code, challenge, email, expiresAt, user } | null
 if (issued !== null) await mail.signInCode(issued, { locale: issued.user.locale });
 ```
 
-It reads `issued.code` and `issued.email`, **and nothing else**: the
+It reads `issued.code`, `issued.email` and `issued.expiresAt`, **and nothing
+else**: the
 challenge is the visitor's secret, and neither the default template nor an
 override is ever given it. `to` is optional — the e-mail greets nobody by
 name — and only its `locale` is read.
@@ -129,6 +133,50 @@ Sent to **`formerEmail`**: the owner of the old address is the one to warn,
 since whoever changed it already controls the new one. It names `newEmail`,
 and links to `links.secureAccount()`. Read the former address before the
 update: the user `update` answers already holds the new one.
+
+## The expiry
+
+`verifyEmail`, `resetPassword` and `signInCode` say how long the link or the
+code lasts — "This link expires in 1 hour.", "Ce code expire dans
+10 minutes." The text is `expiresIn`, one of the template's variables,
+derived at send time from the flow's `issued.expiresAt`:
+
+1. the time left until `expiresAt`, rounded to the minute — the flow set it a
+   moment ago, so an hour is still "1 hour";
+2. then **down** to the largest whole unit it holds — days, hours or minutes
+   — so the e-mail never promises more than half a minute beyond what is
+   left: 90 minutes is "1 hour", 36 hours "1 day", less than a minute
+   "1 minute";
+3. formatted by `Intl.NumberFormat` with `style: 'unit'` and
+   `unitDisplay: 'long'`, in the recipient's locale: "3 hours", "3 heures".
+
+With `@nxgt/janus`'s defaults, a verification link says "1 day", a reset
+link "1 hour" and a sign-in code "10 minutes".
+
+The time is `janusMail({ clock })`'s — pass the clock `janus({ clock })` was
+given, a `fixedClock` in tests — else the system clock:
+
+```ts
+import { fixedClock } from '@nxgt/janus';
+
+const clock = fixedClock(Date.UTC(2026, 0, 1));
+const auth = janus({ /* … */ clock });
+const mail = janusMail({ mailer, from, brand: 'Acme', links, clock });
+```
+
+To say it yourself — another wording, or a locale the runtime's `Intl` has no
+data for — pass `expiresIn` as the third argument, plain text already in the
+recipient's language. `expiresAt` is then not read:
+
+```ts
+await mail.verifyEmail(issued, { name: user.name, locale: 'fr' }, { expiresIn: '24 heures' });
+await mail.signInCode(issued, undefined, { expiresIn: 'ten minutes' });
+```
+
+A send whose `expiresAt` is not a valid `Date` — a flow's answer that went
+through JSON on its way to a queue holds a string — or is already past, is
+a `TypeError`, and nothing reaches the mailer: revive the date with
+`new Date(issued.expiresAt)` when the job runs, or pass `expiresIn`.
 
 ## Where each e-mail goes
 

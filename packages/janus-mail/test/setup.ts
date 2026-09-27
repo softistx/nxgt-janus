@@ -2,7 +2,7 @@
  * What the specs share: the options of a `janusMail()` over a memory mailer,
  * and what each flow of `@nxgt/janus` answers, shaped as it answers it.
  */
-import type { IssuedCode, IssuedToken } from '@nxgt/janus';
+import { fixedClock, type IssuedCode, type IssuedToken } from '@nxgt/janus';
 import { createMemoryMailer, type MemoryMail } from '@nxgt/mail';
 import type { JanusMailLinks } from '../src/types';
 
@@ -19,8 +19,12 @@ export function baseOptions() {
 		from: 'noreply@acme.example',
 		brand: 'Acme',
 		links,
+		clock: fixedClock(issuedAt),
 	};
 }
+
+/** When every flow below answered: an hour before `expiresAt`, by `baseOptions()`'s clock. */
+export const issuedAt = new Date('2026-09-27T11:00:00Z');
 
 const expiresAt = new Date('2026-09-27T12:00:00Z');
 

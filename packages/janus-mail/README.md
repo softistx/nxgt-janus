@@ -29,8 +29,8 @@ The e-mails are built with [Maizzle](https://maizzle.com) when **this
 package** is built — from
 [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets),
 CSS inlined for mail clients — and shipped as HTML and text. At send time
-they are only filled in: your brand, the recipient's name, your links, every
-value escaped. No template engine and no Maizzle run in your server.
+they are only filled in: your brand, the recipient's name, your links, how
+long the link or code lasts, every value escaped. No template engine and no Maizzle run in your server.
 
 > **0.x.** A minor version may still change the surface; the changelog says how.
 
@@ -54,11 +54,12 @@ runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`), `locales?`, `fallbackLocale?`, `templates?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
 | `janusTemplates()` | The five default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
 | `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the five of them, and their names |
-| `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code` or `newEmail` as its e-mail needs |
+| `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn` or `newEmail` as its e-mail needs |
+| `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword` and `signInCode`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
 | `JanusMailLinks`, `Recipient` | The `links` option; who an e-mail is for — `{ name, locale? }` |
 
@@ -68,11 +69,20 @@ class.
 
 | Method | Sends | To |
 | --- | --- | --- |
-| `verifyEmail(issued, to)` | `issued` from `auth.verifyEmail.send(user)`; a link from `links.verifyEmail(issued.token)` | `issued.email` |
-| `resetPassword(issued, to)` | `issued` from `auth.resetPassword.request(email)`, checked for `null`; a link from `links.resetPassword(issued.token)` | `issued.email` |
-| `signInCode(issued, to?)` | `issued.code` from `auth.signInCode.request(email)` — **never the challenge** | `issued.email` |
+| `verifyEmail(issued, to, options?)` | `issued` from `auth.verifyEmail.send(user)`; a link from `links.verifyEmail(issued.token)`, and how long it lasts | `issued.email` |
+| `resetPassword(issued, to, options?)` | `issued` from `auth.resetPassword.request(email)`, checked for `null`; a link from `links.resetPassword(issued.token)`, and how long it lasts | `issued.email` |
+| `signInCode(issued, to?, options?)` | `issued.code` from `auth.signInCode.request(email)`, and how long it lasts — **never the challenge** | `issued.email` |
 | `passwordChanged(to)` | A notice, with `links.secureAccount()` | `to.email` |
 | `emailChanged(to)` | A notice naming `to.newEmail`, with `links.secureAccount()` | `to.formerEmail` |
+
+The three e-mails of a link or a code say how long it lasts — "This link
+expires in 1 hour.", "Ce lien expire dans 1 heure." — from the flow's
+`issued.expiresAt`: the time left at send time, rounded to the minute, then
+down to the largest whole unit (days, hours or minutes), formatted with
+`Intl.NumberFormat` in the recipient's locale. The time is read from
+`janusMail({ clock })` — give it the clock you gave `janus({ clock })` —
+else the system clock. Pass `{ expiresIn }` to say it yourself, as plain
+text in the recipient's language.
 
 ## Usage
 
@@ -108,6 +118,12 @@ if (issued !== null) {
 	await mail.signInCode(issued, { locale: wanted });
 	// issued.challenge stays with the visitor — a cookie or the form — never in the e-mail
 }
+```
+
+### Saying the expiry yourself
+
+```ts
+await mail.verifyEmail(issued, { name: user.name, locale: 'fr' }, { expiresIn: '24 heures' });
 ```
 
 ### Telling a user their password changed
@@ -192,9 +208,23 @@ templates is a compile error, and a `TypeError` in JavaScript.
 body and the footer, escaped: no logo, no link, no markup. For those, replace
 the templates.
 
-**The default e-mails do not state the expiry.** `@nxgt/mail-presets`' bodies
-say nothing of how long a link or a code lasts. If yours must, replace the
-template: `issued.expiresAt` is yours to format.
+**Send the flow's answer as it came: `expiresAt` must be a `Date`.** The
+expiry is derived from `issued.expiresAt` at send time. A flow's answer that
+went through JSON — a job queue — holds a string there, which is a compile
+error and, in JavaScript, a `TypeError` (`expiresAt must be a Date`); revive
+it with `new Date(...)`, or pass `{ expiresIn }`. An `expiresAt` already past
+is a `TypeError` too: the link would not work, so nothing is sent.
+
+**Give `janusMail()` the clock you gave `janus()`.** The time left is
+measured against `clock`, the system clock by default. Tests that run
+`janus({ clock: fixedClock(...) })` issue an `expiresAt` in the clock's time:
+without the same `clock` here, a clock set in the past makes every send an
+`expiresAt is past` `TypeError`, and one set ahead a wrong duration.
+
+**The expiry is formatted by the runtime's `Intl`.** A locale the runtime has
+no data for is formatted in its default language, and French puts a no-break
+space between the number and some units, as CLDR says. For a wording of your
+own, pass `{ expiresIn }`.
 
 **A failed send is `MAIL_FAILED`; answer it as an outage.** In an HTTP
 handler, a `MailFailure` is a `503` — nothing is known to have been sent —
@@ -224,10 +254,12 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Twenty plausible mistakes, twenty refused at compile time.**
+**Twenty-five plausible mistakes, twenty-five refused at compile time.**
 [`test/types/refusals.ts`](test/types/refusals.ts) holds one
 `@ts-expect-error` per mistake, beside the calls that must keep compiling —
-among them adding a language with every template:
+among them adding a language with every template — and
+[`test/types/expiry-refusals.ts`](test/types/expiry-refusals.ts) the five of
+the expiry and the clock, 21 to 25:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -249,9 +281,14 @@ among them adding a language with every template:
 18. A template read from `mail.templates` that does not exist.
 19. A link computed asynchronously.
 20. A link answered as a `URL` object rather than its `href`.
+21. A sign-in code without its `expiresAt`.
+22. A flow's answer that went through JSON: `expiresAt` a string.
+23. `expiresIn` given as a number of seconds rather than the text to show.
+24. `expiresIn` given with the recipient rather than as the send's option.
+25. `clock` given as a function rather than `@nxgt/janus`'s `Clock`.
 
-In JavaScript, 19 and 20 are a `TypeError` at send time instead, naming the
-call.
+In JavaScript, 19 to 23 are a `TypeError` at send time instead, naming the
+call or the field, and 25 one from `janusMail()`.
 
 [`test/types/variables.ts`](test/types/variables.ts) also holds
 `JanusMailVariables` equal to the variables of the build: an e-mail that
