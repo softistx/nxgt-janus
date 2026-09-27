@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { StoreFailure } from '@nxgt/janus';
-import type { WebhookQueue } from '@nxgt/janus-webhooks';
+import { StoreFailure, type UserEvent } from '@nxgt/janus';
+import type { Failure, WebhookQueue } from '@nxgt/janus-webhooks';
 import type { RedisConnection } from '@nxgt/redis';
 import type { RedisClient } from 'bun';
 import {
@@ -52,40 +52,17 @@ export function createRedisWebhookQueue(
 	redis: RedisConnection,
 	options: RedisWebhookQueueOptions = {},
 ): WebhookQueue {
-	const prefix = options.prefix ?? 'janus:webhooks:';
-	const evaluate = scriptsOver(redis.client);
-	/**
-	 * Runs `operation`'s script over the arguments `argsOf` builds — which
-	 * refuses, before any I/O, what the script would store and no claim could
-	 * read back — and decodes its reply.
-	 */
-	const run = async <T>(
-		operation: Method,
-		script: string,
-		argsOf: (operation: Method) => readonly string[],
-		decode: (reply: unknown, operation: Method) => T,
-	): Promise<T> => {
-		const args = argsOf(operation);
-		return decode(
-			await evaluate(operation, script, [prefix, ...args]),
-			operation,
-		);
-	};
+	const run = runnerOf(
+		scriptsOver(redis.client),
+		options.prefix ?? 'janus:webhooks:',
+	);
 
 	return {
 		insertDeliveries: (event, endpoints, dueAt) =>
 			run(
 				'insertDeliveries',
 				INSERT_DELIVERIES,
-				(operation) => [
-					event.id,
-					event.type,
-					stampOf(event.occurredAt, operation, 'event.occurredAt'),
-					event.userId,
-					event.userType,
-					stampOf(dueAt, operation, 'dueAt'),
-					...endpoints,
-				],
+				insertArgsOf(event, endpoints, dueAt),
 				toCount,
 			),
 
@@ -96,9 +73,7 @@ export function createRedisWebhookQueue(
 				CLAIM_DELIVERIES,
 				(operation) => [
 					stampOf(now, operation, 'now'),
-					stampOf(leaseUntil, operation, 'leaseUntil'),
-					limitOf(limit, operation),
-					randomUUID(),
+					...claimArgsOf(leaseUntil, limit, operation),
 					...endpoints,
 				],
 				toDeliveries,
@@ -110,9 +85,7 @@ export function createRedisWebhookQueue(
 				CLAIM_ORPHANED_DELIVERIES,
 				(operation) => [
 					stampOf(dueBefore, operation, 'dueBefore'),
-					stampOf(leaseUntil, operation, 'leaseUntil'),
-					limitOf(limit, operation),
-					randomUUID(),
+					...claimArgsOf(leaseUntil, limit, operation),
 					...known,
 				],
 				toDeliveries,
@@ -130,19 +103,85 @@ export function createRedisWebhookQueue(
 			run(
 				'scheduleRetry',
 				SCHEDULE_RETRY,
-				(operation) => [
-					id,
-					lease,
-					stampOf(dueAt, operation, 'dueAt'),
-					statusOf(failed.status, operation),
-					failed.error ?? '',
-				],
+				retryArgsOf(id, lease, dueAt, failed),
 				toHeld,
 			),
 
 		deleteDelivery: (id, lease) =>
 			run('deleteDelivery', DELETE_DELIVERY, () => [id, lease], toHeld),
 	};
+}
+
+/**
+ * Runs `operation`'s script over the arguments `argsOf` builds — which
+ * refuses, before any I/O, what the script would store and no claim could
+ * read back — and decodes its reply.
+ */
+type Run = <T>(
+	operation: Method,
+	script: string,
+	argsOf: (operation: Method) => readonly string[],
+	decode: (reply: unknown, operation: Method) => T,
+) => Promise<T>;
+
+/** A runner whose every script gets `prefix` as its first argument. */
+function runnerOf(evaluate: Evaluate, prefix: string): Run {
+	return async (operation, script, argsOf, decode) => {
+		const args = argsOf(operation);
+		return decode(
+			await evaluate(operation, script, [prefix, ...args]),
+			operation,
+		);
+	};
+}
+
+/** An event's five fields, when its deliveries fall due, then the endpoints. */
+function insertArgsOf(
+	event: UserEvent,
+	endpoints: readonly string[],
+	dueAt: Date,
+): (operation: Method) => readonly string[] {
+	return (operation) => [
+		event.id,
+		event.type,
+		stampOf(event.occurredAt, operation, 'event.occurredAt'),
+		event.userId,
+		event.userType,
+		stampOf(dueAt, operation, 'dueAt'),
+		...endpoints,
+	];
+}
+
+/**
+ * What both claims take after the instant they claim as of: the lease's
+ * end, the limit, and the lease itself, minted here.
+ */
+function claimArgsOf(
+	leaseUntil: Date,
+	limit: number,
+	operation: Method,
+): readonly string[] {
+	return [
+		stampOf(leaseUntil, operation, 'leaseUntil'),
+		limitOf(limit, operation),
+		randomUUID(),
+	];
+}
+
+/** The delivery and its lease, when it falls due again, and what failed. */
+function retryArgsOf(
+	id: string,
+	lease: string,
+	dueAt: Date,
+	failed: Failure,
+): (operation: Method) => readonly string[] {
+	return (operation) => [
+		id,
+		lease,
+		stampOf(dueAt, operation, 'dueAt'),
+		statusOf(failed.status, operation),
+		failed.error ?? '',
+	];
 }
 
 /** Runs a script, and makes every rejection one the port allows. */

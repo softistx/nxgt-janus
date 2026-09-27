@@ -1,18 +1,14 @@
 import type { UserEvent } from '@nxgt/janus';
-import { LONGEST, type Settings } from '../options';
+import type { Settings } from '../options';
 import { createMemoryWebhookQueue } from '../queue/memory';
-import type { QueuedDelivery } from '../queue/types';
 import type { Report } from '../report';
-import { claimed, guardOf, nameOf } from './guard';
+import { abandonWaiting, flush } from './drain';
+import { flightsOf } from './flights';
+import { guardOf } from './guard';
 import { pumpOf } from './pump';
+import { remindersOf } from './reminders';
 import { senderOf } from './sender';
-
-/** The last instant a `Date` holds: a claim there takes every delivery. */
-const END_OF_TIME = new Date(8.64e15);
-/** How often, at most, a queue is asked for deliveries to endpoints no longer configured. */
-const ORPHAN_SWEEP = 60_000;
-/** How many of them one sweep takes. */
-const ORPHAN_BATCH = 100;
+import { NO_SWEEPER, startSweeper } from './sweeper';
 
 /** What sends the deliveries of one `webhooks()`. */
 export interface Worker {
@@ -48,8 +44,7 @@ export function startWorker(settings: Settings, report: Report): Worker {
 	const keys = settings.targets.map((one) => one.key);
 	const guard = guardOf();
 	const inserting = new Set<Promise<void>>();
-	const sending = new Set<Promise<void>>();
-	const reminders = new Set<ReturnType<typeof setTimeout>>();
+	const reminders = remindersOf((at) => pump.wake(at));
 	/** `close()` was called: no timer is set, and no failure retried from memory. */
 	let closing = false;
 
@@ -63,94 +58,21 @@ export function startWorker(settings: Settings, report: Report): Worker {
 		retries: () => durable || !closing,
 		remind: (dueAt) => {
 			if (closing) return;
-			const timer = setTimeout(
-				() => {
-					reminders.delete(timer);
-					pump.wake(dueAt);
-				},
-				Math.min(Math.max(dueAt - Date.now(), 0), LONGEST),
-			);
-			timer.unref?.();
-			reminders.add(timer);
+			reminders.add(dueAt);
 		},
 	});
-
-	const start = (delivery: QueuedDelivery): void => {
-		const run = sender
-			.attempt(delivery)
-			// A net: the sender answers every failure it knows. What is left is
-			// a delivery too broken to be handled; its lease lapses.
-			.catch((failure: unknown) =>
-				process.emitWarning(
-					`webhooks: the queue answered a delivery that cannot be handled (${nameOf(failure)})`,
-					{ code: 'JANUS_WEBHOOK_QUEUE_FAILED' },
-				),
-			)
-			.then(() => {
-				sending.delete(run);
-				pump.freed();
-			});
-		sending.add(run);
-	};
-
+	const flights = flightsOf(sender.attempt, () => pump.freed());
 	const pump = pumpOf({
 		queue,
 		settings,
 		guard,
 		durable,
-		inFlight: () => sending.size,
-		start,
+		inFlight: flights.count,
+		start: flights.start,
 	});
-
-	/**
-	 * Gives up the deliveries waiting for an endpoint no configuration has
-	 * any more, one after the other: each one's lease is extended when its
-	 * turn comes, before it is reported.
-	 */
-	const sweep = async (): Promise<void> => {
-		const now = Date.now();
-		const orphans = await claimed(guard, 'claimOrphanedDeliveries', () =>
-			queue.claimOrphanedDeliveries(
-				keys,
-				new Date(now - settings.orphanGraceMs),
-				new Date(now + settings.leaseMs),
-				ORPHAN_BATCH,
-			),
-		);
-		for (const orphan of orphans ?? []) {
-			await sender.abandon(orphan, 'endpointRemoved');
-		}
-	};
-
-	let sweeping: Promise<void> = Promise.resolve();
-	const every = Math.min(
-		ORPHAN_SWEEP,
-		Math.max(settings.orphanGraceMs, settings.pollMs),
-	);
 	const sweeper = durable
-		? setInterval(() => {
-				sweeping = sweeping.then(sweep);
-			}, every)
-		: undefined;
-	sweeper?.unref?.();
-
-	/**
-	 * Without a queue of the caller's: sends everything due at `at` — the
-	 * first attempts, above all — slot by slot, until a claim finds nothing
-	 * and no request is left in flight.
-	 */
-	const flush = async (at: number): Promise<void> => {
-		pump.hold(at);
-		for (;;) {
-			pump.wake();
-			const claimedNothing = await pump.idle();
-			if (sending.size === 0) {
-				if (claimedNothing) return;
-				continue;
-			}
-			await Promise.race([...sending]);
-		}
-	};
+		? startSweeper({ queue, settings, guard, sender, keys })
+		: NO_SWEEPER;
 
 	return {
 		accept(event, to) {
@@ -167,30 +89,18 @@ export function startWorker(settings: Settings, report: Report): Worker {
 		async close() {
 			closing = true;
 			pump.quiet();
-			for (const timer of reminders) clearTimeout(timer);
 			reminders.clear();
-			clearInterval(sweeper);
+			sweeper.stop();
 			// With a queue, nothing more is claimed from here: an insert that
 			// lands, or a slot that frees, wakes a stopped pump in vain.
 			if (durable) await pump.stop();
 			await Promise.allSettled([...inserting]);
-			if (!durable) await flush(Date.now());
+			if (!durable) await flush(pump, flights, Date.now());
 			await pump.stop();
-			await sweeping;
-			await Promise.all([...sending]);
+			await sweeper.settled();
+			await flights.all();
 			if (durable) return;
-			// The drain's claim is no attempt: abandon counts it out.
-			const waiting = await claimed(guard, 'claimDeliveries', () =>
-				queue.claimDeliveries(
-					keys,
-					END_OF_TIME,
-					END_OF_TIME,
-					Number.MAX_SAFE_INTEGER,
-				),
-			);
-			await Promise.all(
-				(waiting ?? []).map((one) => sender.abandon(one, 'closed')),
-			);
+			await abandonWaiting({ queue, guard, sender, keys });
 		},
 	};
 }
