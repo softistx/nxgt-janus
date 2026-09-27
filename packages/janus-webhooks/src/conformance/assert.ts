@@ -54,10 +54,10 @@ export function rejects(
  * The probe says what breaks; `verify:artifacts` says whether a duplicate is
  * present. Both are needed.
  *
- * The one change from the copy: `name` is passed, not read from `cls.name`.
- * Imported from `@nxgt/janus`'s bundle, the class is `StoreFailure2` to the
- * runtime — the bundler renames it — while its instances still carry
- * `name: 'StoreFailure'`.
+ * Its body is `@nxgt/janus/conformance`'s, line for line. In both, `name` is
+ * passed, not read from `cls.name`: imported from `@nxgt/janus`'s bundle, the
+ * class is `StoreFailure2` to the runtime — the bundler renames it — while
+ * its instances still carry `name: 'StoreFailure'`.
  */
 export function isOurs<T>(
 	error: unknown,
