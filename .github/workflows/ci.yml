@@ -39,7 +39,8 @@ jobs:
     # GitHub-hosted. The repository is public, so these minutes are free.
     runs-on: ubuntu-latest
     # Measured on the last 30 runs: 6 to 8½ minutes, of which `bun install`
-    # takes about 3½ and a cold Redis build about 2. Past 30, it is hung, and
+    # took 2½ to 3½ — a Redis nothing used, compiled by a postinstall the setup
+    # action now skips — and a cold Redis build about 2. Past 30, it is hung, and
     # the six-hour default would hold the runner for nothing.
     timeout-minutes: 30
     # @nxgt/janus-drizzle's specs run on a real PostgreSQL here, and on PGlite
