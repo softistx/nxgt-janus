@@ -43,6 +43,30 @@ describe('secondFactor.activate', () => {
 		expect(refused).toMatchObject({ code: 'CODE_INVALID' });
 		expect(types()).toEqual(['user.created']);
 	});
+
+	it('reports nothing for an activate refused: not enrolled, or already active', async () => {
+		const context = listening();
+		const { auth, codeOf, types } = context;
+		const { user: bob } = await auth.signUp({
+			...ada,
+			email: 'bob@example.test',
+			password,
+		});
+		const { user, secret } = await enrolled(context);
+
+		const notEnrolled = await rejection(
+			auth.secondFactor.activate(bob, '000000'),
+		);
+		const active = await rejection(
+			auth.secondFactor.activate(user, codeOf(secret)),
+		);
+
+		expect(notEnrolled).toMatchObject({ code: 'SECOND_FACTOR_NOT_ENROLLED' });
+		expect(active).toMatchObject({ code: 'SECOND_FACTOR_ACTIVE' });
+		expect(
+			types().filter((type) => type === 'user.secondFactorEnabled'),
+		).toHaveLength(1);
+	});
 });
 
 describe('secondFactor.disable', () => {
