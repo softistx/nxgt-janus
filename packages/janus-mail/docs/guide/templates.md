@@ -96,6 +96,10 @@ templates: { signInCode: ({ name }) => rendered },
 
 ## Some templates, or all of them
 
+`templates` is a plain object, or a class with template fields: a class's
+methods live on its prototype and are refused — see
+[troubleshooting](../troubleshooting.md#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-).
+
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
 any of the five, and the defaults render the rest. Once `locales` holds
 another locale, it takes **all five** — see

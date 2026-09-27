@@ -32,8 +32,7 @@ CSS inlined for mail clients — and shipped as HTML and text. At send time
 they are only filled in: your brand, the recipient's name, your links, every
 value escaped. No template engine and no Maizzle run in your server.
 
-> **Private, in progress.** Not published yet: the package is built and
-> tested in this repository, and its surface may still change before 0.1.
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 
@@ -176,9 +175,14 @@ external — `external: ['@nxgt/janus-mail']` in esbuild or `Bun.build`,
 
 **A link answers a string, at once.** Each `links` function is called at
 send time and must return an `http(s)` or `mailto:` URL as a string: an
-`async` function or a `URL` object is a `TypeError` naming the call.
+`async` function or a `URL` object is a compile error, and in JavaScript a
+`TypeError` naming the call.
 `links`, `from` and `replyTo` are copied when `janusMail()` is called, so
 changing them afterwards changes nothing.
+
+**Templates are own properties.** A class's methods live on its prototype
+and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
+…`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
 built in those two only, so `locales: ['en', 'fr', 'de']` without all five
@@ -220,7 +224,7 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Eighteen plausible mistakes, eighteen refused at compile time.**
+**Twenty plausible mistakes, twenty refused at compile time.**
 [`test/types/refusals.ts`](test/types/refusals.ts) holds one
 `@ts-expect-error` per mistake, beside the calls that must keep compiling —
 among them adding a language with every template:
@@ -243,6 +247,11 @@ among them adding a language with every template:
 16. A locale beyond `en` and `fr` with only some templates.
 17. A default template reused for a locale it is not built in.
 18. A template read from `mail.templates` that does not exist.
+19. A link computed asynchronously.
+20. A link answered as a `URL` object rather than its `href`.
+
+In JavaScript, 19 and 20 are a `TypeError` at send time instead, naming the
+call.
 
 [`test/types/variables.ts`](test/types/variables.ts) also holds
 `JanusMailVariables` equal to the variables of the build: an e-mail that

@@ -77,39 +77,64 @@ describe('templates', () => {
 		);
 	});
 
-	test('a template on a prototype does not count as given', () => {
-		// Every template is a method of the class, none an own property: none
-		// would be copied, so the guard must see all five missing.
-		class Templates {
-			verifyEmail() {
-				return plain('Hallo');
-			}
-			resetPassword() {
-				return plain('Hallo');
-			}
-			signInCode() {
-				return plain('Hallo');
-			}
-			passwordChanged() {
-				return plain('Hallo');
-			}
-			emailChanged() {
-				return plain('Hallo');
-			}
+	// Every template is a method of the class, none an own property: none would
+	// be copied, so none may count as given — with a wider locale set, or with
+	// the default one, where the defaults would be sent in their place.
+	class Templates {
+		verifyEmail() {
+			return plain('Hallo');
 		}
+		resetPassword() {
+			return plain('Hallo');
+		}
+		signInCode() {
+			return plain('Hallo');
+		}
+		passwordChanged() {
+			return plain('Hallo');
+		}
+		emailChanged() {
+			return plain('Hallo');
+		}
+	}
+	const inherited = new TypeError(
+		'janusMail: templates.verifyEmail is not an own enumerable property — pass a plain object, ' +
+			'as { verifyEmail: (variables) => rendered }',
+	);
+
+	test('a template on a prototype is refused with a locale beyond en and fr', () => {
 		expect(() =>
 			janusMail({
 				...baseOptions(),
 				locales: ['en', 'fr', 'de'],
 				templates: new Templates(),
 			}),
-		).toThrow(
-			new TypeError(
-				'janusMail: the default templates are built in en and fr only — with another ' +
-					'locale in locales, pass every template in templates; verifyEmail, ' +
-					'resetPassword, signInCode, passwordChanged, emailChanged missing',
-			),
-		);
+		).toThrow(inherited);
+	});
+
+	test('a template on a prototype is refused with the default locales too', () => {
+		expect(() =>
+			janusMail({ ...baseOptions(), templates: new Templates() }),
+		).toThrow(inherited);
+	});
+
+	test('an own template that is not enumerable is refused', () => {
+		const templates = {};
+		Object.defineProperty(templates, 'verifyEmail', {
+			value: () => plain('Hallo'),
+			enumerable: false,
+		});
+		expect(() => janusMail({ ...baseOptions(), templates })).toThrow(inherited);
+	});
+
+	test('a class instance with its templates as own properties is accepted', async () => {
+		class Own {
+			readonly signInCode = ({ code }: { code: string }) =>
+				plain(`Code ${code}`);
+		}
+		const options = baseOptions();
+		await janusMail({ ...options, templates: new Own() }).signInCode(signIn);
+		expect(options.mailer.sent[0]?.subject).toBe('Code 042817');
 	});
 
 	test('a locale beyond en and fr works once every template is given', async () => {

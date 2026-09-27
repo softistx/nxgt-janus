@@ -33,6 +33,7 @@ How the messages are shaped:
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
 - [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
+- [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
 - [`janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing)
 
 **Sending**
@@ -139,6 +140,28 @@ on the [roadmap](roadmap.md); send them with `@nxgt/mail` directly meanwhile.
 A template given as a string, a `Rendered`, or `undefined`. A template is a
 function of its variables: `signInCode: ({ code }) => ({ subject, html, text })`.
 
+### `janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`
+
+`templates` holds the template, but not as an own enumerable property. Two
+causes:
+
+- **a method on a prototype** — `templates` is a class instance whose
+  templates are methods;
+- **an own property that is not enumerable** — one set with
+  `Object.defineProperty` and no `enumerable: true`.
+
+Only an object's own enumerable keys are copied over the defaults, so the
+template would be dropped and the default sent in its place: refused
+instead. Pass a plain object, binding the methods if they read `this`:
+
+```ts
+const own = new MyTemplates();
+janusMail({ …, templates: { signInCode: own.signInCode.bind(own) } });
+```
+
+A class whose templates are fields (`signInCode = (variables) => …`) passes
+as it is: fields are own properties.
+
 ### `janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` leaves some
@@ -201,6 +224,9 @@ links: {
 
 A link that needs a lookup — a tenant's domain — is looked up before the
 call, and the `links` function reads what was looked up.
+
+In TypeScript, an `async` link or a `URL` object is a compile error, so this
+is only reached from JavaScript, or through a cast.
 
 ### `render: <email>: link must be a string or a finite number`
 

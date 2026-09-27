@@ -131,13 +131,21 @@ function resolveTemplates(
 			refuse(`templates.${name} must be a function`);
 		}
 	}
+	// Own enumerable keys, the ones the spread below copies. A template on a
+	// prototype — a class instance's method — or an own property that is not
+	// enumerable would be dropped without a word, the default sent in its
+	// place: `in` sees it and `passed` does not, so it is refused instead.
+	const passed = Object.keys(given);
+	for (const name of TEMPLATE_NAMES) {
+		if (name in given && !passed.includes(name)) {
+			refuse(
+				`templates.${name} is not an own enumerable property — pass a plain object, as { ${name}: (variables) => rendered }`,
+			);
+		}
+	}
 	const built = locales.every((locale) =>
 		(LOCALES as readonly string[]).includes(locale),
 	);
-	// Own enumerable keys, the ones the spread below copies: a template on a
-	// prototype, or hidden from `Object.keys`, is not passed, so it cannot
-	// satisfy this guard either.
-	const passed = Object.keys(given);
 	const missing = TEMPLATE_NAMES.filter((name) => !passed.includes(name));
 	if (!built && missing.length > 0) {
 		refuse(
