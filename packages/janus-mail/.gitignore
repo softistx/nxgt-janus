@@ -1,0 +1,4 @@
+# Built by scripts/build-mail.ts: shipped in the tarball, never committed.
+/mails/
+# Written by maizzle each time mail/maizzle.config.ts loads.
+/mail/.maizzle/

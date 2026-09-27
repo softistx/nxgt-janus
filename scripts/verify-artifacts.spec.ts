@@ -6,6 +6,7 @@ import {
 	duplicateClasses,
 	licenseProblems,
 	manifestShapeProblems,
+	missingFiles,
 	NOT_A_BUILD_INPUT,
 	staleBuilds,
 	subpathsOf,
@@ -175,6 +176,39 @@ describe('licenseProblems', () => {
 			'x: license is ISC, not MIT',
 			'x: the tarball has no LICENSE',
 		]);
+	});
+});
+
+describe('missingFiles', () => {
+	const entries = [
+		'package/package.json',
+		'package/LICENSE',
+		'package/dist/index.js',
+		'package/mails/mail-manifest.json',
+		'package/mails/en/verify-email.html',
+	];
+
+	test('holds when every files entry is a file or a folder of the tarball', () => {
+		expect(
+			missingFiles(
+				{ name: 'x', files: ['dist', './mails/', 'LICENSE', 'package.json'] },
+				entries,
+			),
+		).toEqual([]);
+	});
+
+	test('names each entry the tarball holds nothing under', () => {
+		expect(
+			missingFiles({ name: 'x', files: ['dist', 'docs', 'mail'] }, entries),
+		).toEqual([
+			'x: files lists docs, which the tarball does not hold — build it first, or drop it from files',
+			'x: files lists mail, which the tarball does not hold — build it first, or drop it from files',
+		]);
+	});
+
+	test('leaves a glob to npm, and a manifest without files alone', () => {
+		expect(missingFiles({ name: 'x', files: ['*.md'] }, entries)).toEqual([]);
+		expect(missingFiles({ name: 'x' }, entries)).toEqual([]);
 	});
 });
 

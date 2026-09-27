@@ -160,6 +160,21 @@ sign-in completes in the browser that started it.
 Send it to `issued.email`, not to what the visitor typed: it is the address
 the user's field holds, as they registered it.
 
+[`@nxgt/janus-mail`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/README.md)
+sends this e-mail ready-made, in English and French, over any `@nxgt/mail`
+transport — in progress, and private until its first release. It takes the
+whole `IssuedCode` and reads only `code` and `email`: the challenge never
+reaches the e-mail, nor a template of yours.
+
+```ts
+if (issued !== null) await mail.signInCode(issued, { locale: 'fr-CA' }); // the recipient's locale: sent in fr
+```
+
+Its send rejects with the mailer's `MailFailure` when the transport fails, so the `void sendMail(…)` above
+does not carry over: to send after the answer, hand `mail.signInCode` to a
+queue that awaits it and retries a `MailFailure` — a promise nobody awaits
+turns an outage into an unhandled rejection.
+
 ## Keeping the challenge with the visitor
 
 **The challenge is a secret.** The code alone signs nobody in: it is checked

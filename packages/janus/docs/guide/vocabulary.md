@@ -56,6 +56,8 @@ either finds this row.
 | **seal**, **sealing key** | To seal is to encrypt a TOTP secret — AES-256-GCM, bound to the user's id — before a store sees it. A sealing key is one `{ id, key }` of `secondFactor.keys`: the first seals, every one opens | "encrypt", "encryption key", "master key", "pepper" |
 | **token** | Never alone in prose: a *session token* or a *one-time token*. The `tokens` store and the `TOKEN_*` codes are one-time tokens only | |
 | **e-mail flow** | `verifyEmail` or `resetPassword`: send a one-time token, then confirm it. `signInCode` sends a one-time code instead | |
+| **issued** | What a flow answers for the application to send: an `IssuedToken` from `verifyEmail.send` or `resetPassword.request`, an `IssuedCode` from `signInCode.request` — the address with it. `@nxgt/janus-mail` takes it as it is | "result", "payload" |
+| **notice** | An e-mail that tells a user of a change and asks for nothing: *password changed*, *e-mail changed* — the latter sent to the former address. `@nxgt/janus-mail` sends both | "alert", "notification" |
 | **user event** | What happened to a user, once it is written: `user.created`, `user.emailVerified`, `user.passwordReset`, `user.deleted` — a `UserEvent`, naming the user by id alone, with an `id` of its own. See [user events](events.md) | "webhook" — a webhook is one way to deliver it; "event" alone where it could be read as `@nxgt/janus-telemetry`'s audit log record — on a page about user events, "the event" is fine |
 | **listener** | The one function `janus({ events })` hands every user event to, after the write and awaited | "handler", "hook", "subscriber" |
 
@@ -88,7 +90,7 @@ either finds this row.
 | **store** | Where a side keeps its data, behind a port. The **identity stores** are `users`, `sessions` and `tokens`; the **relation store** holds the tuples | "database", "repository" |
 | **port** | The interface a store implements: `JanusStores` for the identity stores — named after the package, not the side — and `RelationStore` | "driver" |
 | **adapter** | A package implementing the ports for one database: `@nxgt/janus-mongo`, `@nxgt/janus-drizzle`, `@nxgt/janus-redis`. What its `create…Adapter(db)` answers is its stores, keyed as `janus()` takes them — `{ store, relations }` | "plugin", "connector" |
-| **integration** | A package fitting Janus into one web framework or one observability library: `@nxgt/janus-hono`, `@nxgt/janus-telemetry`. It implements no port | "plugin", "adapter" |
+| **integration** | A package fitting Janus into one web framework, one observability library or one mail toolkit: `@nxgt/janus-hono`, `@nxgt/janus-telemetry`, `@nxgt/janus-mail`. It implements no port | "plugin", "adapter" |
 | **kit** | A package that opens the connections and wires adapters and integrations into one object for an application: `@nxgt/janus-kit`'s `connectKit` answers `{ auth, access, db, redis, ping, close }`. It implements no port, and `janus()` and `permissions()` are still written by the application | "framework", "starter" |
 
 ### Answers

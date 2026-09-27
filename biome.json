@@ -8,7 +8,13 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!**/dist", "!!.claude/worktrees"]
+		"includes": [
+			"**",
+			"!**/dist",
+			"!**/generated",
+			"!**/mails",
+			"!!.claude/worktrees"
+		]
 	},
 	"formatter": {
 		"enabled": true,
