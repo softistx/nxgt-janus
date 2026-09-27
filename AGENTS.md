@@ -346,7 +346,8 @@ The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied
 from nxgt-data, never shared**. That is the fourth copy, beside nxgt-http and
 nxgt-core, and `nxgt-data/AGENTS.md:460` says to change both when the reason
-holds for both.
+holds for both. One divergence: this copy of `verify-artifacts.ts` is split
+into `scripts/artifacts/` (see *Verifying*).
 
 **Imports carry no extension**: `from './engine'`, not `'./engine.js'` — in
 the sources, and in what the build emits, the `.d.ts` files included.
@@ -441,7 +442,8 @@ commit:
 1. `@nxgt/janus` is a **required peer** of every adapter and integration
    (`@nxgt/janus-hono`), never a dependency, and neither **defines an error
    class** — they throw, and test `instanceof` against, the peer's.
-2. The **one-class-per-entry-point scan** in `scripts/verify-artifacts.ts`, plus
+2. The **one-class-per-entry-point scan** that `scripts/verify-artifacts.ts`
+   runs (`scripts/artifacts/classes.ts`), plus
    its peer-range checks (a range that excludes the sibling's current version,
    an exact pin, a package that lists itself).
 3. An **`instanceof` probe inside the conformance suite**: the outage case
@@ -472,7 +474,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | --- | --- | --- |
 | `CursorPage`, `pageLimit` | `src/pagination/` | Four fields are not worth a dependency on a package from another repository |
 | `Clock`, `fixedClock` | `src/time/` | Same, and `fixedClock` is **shipped**, not test-only: a consumer testing session expiry needs it |
-| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above |
+| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above, except `scripts/artifacts/`, split here (see *Verifying*) |
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/`, `packages/janus-webhooks-redis/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; three copies of 60 lines are cheaper. The Redis version in them keys the one `.cache/redis`, and `$JANUS_REDIS_VERSION` and `$REDIS_BIN` override it the same way in all three. Byte-identical, and both CI jobs, `ci` and `floors`, key their Redis cache on all three. Change one, change all |
 | The Redis script runner and reply reader — `scriptsOver`, `isNoScript`, `runner` and its `Run`, `stamp`, `readerOf`, `unreadable` | `packages/janus-redis/src/{stores,replies}.ts`, `packages/janus-webhooks-redis/src/{queue,replies}.ts` | Two adapters of two ports in two packages, and neither may depend on the other; a shared package for 80 lines would be a third to publish. The runner is the same but for its failure's message: `webhookQueue.<method>: the queue could not answer` with `operation` only, where janus-redis says `<slot>.<operation>: the store could not answer` with `slot` too. `runner` takes no `slot` here, and this copy's `Run` takes a lazy `argsOf(operation)` builder where janus-redis's takes an eager `args` array, so a refusal names the operation before any I/O. The reader reads dates the same way — any number but `''` and `NaN` — and a count's digits the same way, with two differences: janus-redis's field `count` answers `0` for an absent field (a token of an earlier version) where this copy fails, and janus-redis's reply `count` takes any number where this copy's `toCount` requires a safe integer, 0 or more. `unreadable` differs in the same way as the runner. The webhook copy adds `type` and `failure`, and refuses before any I/O what it could not read back. Change one, change both |
 | `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. Both end with the same `redisPerFile()`, the file's server started and stopped around its cases. A change to how a case opens or fails belongs in both |
@@ -492,8 +494,9 @@ The table that exists so a duplication is a decision rather than an accident.
   no test, is imported by specs only and imports no other fixtures file; a
   helper several subjects use, such as `rejection` or janus-webhooks'
   `test/deliveries.ts`, goes in `test/` instead. Every `tsconfig.build.json`
-  excludes `**/*.fixtures.ts` as it excludes the specs, so none ships, and
-  `verify:artifacts` does not count one as a build input. A fixture that
+  excludes `**/*.fixtures.ts` as it excludes the specs, so none ships;
+  `verify:artifacts` does not count one as a build input, and fails on a
+  tarball that ships one. A fixture that
   *ships* is named `fixtures.ts` in its folder, with no dotted prefix, as
   `src/conformance/` does. A split spec's server stays one per file:
   `redisPerFile()` in the Redis adapters' `test/case.ts`, and `mongoPerFile()`
@@ -583,10 +586,29 @@ works, only slower.
 
 `verify:artifacts` is the one that matters most here: it loads **every**
 declared subpath and proves `JanusError` is defined once. That is the check that
-catches `splitting: false`, and it runs from the first commit.
+catches `splitting: false`, and it runs from the first commit. Its stages, in
+order, stopping at the first that fails: a missing `dist/`, or one older than
+its `src/`; then
+the packed tarballs, whose problems are reported together — a license other
+than MIT or no `LICENSE`, a `files` entry the tarball does not hold, **test
+code** (a `*.spec.*`, a `*.test.*`, a snapshot or a `<subject>.fixtures.*`,
+named as `<package>: the tarball ships test code: dist/x.fixtures.d.ts`), a
+`link:` or `file:` a consumer installs, a package that lists itself, a sibling
+pinned exactly or a range that leaves it out, and a required peer on no
+registry; then an install that fails, a subpath that does not load, a class
+defined twice, and a bin that does not run. A `fixtures.*` with no dotted
+prefix, as in `conformance/`, ships on purpose and passes.
+
+`scripts/verify-artifacts.ts` only runs those stages; each lives in
+`scripts/artifacts/`, one module per responsibility, with a spec beside each
+pure one (`packages.ts` reads the workspace, `tarball.ts` a tarball's entries,
+`manifest.ts` its dependency fields, `registry.ts` asks npm, then `stale.ts`,
+`classes.ts`, `install.ts`, `load.ts`). nxgt-data's copy is still
+one file: the split is this copy's, made to keep every file under 250 lines,
+and the test-code check is the one to carry back.
 
 The scripts have specs of their own, run by the root `test`:
-`scripts/verify-artifacts.spec.ts` covers the pure checks. Among them is the
+`scripts/artifacts/*.spec.ts` covers the pure checks. Among them is the
 one-class-per-entry scan, proven against a real `Bun.build` both with and
 without `splitting`. `scripts/publish.spec.ts` covers the publish order and the
 skipping of a `private` package. The first run of those two found that
@@ -607,8 +629,9 @@ and the reading of this repository's own
 practises it:
 
 - **`<type>`** is one of `feat`, `fix`, `docs`, `test`, `refactor`, `chore`,
-  `ci` — and `revert`, used once, for #17. A `!` after the scope marks a
-  breaking change: `feat(janus-drizzle)!: Unprefixed tables, …`.
+  `ci`, `build` — and `revert`, used once, for #17. A `!` after the scope
+  marks a breaking change: `feat(janus-drizzle)!: Unprefixed tables, …`.
+  `build` is build configuration: tsconfig, bundler, packaging.
 - **`<package>`** is the package's directory name, without `@nxgt/`:
   `fix(janus-webhooks): …`, or `docs(janus, janus-telemetry): …` for two. The
   scope names the package whose changelog the change belongs to. The early
