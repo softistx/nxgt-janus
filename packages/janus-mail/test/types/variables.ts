@@ -18,6 +18,8 @@ interface EmailOf {
 	readonly signInCode: 'sign-in-code';
 	readonly passwordChanged: 'password-changed';
 	readonly emailChanged: 'email-changed';
+	readonly twoFactorEnabled: 'two-factor-enabled';
+	readonly twoFactorDisabled: 'two-factor-disabled';
 }
 
 type Equal<A, B> =
@@ -31,7 +33,7 @@ type Promised = {
 };
 type Built = { readonly [E in keyof MailEmails]: keyof MailEmails[E] };
 
-/** The same five e-mails, each with the same variables. */
+/** The same seven e-mails, each with the same variables. */
 export const sameVariables: Equal<Promised, Built> = true;
 
 /** Every variable a template is given is one the build's renderer accepts. */
@@ -45,4 +47,6 @@ export const accepted: {
 	signInCode: true,
 	passwordChanged: true,
 	emailChanged: true,
+	twoFactorEnabled: true,
+	twoFactorDisabled: true,
 };

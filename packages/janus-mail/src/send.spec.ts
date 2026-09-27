@@ -22,11 +22,15 @@ describe('sending', () => {
 		);
 		await mail.signInCode({ ...signIn, email: 'code@example.com' });
 		await mail.passwordChanged({ name: 'Ada', email: 'changed@example.com' });
+		await mail.twoFactorEnabled({ name: 'Ada', email: 'on@example.com' });
+		await mail.twoFactorDisabled({ name: 'Ada', email: 'off@example.com' });
 		expect(options.mailer.sent.map((sent) => sent.to)).toEqual([
 			'verify@example.com',
 			'reset@example.com',
 			'code@example.com',
 			'changed@example.com',
+			'on@example.com',
+			'off@example.com',
 		]);
 		for (const sent of options.mailer.sent) {
 			expect(sent.from).toBe('noreply@acme.example');

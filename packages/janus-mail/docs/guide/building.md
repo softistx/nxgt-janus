@@ -43,7 +43,7 @@ packages/janus-mail/
    `src/generated/mail.ts` (`rendererTypes`), from the build.
 3. `scripts/build-mail.ts` reads the manifest and **fails unless its
    format is one every `@nxgt/mail` the peer admits reads** — see below —
-   and **unless exactly the five e-mails were built**: a sixth from a new
+   and **unless exactly the seven e-mails were built**: an eighth from a new
    `@nxgt/mail-presets`, or one missing, stops the build.
 4. It writes `src/generated/locales.ts` from the manifest's locales, only
    when its content changed.

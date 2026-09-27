@@ -56,6 +56,14 @@ describe('a field missing from a call', () => {
 			(m) => m.passwordChanged({ email: 'a@example.com' } as never),
 		],
 		[
+			'janusMail.twoFactorEnabled: email must be a string',
+			(m) => m.twoFactorEnabled({ name: 'Ada' } as never),
+		],
+		[
+			'janusMail.twoFactorDisabled: name must be a string',
+			(m) => m.twoFactorDisabled({ email: 'a@example.com' } as never),
+		],
+		[
 			'janusMail.emailChanged: formerEmail must be a string',
 			(m) =>
 				m.emailChanged({ name: 'Ada', newEmail: 'n@example.com' } as never),

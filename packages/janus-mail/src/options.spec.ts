@@ -116,7 +116,7 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 	[
 		'a template that is not one',
 		{ templates: { welcome: () => null } },
-		'templates has no template welcome — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged',
+		'templates has no template welcome — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled',
 	],
 	[
 		'a template that is not a function',

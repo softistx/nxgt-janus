@@ -118,6 +118,8 @@ const wide: JanusMailTemplates<'en' | 'fr' | 'de'> = {
 	signInCode: () => rendered,
 	passwordChanged: () => rendered,
 	emailChanged: () => rendered,
+	twoFactorEnabled: () => rendered,
+	twoFactorDisabled: () => rendered,
 };
 
 // 18. A template that does not exist, read from what janusMail answered.

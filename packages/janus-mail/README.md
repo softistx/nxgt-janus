@@ -2,7 +2,8 @@
 
 The e-mails of [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus)'s
 flows, ready to send: **e-mail verification, password reset, sign-in code,
-password changed and e-mail changed**, in English and French, with your brand
+password changed, e-mail changed, and two-factor authentication turned on or
+off**, in English and French, with your brand
 in them. `@nxgt/janus` sends no e-mail — its flows answer what to send — and
 this package turns that answer into an e-mail and hands it to any
 [`@nxgt/mail`](https://www.npmjs.com/package/@nxgt/mail) transport.
@@ -43,7 +44,7 @@ bun add -d typescript
 
 Three peers, all required: `@nxgt/mail` (0.1 or later, below 1 — the
 transports of 0.4 included), which defines the `Mailer` port and the errors;
-`@nxgt/janus` (0.8), whose flows' answers the methods take — types only,
+`@nxgt/janus` (0.9), whose flows' answers the methods take — types only,
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
@@ -54,10 +55,10 @@ runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The five default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The seven default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the five of them, and their names |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the seven of them, and their names |
 | `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn` or `newEmail` as its e-mail needs |
 | `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword` and `signInCode`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
@@ -74,6 +75,8 @@ class.
 | `signInCode(issued, to?, options?)` | `issued.code` from `auth.signInCode.request(email)`, and how long it lasts — **never the challenge** | `issued.email` |
 | `passwordChanged(to)` | A notice, with `links.secureAccount()` | `to.email` |
 | `emailChanged(to)` | A notice naming `to.newEmail`, with `links.secureAccount()` | `to.formerEmail` |
+| `twoFactorEnabled(to)` | A notice: two-factor authentication was turned on, with `links.secureAccount()` | `to.email` |
+| `twoFactorDisabled(to)` | A notice: two-factor authentication was turned off, with `links.secureAccount()` | `to.email` |
 
 The three e-mails of a link or a code say how long it lasts — "This link
 expires in 1 hour.", "Ce lien expire dans 1 heure." — from the flow's
@@ -141,6 +144,29 @@ const updated = await auth.update(user, { email: next });
 await mail.emailChanged({ name: updated.name, locale: updated.locale, formerEmail: before, newEmail: updated.email });
 ```
 
+### Telling a user their second factor was turned on or off
+
+`@nxgt/janus` sends `user.secondFactorEnabled` once `secondFactor.activate`
+made the factor active, and `user.secondFactorDisabled` once
+`secondFactor.disable` removed an active one — never for a user who had
+none. The event names the user by id, so read the rest from the user:
+
+```ts
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.secondFactorEnabled' || event.type === 'user.secondFactorDisabled') {
+			const user = await auth.get(event.userId);
+			const to = { name: user.name, locale: user.locale, email: user.email };
+			await (event.type === 'user.secondFactorEnabled' ? mail.twoFactorEnabled(to) : mail.twoFactorDisabled(to));
+		}
+	},
+});
+```
+
+The link is `links.secureAccount()`, the page where the user manages their
+security settings.
+
 ### Replacing a template
 
 Any template can be your own function — React Email, a string, another
@@ -201,7 +227,7 @@ and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all five
+built in those two only, so `locales: ['en', 'fr', 'de']` without all seven
 templates is a compile error, and a `TypeError` in JavaScript.
 
 **The brand is text only.** `brand: 'Acme'` is written in the header, the
@@ -259,16 +285,18 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Twenty-five plausible mistakes, twenty-five refused at compile time.**
-Three files hold one `@ts-expect-error` per mistake, beside the calls that
+**Twenty-seven plausible mistakes, twenty-seven refused at compile time.**
+Four files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
 [`test/types/option-refusals.ts`](test/types/option-refusals.ts) the twelve
 of `janusMail()`'s options, 9 to 20, beside adding a language with every
-template; and
+template;
 [`test/types/expiry-refusals.ts`](test/types/expiry-refusals.ts) the five of
-the expiry and the clock, 21 to 25:
+the expiry and the clock, 21 to 25; and
+[`test/types/notice-refusals.ts`](test/types/notice-refusals.ts) the two of
+the two-factor notices, 26 and 27:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -295,6 +323,8 @@ the expiry and the clock, 21 to 25:
 23. `expiresIn` given as a number of seconds rather than the text to show.
 24. `expiresIn` given with the recipient rather than as the send's option.
 25. `clock` given as a function rather than `@nxgt/janus`'s `Clock`.
+26. The user event itself given to `twoFactorDisabled`: it has no address.
+27. `twoFactorEnabled` given `emailChanged`'s `formerEmail` rather than `email`.
 
 In JavaScript, 19 to 23 are a `TypeError` at send time instead, naming the
 call or the field, and 25 one from `janusMail()`.

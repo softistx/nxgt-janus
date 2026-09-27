@@ -3,7 +3,7 @@
  *
  * `@nxgt/janus` sends no e-mail: its flows answer what to send — a one-time
  * token, a sign-in code, the address — and this package turns that answer
- * into an e-mail and hands it to an `@nxgt/mail` transport. Five e-mails, in
+ * into an e-mail and hands it to an `@nxgt/mail` transport. Seven e-mails, in
  * English and French, prebuilt with Maizzle when this package is built, and
  * filled at send time with your brand, the recipient's name and your links.
  * Any of them can be replaced by a function of your own.

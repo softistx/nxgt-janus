@@ -20,6 +20,8 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'signInCode',
 	'passwordChanged',
 	'emailChanged',
+	'twoFactorEnabled',
+	'twoFactorDisabled',
 ];
 
 const LINK_NAMES = ['verifyEmail', 'resetPassword', 'secureAccount'] as const;
