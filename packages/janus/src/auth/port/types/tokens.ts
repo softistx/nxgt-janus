@@ -3,10 +3,10 @@
  * store implements for them.
  *
  * Part of the store port; the rules every implementation keeps are in
- * `./types`.
+ * `./index`.
  */
 
-import type { Id } from '../../ids/id';
+import type { Id } from '../../../ids/id';
 
 /**
  * What a one-time token is for. A token redeemed for another purpose is

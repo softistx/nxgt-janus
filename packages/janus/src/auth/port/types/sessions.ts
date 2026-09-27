@@ -3,10 +3,10 @@
  * them.
  *
  * Part of the store port; the rules every implementation keeps are in
- * `./types`.
+ * `./index`.
  */
 
-import type { Id } from '../../ids/id';
+import type { Id } from '../../../ids/id';
 
 /** A session's id: a UUIDv7 minted by the core, as a user's is. */
 export type SessionId = string;

@@ -2,7 +2,7 @@
  * The flows every user type has, whatever its configuration: creating,
  * reading, listing, updating, deactivating and deleting its users.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
 import type { CursorPage } from '../../pagination/cursor-page';

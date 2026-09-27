@@ -2,7 +2,7 @@
  * What a sign-in answers: a session opened, or a second factor still to
  * prove.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
 import type { Id } from '../../ids/id';

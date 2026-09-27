@@ -2,10 +2,10 @@
  * A session as application code sees it, who a request belongs to, and what
  * a session token is read from.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
-import type { SessionRecord } from '../port/sessions';
+import type { SessionRecord } from '../port/types/sessions';
 
 /** A session, as application code sees it: everything but the token's hash. */
 export type Session = Omit<SessionRecord, 'tokenHash'>;

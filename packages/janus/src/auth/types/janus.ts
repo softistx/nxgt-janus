@@ -2,11 +2,15 @@
  * The whole surface: one user type's, every configuration's, and what
  * `janus(config)` answers.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
 import type { JanusConfig, MultiTypeConfig, SingleTypeConfig } from '../config';
-import type { ResetPasswordApi, SignInCodeApi, VerifyEmailApi } from './email';
+import type {
+	ResetPasswordApi,
+	SignInCodeApi,
+	VerifyEmailApi,
+} from './email-flows';
 import type {
 	EmailOf,
 	FieldsInput,

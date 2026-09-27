@@ -3,9 +3,10 @@
  * and e-mail fields, and what their writes take.
  *
  * The helpers without a doc comment are exported for the sibling files only;
- * `../types` does not re-export them.
+ * `./index` does not re-export them.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * The types derived from a configuration, in which the rest of the surface is
+ * written; `./index` gathers them.
  */
 
 import type { MultiTypeConfig, SingleTypeConfig } from '../config';

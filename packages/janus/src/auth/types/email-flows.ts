@@ -2,7 +2,7 @@
  * What a user type with an e-mail answers besides: a sign-in code, a
  * verification link and, with a password, a reset link.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
 import type { SignedIn, SignInResult } from './sign-in';

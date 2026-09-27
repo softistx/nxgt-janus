@@ -2,7 +2,7 @@
  * A user as application code sees it, how a method names one, and the
  * version check a write that follows a read may carry.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
 import type { Id } from '../../ids/id';

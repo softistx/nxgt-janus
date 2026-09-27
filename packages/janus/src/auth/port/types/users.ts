@@ -3,11 +3,11 @@
  * store implements for them.
  *
  * Part of the store port; the rules every implementation keeps are in
- * `./types`.
+ * `./index`.
  */
 
-import type { Id } from '../../ids/id';
-import type { CursorPage } from '../../pagination/cursor-page';
+import type { Id } from '../../../ids/id';
+import type { CursorPage } from '../../../pagination/cursor-page';
 import type { PasswordRecord, SecondFactorRecord } from './credentials';
 import type { JsonObject } from './json';
 

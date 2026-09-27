@@ -3,7 +3,7 @@
  * reports about them.
  *
  * Part of the store port; the rules every implementation keeps are in
- * `./types`.
+ * `./index`.
  */
 
 import type { SessionStore } from './sessions';

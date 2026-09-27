@@ -2,7 +2,7 @@
  * The password flows of a user type: signing up, signing in, and setting or
  * changing a password.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
 import type { SignedIn, SignInResult } from './sign-in';

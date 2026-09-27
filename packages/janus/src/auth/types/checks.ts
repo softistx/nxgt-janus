@@ -2,7 +2,7 @@
  * The checks, as types: what `janus` intersects into its parameter so a wrong
  * configuration is refused on the offending key.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` takes; `./index` gathers it.
  */
 
 import type {

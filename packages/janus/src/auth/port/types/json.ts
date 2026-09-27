@@ -2,7 +2,7 @@
  * What a store round-trips in a user's fields: JSON, and nothing else.
  *
  * Part of the store port; the rules every implementation keeps are in
- * `./types`.
+ * `./index`.
  */
 
 /**

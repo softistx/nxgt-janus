@@ -3,7 +3,7 @@
  * second-factor secret, both opaque to the store and kept byte for byte.
  *
  * Part of the store port; the rules every implementation keeps are in
- * `./types`.
+ * `./index`.
  */
 
 /** A password, as the store holds it: a self-describing hash, never the plain text. */

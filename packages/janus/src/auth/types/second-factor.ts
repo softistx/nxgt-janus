@@ -3,7 +3,7 @@
  * `secondFactor`: a TOTP second factor, from enrolment to the code `signIn`
  * asks for.
  *
- * Part of what `janus()` hands back; `../types` gathers it.
+ * Part of what `janus()` hands back; `./index` gathers it.
  */
 
 import type { SignedIn } from './sign-in';
