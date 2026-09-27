@@ -93,12 +93,15 @@ queue holds nothing.
 runs, so of twenty claims at once, no two answer one delivery. Redis does
 not roll a script back when a command in it fails half-way — a permission
 refused, a key of the wrong type — so **the insert undoes its own writes**
-before it fails, and is all or none. The other scripts read before they
-write, so what fails there fails before any write; a claim refused half-way
-costs the deliveries it already took one attempt, and one lease before they
-are claimed again. A time or a `limit` the queue could not read back — an
-Invalid Date, a limit of `2.5` — is refused with a `TypeError` before
-anything is sent. The scripts are sent by SHA
+before it fails, and is all or none. The others are not undone: a claim
+refused half-way costs the deliveries it already took one attempt, and one
+lease before they are claimed again; `deleteDelivery` removes the hash
+before its member, so what it leaves is a member the next claim drops; and
+`scheduleRetry` refused half-way has released its lease and stored its
+failure, and is retried when the old lease ends — earlier than scheduled. A
+time, a `limit` or a `failed.status` the queue could not read back — an
+Invalid Date, a limit of `2.5`, a status of `503.5` — is refused with a
+`TypeError` before anything is sent. The scripts are sent by SHA
 (`EVALSHA`), and in full only when Redis has forgotten them after a restart,
 a failover or a `SCRIPT FLUSH`.
 

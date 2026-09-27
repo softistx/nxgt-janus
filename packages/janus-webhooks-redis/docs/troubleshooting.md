@@ -3,9 +3,15 @@
 Each entry is headed by the text you see: a compiler error, a message, or an
 error `code`. Search this page for the words of your message.
 
-This adapter **defines no error class**, and writes no warning. Every error
-it throws is `@nxgt/janus`'s `StoreFailure`, with `operation` the queue
-method, and what Bun's Redis client threw as its `cause`.
+This adapter **defines no error class**, and writes no warning. It throws two
+kinds of error, both built in or `@nxgt/janus`'s:
+
+- `@nxgt/janus`'s `StoreFailure`, with `operation` the queue method, when
+  Redis cannot answer — then `cause` is what Bun's Redis client threw — or
+  answers a key this adapter did not write, with no `cause`;
+- a `TypeError`, before anything is sent, for a date, a `limit` or a
+  `failed.status` the queue could not read back.
+
 `@nxgt/janus-webhooks` turns them into its own warnings —
 `JANUS_WEBHOOK_QUEUE_FAILED`, and `JANUS_EVENT_FAILED` for an insert — which
 are in
@@ -104,10 +110,15 @@ and offline queue is disabled`.
 A script refused **half-way** — `NOPERM` on one key of several, `WRONGTYPE`
 on a key someone else wrote — leaves what Redis already ran, since Redis
 does not roll a script back. Only the insert undoes its own writes: nothing
-of an insert refused is left. The other scripts read before they write, so
-they fail before any write — except a claim over several deliveries, which
-keeps those it took before the refusal: each has spent an attempt, and is
-claimed again once its lease ends.
+of an insert refused is left. For the others:
+
+- a claim keeps the deliveries it took before the refusal: each has spent
+  an attempt, and is claimed again once its lease ends;
+- `deleteDelivery` removes the hash before its member, so a refusal between
+  the two leaves only a member, which the next claim drops;
+- `scheduleRetry` refused between its two writes has released its lease and
+  stored its failure, but the delivery is still due when the old lease
+  ends: it is retried then — earlier than scheduled.
 
 **Why:** the adapter never turns a failure into an absence. An outage is not
 "nothing due", which would hold every delivery back without a word.
@@ -140,7 +151,11 @@ prefix, or a key written by another version.
 
 **Why:** a delivery it cannot read is a failure, never an absence — skipping
 it would hold it back for ever, and answering it would send an event that
-never happened. There is no `cause`: Redis did not fail.
+never happened. There is no `cause`: Redis did not fail. A claim —
+`claimDeliveries` or `claimOrphanedDeliveries` — that meets such a key fails
+every time it reaches it: see
+[Every claim of one endpoint fails](#every-claim-of-one-endpoint-fails-a-delivery-key-that-cannot-be-read)
+for how to find the key and remove it.
 
 **Fix:** give the queue a prefix no other code writes under, and delete the
 foreign keys:
@@ -177,7 +192,8 @@ await queue.insertDeliveries(event, ['crm'], new Date());
 `limit` of `2.5`, `-1`, `Infinity` or `NaN`.
 
 **Why:** a claim answers at most `limit` deliveries; a limit that is not a
-whole number means none. It is refused before anything is sent.
+whole number is none: no claim can take 2.5 deliveries. It is refused before
+anything is sent.
 
 **Fix:** a whole number: `Math.floor(free)`, where `free` is what you can
 send at once.
@@ -195,8 +211,9 @@ anything else could not be. It is refused before anything is sent.
 ### Every claim of one endpoint fails: a delivery key that cannot be read
 
 The message is `STORE_FAILED`: `webhookQueue.claimDeliveries: a reply that
-is not … — a key under the prefix this adapter did not write`, again and
-again, with `JANUS_WEBHOOK_QUEUE_FAILED` from `@nxgt/janus-webhooks`.
+is not … — a key under the prefix this adapter did not write` — or
+`webhookQueue.claimOrphanedDeliveries: …` for an endpoint no process is
+configured with — again and again, with `JANUS_WEBHOOK_QUEUE_FAILED` from `@nxgt/janus-webhooks`.
 
 **When:** a delivery hash under the prefix was changed by hand, or written
 by another version or another application, and a claim reached it. Every
@@ -207,8 +224,11 @@ wait behind it.
 queue that skipped what it cannot read would hold that delivery back without
 a word. The claim is refused once Redis has answered it, so every delivery
 it took — the broken one included — has spent an attempt, and is claimed
-again once its lease ends: until the key is fixed, each lease costs the
-endpoint's first deliveries one attempt more.
+again once its lease ends: until the key is fixed, each lease period spends
+one attempt of each of the endpoint's first deliveries. After about as many
+lease lengths as the retry schedule has entries — seven by default — a
+healthy delivery behind the broken key is given up as `retriesRanOut`.
+Remove the broken key within a few lease lengths.
 
 **Fix:** find the broken key, keep what it holds if you need it, and delete
 it — the next claim drops its member from the due set and goes on:

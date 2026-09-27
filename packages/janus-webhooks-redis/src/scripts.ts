@@ -186,7 +186,9 @@ export const SCHEDULE_RETRY = `${LEASED}
 local p, id = ARGV[1], ARGV[2]
 local key = leased(p, id, ARGV[3])
 if not key then return 0 end
--- Every read before the first write: what can fail then fails before any.
+-- The endpoint is read before the first write. A refusal of the ZADD after
+-- the HSET leaves the lease released and the failure stored, with the
+-- delivery due when the old lease ends: retried then, earlier than scheduled.
 local endpoint = redis.call('HGET', key, 'endpoint')
 redis.call('HSET', key, 'status', ARGV[5], 'error', ARGV[6], 'lease', '')
 redis.call('ZADD', p .. 'due:' .. endpoint, ARGV[4], id)

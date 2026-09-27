@@ -121,14 +121,17 @@ costs the deliveries it claims, not the deliveries waiting.
 
 ## What a failure looks like
 
-The adapter defines **no error class**. Every rejection is `@nxgt/janus`'s
-`StoreFailure`, with `operation` the method that failed:
+The adapter defines **no error class**. A rejection is `@nxgt/janus`'s
+`StoreFailure`, with `operation` the method that failed — or, for an
+argument the queue could not read back, a `TypeError` before anything is
+sent:
 
 | What happens | What you get |
 | --- | --- |
 | Redis is unreachable, the connection closed, a timeout | `webhookQueue.<method>: the queue could not answer`; `cause` is Bun's `RedisError` |
-| Redis refuses a command: `NOPERM`, `OOM`, `READONLY` on a replica, `WRONGTYPE` | the same; `cause` carries Redis's reply. An insert refused half-way is undone first; a claim refused half-way costs what it already took an attempt |
+| Redis refuses a command: `NOPERM`, `OOM`, `READONLY` on a replica, `WRONGTYPE` | the same; `cause` carries Redis's reply. An insert refused half-way is undone first; the other scripts are not — see [troubleshooting](../troubleshooting.md#store_failed-webhookqueuemethod-the-queue-could-not-answer) |
 | A key under the prefix this adapter did not write | `webhookQueue.<method>: a reply that is not … — a key under the prefix this adapter did not write`, with no `cause`: never read as nothing due |
+| An Invalid Date, a `limit` that is not a whole number 0 or more, a `failed.status` that is not `null` or a whole number | a `TypeError` — `webhookQueue.<method>: <name> is a valid Date`, `… limit is a whole number of deliveries, 0 or more`, `… failed.status is null or a whole number` — before any I/O; `webhooks()` never passes one |
 
 Nothing answers `[]` or `false` for an error: a claim that answered "nothing
 due" during an outage would hold every delivery back without a word.
