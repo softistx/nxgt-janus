@@ -340,8 +340,9 @@ included, compared by nobody — until the next window: tell the user to wait,
 at most 15 minutes. The message, in your logs, is
 `secondFactor.regenerateRecoveryCodes: too many codes tried — wait for the next 15-minute window`.
 
-**Fix:** read `attemptsLeft` in the client: ask again while it is above `0`,
-and go back to the sign-in form once it is `0`.
+**Fix:** read `attemptsLeft` in the client: ask again while it is above `0`.
+Once it is `0`, a sign-in goes back to the sign-in form; the regenerate form
+tells the signed-in user to wait for the next window.
 
 ```ts
 const response = await fetch('/sign-in/code', { method: 'POST', body: JSON.stringify({ challenge, code }) });

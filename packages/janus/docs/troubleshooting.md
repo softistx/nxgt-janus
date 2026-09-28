@@ -751,7 +751,7 @@ try {
 sign-in or by an earlier regeneration. The user's recovery codes are
 unchanged. Every call costs one of the user's five attempts in the current
 15-minute window, counted before the code is compared, and the error carries
-`attemptsLeft`; past the fifth, the message is
+`attemptsLeft` — `0` on the fifth wrong code; past the fifth, the message is
 [*too many codes tried*](#code_invalid--secondfactorregeneraterecoverycodes-too-many-codes-tried--wait-for-the-next-15-minute-window).
 **Fix:** ask for the next code the app shows, and answer 401 with
 `attemptsLeft`.
@@ -809,7 +809,8 @@ process over the same store shares the count. A code accepted — a
 regenerate, or a sign-in finished with the app — starts it again; a password
 written does not.
 **Fix:** tell the user to wait for the next window — 15 minutes at most —
-and answer 429 rather than 401. If nobody tried five codes, somebody else
+and answer 429, or 401 as `@nxgt/janus-hono`'s `janusErrors()` does —
+`attemptsLeft: 0` either way. If nobody tried five codes, somebody else
 holds a session of theirs: revoke them with `signOutEverywhere(user)`.
 
 ```ts

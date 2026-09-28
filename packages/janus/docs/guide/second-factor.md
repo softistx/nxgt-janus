@@ -452,14 +452,16 @@ not: the attempts already spent in the window stay spent. The count lives in
 the tokens store as a token of kind `secondFactor` whose secret is never
 given out — no store method and no migration of its own — so every process
 over the same store shares it, and a store that fails throws `STORE_FAILED`,
-never a refusal.
+never a refusal. The count is keyed with the first of `secondFactor.keys`:
+putting a new key first starts every user's count of the current window
+again.
 
 A factor activated before 0.10 holds no recovery codes; this is how it gets
 its first ten.
 
 | Rejects with | When |
 | --- | --- |
-| `CODE_INVALID` | the app's code does not match, or was already accepted — with `attemptsLeft`, what the window has left. `attemptsLeft: 0` with *too many codes tried*: five were already tried in this window, and the code was not compared |
+| `CODE_INVALID` | the app's code does not match, or was already accepted — with `attemptsLeft`, what the window has left: `0` on the fifth wrong code, and the next call is refused. `attemptsLeft: 0` with *too many codes tried*: five were already tried in this window, and the code was not compared |
 | `SECOND_FACTOR_NOT_ENROLLED` | the user has no active factor — none, or one still waiting for its first code |
 | `VERSION_CONFLICT` | `{ ifVersion }` no longer matches, or another call changed the user meanwhile — the same code tried twice at once regenerates once |
 
@@ -485,7 +487,7 @@ export async function regenerateRecoveryCodes(request: Request): Promise<Respons
 		return Response.json({ recoveryCodes }, { headers: { 'Cache-Control': 'no-store' } });
 	} catch (error) {
 		if (error instanceof TokenError && error.code === 'CODE_INVALID') {
-			// 0 left: no code is compared again until the next window.
+			// 0 left — the fifth wrong code, or a call past it: no code is compared again until the next window.
 			const status = error.attemptsLeft === 0 ? 429 : 401;
 			return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status });
 		}

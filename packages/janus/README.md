@@ -518,7 +518,7 @@ every user type with a password.
   attempts, and answers a `RecoveredSignIn`: the session with
   `recoveryCodesLeft`. `regenerateRecoveryCodes(user, code)` replaces them all,
   on a fresh code from the app, and answers a `RecoveryCodesIssued` too;
-  `disable` removes them. It takes five attempts per user per 15-minute
+  `disable` removes them. `regenerateRecoveryCodes` takes five attempts per user per 15-minute
   window, counted by the store: a wrong code is `CODE_INVALID` with
   `attemptsLeft`, and past the fifth every call is refused until the next
   window.
