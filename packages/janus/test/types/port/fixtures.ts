@@ -8,7 +8,7 @@
  * would otherwise surface as a conformance failure at best, and at worst as
  * an outage reported as "no such account".
  *
- * **Twenty-two plausible mistakes, twenty-two refused**, numbered across the
+ * **Twenty-three plausible mistakes, twenty-three refused**, numbered across the
  * folder, one file per behaviour: `stores.ts` (the stores and their answers),
  * `calls.ts` (what a call must say), `patches.ts` and `records.ts` — each
  * beside the shapes that must keep compiling. Add a case whenever the port

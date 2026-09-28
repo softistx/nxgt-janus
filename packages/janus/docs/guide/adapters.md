@@ -92,6 +92,7 @@ interface UserRecord {
 		readonly secret: string; // opaque: store it byte for byte
 		readonly confirmedAt: Date | null; // null while enrolment waits for a first code
 		readonly lastStep: number | null; // the time step of the last code accepted
+		readonly recoveryCodes: readonly string[]; // opaque keyed hashes, in order; [] for none
 	} | null;
 	// …emailVerifiedAt, version, createdAt, updatedAt
 }
@@ -105,6 +106,17 @@ rewrites it, sealed under another key, when the application
 [rotates its keys](second-factor.md#rotating-the-keys). Store
 the second factor whole: a method without a secret, or a `lastStep` without a
 method, is a record the core never writes.
+
+`recoveryCodes` holds the hashes of the codes a user can sign in with when
+their phone is gone — **keyed hashes the core computed, never a code**, each
+as opaque as `secret`. Keep the array **in order** and byte for byte; a patch
+that names `secondFactor` replaces it whole, codes included, and
+`secondFactor: null` removes them with the factor. `[]` is a factor with no
+codes left, never an absence of factor. **Every adapter must round-trip it**:
+a store that drops the field answers a record with no codes, and a user who
+lost their phone is locked out. A row or document written before the field
+existed should read as `[]` — nullable, or optional, rather than a migration
+that rewrites every user.
 
 ```ts
 import type { UserPatch } from '@nxgt/janus';
@@ -370,7 +382,7 @@ while you work on it, never to ship:
 
 | Case | Checks |
 | --- | --- |
-| `users.secondFactorSlot` | round-trip; a patch not naming it keeps it; `null` removes it |
+| `users.secondFactorSlot` | round-trip, recovery codes in order and `[]` as a factor with no codes, never as `null`; a patch not naming it keeps it; one naming it replaces the codes whole; `null` removes it, codes included, and a factor written after has none |
 | `tokens.countAttempt` | two calls answer `attempts` 1 then 2, `codeHash` as written; `consumeToken` answers the count |
 | `tokens.countAttemptConcurrency` | twenty concurrent calls answer 1 to 20, each once |
 | `tokens.countAttemptRace` | attempts racing one redemption: the counts answered unspent are 1 to the final count, and every answer after the spend carries that final count |

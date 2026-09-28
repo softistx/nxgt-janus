@@ -37,4 +37,11 @@ export interface SecondFactorRecord {
 	 * code of this step or an earlier one is refused, so a code works once.
 	 */
 	readonly lastStep: number | null;
+	/**
+	 * The recovery codes still unused, as keyed hashes — `[]` for none. Each is
+	 * opaque to a store, like the secret: kept byte for byte, **in order**, and
+	 * replaced whole by a patch that names the factor. A store that drops the
+	 * field, or answers it as absent, locks out a user whose phone is gone.
+	 */
+	readonly recoveryCodes: readonly string[];
 }

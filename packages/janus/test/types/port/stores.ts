@@ -1,7 +1,7 @@
 /**
  * The stores and what their methods answer: a missing method, an absence as
  * undefined, answers too poor to act on, the wrong store in a slot. Cases
- * 1–5 and 16 of the twenty-two — see `fixtures.ts`.
+ * 1–5 and 16 of the twenty-three — see `fixtures.ts`.
  */
 
 import { createMemoryStores } from '../../../src/auth/port/memory';
