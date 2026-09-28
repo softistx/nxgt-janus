@@ -1,6 +1,7 @@
 /**
- * What the `@permission` specs share: the harness wired with two users, and
- * an `access` that counts the checks it is asked.
+ * What the directive and memo specs share, across subjects: the harness
+ * wired with two users, an `access` that counts the checks it is asked, and
+ * the wards they hold.
  */
 
 import {
@@ -9,7 +10,7 @@ import {
 	server,
 	setup,
 	users,
-} from '../../test/harness';
+} from './harness';
 
 /** `access`, asking what `context.access` answers and counting each question. */
 export function counting(context: Setup) {

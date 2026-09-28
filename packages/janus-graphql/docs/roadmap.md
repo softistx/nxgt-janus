@@ -12,11 +12,6 @@ Nothing between releases.
 - **Subscriptions over graphql-ws** — `janusConnection`, which authenticates
   a WebSocket connection once, from its `connectionParams` or its upgrade
   request, and gives every operation on it the same `ctx.janus`.
-- **`@fresh(maxAge)`** — a field only a session that proved who it is less
-  than `maxAge` ago may resolve — signed in, or confirmed since by
-  `auth.stepUp.confirm`: a password change, a new e-mail, a payment method,
-  asked again of a session that is days old. `@nxgt/janus` 0.12's
-  `assertFresh` is the check, and `STEP_UP_REQUIRED` the error it answers.
 - **The renewed session cookie on GraphQL responses** — `authenticate`
   renews a sliding session in passing; the response would then carry its
   `Set-Cookie`, so a browser keeps the new expiry without an HTTP route of
@@ -45,6 +40,17 @@ Nothing yet.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **`@fresh(maxAge)` and `requireFresh()`, v0.2.0.** A field, a type or an
+  interface only a session that proved who it is less than `maxAge` seconds
+  ago may resolve — signed in, or confirmed since by `auth.stepUp.confirm`:
+  a new e-mail or a payment method, asked again of a session that is days
+  old. An older session is `STEP_UP_REQUIRED`, 403, which tells the client
+  to ask for a step-up; checked after `@authenticated` and before any
+  `@permission`, and for a subscription when it subscribes.
+  `requireFresh(ctx, '10m')` is the same check in a resolver, and
+  `useJanus({ clock })` the clock both read. `@nxgt/janus` 0.12's
+  `assertFresh` is the check.
 
 - **The first release, v0.1.0.** GraphQL for `@nxgt/janus`, as an envelop
   plugin: `useJanus()` with a lazy `ctx.janus`, authenticated only when a

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { ask, type Context } from '../test/harness';
-import { wards, wired } from './directives/permission.fixtures';
+import { wards, wired } from '../test/wired';
 import { can } from './helpers';
 import { memoized } from './memo';
 

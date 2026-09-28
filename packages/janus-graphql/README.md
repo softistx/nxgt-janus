@@ -2,7 +2,8 @@
 
 [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) in a GraphQL
 server: the signed-in user on the context, authenticated only when a field
-asks, fields and types guarded by `@authenticated` and `@permission`, and
+asks, fields and types guarded by `@authenticated`, `@fresh` and
+`@permission`, and
 every error answered with the status it deserves — an outage as 503, never
 as 401, 403 or 404.
 
@@ -77,20 +78,22 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 
 | Export | What it is |
 | --- | --- |
-| `useJanus({ auth, access?, type?, loaders?, conditions? })` | The envelop plugin. Adds `ctx.janus` to every request's context, and applies the directives to every schema the server is given, once. `type` treats a user of any other type as anonymous. `loaders` and `conditions` are what `@permission` needs beside `access` |
+| `useJanus({ auth, access?, type?, clock?, loaders?, conditions? })` | The envelop plugin. Adds `ctx.janus` to every request's context, and applies the directives to every schema the server is given, once. `type` treats a user of any other type as anonymous. `clock` is what `@fresh` and `requireFresh()` read — the one given to `janus()`, when it is not the system's. `loaders` and `conditions` are what `@permission` needs beside `access` |
 | `ctx.janus.user()`, `ctx.janus.session()` | Who the request belongs to, and the session it presented — `null` for an anonymous request. `auth.authenticate(request)` runs the first time either is asked, once per request, and never when neither is |
 | `ctx.janus.access` | The `permissions()` instance given to `useJanus()`. Absent from the type — and from the context — without one |
-| `janusTypeDefs` | The SDL: `@authenticated`, `@permission` and the `JanusPermissionDenial` enum — prefixed, so it never collides with a type of your schema. The same text as `graphql/janus.graphqls` |
+| `janusTypeDefs` | The SDL: `@authenticated`, `@fresh`, `@permission` and the `JanusPermissionDenial` enum — prefixed, so it never collides with a type of your schema. The same text as `graphql/janus.graphqls` |
 | `@authenticated(type: [String!])` | On a field, a type or an interface. A signed-in user, of one of the `type`s when it names some. Anonymous: `UNAUTHENTICATED`. Another type: `FORBIDDEN`. Every one that applies — the field's, its type's, its interfaces' — must hold |
+| `@fresh(maxAge: Int!)` | On a field, a type or an interface. A session that proved who it is less than `maxAge` **seconds** ago — signed in, or confirmed since by `auth.stepUp.confirm`. Anonymous: `UNAUTHENTICATED`. Older: `STEP_UP_REQUIRED`, 403. Checked after `@authenticated`, before `@permission`; the smallest `maxAge` that applies holds; on a subscription field, checked when it subscribes |
 | `@permission(name, type, id, onDeny)` | On a field, a type or an interface. A user holding permission `name` on the object of `type` whose id `id` reads — `args.<path>` or `parent.<path>`; `args.id` on a field, `parent.id` on a type. A list requires it on every id. Repeated, every one must hold, in order. Denied: `NOT_FOUND`, or `FORBIDDEN` with `onDeny: FORBIDDEN` |
 | `loaders: { [type]: (id, ctx) => object \| null }` | The object `@permission` checks for an id alone — from `args`, or a parent field other than `id` — required for a type with a `fromField`, whose fields `access.can` reads. `null` answers `NOT_FOUND` |
 | `conditions: { [type]: (object, ctx) => ctx }` | The `ctx` `@permission` passes to `access.can` for a permission that reaches a `when()` |
 | `applyJanusDirectives(schema, { auth, type?, access?, loaders?, conditions? })` | The schema transform alone — what `useJanus()` runs — to check a schema in a test or a build script. Throws a `TypeError` naming the field for a directive no request could pass. Its guards read `ctx.janus`, which only `useJanus()` builds |
 | `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a non-empty list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
+| `requireFresh(ctx, maxAge)` | The request's session, once it proved who it is less than `maxAge` ago — a duration with its unit, `'10m'`, never a bare number — or a denial: `UNAUTHENTICATED`, `STEP_UP_REQUIRED` |
 | `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false`. Shares the request's checks with `@permission`: one question, one check per request |
 | `janusMaskError(fallback?)` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback` |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
-| `denial(code, message?)` | A denial of your own: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404 |
+| `denial(code, message?)` | A denial of your own: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404. For a stale session, call `requireFresh()`, whose `STEP_UP_REQUIRED` is `@nxgt/janus`'s |
 | `JanusContext<typeof auth, typeof access?, Type?>` | What `useJanus()` adds to the context, for your resolvers' `ctx` |
 | `JanusOptions`, `JanusOnContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError` | The types of the arguments and answers above |
 
@@ -108,6 +111,10 @@ type Record @permission(name: "view", type: "record") {             # parent.id:
 	title: String
 	billing: Billing @permission(name: "manage", type: "record", onDeny: FORBIDDEN)
 }
+
+type Mutation {
+	changeEmail(email: String!): User @fresh(maxAge: 600)            # signed in or stepped up < 10 min ago
+}
 ```
 
 ```ts
@@ -120,6 +127,12 @@ useJanus({
 ```
 
 Each runs before the resolver, which a refused request never reaches.
+`@fresh(maxAge)` takes **seconds**, and answers an older session
+`STEP_UP_REQUIRED`: the client then calls your two step-up mutations,
+which run `auth.stepUp.request` and `confirm` — shown in
+[the step-up guide](docs/guide/step-up.md) — and sends the request again.
+Every `@authenticated` is checked first, then `@fresh`, then each
+`@permission`, so a stale session asks no permission check.
 `@permission` implies a signed-in user, and asks `access.can` with the parent
 itself when the id is `parent.id`, with what `loaders[type]` answers for an
 id of a type with a `fromField`, and with `{ type, id }` otherwise. Every
@@ -129,8 +142,8 @@ a field's `FORBIDDEN` could tell the object exists. The same question asked
 twice in a request, by two fields or by a directive and `can()`, is one
 check. What no request could pass — an object type or a permission the
 model does not declare, a malformed `id:`, an argument the field does not
-take, a missing loader or condition — is a `TypeError` at start-up naming
-the field. Detail: [the directives guide](docs/guide/directives.md).
+take, a missing loader or condition, a `maxAge` not above zero — is a
+`TypeError` at start-up naming the field. Detail: [the directives guide](docs/guide/directives.md).
 
 ## Errors
 
@@ -143,8 +156,9 @@ every one carries a `code` and the HTTP status Yoga answers with:
 
 | Code | Status | When |
 | --- | --- | --- |
-| `UNAUTHENTICATED` | 401 | An anonymous request reached a guarded field, or `requireUser()` |
+| `UNAUTHENTICATED` | 401 | An anonymous request reached a guarded field, `requireUser()` or `requireFresh()` |
 | `FORBIDDEN` | 403 | A user of a type the directive or `requireUser()` does not name; a `@permission(onDeny: FORBIDDEN)` denied |
+| `STEP_UP_REQUIRED` | 403 | A session older than `@fresh(maxAge)` or `requireFresh()` allows: ask for a step-up, then send the request again |
 | `NOT_FOUND` | 404 | A `@permission` denied — its default — or a loader answered `null`; `denial('NOT_FOUND')` |
 | `SERVICE_UNAVAILABLE` | 503 | A store could not answer — `STORE_FAILED`. **Never a denial** |
 | any other `JanusErrorCode` | its [`statusOf`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) | A `JanusError` a resolver let through: `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, … |
@@ -206,19 +220,31 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 - **A context built without a request cannot authenticate.** `ctx.janus.user()`
   rejects with a `TypeError` — a transport that is not HTTP, such as a
   WebSocket, needs its own wiring, which is on the [roadmap](docs/roadmap.md).
+- **`@fresh` reads seconds; `requireFresh()` a duration.** `@fresh(maxAge:
+  10)` is ten seconds, not ten minutes — write `600`. `requireFresh(ctx,
+  '10m')` takes the unit, and refuses a bare number, which `@nxgt/janus`
+  would read as milliseconds.
+- **`useJanus()` reads the system clock unless given `janus()`'s.** With
+  `janus({ clock: fixedClock(…) })` in a spec and no `useJanus({ clock })`,
+  every session looks as old as the fixed date, and every `@fresh` field
+  answers `STEP_UP_REQUIRED`. Pass the same clock to both.
+- **A subscription field's `@fresh` is checked when it subscribes.** Its
+  events keep coming past `maxAge`; that `@fresh` is not asked again on
+  each one, as `@permission` is. A `@fresh` on the payload's type or its
+  fields is asked on every event, like any field.
 - **A denial of a list field's item fails the whole list** where the item is
   non-null (`[Doctor!]!`), as GraphQL's null propagation always does. Guard
   the list field, or make the item nullable.
 
 ## Documentation
 
-- [Guides](docs/README.md) — the directives, the context and the lazy user, errors as statuses, telemetry, and federation
+- [Guides](docs/README.md) — the directives, the step-up over GraphQL, the context and the lazy user, errors as statuses, telemetry, and federation
 - [Troubleshooting](docs/troubleshooting.md) — by the message or status you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
-Twenty-four plausible mistakes are refused by the compiler, each with a
+Twenty-nine plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
@@ -239,7 +265,10 @@ Twenty-four plausible mistakes are refused by the compiler, each with a
   does not declare, a loader answering an object without a field a
   `fromField` reads, `conditions` for a type no `when()` is reached on, a
   condition answering a `ctx` of the wrong shape, and `loaders` without
-  `access`.
+  `access`;
+- five in `fresh.ts`: `requireFresh()` given a bare number, a duration
+  written as prose, no `maxAge` at all, or the request instead of the
+  context, and `useJanus()` given a timestamp as its `clock`.
 
 `plugin.ts` also holds this README's quick start, which must keep compiling.
 

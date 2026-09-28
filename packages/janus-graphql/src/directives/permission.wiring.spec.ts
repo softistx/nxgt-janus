@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { buildSchema, execute, parse } from 'graphql';
 import { ask, codes, setup, users } from '../../test/harness';
+import { wards, wired } from '../../test/wired';
 import { createJanusContext } from '../context';
 import { janusTypeDefs } from '../sdl';
 import { applyJanusDirectives } from './apply';
-import { wards, wired } from './permission.fixtures';
 
 const typeDefs = /* GraphQL */ `
 	type Query {

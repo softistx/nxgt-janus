@@ -8,6 +8,14 @@ directive @authenticated(
 ) on OBJECT | INTERFACE | FIELD_DEFINITION
 
 """
+Only a session that proved who it is less than `maxAge` seconds ago reaches
+this field, or every field of this type or interface: signed in, or confirmed
+since by a step-up. Anonymous is answered UNAUTHENTICATED, an older session
+STEP_UP_REQUIRED. Where several apply, the smallest `maxAge` holds.
+"""
+directive @fresh(maxAge: Int!) on OBJECT | INTERFACE | FIELD_DEFINITION
+
+"""
 What a denied `@permission` answers.
 """
 enum JanusPermissionDenial {

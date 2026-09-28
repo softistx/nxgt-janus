@@ -29,11 +29,12 @@ export interface JanusDirectivesOptions<T extends string = string> {
 }
 
 /**
- * The schema with every field guarded by `@authenticated` or `@permission`
- * — on the field, on its type, or on an interface the type implements —
- * wrapped so its resolver runs only for a signed-in user, of one of the
- * types `type:` names when it names some, holding every permission asked.
- * Every directive that applies must hold.
+ * The schema with every field guarded by `@authenticated`, `@fresh` or
+ * `@permission` — on the field, on its type, or on an interface the type
+ * implements — wrapped so its resolver runs only for a signed-in user, of
+ * one of the types `type:` names when it names some, on a session that
+ * proved who it is less than `maxAge` seconds ago, holding every permission
+ * asked. Every directive that applies must hold.
  *
  * `useJanus()` calls it on every schema it is given. Call it yourself to
  * check a schema without a server: the guards it installs read `ctx.janus`,
@@ -41,10 +42,10 @@ export interface JanusDirectivesOptions<T extends string = string> {
  *
  * **Refuses when the schema is built**, with a `TypeError` naming the
  * field: a user type `auth` does not know, a `type: []`, restrictions no
- * user type meets together; for `@permission`, an object type or a
- * permission the model does not declare, a malformed `id:`, an argument the
- * field does not take, and a loader or a condition's `ctx` it needs and was
- * not given.
+ * user type meets together, a `@fresh` whose `maxAge` is not above zero;
+ * for `@permission`, an object type or a permission the model does not
+ * declare, a malformed `id:`, an argument the field does not take, and a
+ * loader or a condition's `ctx` it needs and was not given.
  */
 export function applyJanusDirectives<const T extends string>(
 	schema: GraphQLSchema,
@@ -63,12 +64,17 @@ export function applyJanusDirectives<const T extends string>(
 				options,
 			);
 			if (requirement === null) return field;
+			const resolve = field.resolve ?? defaultFieldResolver;
+			if (field.subscribe === undefined) {
+				return { ...field, resolve: guarded(resolve, requirement) };
+			}
+			// A subscription's freshness is checked when it subscribes: its
+			// events keep coming past maxAge, as its session keeps standing.
+			const onEvent = { ...requirement, maxAgeMs: null };
 			return {
 				...field,
-				resolve: guarded(field.resolve ?? defaultFieldResolver, requirement),
-				...(field.subscribe === undefined
-					? {}
-					: { subscribe: guarded(field.subscribe, requirement) }),
+				subscribe: guarded(field.subscribe, requirement),
+				resolve: guarded(resolve, onEvent),
 			};
 		},
 	});

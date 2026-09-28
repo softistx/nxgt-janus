@@ -15,6 +15,7 @@ for what causes each.
 - [`TypeError: applyJanusDirectives(): @authenticated on … names the user type '…', which is not one of …`](#typeerror-applyjanusdirectives-authenticated-on--names-the-user-type--which-is-not-one-of-)
 - [`TypeError: applyJanusDirectives(): @authenticated on … names no user type`](#typeerror-applyjanusdirectives-authenticated-on--names-no-user-type)
 - [`TypeError: applyJanusDirectives(): the @authenticated on … admit no user type in common`](#typeerror-applyjanusdirectives-the-authenticated-on--admit-no-user-type-in-common)
+- [`TypeError: applyJanusDirectives(): @fresh on … asks maxAge: …`](#typeerror-applyjanusdirectives-fresh-on--asks-maxage-)
 - [`TypeError: applyJanusDirectives(): @permission on … needs the permissions() instance`](#typeerror-applyjanusdirectives-permission-on--needs-the-permissions-instance)
 - [`TypeError: applyJanusDirectives(): @permission on … names the object type '…', which is not one of …`](#typeerror-applyjanusdirectives-permission-on--names-the-object-type--which-is-not-one-of-)
 - [`TypeError: applyJanusDirectives(): @permission on … asks '…', which … does not declare`](#typeerror-applyjanusdirectives-permission-on--asks--which--does-not-declare)
@@ -23,20 +24,27 @@ for what causes each.
 - [`TypeError: applyJanusDirectives(): @permission on … reads the …'s id from …, and … reads '…' of the object itself (fromField)`](#typeerror-applyjanusdirectives-permission-on--reads-the-s-id-from--and--reads--of-the-object-itself-fromfield)
 - [`TypeError: applyJanusDirectives(): @permission on … asks '…' of …, which reaches a when()`](#typeerror-applyjanusdirectives-permission-on--asks--of--which-reaches-a-when)
 - [`TypeError: applyJanusDirectives(): @permission on … finds loaders.…, which is not a function`](#typeerror-applyjanusdirectives-permission-on--finds-loaders-which-is-not-a-function)
-- [`Unknown directive "@authenticated"`, or `"@permission"`](#unknown-directive-authenticated-or-permission)
+- [`Unknown directive "@authenticated"`, `"@fresh"` or `"@permission"`](#unknown-directive-authenticated-fresh-or-permission)
+- [`Argument "@fresh(maxAge:)" of type "Int!" is required`, or `Argument "maxAge" has invalid value …`](#argument-freshmaxage-of-type-int-is-required-or-argument-maxage-has-invalid-value-)
 - [`TypeError: applyJanusDirectives(): type '…' is not a user type of auth`](#typeerror-applyjanusdirectives-type--is-not-a-user-type-of-auth)
 - [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
 - [`TypeError: useJanus(): access is not what permissions() answered`](#typeerror-usejanus-access-is-not-what-permissions-answered)
+- [`TypeError: useJanus(): clock is not a Clock`](#typeerror-usejanus-clock-is-not-a-clock)
 
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
 - [`FORBIDDEN` where the user should be allowed](#forbidden-where-the-user-should-be-allowed)
+- [`STEP_UP_REQUIRED`, 403](#step_up_required-403)
+- [`STEP_UP_REQUIRED` for a user who just signed in](#step_up_required-for-a-user-who-just-signed-in)
 - [`SERVICE_UNAVAILABLE`, 503, on every guarded field](#service_unavailable-503-on-every-guarded-field)
 - [`Unexpected error.`, 500, where a `JanusError` was thrown](#unexpected-error-500-where-a-januserror-was-thrown)
 - [`TypeError: … ctx.janus is not set`](#typeerror--ctxjanus-is-not-set)
 - [`TypeError: useJanus(): the GraphQL context has no request to authenticate`](#typeerror-usejanus-the-graphql-context-has-no-request-to-authenticate)
 - [`TypeError: can(): ctx.janus.access is not set`](#typeerror-can-ctxjanusaccess-is-not-set)
 - [`TypeError: requireUser(): type is an empty list, which no user could pass`](#typeerror-requireuser-type-is-an-empty-list-which-no-user-could-pass)
+- [`TypeError: requireFresh(): maxAge is a duration with its unit`](#typeerror-requirefresh-maxage-is-a-duration-with-its-unit)
+- [`TypeError: requireFresh(): maxAge: "…" is not a duration`](#typeerror-requirefresh-maxage--is-not-a-duration)
+- [`TypeError: requireFresh(): maxAge: a duration must be above zero`](#typeerror-requirefresh-maxage-a-duration-must-be-above-zero)
 - [`@permission on … resolved no object id from … — answered NOT_FOUND`](#permission-on--resolved-no-object-id-from---answered-not_found)
 - [`NOT_FOUND` where the user should be allowed](#not_found-where-the-user-should-be-allowed)
 - [A 403 that tells a user the object exists](#a-403-that-tells-a-user-the-object-exists)
@@ -52,6 +60,9 @@ for what causes each.
 - [`'…' does not exist in type 'Loaders<…>'`, or `'Conditions<…>'`](#-does-not-exist-in-type-loaders-or-conditions)
 - [`Type '{ …: … }' is not assignable to type 'never'`, on `loaders`](#type-----is-not-assignable-to-type-never-on-loaders)
 - [`Source has 0 element(s) but target requires 1`, on `requireUser()`](#source-has-0-elements-but-target-requires-1-on-requireuser)
+- [`Argument of type '600' is not assignable to parameter of type '`${number}ms` | …'`, on `requireFresh()`](#argument-of-type-600-is-not-assignable-to-parameter-of-type-numberms---on-requirefresh)
+- [`Expected 2 arguments, but got 1`, on `requireFresh()`](#expected-2-arguments-but-got-1-on-requirefresh)
+- [`Type 'number' is not assignable to type 'Clock'`](#type-number-is-not-assignable-to-type-clock)
 
 ## At start-up
 
@@ -94,6 +105,24 @@ type Ward @authenticated(type: ["staff"]) {
 
 **Fix:** widen one of them, or move the field to a type whose directive
 admits the users it is for.
+
+### `TypeError: applyJanusDirectives(): @fresh on … asks maxAge: …`
+
+**When:** at start-up, for a schema that uses `@fresh`.
+
+**Why:** `maxAge` is not above zero — `@fresh(maxAge: 0)` or a negative
+number — so no session could ever be fresh enough, and every request would
+be refused. The message names the field, and the location the directive was
+written on when it is not the field: `@fresh on Account (read by
+Account.email)`.
+
+**Fix:** write a number of **seconds** above zero:
+
+```graphql
+type Mutation {
+	changeEmail(email: String!): User @fresh(maxAge: 600) # ten minutes
+}
+```
 
 ### `TypeError: applyJanusDirectives(): @permission on … needs the permissions() instance`
 
@@ -192,7 +221,7 @@ than a function of it, from JavaScript or past a cast.
 
 **Fix:** `loaders: { record: (id) => records.find(id) }`.
 
-### `Unknown directive "@authenticated"`, or `"@permission"`
+### `Unknown directive "@authenticated"`, `"@fresh"` or `"@permission"`
 
 **Why:** graphql-js builds the schema before `useJanus()` sees it, and the
 directive is not declared.
@@ -201,6 +230,18 @@ directive is not declared.
 `createSchema({ typeDefs: [janusTypeDefs, typeDefs], resolvers })`. A code
 generator reading files takes
 `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
+
+### `Argument "@fresh(maxAge:)" of type "Int!" is required`, or `Argument "maxAge" has invalid value …`
+
+graphql 16 words the first `Directive "@fresh" argument "maxAge" of type
+"Int!" is required, but it was not provided.`
+
+**Why:** graphql-js refuses the directive at start-up: `@fresh` without
+`maxAge`, when the schema is built; or with a value that is not an `Int` —
+a fraction, a string such as `"10m"` — when `useJanus()` reads it.
+
+**Fix:** a whole number of seconds: `@fresh(maxAge: 600)`. A duration with a
+unit belongs to `requireFresh(ctx, '10m')`, in a resolver.
 
 ### `TypeError: applyJanusDirectives(): type '…' is not a user type of auth`
 
@@ -228,6 +269,15 @@ its place, or the module that exports `auth` not loaded yet.
 **Fix:** `useJanus({ auth, access })`, with `access` what `permissions()`
 answered — or leave `access` out when no field uses `@permission` or `can()`.
 
+### `TypeError: useJanus(): clock is not a Clock`
+
+**Why:** `clock` has no `now()` — a timestamp such as `Date.now()`, or a
+`Date`, passed from JavaScript or cast past the compiler.
+
+**Fix:** pass the clock given to `janus()` — `fixedClock(…)` from
+`@nxgt/janus` in a spec — or leave `clock` out for the system's:
+`useJanus({ auth, clock })`.
+
 ## In a response
 
 ### `UNAUTHENTICATED` for a signed-in user
@@ -251,12 +301,37 @@ says applies to it too.
 **Fix:** read the directives on the field, on its type, and on every
 interface the type implements.
 
+### `STEP_UP_REQUIRED`, 403
+
+**Why:** a field `@fresh(maxAge)` guards, or a `requireFresh(ctx, maxAge)`,
+was reached by a session that proved who it is `maxAge` ago or more — at
+its sign-in, or at its last `auth.stepUp.confirm`. Renewing a sliding
+session does not count. This is the answer working: it tells the client to
+ask for a step-up.
+
+**Fix:** in the client, on `extensions.code === 'STEP_UP_REQUIRED'`, run the
+step-up — `requestStepUp`, then `confirmStepUp(challenge, code)` — and send
+the request again. The mutations are in
+[the step-up over GraphQL](guide/step-up.md).
+
+### `STEP_UP_REQUIRED` for a user who just signed in
+
+**Why:** `@fresh` reads the time from `useJanus({ clock })`, and the session
+was stamped with `janus()`'s. Two different clocks: `janus({ clock:
+fixedClock(…) })` with `useJanus()` given none, in a spec — the session looks
+days old. Or `maxAge` written as minutes: `@fresh(maxAge: 10)` is ten
+seconds, not ten minutes.
+
+**Fix:** give both the same clock — `useJanus({ auth, clock })` — and write
+`maxAge` in seconds: `@fresh(maxAge: 600)` for ten minutes.
+
 ### `SERVICE_UNAVAILABLE`, 503, on every guarded field
 
 **Why:** a store could not answer — `STORE_FAILED`. The sessions store for
-`@authenticated`, `requireUser()` and `ctx.janus.user()`; the relation store
+`@authenticated`, `@fresh`, `requireUser()`, `requireFresh()` and
+`ctx.janus.user()`; the relation store
 for `can()` and `@permission` — and a loader of yours that threw
-`StoreFailure`. It is never answered `UNAUTHENTICATED` or `FORBIDDEN`.
+`StoreFailure`. It is never answered `UNAUTHENTICATED`, `FORBIDDEN` or `STEP_UP_REQUIRED`.
 
 **Fix:** the store: its connection, its credentials, its availability. The
 message carries nothing of the store's; log the error where you call
@@ -306,6 +381,30 @@ signed-in user:
 ```ts
 const user = await requireUser(ctx, allowed.length > 0 ? { type: allowed } : {});
 ```
+
+### `TypeError: requireFresh(): maxAge is a duration with its unit`
+
+**Why:** `requireFresh(ctx, 600)` — a bare number, from JavaScript or built
+at run time. `@nxgt/janus` would read it as 600 milliseconds, where
+`@fresh(maxAge: 600)` reads ten minutes, so it is refused rather than
+guessed. The compiler refuses a literal number.
+
+**Fix:** write the unit: `requireFresh(ctx, '10m')`, or `'600s'`.
+
+### `TypeError: requireFresh(): maxAge: "…" is not a duration`
+
+**Why:** the string is not a number followed by `ms`, `s`, `m`, `h` or `d`
+— `'10 minutes'`, `'10 m'`.
+
+**Fix:** `requireFresh(ctx, '10m')`.
+
+### `TypeError: requireFresh(): maxAge: a duration must be above zero`
+
+**Why:** `requireFresh(ctx, '0m')` — no session is ever fresh within no
+time, so every request would be refused. The compiler lets it through: the
+type reads a number and a unit, not their value.
+
+**Fix:** a duration above zero, `requireFresh(ctx, '10m')`.
 
 ### `@permission on … resolved no object id from … — answered NOT_FOUND`
 
@@ -469,3 +568,28 @@ throws
 
 **Fix:** name at least one user type, `{ type: ['staff'] }`, or leave `type`
 out to admit any signed-in user.
+
+### `Argument of type '600' is not assignable to parameter of type '`${number}ms` | …'`, on `requireFresh()`
+
+The full message ends `` '`${number}ms` | `${number}s` | `${number}m` |
+`${number}h` | `${number}d`' ``; the same for `'10 minutes'`.
+
+**Why:** `requireFresh(ctx, maxAge)` takes a duration with its unit. A bare
+number would be milliseconds to `@nxgt/janus` and seconds to `@fresh`, so
+neither is guessed.
+
+**Fix:** `requireFresh(ctx, '10m')`.
+
+### `Expected 2 arguments, but got 1`, on `requireFresh()`
+
+**Why:** `requireFresh(ctx)` — how recent the proof must be has no default.
+
+**Fix:** `requireFresh(ctx, '10m')`.
+
+### `Type 'number' is not assignable to type 'Clock'`
+
+**Why:** `useJanus({ auth, clock: Date.now() })` — a timestamp, where a
+clock answers `now()`.
+
+**Fix:** pass the clock given to `janus()`, `fixedClock(…)` in a spec, or
+leave `clock` out.

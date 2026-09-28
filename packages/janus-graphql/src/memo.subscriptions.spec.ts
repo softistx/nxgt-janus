@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { wards, wired } from './directives/permission.fixtures';
+import { wards, wired } from '../test/wired';
 
 const typeDefs = /* GraphQL */ `
 	type Query {

@@ -1,7 +1,7 @@
 {
 	"name": "@nxgt/janus-graphql",
 	"version": "0.1.1",
-	"description": "GraphQL for @nxgt/janus: an envelop plugin with the signed-in user on the context, fields guarded by @authenticated and @permission, and every error with the status it deserves",
+	"description": "GraphQL for @nxgt/janus: an envelop plugin with the signed-in user on the context, fields guarded by @authenticated, @fresh and @permission, and every error with the status it deserves",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",

@@ -1,7 +1,8 @@
 # Directives
 
 This page is for guarding a schema: `@authenticated`, which asks who the user
-is, and `@permission`, which asks what the user may do to one object. Both
+is, `@fresh`, which asks how recently their session proved it, and
+`@permission`, which asks what the user may do to one object. All three
 are declared in `janusTypeDefs`, applied by `useJanus()` when the server
 builds its schema, and checked before the resolver runs — a refused request
 never reaches it.
@@ -26,7 +27,7 @@ export const yoga = createYoga({
 
 ## Where a directive applies
 
-Both directives go on a field, an object type or an interface:
+Every directive goes on a field, an object type or an interface:
 
 | Written on | Guards |
 | --- | --- |
@@ -78,6 +79,57 @@ On `Ward.chart` above, the type's `["staff"]` and the field's
 Under `useJanus({ type: 'staff' })`, the only user type a directive may name
 is `'staff'`.
 
+## `@fresh(maxAge: Int!)`
+
+```graphql
+type Mutation {
+	changeEmail(email: String!): User @fresh(maxAge: 600) # signed in, or confirmed, in the last ten minutes
+}
+
+type PaymentMethods @fresh(maxAge: 600) {              # every field of PaymentMethods
+	cards: [Card!]!
+	add(token: String!): Card @fresh(maxAge: 60)       # the smallest maxAge holds: one minute
+}
+```
+
+Only a session that proved who it is **less than `maxAge` seconds ago**
+reaches the field: signed in, or confirmed since by `auth.stepUp.confirm`,
+which moves the session's `authenticatedAt` to now. Renewing a sliding
+session does not. It is `@nxgt/janus`'s `assertFresh`, and
+`@nxgt/janus-hono`'s `fresh()`, for a schema.
+
+**`maxAge` is in seconds**, an `Int`: `600` is ten minutes. Seconds because
+a GraphQL `Int` is 32 bits — about 24 days in milliseconds — and because a
+freshness limit is written in seconds elsewhere, such as OpenID Connect's
+`max_age`. `@nxgt/janus`'s durations read a bare number as milliseconds;
+here there is no unit to write, so it is seconds, always.
+
+| The request | Answered |
+| --- | --- |
+| anonymous | `UNAUTHENTICATED`, 401 |
+| a user of a type `@authenticated` does not name | `FORBIDDEN`, 403, before freshness is read |
+| a session that proved who it is `maxAge` seconds ago or more | `STEP_UP_REQUIRED`, 403 — the client asks for a step-up |
+| a store that cannot answer | `SERVICE_UNAVAILABLE`, 503, never a denial |
+| a fresh session | every `@permission`, then the resolver |
+
+`@fresh` implies a signed-in user, as `@permission` does. **It is checked
+after `@authenticated` and before any `@permission`**, so a stale session
+asks no permission check and loads no object. Where several apply — the
+field's, its type's, its interfaces' — **the smallest `maxAge` holds**. The
+refusal is at `maxAge` exactly: a session `maxAge` seconds old is refused,
+as `assertFresh` refuses it.
+
+**A `@fresh` on a subscription field is checked when it subscribes**: a
+fresh one keeps receiving events past `maxAge`. A `@fresh` on the payload's
+type or its fields is checked on every event, as any field. See
+[the step-up over GraphQL](step-up.md#subscriptions).
+
+The time is `useJanus({ clock })`'s — give it the clock given to `janus()`
+when that is not the system's, such as `fixedClock` in a spec. The flow a
+client follows on `STEP_UP_REQUIRED`, with `stepUp.request` and `confirm` as
+mutations, is in [the step-up over GraphQL](step-up.md); `requireFresh(ctx,
+maxAge)` is the same check in a resolver.
+
 ## `@permission(name, type, id, onDeny)`
 
 ```graphql
@@ -102,7 +154,8 @@ reads reaches the field. It is `@nxgt/janus-hono`'s
 | `onDeny` | What a denial answers: `NOT_FOUND`, 404, by default, or `FORBIDDEN`, 403 |
 
 `@permission` implies `@authenticated`: an anonymous request is answered
-`UNAUTHENTICATED`, 401, before any object is loaded or any check asked.
+`UNAUTHENTICATED`, 401, before any object is loaded or any check asked. A
+`@fresh` that applies is checked before it, too.
 
 ### Reading the id
 
@@ -213,7 +266,9 @@ permission whose rules name both. They are asked **one at a time, in order**,
 and the first that denies answers: the ones after it are never asked.
 
 The order across locations is outermost first: the interfaces' directives,
-the type's, the interfaces' fields', then the field's own. So a type's
+the type's, the interfaces' fields', then the field's own. Across
+directives, every `@authenticated` comes first, then `@fresh`, then the
+`@permission`s. So a type's
 `NOT_FOUND` answers before a field's `FORBIDDEN` could tell that the object
 exists.
 
@@ -235,6 +290,7 @@ type Record @permission(name: "view", type: "record") {
 | --- | --- |
 | anonymous | `UNAUTHENTICATED`, 401 |
 | a user of a type `@authenticated` does not name | `FORBIDDEN`, 403, before any check |
+| a session older than a `@fresh` that applies allows | `STEP_UP_REQUIRED`, 403, before any check |
 | no id at the path, an empty list in the parent, or an id no object can hold | `NOT_FOUND`, 404 |
 | a loader answering `null` | `NOT_FOUND`, 404 |
 | a denial | `onDeny`: `NOT_FOUND`, 404, or `FORBIDDEN`, 403 |
@@ -278,6 +334,7 @@ field — `(read by Ward.name)`:
 TypeError: applyJanusDirectives(): @authenticated on Query.me names the user type 'doctor', which is not one of 'patient', 'staff'
 TypeError: applyJanusDirectives(): @authenticated on Query.me names no user type — leave type: out to admit any signed-in user
 TypeError: applyJanusDirectives(): the @authenticated on Ward.chart and on its type or interfaces admit no user type in common
+TypeError: applyJanusDirectives(): @fresh on Mutation.changeEmail asks maxAge: 0 — write a number of seconds above zero, such as maxAge: 600 for ten minutes
 TypeError: applyJanusDirectives(): @permission on Query.ward needs the permissions() instance — pass useJanus({ auth, access }), with access what permissions() answered
 TypeError: applyJanusDirectives(): @permission on Query.invoice names the object type 'invoice', which is not one of 'record', 'ward'
 TypeError: applyJanusDirectives(): @permission on Query.ward asks 'delete', which ward does not declare — it declares 'nurses', 'visitors', 'enter', 'manage'
@@ -292,7 +349,9 @@ Each is in [troubleshooting](../troubleshooting.md), with its fix. The
 compiler refuses the wiring's own mistakes before that: a loader for a type
 the model does not declare, a loader answering an object without a field a
 `fromField` reads, a condition for a type no `when()` is reached on, a `ctx`
-of the wrong shape, and `loaders` or `conditions` without `access`.
+of the wrong shape, `loaders` or `conditions` without `access`, and a
+`clock` that is not a `Clock`. A `maxAge` that is not an `Int`, or is
+missing, is refused by graphql-js itself, at start-up too.
 
 ## The transform alone
 

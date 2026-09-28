@@ -2,8 +2,8 @@
  * Decides, when the schema is built, what the directives on one field add up
  * to — and refuses with a `TypeError` what no request could ever pass: a user
  * type `auth` does not know, a `type: []`, restrictions that exclude each
- * other, or a `@permission` the model, the field or the wiring cannot answer
- * (`permission/validate.ts`).
+ * other, a `@fresh` whose `maxAge` is not above zero, or a `@permission` the
+ * model, the field or the wiring cannot answer (`permission/validate.ts`).
  */
 
 import {
@@ -12,7 +12,7 @@ import {
 	type PermissionWiring,
 	permissionCheckOf,
 } from './permission/validate';
-import type { AuthenticatedUse, FieldDirectives } from './read';
+import type { AuthenticatedUse, FieldDirectives, FreshUse } from './read';
 import { list, on, PREFIX } from './words';
 
 /** What a field requires before its resolver runs. */
@@ -26,6 +26,11 @@ export interface Requirement {
 	 * narrows it: any signed-in user.
 	 */
 	readonly types: ReadonlySet<string> | null;
+	/**
+	 * How long ago, in milliseconds, the session may have proved who it is at
+	 * most — the smallest `@fresh` that applies; `null` when none does.
+	 */
+	readonly maxAgeMs: number | null;
 	/** The permissions asked after that, in order: every one must hold. */
 	readonly permissions: readonly PermissionCheck[];
 }
@@ -45,14 +50,14 @@ export function requirementOf(
 	known: Known,
 	wiring: PermissionWiring,
 ): Requirement | null {
-	const { authenticated, permission } = directives;
-	if (authenticated.length === 0 && permission.length === 0) return null;
-	const [first] = authenticated.length > 0 ? authenticated : permission;
-	const name = authenticated.length > 0 ? '@authenticated' : '@permission';
+	const { authenticated, fresh, permission } = directives;
+	const [name, first] = firstOf(directives);
+	if (first === undefined) return null;
 	return {
 		where: field.name,
-		label: `${name} on ${on(first?.where ?? field.name, field.name)}`,
+		label: `${name} on ${on(first.where, field.name)}`,
 		types: typesOf(field.name, authenticated, known),
+		maxAgeMs: maxAgeOf(field.name, fresh),
 		permissions: permission.map((use) => permissionCheckOf(use, field, wiring)),
 	};
 }
@@ -89,4 +94,29 @@ function typesOf(
 		);
 	}
 	return types;
+}
+
+/** The directive a missing `ctx.janus` is reported against: the first checked. */
+function firstOf({
+	authenticated,
+	fresh,
+	permission,
+}: FieldDirectives): readonly [string, { readonly where: string } | undefined] {
+	if (authenticated.length > 0) return ['@authenticated', authenticated[0]];
+	if (fresh.length > 0) return ['@fresh', fresh[0]];
+	return ['@permission', permission[0]];
+}
+
+/** The smallest `maxAge`, in milliseconds, or `null` when no `@fresh` applies. */
+function maxAgeOf(field: string, uses: readonly FreshUse[]): number | null {
+	let seconds: number | null = null;
+	for (const { where, maxAge } of uses) {
+		if (!Number.isSafeInteger(maxAge) || maxAge <= 0) {
+			throw new TypeError(
+				`${PREFIX}: @fresh on ${on(where, field)} asks maxAge: ${maxAge} — write a number of seconds above zero, such as maxAge: 600 for ten minutes`,
+			);
+		}
+		seconds = seconds === null ? maxAge : Math.min(seconds, maxAge);
+	}
+	return seconds === null ? null : seconds * 1000;
 }
