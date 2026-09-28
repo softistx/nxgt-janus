@@ -74,8 +74,8 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   tried at one login in a 15-minute window, `signIn` answers
   `CREDENTIALS_INVALID` with `reason: 'throttled'` and `retryAfter`, the right
   password included, until the window ends. Nothing locks; a login nobody
-  holds is counted alike; a sign-in that opens a session — after the
-  second factor, when one is active — starts the count again.
+  holds is counted alike; a password sign-in that opens a session —
+  after its second factor, when one is active — starts the count again.
   On by default: `signIn: { throttle: { attempts, window } }` changes it,
   `signIn: { throttle: false }` turns it off. A tokens store that cannot
   count fails the sign-in with `STORE_FAILED`. No change for adapters: the

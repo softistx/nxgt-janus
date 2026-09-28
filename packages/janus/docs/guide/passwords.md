@@ -158,7 +158,8 @@ What it does, precisely:
   refused while the login is throttled**, so somebody who knows only a login
   can keep its password sign-in shut by trying ten passwords every window.
   That is the price of counting per login; limit per client address (below),
-  and a [sign-in code](sign-in-code.md) still opens the account.
+  and a [sign-in code](sign-in-code.md), when you wire them, still opens
+  the account.
 - **Per login, known or not.** A login nobody holds is counted as a
   registered one is — `unknownLogin` ten times, then `throttled` — so the
   throttle does not say which logins exist; an unknown login is still
@@ -192,15 +193,19 @@ counts correctly. Each is named by a keyed hash of the login, never the login
 — keyed by your `secondFactor` keys when you wire them, and by a fixed key
 otherwise, which only keeps the login out of plain sight: a dump of the
 tokens then tells which logins were tried, for a guessed list. Each expires
-half an hour after its window starts — **Redis and MongoDB drop it then;
+two windows after its window starts — half an hour by default — **Redis and MongoDB drop it then;
 PostgreSQL keeps it** until something deletes it, and every login tried,
 registered or not, adds a row per window. Schedule a delete with
 `@nxgt/janus-drizzle`:
 
 ```sql
-delete from tokens where expires_at < now() - interval '1 hour';
+delete from tokens where expires_at < now() - interval '1 hour'; -- janus.tokens when your tables have a schema of their own
 ```
- The key is your first `secondFactor` key: wiring
+
+`tokens` has no index on `expires_at`, so the delete scans the table: add
+`create index on tokens (expires_at)` in a migration of yours if it grows.
+
+The key is your first `secondFactor` key: wiring
 `secondFactor` for the first time, or putting a new key first, starts every
 login's count again. **A Redis tokens store that is flushed, or evicts keys under
 memory pressure, forgets them** and every count starts again: give Redis

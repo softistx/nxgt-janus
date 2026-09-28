@@ -388,8 +388,9 @@ else reaches the store and is asynchronous.
   tried at one login in a 15-minute window, `signIn` refuses every one — the
   right password included — with `CREDENTIALS_INVALID`, `reason:
   'throttled'` and `retryAfter`, the seconds until the next window. Nothing
-  locks, a login nobody holds is counted alike, and a sign-in that opens a
-  session starts the count again. `signIn: { throttle: { attempts, window } }`
+  locks, a login nobody holds is counted alike, and a password sign-in that
+  opens a session — after its second factor, when one is active — starts
+  the count again. `signIn: { throttle: { attempts, window } }`
   changes it, `signIn: { throttle: false }` turns it off; a store that
   cannot count throws `STORE_FAILED`
   ([passwords](docs/guide/passwords.md#password-guessing-is-throttled)).
@@ -1053,7 +1054,7 @@ seconds rather than that the password is wrong. `CredentialRefusal` gained
 test that tries more than ten wrong passwords at one login over a
 `fixedClock` is throttled too: advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`. **Somebody who knows a login can keep its
-password sign-in shut**, ten tries a window; a sign-in code still opens it.
+password sign-in shut**, ten tries a window; a sign-in code, when you wire them, still opens it.
 On PostgreSQL, delete lapsed tokens on a schedule: every login tried adds a
 row per window. One password tried against
 many logins is not counted: rate-limit `signIn` per client address yourself
