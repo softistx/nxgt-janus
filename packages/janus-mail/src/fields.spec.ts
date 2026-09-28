@@ -72,6 +72,30 @@ describe('a field missing from a call', () => {
 			(m) => m.welcome({ email: 'a@example.com' } as never),
 		],
 		[
+			'janusMail.recoveryCodeUsed: email must be a string',
+			(m) =>
+				m.recoveryCodeUsed({ name: 'Ada' } as never, {
+					when: 'now',
+					recoveryCodesLeft: 9,
+				}),
+		],
+		[
+			'janusMail.recoveryCodeUsed: when must be a string',
+			(m) =>
+				m.recoveryCodeUsed({ name: 'Ada', email: 'a@example.com' }, {
+					when: new Date(),
+					recoveryCodesLeft: 9,
+				} as never),
+		],
+		[
+			'janusMail.recoveryCodeUsed: when must be a string',
+			(m) =>
+				m.recoveryCodeUsed(
+					{ name: 'Ada', email: 'a@example.com' },
+					undefined as never,
+				),
+		],
+		[
 			'janusMail.emailChanged: formerEmail must be a string',
 			(m) =>
 				m.emailChanged({ name: 'Ada', newEmail: 'n@example.com' } as never),

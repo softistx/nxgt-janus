@@ -9,7 +9,7 @@ import { defaultRenderer } from './mails';
 import type { JanusMailTemplates } from './types';
 
 /**
- * The eight default templates, in the locales they are built in. The
+ * The nine default templates, in the locales they are built in. The
  * renderer behind them is created on the first render, not here.
  *
  * ```ts
@@ -62,6 +62,19 @@ export function janusTemplates(): JanusMailTemplates {
 			defaultRenderer().render(
 				'two-factor-disabled',
 				{ brand, name, link },
+				{ locale },
+			),
+		recoveryCodeUsed: ({
+			brand,
+			name,
+			when,
+			recoveryCodesLeft,
+			link,
+			locale,
+		}): Rendered =>
+			defaultRenderer().render(
+				'recovery-code-used',
+				{ brand, name, when, recoveryCodesLeft, link },
 				{ locale },
 			),
 		welcome: ({ brand, name, link, locale }): Rendered =>

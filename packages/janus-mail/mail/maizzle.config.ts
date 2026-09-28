@@ -28,6 +28,11 @@
  *   muted text is `#5f718a`, a shade under `@nxgt/mail-ui`'s `#62748e`, which
  *   read at 4.33:1 on the page and 4.36:1 on the error alert: 4.53:1 and
  *   4.56:1 now, so every muted text is at 4.5:1 or more in both modes.
+ *   Info is a pair too, since `@nxgt/mail-ui` 1.0.0: it colours the link
+ *   under the button (`NxLink`), on the card. Its default `#54a2ff` read
+ *   2.63:1 on the white card and 6.78:1 on the dark one, and no single blue
+ *   passes both; `#1d4ed8` is 6.70:1 on the white card, and `#93c5fd`, the
+ *   dark twin, 9.89:1 on the dark card.
  * - **The locales are the catalogues.** Each `locales/<locale>.json` is a
  *   locale built; the presets are written in `en` and `fr`, and a locale
  *   without their messages fails the build.
@@ -40,7 +45,7 @@ import { i18n } from '@nxgt/mail-i18n';
 import { presets } from '@nxgt/mail-presets';
 import { ui, uiCatalogues } from '@nxgt/mail-ui';
 
-/** The eight e-mails of Janus's flows. `scripts/build-mail.ts` refuses a build of any other set. */
+/** The nine e-mails of Janus's flows. `scripts/build-mail.ts` refuses a build of any other set. */
 const mails = presets({
 	only: [
 		'verify-email',
@@ -50,6 +55,7 @@ const mails = presets({
 		'email-changed',
 		'two-factor-enabled',
 		'two-factor-disabled',
+		'recovery-code-used',
 		'welcome',
 	],
 });
@@ -74,6 +80,8 @@ const config: MaizzleConfig = productionConfig(
 					'color-muted-foreground': '#5f718a',
 					'color-muted-dark': '#1e293b',
 					'color-muted-foreground-dark': '#cbd5e1',
+					'color-info': '#1d4ed8',
+					'color-info-dark': '#93c5fd',
 				},
 			}),
 			i18n({

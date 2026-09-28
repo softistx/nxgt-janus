@@ -9,6 +9,7 @@ describe('links', () => {
 		resetPassword: async () => 'https://acme.example/reset',
 		secureAccount: () => 42,
 		getStarted: () => new URL('https://acme.example/start'),
+		recoveryCodes: () => null,
 	} as never;
 
 	/** Each method, over links that answer no string. */
@@ -36,6 +37,14 @@ describe('links', () => {
 		[
 			'janusMail.welcome: links.getStarted() must answer a string',
 			(m) => m.welcome({ name: 'Ada', email: 'ada@example.com' }),
+		],
+		[
+			'janusMail.recoveryCodeUsed: links.recoveryCodes() must answer a string',
+			(m) =>
+				m.recoveryCodeUsed(
+					{ name: 'Ada', email: 'ada@example.com' },
+					{ when: 'now', recoveryCodesLeft: 9 },
+				),
 		],
 		[
 			'janusMail.emailChanged: links.secureAccount() must answer a string',

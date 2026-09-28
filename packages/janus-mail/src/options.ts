@@ -6,6 +6,8 @@
 import type { Clock } from '@nxgt/janus';
 import type { Address, Mailer } from '@nxgt/mail';
 import { LOCALES } from './generated/locales';
+import { checkLinks, frozenLinks } from './links';
+import { refuse } from './refuse';
 import { janusTemplates } from './templates';
 import type {
 	JanusMailLinks,
@@ -22,16 +24,9 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'emailChanged',
 	'twoFactorEnabled',
 	'twoFactorDisabled',
+	'recoveryCodeUsed',
 	'welcome',
 ];
-
-/** Every link of `JanusMailLinks`: checked, then copied, by these names. */
-const LINK_NAMES = [
-	'verifyEmail',
-	'resetPassword',
-	'secureAccount',
-	'getStarted',
-] as const;
 
 /** The options once checked, with `string` for the locales: the degenericised mirror. */
 export interface ResolvedOptions {
@@ -63,11 +58,7 @@ function isAddress(value: unknown): value is Address {
 	);
 }
 
-function refuse(message: string): never {
-	throw new TypeError(`janusMail: ${message}`);
-}
-
-/** `mailer`, `from`, `replyTo`, `brand` and `links`. */
+/** `mailer`, `from`, `replyTo`, `brand` and `links` (`./links`). */
 function checkSending(options: Record<string, unknown>): void {
 	const { mailer, from, replyTo, brand, links } = options;
 	if (!isObject(mailer) || typeof mailer.send !== 'function') {
@@ -86,16 +77,7 @@ function checkSending(options: Record<string, unknown>): void {
 	if (typeof brand !== 'string' || brand.trim() === '') {
 		refuse("brand must be the name the e-mails show, as 'Acme'");
 	}
-	if (!isObject(links)) {
-		refuse(
-			'links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }',
-		);
-	}
-	for (const name of LINK_NAMES) {
-		if (typeof links[name] !== 'function') {
-			refuse(`links.${name} must be a function`);
-		}
-	}
+	checkLinks(links);
 }
 
 /** `clock`, bound to the caller's object, or the system clock. */
@@ -200,20 +182,6 @@ function frozenAddress(address: Address): Address {
 	return typeof address === 'string'
 		? address
 		: Object.freeze({ name: address.name, address: address.address });
-}
-
-/**
- * A frozen copy of the checked links, each bound to the caller's object — a
- * class instance's methods keep their `this` — so replacing a link after
- * `janusMail()` cannot undo the check.
- */
-function frozenLinks(links: JanusMailLinks): JanusMailLinks {
-	// LINK_NAMES is every key of JanusMailLinks, each checked a function.
-	return Object.freeze(
-		Object.fromEntries(
-			LINK_NAMES.map((name) => [name, links[name].bind(links)]),
-		),
-	) as unknown as JanusMailLinks;
 }
 
 /**
