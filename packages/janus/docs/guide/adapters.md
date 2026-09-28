@@ -282,8 +282,9 @@ driver's error in `StoreFailure` as in [the six rules](#the-six-rules):
 Spends every **unspent** token of one user and one `kind` at `at` — but the
 one whose hash is `except`, when given — and answers how many it spent. The
 core calls it right after issuing a sign-in code, with that code's hash as
-`except`, so only the last code sent works; and after writing a password,
-for the user's `secondFactor` challenges:
+`except`, so only the last code sent works — and so after issuing a step-up
+or a reset link; and after writing a password, for the user's
+`resetPassword` links and `secondFactor` challenges:
 
 | The stored token | Written | Counted |
 | --- | --- | --- |

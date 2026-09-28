@@ -18,7 +18,8 @@ import {
 } from '../context';
 import { emit } from '../events';
 import { refuseStale } from '../one-time';
-import { endSignInsWaiting } from '../password-written';
+import { endWhatThePasswordOpened } from '../password-written';
+import { hashSecret } from '../secrets';
 import type { ResetPasswordApi } from '../types';
 import { issueEmailToken, redeemEmailToken } from './email-token';
 
@@ -46,6 +47,15 @@ export function resetPasswordFlows(
 				'resetPassword',
 				record,
 				where,
+			);
+			// One live link per user: the ones sent before stop working.
+			// Issued first, spent after, as for a sign-in code, so requests
+			// that race leave at most one live — never one each.
+			await context.store.tokens.spendUserTokens(
+				record.id,
+				'resetPassword',
+				context.clock.now(),
+				hashSecret(issued.token),
 			);
 			return { ...issued, user: toUser(record) };
 		},
@@ -102,14 +112,15 @@ async function confirmReset(
 		},
 	);
 	try {
-		// Whoever had the old password is signed out, and a sign-in
-		// they left waiting on its second factor cannot be finished —
-		// before the listener runs, however long it takes.
+		// Whoever had the old password is signed out, a sign-in they
+		// left waiting on its second factor cannot be finished, and no
+		// other link replaces the password again — before the listener
+		// runs, however long it takes.
 		await context.store.sessions.revokeUserSessions(
 			written.id,
 			context.clock.now(),
 		);
-		await endSignInsWaiting(context, written.id);
+		await endWhatThePasswordOpened(context, written.id);
 	} finally {
 		// Reported even when an outage interrupts the steps above:
 		// the link is spent, so a retry is refused and could not.

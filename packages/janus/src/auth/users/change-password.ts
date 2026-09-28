@@ -8,7 +8,7 @@ import {
 	requireHasher,
 	writeUser,
 } from '../context';
-import { endSignInsWaiting } from '../password-written';
+import { endWhatThePasswordOpened } from '../password-written';
 import type { UserRecord } from '../port/types';
 import type { UserRef, WriteOptions } from '../types';
 
@@ -57,6 +57,6 @@ export async function changePassword(
 			};
 		},
 	);
-	await endSignInsWaiting(context, written.id);
+	await endWhatThePasswordOpened(context, written.id);
 	return written;
 }

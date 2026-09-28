@@ -423,6 +423,8 @@ janus({
 **Why:** a store that cannot answer throws; it never answers `null`. The driver's own error is on `error.cause` — not in the message, because a driver message can hold a connection string, and a connection string holds a password.
 **Fix:** answer **503**, and log `cause`. Never map it to 401, 404, `null` or `false`: that turns an outage into a silent lockout, where every user is told they do not exist.
 
+**After a password write** — `resetPassword.confirm`, `changePassword`, `setPassword` — the failure may come from spending the user's reset links and second-factor challenges, which runs after the password is written: the new password is then in place. A retried `changePassword` with the old `current` answers `CREDENTIALS_INVALID`; the next `resetPassword.request` spends any link left live.
+
 ```ts
 import { JanusError } from '@nxgt/janus';
 
@@ -566,7 +568,15 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 **When:** `verifyEmail.confirm`, `resetPassword.confirm`.
 **Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword`.
-**Fix:** answer 400 and offer to send a new link. To change the lifetimes:
+A reset link answers `resetPassword.confirm: the token was already used` in
+two more cases: a newer `resetPassword.request` for the same user spent it —
+only the last link sent works, so a visitor who asked twice and clicked the
+first e-mail gets `TOKEN_SPENT` — or the password was written since it was
+sent, by another link's `confirm`, `changePassword` or `setPassword`. When two
+requests race, even the last link can be spent: at most one survives,
+sometimes none.
+**Fix:** answer 400 and offer to send a new link — and tell the visitor to use
+the latest e-mail. To change the lifetimes:
 
 ```ts
 janus({ ..., tokens: { verifyEmail: '72h', resetPassword: '2h' } });
