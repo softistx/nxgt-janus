@@ -2,7 +2,8 @@
  * Everything this package throws at call time, gathered from the files beside
  * this one: the codes a caller switches on (`codes.ts`), what an error carries
  * beside its code (`options.ts`), the base class (`base.ts`), what a store
- * throws (`store.ts`) and what a flow refuses (`refusals.ts`).
+ * throws (`store.ts`), what a flow refuses (`refusals.ts`) and the HTTP
+ * status each code deserves (`status.ts`).
  *
  * Each class is defined once, in one of those files; this one only re-exports
  * them, so `instanceof` still holds whichever path a module imports from.
@@ -21,4 +22,5 @@ export {
 	UserInactiveError,
 	UserInvalidError,
 } from './refusals';
+export { type JanusErrorStatus, statusOf } from './status';
 export { NotFoundError, StoreConflict, StoreFailure } from './store';

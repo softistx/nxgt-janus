@@ -167,7 +167,17 @@ async function signIn(email: string, password: string): Promise<Response> {
 `JanusError` is the base of everything thrown at call time. It extends `Error`,
 so no consumer has to order their `catch` blocks. `code` is a union of nineteen
 string literals, so a `switch` over it is exhaustive and adding a code breaks the
-compilation of callers that exhaust it:
+compilation of callers that exhaust it. `statusOf(code)` answers the status
+below, as `JanusErrorStatus` — a union of the eight literals, which a
+framework's own status type accepts:
+
+```ts
+import { JanusError, statusOf } from '@nxgt/janus';
+
+if (error instanceof JanusError) {
+	return Response.json({ code: error.code }, { status: statusOf(error.code) }); // STORE_FAILED → 503
+}
+```
 
 | Code | Answer it deserves |
 | --- | --- |
