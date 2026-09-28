@@ -169,6 +169,26 @@ app.post('/sign-in', async (c) => {
 holds the session token: it is in the `Set-Cookie`, and the body cannot leak
 it.
 
+**Rate-limit the sign-in route per login and per client: `@nxgt/janus`
+counts no failed password**, so without a limit anyone can guess as fast as
+the server hashes. A sign-in code, a second factor and a step-up count their
+guesses; a password does not. Check the limit before `signIn`, with the
+limiter you already run:
+
+```ts
+app.post('/sign-in', async (c) => {
+	const { email, password } = await c.req.json();
+	if (!(await limiter.consume(`sign-in:${email.trim().toLowerCase()}`))) {
+		return c.body(null, 429, { 'retry-after': '900' });
+	}
+	const user = sendSession(c, auth, await auth.signIn({ email, password }));
+	return c.json({ id: user.id });
+});
+```
+
+Add a second limit per client address, and limit a `changePassword` route
+per user: it compares the current password too.
+
 With `secondFactor` configured, `signIn` may answer a challenge instead of a
 session: narrow on `status` before `sendSession` — see
 [A second factor](#a-second-factor).
