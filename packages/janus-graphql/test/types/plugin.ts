@@ -16,7 +16,6 @@ import {
 	type JanusContext,
 	janusMaskError,
 	janusTypeDefs,
-	requireUser,
 	useJanus,
 } from '../../src/index';
 import { setup } from '../harness';
@@ -27,19 +26,16 @@ const { auth, access } = setup();
 type Context = YogaInitialContext & JanusContext<typeof auth, typeof access>;
 
 declare const wards: {
-	find(
-		id: string,
-		staffId: string,
-	): Promise<{ id: string; name: string } | null>;
+	find(id: string): Promise<{ id: string; name: string } | null>;
 };
 
 const typeDefs = /* GraphQL */ `
 	type Query {
 		me: User @authenticated
-		ward(id: ID!): Ward
+		ward(id: ID!): Ward @permission(name: "enter", type: "ward")
 	}
 	type User { id: ID!, email: String }
-	type Ward @authenticated(type: ["staff"]) { id: ID!, name: String }
+	type Ward { id: ID!, name: String, roster: [String!] @authenticated(type: ["staff"]) }
 `;
 
 export const yoga = createYoga({
@@ -48,10 +44,7 @@ export const yoga = createYoga({
 		resolvers: {
 			Query: {
 				me: async (_: unknown, __: unknown, ctx: Context) => ctx.janus.user(), // never null here
-				ward: async (_: unknown, { id }: { id: string }, ctx: Context) => {
-					const staff = await requireUser(ctx, { type: 'staff' }); // typed: a staff member
-					return wards.find(id, staff.id);
-				},
+				ward: (_: unknown, { id }: { id: string }) => wards.find(id), // only for a user who may enter it
 			},
 		},
 	}),

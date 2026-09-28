@@ -13,6 +13,7 @@ import {
 	scryptHasher,
 } from '@nxgt/janus';
 import {
+	type ConfigOf,
 	createMemoryRelations,
 	defineModel,
 	fromField,
@@ -29,6 +30,7 @@ import { janusMaskError } from '../src/errors';
 import { useJanus } from '../src/plugin';
 import { janusTypeDefs } from '../src/sdl';
 import type { JanusContext } from '../src/types';
+import type { Conditions, Loaders } from '../src/wiring';
 
 export const password = 'correct horse';
 
@@ -64,7 +66,7 @@ export function setup() {
 	});
 	// What useJanus() is given: the instance's types, and an authenticate that
 	// counts its calls.
-	const calls = { authenticate: 0 };
+	const calls = { authenticate: 0, has: 0 };
 	const tracked: Pick<typeof auth, 'authenticate' | 'types'> = {
 		types: auth.types,
 		authenticate: ((request, options) => {
@@ -86,6 +88,10 @@ export function setup() {
 					edit: [when('owners', (ctx: { locked: boolean }) => !ctx.locked)],
 				},
 			},
+			ward: {
+				related: { nurses: ['staff'], visitors: ['patient'] },
+				permits: { enter: ['nurses', 'visitors'], manage: ['nurses'] },
+			},
 		},
 	});
 	const relations = createMemoryRelations();
@@ -95,6 +101,7 @@ export function setup() {
 		store: {
 			...relations,
 			has: (tuple) => {
+				calls.has++;
 				if (outage.relations) throw new StoreFailure('connection refused');
 				return has(tuple);
 			},
@@ -119,19 +126,37 @@ export async function users({ auth }: Setup) {
 	return { ada, grace };
 }
 
+/** What `server()` takes beside the schema: `useJanus()`'s permission wiring, and the masking. */
+export interface ServerOptions {
+	readonly masked?: boolean;
+	/** In place of `context.access`: a wrapped instance. */
+	readonly access?: Setup['access'];
+	readonly loaders?: Loaders<ConfigOf<Setup['access']['model']>, unknown>;
+	readonly conditions?: Conditions<ConfigOf<Setup['access']['model']>, unknown>;
+}
+
 /** A Yoga server over `typeDefs` and `resolvers`, wired as the README shows. */
 export function server(
 	context: Setup,
 	typeDefs: string,
 	resolvers: object,
-	options: { readonly masked?: boolean } = {},
+	options: ServerOptions = {},
 ) {
 	return createYoga({
 		schema: createSchema({
 			typeDefs: [janusTypeDefs, typeDefs],
 			resolvers: resolvers as never,
 		}),
-		plugins: [useJanus({ auth: context.tracked, access: context.access })],
+		plugins: [
+			useJanus({
+				auth: context.tracked,
+				access: options.access ?? context.access,
+				...(options.loaders === undefined ? {} : { loaders: options.loaders }),
+				...(options.conditions === undefined
+					? {}
+					: { conditions: options.conditions }),
+			}),
+		],
 		maskedErrors:
 			options.masked === false ? false : { maskError: janusMaskError() },
 		logging: false,

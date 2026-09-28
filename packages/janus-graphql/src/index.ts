@@ -1,8 +1,9 @@
 /**
  * `@nxgt/janus-graphql` — `@nxgt/janus` in a GraphQL server.
  *
- * - `useJanus({ auth, access?, type? })` — the envelop plugin: `ctx.janus`
- *   on every request, and the directives applied to the schema;
+ * - `useJanus({ auth, access?, type?, loaders?, conditions? })` — the
+ *   envelop plugin: `ctx.janus` on every request, and the directives —
+ *   `@authenticated`, `@permission` — applied to the schema;
  * - `janusTypeDefs` — the directives' SDL, also shipped as
  *   `graphql/janus.graphqls`;
  * - `applyJanusDirectives(schema, { auth })` — the schema transform alone;
@@ -36,3 +37,4 @@ export type {
 	JanusOptions,
 	UserOfAuth,
 } from './types';
+export type { Conditions, LoadedObject, Loaders } from './wiring';
