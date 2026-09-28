@@ -51,7 +51,7 @@ export const yoga = createYoga({
 ## Install
 
 ```sh
-bun add @nxgt/janus-graphql @nxgt/janus graphql @graphql-tools/utils @envelop/core
+bun add @nxgt/janus-graphql @nxgt/janus graphql @graphql-tools/utils @envelop/core typescript
 ```
 
 Every peer is required:

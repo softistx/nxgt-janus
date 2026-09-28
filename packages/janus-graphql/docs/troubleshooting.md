@@ -18,6 +18,7 @@ for what causes each.
 - [`TypeError: applyJanusDirectives(): @permission on … is not enforced yet`](#typeerror-applyjanusdirectives-permission-on--is-not-enforced-yet)
 - [`Unknown directive "@authenticated"`](#unknown-directive-authenticated)
 - [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
+- [`TypeError: applyJanusDirectives(): type '…' is not a user type of auth`](#typeerror-applyjanusdirectives-type--is-not-a-user-type-of-auth)
 
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
@@ -102,6 +103,17 @@ directive is not declared.
 generator reading files takes
 `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 
+### `TypeError: applyJanusDirectives(): type '…' is not a user type of auth`
+
+**When:** at start-up, with `useJanus({ auth, type })` or
+`applyJanusDirectives(schema, { auth, type })` — from JavaScript, or with a
+`type` cast past the compiler, which otherwise refuses it.
+
+**Why:** `type` names a user type `janus()` does not declare. The message
+lists the ones it does: `— it knows 'patient', 'staff'`.
+
+**Fix:** name one of `auth.types`: `useJanus({ auth, type: 'staff' })`.
+
 ### `TypeError: useJanus(): auth is not what janus() answered`
 
 **Why:** `auth` has no `authenticate` — the `permissions()` instance passed in
@@ -185,7 +197,9 @@ alone, or split the query.
 
 ### `'user' is possibly 'null'`
 
-**When:** `(await ctx.janus.user()).id`.
+**When:** `const user = await ctx.janus.user(); user.id;` — or, read without
+binding it, `(await ctx.janus.user()).id`, where the message is
+`Object is possibly 'null'`.
 
 **Why:** `ctx.janus.user()` answers `null` for an anonymous request, and the
 type does not know a directive guards the field.
