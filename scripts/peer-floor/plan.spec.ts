@@ -23,12 +23,34 @@ describe('parsePlan', () => {
 	});
 
 	test.each([
+		['@graphql-tools/utils@10.0.0', '@graphql-tools/utils', '10.0.0'],
+		['@types/node@20.0.0', '@types/node', '20.0.0'],
+		['@nxgt/mail.x_y@0.1.0', '@nxgt/mail.x_y', '0.1.0'],
+	])('reads the scoped name of %s', (spec, name, version) => {
+		expect(parsePlan([spec, 'janus-graphql', '--', 'bun'])).toMatchObject({
+			name,
+			version,
+		});
+	});
+
+	test.each([
+		['@graphql-tools@10.0.0'],
+		['@/utils@10.0.0'],
+		['@graphql-tools/../utils@10.0.0'],
+		['@Nxgt/mail@0.1.0'],
+		['@nxgt/mail/x@0.1.0'],
+	])('refuses the malformed scoped name %s', (spec) => {
+		expect(() => parsePlan([spec, 'janus-mail', '--', 'bun'])).toThrow(
+			'is not an npm package name',
+		);
+	});
+
+	test.each([
 		[[]],
 		[['@nxgt/mail@0.1.0', '--', 'bun']],
 		[['@nxgt/mail@0.1.0', 'janus-mail']],
 		[['@nxgt/mail@0.1.0', 'janus-mail', '--']],
 		[['@nxgt/mail', 'janus-mail', '--', 'bun']],
-		[['mail@0.1.0', 'janus-mail', '--', 'bun']],
 		[['@nxgt/mail@^0.1.0', 'janus-mail', '--', 'bun']],
 		[['@nxgt/mail@latest', 'janus-mail', '--', 'bun']],
 	])('refuses %j', (argv) => {

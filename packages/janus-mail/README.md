@@ -49,6 +49,10 @@ transports of 0.4 included), which defines the `Mailer` port and the errors;
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
+The `@nxgt/mail` floor is tested, not claimed: the package's specs and its
+typecheck run on `@nxgt/mail` 0.1.0 as well, in the Floors job, on every CI
+run.
+
 It reads its prebuilt e-mails with `node:fs`: **Node, Bun or Deno**, not an edge
 runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
@@ -67,10 +71,10 @@ runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 Each method answers the mailer's `SentMail` and **rejects with the mailer's
 `MailFailure` or `MailRefused`, untouched**: this package defines no error
-class. To retry a `MailFailure` or trace each send, wrap the mailer you pass,
-from `@nxgt/mail` 0.8: `withTelemetry(withRetry(mailer), { transport })` —
-aliasing `@nxgt/mail/telemetry`'s `withTelemetry` when `@nxgt/telemetry`'s is
-imported too; see
+class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
+`withMailTelemetry(withRetry(mailer), { transport })` — `withRetry` from
+`@nxgt/mail` 0.8, `withMailTelemetry` from `@nxgt/mail/telemetry` 0.9 (0.8
+names it `withTelemetry`, a deprecated alias until 1.0); see
 [Sending](docs/guide/sending.md#retrying-and-tracing-the-mailer).
 
 | Method | Sends | To |
