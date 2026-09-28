@@ -66,8 +66,12 @@
         "@graphql-tools/utils": ">=10.0.0 <13",
         "@nxgt/janus": "workspace:^",
         "graphql": "^16.9.0 || ^17.0.0",
+        "graphql-ws": "^6.0.0",
         "typescript": "^6.0.3",
       },
+      "optionalPeers": [
+        "graphql-ws",
+      ],
     },
     "packages/janus-hono": {
       "name": "@nxgt/janus-hono",
