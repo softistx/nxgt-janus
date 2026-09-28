@@ -6,6 +6,7 @@ import {
 	findRecord,
 	passwordMatches,
 } from './context';
+import { emit } from './events';
 import { burnOneTime } from './one-time';
 import type { UserRecord } from './port/types';
 import type { SignInResult } from './types';
@@ -46,6 +47,23 @@ export async function endWhatThePasswordOpened(
 		(result): result is PromiseRejectedResult => result.status === 'rejected',
 	);
 	if (failed !== undefined) throw failed.reason;
+}
+
+/**
+ * What a change and a set do once the password is written: end what the
+ * old one opened, then send `user.passwordChanged` — from a `finally`, so an
+ * outage ending them still reports the write, which a retry would not make
+ * again. A reset sends `user.passwordReset` instead, from its own flow.
+ */
+export async function passwordChanged(
+	context: Context,
+	written: UserRecord,
+): Promise<void> {
+	try {
+		await endWhatThePasswordOpened(context, written.id);
+	} finally {
+		await emit(context, 'user.passwordChanged', written, written.updatedAt);
+	}
 }
 
 /**

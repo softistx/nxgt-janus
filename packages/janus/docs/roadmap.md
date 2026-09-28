@@ -61,6 +61,14 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **A password or an e-mail changed, in the user events, v0.13.0** —
+  `user.passwordChanged`, sent by `changePassword` and `setPassword` once the
+  older reset links are spent (a reset stays `user.passwordReset` alone), and
+  `user.emailChanged`, sent by an `update` that changed the e-mail, carrying
+  `formerEmail` — the one event with more than the user's id — so a notice
+  can reach the inbox the account just left, as `@nxgt/janus-mail`'s
+  `passwordChanged` and `emailChanged` notices do. Breaking for a `switch`
+  that exhausts `UserEventType`.
 - **An old reset link stops working, v0.13.0** — `resetPassword.request`
   spends the links sent before, so only the last e-mail's works, and writing
   a password — a link's `confirm`, `changePassword`, `setPassword` — spends
@@ -133,15 +141,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   An event names the user by id alone, with a UUIDv7 of its own to deliver
   it once; a listener that throws fails no flow and is a
   `JANUS_EVENT_FAILED` warning.
-- **At most one sign-in code live per user, and challenges that end when
-  they should, v0.7.0** — `signInCode.request` spends the codes sent before,
-  even when requests race, so only the last e-mail's works; writing a
-  password spends the second-factor challenges left waiting, and a sign-in
-  still running when it lands is refused; another user type's `confirm` spends a challenge
-  at its fifth attempt; `verifyEmail.confirm` and `resetPassword.confirm`
-  check the e-mail again on the record they write. `SecondFactorRequired`
-  carries `userId`, for logs and rate limits. For adapters:
-  `TokenStore.spendUserTokens(userId, kind, at, except?)`, with four new conformance
-  cases, implemented in `@nxgt/janus-drizzle`, `@nxgt/janus-mongo` and
-  `@nxgt/janus-redis` — and the port now says a read sees every write that
-  completed before it: never a secondary or a read replica.

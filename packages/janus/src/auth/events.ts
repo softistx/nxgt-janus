@@ -9,6 +9,11 @@ import type { Context } from './context';
  *   `resetPassword.confirm` or the code of `signInCode.confirm`, which prove
  *   the e-mail too; never for an e-mail already verified;
  * - `user.passwordReset` — by `resetPassword.confirm`;
+ * - `user.passwordChanged` — by `changePassword` and `setPassword`; never by a
+ *   reset, which is `user.passwordReset` alone;
+ * - `user.emailChanged` — by `update`, when it changed the e-mail — compared
+ *   normalised, the same test that makes the new one unverified. The one
+ *   event that carries more than the user: `formerEmail`;
  * - `user.secondFactorEnabled` — by `secondFactor.activate`, once the factor
  *   is active: not by `enroll`, which leaves it waiting for its first code;
  * - `user.secondFactorDisabled` — by `secondFactor.disable`, when it removed
@@ -24,6 +29,8 @@ export type UserEventType =
 	| 'user.created'
 	| 'user.emailVerified'
 	| 'user.passwordReset'
+	| 'user.passwordChanged'
+	| 'user.emailChanged'
 	| 'user.secondFactorEnabled'
 	| 'user.secondFactorDisabled'
 	| 'user.recoveryCodesRegenerated'
@@ -32,8 +39,9 @@ export type UserEventType =
 
 /**
  * A user event: **the user named by id, and nothing else** — no login, no
- * e-mail, no field, no password, no token. Whoever receives it reads the rest
- * from where it is kept, if they may.
+ * field, no password, no token. Whoever receives it reads the rest from where
+ * it is kept, if they may. One exception, `formerEmail` on
+ * `user.emailChanged`: once the write landed, the old address is kept nowhere.
  */
 export interface UserEvent {
 	/** A UUIDv7 minted for this event: the key to deliver it once. */
@@ -46,7 +54,17 @@ export interface UserEvent {
 	readonly occurredAt: Date;
 	readonly userId: Id;
 	readonly userType: string;
+	/**
+	 * On `user.emailChanged` only: the address the user had before, as it was
+	 * stored — `null` when they had none. So a notice can reach the inbox the
+	 * account was just taken from; the new address is on the user. Absent
+	 * from every other type, and from an event a webhook delivered.
+	 */
+	readonly formerEmail?: string | null;
 }
+
+/** What an event carries beyond the user, on the one type that does. */
+export type EventExtras = Pick<UserEvent, 'formerEmail'>;
 
 /**
  * What `janus({ events })` takes: called once per event, **after** the write
@@ -83,6 +101,7 @@ export async function emit(
 	type: UserEventType,
 	user: { readonly id: Id; readonly type: string },
 	occurredAt: Date,
+	extras: EventExtras = {},
 ): Promise<void> {
 	const listener = context.events;
 	if (listener === null) return;
@@ -94,6 +113,7 @@ export async function emit(
 		occurredAt: new Date(occurredAt.getTime()),
 		userId: user.id,
 		userType: user.type,
+		...extras,
 	});
 	try {
 		await listener(event);

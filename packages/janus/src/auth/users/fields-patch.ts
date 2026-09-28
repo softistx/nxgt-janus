@@ -1,7 +1,23 @@
 import { normalizeEmail, type ResolvedType } from '../config';
 import { emailOf, loginsOf, validateFields } from '../context';
-import type { UserRecord } from '../port/types';
+import type { JsonObject, UserRecord } from '../port/types';
 import type { Input } from './flow-types';
+
+const normalized = (email: string | null) =>
+	email === null ? null : normalizeEmail(email);
+
+/**
+ * Whether the e-mail differs between two sets of fields, compared normalised:
+ * `Ada@Example.com` for `ada@example.com` is no change. The one test behind
+ * both the new e-mail's verification reset and `user.emailChanged`.
+ */
+export function emailChanged(
+	type: ResolvedType,
+	before: JsonObject,
+	after: JsonObject,
+): boolean {
+	return normalized(emailOf(type, before)) !== normalized(emailOf(type, after));
+}
 
 /**
  * What `update` writes: the patch merged over the stored fields, the whole
@@ -18,17 +34,14 @@ export async function fieldsPatch(
 		{ ...record.fields, ...patch },
 		where,
 	);
-	const before = emailOf(type, record.fields);
-	const after = emailOf(type, fields);
-	const emailChanged =
-		(before === null ? null : normalizeEmail(before)) !==
-		(after === null ? null : normalizeEmail(after));
 
 	return {
 		fields,
 		logins: loginsOf(type, fields, where),
 		schemaVersion: type.schemaVersion,
 		// A new e-mail is an unproven one.
-		...(emailChanged ? { emailVerifiedAt: null } : {}),
+		...(emailChanged(type, record.fields, fields)
+			? { emailVerifiedAt: null }
+			: {}),
 	};
 }
