@@ -1,7 +1,7 @@
 /**
  * User events: a listener that is not a function, an event type Janus never
  * sends, a field an event never carries — and the listener that must keep
- * compiling. Cases 32–34 of the thirty-six — see `fixtures.ts`.
+ * compiling. Cases 32–34 of the thirty-seven — see `fixtures.ts`.
  */
 
 import { janus } from '../../../src/index';

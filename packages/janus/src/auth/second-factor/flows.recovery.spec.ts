@@ -85,7 +85,13 @@ describe('secondFactor.recover', () => {
 
 	it('opens one session for a code used twice at once: the other write is VERSION_CONFLICT', async () => {
 		const store = barrierOnReads(createMemoryStores(), 2);
-		const context = setup({ store: store.stores });
+		const used: string[] = [];
+		const context = setup({
+			store: store.stores,
+			events: (event) => {
+				if (event.type === 'user.recoveryCodeUsed') used.push(event.userId);
+			},
+		});
 		const { auth } = context;
 		const { recoveryCodes, user } = await enrolled(context);
 		const [code = ''] = recoveryCodes;
@@ -102,6 +108,7 @@ describe('secondFactor.recover', () => {
 		);
 
 		expect(outcomes.sort()).toEqual(['VERSION_CONFLICT', 'signedIn']);
+		expect(used).toEqual([user.id]);
 		const stored = await context.store.users.findUser(user.id);
 		expect(stored?.secondFactor?.recoveryCodes).toHaveLength(9);
 	});

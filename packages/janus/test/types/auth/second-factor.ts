@@ -2,7 +2,8 @@
  * The second factor: a schema declaring its field, flows without keys, a
  * session read before narrowing, a factor on a type with no password, a
  * confirmation without its code, an activation read as the user, a recovery
- * without its code. Cases 21–28, 35 and 36 of the thirty-six — see
+ * without its code, a regeneration without its code. Cases 21–28 and 35–37
+ * of the thirty-seven — see
  * `fixtures.ts`; case 30, a code that may still ask for the factor, is in
  * `sign-in-codes.ts`.
  */
@@ -91,6 +92,12 @@ async function secondFactor() {
 	// ── 36. Recovering a sign-in without the recovery code ────────────────
 	// @ts-expect-error the recovery code is what the challenge waits for
 	await twoFactor.patient.secondFactor.recover('challenge');
+	// ── 37. Regenerating recovery codes as if it were disable ─────────────
+	await twoFactor.patient.secondFactor.regenerateRecoveryCodes(
+		'0190e3b4-0000-7000-8000-000000000000',
+		// @ts-expect-error a fresh code from the app is what regenerating takes
+		{ ifVersion: 1 },
+	);
 }
 
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
