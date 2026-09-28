@@ -153,7 +153,10 @@ guessing per login: **a flushed Redis forgets them**, and every login may try
 ten passwords again — as a flush signs everybody out. Keep `FLUSHDB` for tests.
 
 Absent, sessions and tokens stay in the database. On PostgreSQL, schedule
-`kit.auth.collectExpired()` then: PostgreSQL has no TTL. On MongoDB, a TTL index
+`kit.auth.collectExpired()` then: PostgreSQL has no TTL — and a delete of
+lapsed tokens, which it does not collect: `@nxgt/janus`'s sign-in throttle
+adds one per login tried and per window
+(`delete from tokens where expires_at < now() - interval '1 hour';`). On MongoDB, a TTL index
 removes them, and `collectExpired()` answers `UNSUPPORTED`.
 
 ## `auth`

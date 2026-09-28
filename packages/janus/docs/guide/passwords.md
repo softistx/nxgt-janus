@@ -147,14 +147,18 @@ try {
 }
 ```
 
-[`janusErrors()`](../../../janus-hono/docs/guide/routes.md#sign-up-and-sign-in) in
+[`janusErrors()`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-hono/docs/guide/routes.md#sign-up-and-sign-in) in
 `@nxgt/janus-hono` and `janusGraphQLError()` in `@nxgt/janus-graphql` do this
 for you, `Retry-After` header included.
 
 What it does, precisely:
 
-- **Nothing locks.** The next window signs in: nobody can block an account
-  for longer than one window, however many passwords they try at it.
+- **Nothing locks.** The next window signs in: no number of wrong
+  passwords blocks an account beyond its window. **But the right password is
+  refused while the login is throttled**, so somebody who knows only a login
+  can keep its password sign-in shut by trying ten passwords every window.
+  That is the price of counting per login; limit per client address (below),
+  and a [sign-in code](sign-in-code.md) still opens the account.
 - **Per login, known or not.** A login nobody holds is counted as a
   registered one is — `unknownLogin` ten times, then `throttled` — so the
   throttle does not say which logins exist; an unknown login is still
@@ -164,13 +168,16 @@ What it does, precisely:
 - **Counted before anything is compared**, by the store, in one write per
   attempt: of twenty passwords tried at once, exactly ten are compared. A
   throttled attempt compares nothing, so it costs no hashing either.
-- **A sign-in that succeeds starts the count again** for that login. Only
-  the right password of an active user does that, so it buys an attacker
-  nothing.
+- **A sign-in that opens a session starts the count again** for that
+  login: the right password of an active user — and, with a second factor
+  active, only once its code or a recovery code opens the session. A
+  password that only opens a challenge restarts nothing, so knowing the
+  password buys no more than ten challenges per window.
 - **The windows are fixed slices of the clock**, not sliding: ten attempts
   at the end of one window and ten at the start of the next are allowed.
 
-Change the limit or the window, or turn it off:
+Change the limit or the window, or turn it off — `SignInConfig` and
+`SignInThrottleConfig` are the option's types, for a wrapper of your own:
 
 ```ts
 janus({ ..., signIn: { throttle: { attempts: 5, window: '1h' } } });
@@ -183,8 +190,19 @@ In the tokens store, as `secondFactor` tokens that belong to no user: the
 store needs no new method, and an adapter that passes the conformance suite
 counts correctly. Each is named by a keyed hash of the login, never the login
 — keyed by your `secondFactor` keys when you wire them, and by a fixed key
-otherwise, which only keeps the login out of plain sight. They expire with
-their window. **A Redis tokens store that is flushed, or evicts keys under
+otherwise, which only keeps the login out of plain sight: a dump of the
+tokens then tells which logins were tried, for a guessed list. Each expires
+half an hour after its window starts — **Redis and MongoDB drop it then;
+PostgreSQL keeps it** until something deletes it, and every login tried,
+registered or not, adds a row per window. Schedule a delete with
+`@nxgt/janus-drizzle`:
+
+```sql
+delete from tokens where expires_at < now() - interval '1 hour';
+```
+ The key is your first `secondFactor` key: wiring
+`secondFactor` for the first time, or putting a new key first, starts every
+login's count again. **A Redis tokens store that is flushed, or evicts keys under
 memory pressure, forgets them** and every count starts again: give Redis
 `maxmemory-policy noeviction` (see `@nxgt/janus-redis`).
 
@@ -196,6 +214,9 @@ visitor could not have caused, and never lets a password through uncounted:
 sign-ins as a users-store outage would. A sign-in whose password was right and
 whose count could not start again also throws `STORE_FAILED`, before any
 session is opened.
+
+The store's round-trips are observable, as its latency is: a login that
+signed in this window costs a few more probes than one nobody holds.
 
 ### What you still limit yourself
 

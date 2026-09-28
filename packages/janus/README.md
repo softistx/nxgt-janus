@@ -388,8 +388,8 @@ else reaches the store and is asynchronous.
   tried at one login in a 15-minute window, `signIn` refuses every one — the
   right password included — with `CREDENTIALS_INVALID`, `reason:
   'throttled'` and `retryAfter`, the seconds until the next window. Nothing
-  locks, a login nobody holds is counted alike, and a sign-in that succeeds
-  starts the count again. `signIn: { throttle: { attempts, window } }`
+  locks, a login nobody holds is counted alike, and a sign-in that opens a
+  session starts the count again. `signIn: { throttle: { attempts, window } }`
   changes it, `signIn: { throttle: false }` turns it off; a store that
   cannot count throws `STORE_FAILED`
   ([passwords](docs/guide/passwords.md#password-guessing-is-throttled)).
@@ -1048,7 +1048,14 @@ each request cancels the link before it.
 **`signIn` throttles each login, not each client.** Ten passwords per login
 per 15 minutes, then `CREDENTIALS_INVALID` with `retryAfter` until the window
 ends — the right password too, so tell the visitor to wait `retryAfter`
-seconds rather than that the password is wrong. One password tried against
+seconds rather than that the password is wrong. `CredentialRefusal` gained
+`'throttled'`: an exhaustive `switch` over `error.reason` must handle it. A
+test that tries more than ten wrong passwords at one login over a
+`fixedClock` is throttled too: advance the clock past `retryAfter`, or wire
+`signIn: { throttle: false }`. **Somebody who knows a login can keep its
+password sign-in shut**, ten tries a window; a sign-in code still opens it.
+On PostgreSQL, delete lapsed tokens on a schedule: every login tried adds a
+row per window. One password tried against
 many logins is not counted: rate-limit `signIn` per client address yourself
 ([passwords](docs/guide/passwords.md#what-you-still-limit-yourself)). The
 counts live in the tokens store: a flushed or evicting Redis forgets them,

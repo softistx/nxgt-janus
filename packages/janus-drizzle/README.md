@@ -159,7 +159,10 @@ a code, in the order written; no codes are `null`, read as `[]`.
   schema file exports.
 - **Call `auth.collectExpired()` on a schedule.** PostgreSQL has no TTL, so
   lapsed sessions stay in `sessions` until something deletes them. The
-  core still refuses them on every read.
+  core still refuses them on every read. **Lapsed tokens stay too**, and
+  `collectExpired()` does not delete them: `@nxgt/janus`'s sign-in throttle
+  adds a row per login tried and per 15-minute window — a login nobody holds
+  included — so schedule `delete from tokens where expires_at < now() - interval '1 hour';` beside it.
 - **A unique violation on anything but a login is a `StoreFailure`, not
   `LOGIN_TAKEN`.** Such a violation is an adapter bug. Reporting it as a taken
   login would tell somebody their e-mail is in use when it is not.

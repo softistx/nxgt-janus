@@ -331,7 +331,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.stepUp` and `secondFactor.challenge` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.stepUp`, `secondFactor.challenge` and `signIn.throttle.window` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.

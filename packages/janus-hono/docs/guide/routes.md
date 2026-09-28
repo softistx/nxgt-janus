@@ -175,7 +175,7 @@ one, the right password included, until the window ends — nothing locks.
 `janusErrors()` answers that refusal `401 { code: 'CREDENTIALS_INVALID',
 retryAfter }` with a `Retry-After` header, the seconds until the next
 window; the route needs no code of its own. `janus({ signIn: { throttle } })`
-changes the limit ([passwords](../../../janus/docs/guide/passwords.md#password-guessing-is-throttled)).
+changes the limit ([passwords](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/passwords.md#password-guessing-is-throttled)).
 
 What the throttle does not see is one password tried against many logins:
 limit the route **per client address** as well, with the limiter you already
@@ -184,7 +184,8 @@ password too:
 
 ```ts
 app.post('/sign-in', async (c) => {
-	const client = c.req.header('x-forwarded-for') ?? 'unknown'; // your proxy's header
+	// The client address your trusted proxy sets — not a raw, spoofable X-Forwarded-For list.
+	const client = clientAddress(c);
 	if (!(await limiter.consume(`sign-in:${client}`))) {
 		return c.body(null, 429, { 'retry-after': '900' });
 	}
