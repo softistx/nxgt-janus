@@ -1,5 +1,13 @@
 # @nxgt/janus-redis
 
+## 0.4.2
+
+### Patch Changes
+
+- [#169](https://github.com/softistx/nxgt-janus/pull/169) [`9931281`](https://github.com/softistx/nxgt-janus/commit/99312817e41913d8b29ed6d1636fad57d3d6da79) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the eviction trap says an evicted or flushed token store also forgets `@nxgt/janus`'s sign-in counts, so every login may try its ten passwords again.
+- Updated dependencies [[`f171ae3`](https://github.com/softistx/nxgt-janus/commit/f171ae3abed8780e9cf61999daf48a3d2cd192ef), [`b3c2487`](https://github.com/softistx/nxgt-janus/commit/b3c248732df07bac2d5ca4e8d218092b491b7b10)]:
+  - @nxgt/janus@0.14.0
+
 ## 0.4.1
 
 ### Patch Changes

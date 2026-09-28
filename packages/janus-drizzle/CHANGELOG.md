@@ -1,5 +1,13 @@
 # @nxgt/janus-drizzle
 
+## 0.5.2
+
+### Patch Changes
+
+- [#169](https://github.com/softistx/nxgt-janus/pull/169) [`d13602d`](https://github.com/softistx/nxgt-janus/commit/d13602dd581540d23cb265452f58c27a992585ff) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the `collectExpired()` trap says lapsed tokens stay in `tokens` too — `@nxgt/janus`'s sign-in throttle adds a row per login tried and per window — and gives the `delete` to schedule beside it.
+- Updated dependencies [[`f171ae3`](https://github.com/softistx/nxgt-janus/commit/f171ae3abed8780e9cf61999daf48a3d2cd192ef), [`b3c2487`](https://github.com/softistx/nxgt-janus/commit/b3c248732df07bac2d5ca4e8d218092b491b7b10)]:
+  - @nxgt/janus@0.14.0
+
 ## 0.5.1
 
 ### Patch Changes

@@ -1,5 +1,27 @@
 # @nxgt/janus
 
+## 0.14.0
+
+### Minor Changes
+
+- [#167](https://github.com/softistx/nxgt-janus/pull/167) [`f171ae3`](https://github.com/softistx/nxgt-janus/commit/f171ae3abed8780e9cf61999daf48a3d2cd192ef) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Two new user events, so a listener can tell the user their password or e-mail changed — whoever changed it:
+  
+  - **`user.passwordChanged`**, sent by `changePassword` and `setPassword` once the password is written and the older reset links and second-factor challenges are spent — from a `finally`, so an outage spending them still reports the write. A reset is still `user.passwordReset` alone, never both: a listener that cares about every new password handles both types. A `changePassword` refused sends nothing; a first password `setPassword` gives a user created without one sends it too.
+  - **`user.emailChanged`**, sent by an `update` that changed the e-mail — added, replaced or removed — compared normalised, the same test that makes the new address unverified: a change of case only sends nothing. It carries **`formerEmail`**, the address before the update as it was stored, or `null` for a user who had none — the one event that carries more than the user's id, since nothing keeps the old address once the write landed and a notice belongs in that inbox:
+  
+  ```ts
+  if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+  	const user = await auth.get(event.userId);
+  	await mail.emailChanged({ name: user.name, formerEmail: event.formerEmail, newEmail: user.email });
+  }
+  ```
+  
+  `UserEvent` gains `formerEmail?: string | null`, absent on every other type. Both are sent after the write, awaited, and a listener that throws is a `JANUS_EVENT_FAILED` warning, never a failed flow, as for the other types.
+  
+  **Breaking for an exhaustive `switch`: `UserEventType` has two more members**, `'user.passwordChanged'` and `'user.emailChanged'`. A `switch` that exhausts it no longer compiles until it handles them. Receivers on `@nxgt/janus-webhooks` before 0.6.0 answer `null` for the two new types, and a `@nxgt/janus-webhooks-redis` queue before 0.4.0 cannot read them back: upgrade them first, or leave the types out of their endpoint's `types`.
+
+- [#169](https://github.com/softistx/nxgt-janus/pull/169) [`b3c2487`](https://github.com/softistx/nxgt-janus/commit/b3c248732df07bac2d5ca4e8d218092b491b7b10) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **Behaviour change — `signIn` now throttles password guessing, on by default.** Past ten passwords tried at one login in a 15-minute window, `signIn` answers `CREDENTIALS_INVALID` with `reason: 'throttled'` and `retryAfter` — the seconds until the next window — **even for the right password**, until the window ends. Nothing locks: the next window signs in. A login nobody holds is counted as a registered one is, so the throttle does not reveal which logins exist; a password sign-in that opens a session starts the login's count again — with a second factor active, only its code or a recovery code does, so the password alone buys no more than ten challenges per window; the count is taken before anything is compared, so of twenty passwords tried at once exactly ten are. `janus({ signIn: { throttle: { attempts, window } } })` changes the limit, and **`signIn: { throttle: false }` turns it off** — a test suite that tries more than ten wrong passwords at one login over a `fixedClock` needs one or the other. The counts live in the tokens store as `secondFactor` tokens named by a keyed hash of the login — no change for adapters, and a flushed or evicting Redis forgets them. **On PostgreSQL, lapsed tokens are never collected**: every login tried, registered or not, adds a row per window, so schedule `delete from tokens where expires_at < now() - interval '1 hour'` (schema-qualified if your tables have their own schema). Somebody who knows a login can keep its password sign-in shut by trying ten passwords every window; a sign-in code, when wired, still opens it. **A tokens store that cannot count now fails every password sign-in with `STORE_FAILED`** (fail closed), where before `signIn` read no token. `JanusError` gains `retryAfter`, and `CredentialRefusal` gains `'throttled'`: a `switch` over it that is exhaustive stops compiling until it handles it. Six new compile-time refusals (137 in all). This corrects 0.13.0's note that nothing counts failed passwords: `signIn` now counts them per login, and the passwords guide says so; a limiter per client is still yours. `@nxgt/janus-hono`: `bodyOf()` answers a throttled refusal `{ code, retryAfter }` and `janusErrors()` adds a `Retry-After` header. `@nxgt/janus-graphql`: `janusGraphQLError()` puts `retryAfter` in `extensions` and a `Retry-After` header in `extensions.http.headers`. `@nxgt/janus-telemetry`: a throttled sign-in is a `janus.signIn.throttled` warning with `janus.signIn.retryAfter`, instead of `janus.signIn.refused`.
+
 ## 0.13.0
 
 ### Minor Changes

@@ -1,5 +1,17 @@
 # @nxgt/janus-kit
 
+## 0.1.13
+
+### Patch Changes
+
+- [#169](https://github.com/softistx/nxgt-janus/pull/169) [`d13602d`](https://github.com/softistx/nxgt-janus/commit/d13602dd581540d23cb265452f58c27a992585ff) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the configuration guide's `redis` section says a flushed Redis forgets `@nxgt/janus`'s sign-in counts, and that without Redis, on PostgreSQL, lapsed tokens need a scheduled delete beside `collectExpired()`.
+- Updated dependencies [[`f171ae3`](https://github.com/softistx/nxgt-janus/commit/f171ae3abed8780e9cf61999daf48a3d2cd192ef), [`d13602d`](https://github.com/softistx/nxgt-janus/commit/d13602dd581540d23cb265452f58c27a992585ff), [`9931281`](https://github.com/softistx/nxgt-janus/commit/99312817e41913d8b29ed6d1636fad57d3d6da79), [`b3c2487`](https://github.com/softistx/nxgt-janus/commit/b3c248732df07bac2d5ca4e8d218092b491b7b10)]:
+  - @nxgt/janus@0.14.0
+  - @nxgt/janus-drizzle@0.5.2
+  - @nxgt/janus-redis@0.4.2
+  - @nxgt/janus-telemetry@0.6.0
+  - @nxgt/janus-mongo@0.6.2
+
 ## 0.1.12
 
 ### Patch Changes
