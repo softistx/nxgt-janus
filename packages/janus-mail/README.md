@@ -49,6 +49,10 @@ transports of 0.4 included), which defines the `Mailer` port and the errors;
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
+The `@nxgt/mail` floor is tested, not claimed: the package's specs and its
+typecheck run on `@nxgt/mail` 0.1.0 as well, in the Floors job, on every CI
+run.
+
 It reads its prebuilt e-mails with `node:fs`: **Node, Bun or Deno**, not an edge
 runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
