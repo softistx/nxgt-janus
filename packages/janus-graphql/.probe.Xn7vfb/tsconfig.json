@@ -1,1 +1,0 @@
-{"extends":"../tsconfig.json","include":["p.ts"],"compilerOptions":{"noEmit":true}}
