@@ -30,7 +30,7 @@ Every peer is required:
   so this runs on **Bun**;
 - `typescript` 6.
 
-It needs **Redis 7.0 or later**, or Valkey —
+It needs **Redis 7.0 or later**, or Valkey — see
 [what Redis must be configured with](docs/guide/wiring.md#what-redis-must-be-configured-with).
 Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
