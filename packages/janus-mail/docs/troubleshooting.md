@@ -255,12 +255,27 @@ number of seconds: pass the text to show, `{ expiresIn: '1 hour' }`, or
 leave it out.
 
 `janusMail.twoFactorEnabled: email must be a string` (or `twoFactorDisabled`,
-`recoveryCodeUsed` or `welcome`) is the user event itself given to the
-e-mail: an event names the user by id alone. Read the user first:
+`passwordChanged`, `recoveryCodeUsed` or `welcome`) is the user event itself
+given to the e-mail: an event names the user by id alone. Read the user first:
 
 ```ts
 const user = await auth.get(event.userId);
 await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
+```
+
+On `user.emailChanged`, `janusMail.emailChanged: name must be a string` is
+the event itself given to `emailChanged`, and `janusMail.emailChanged:
+formerEmail must be a string` is `event.formerEmail` passed without its
+check — it is `null` for a user who had no e-mail before. `janusMail.emailChanged:
+newEmail must be a string` is an update that removed the e-mail: there is no
+new address to name. Check both, and read the rest from the user:
+
+```ts
+if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+	const user = await auth.get(event.userId);
+	if (user.email === undefined) return; // removed: tell the former address your own way
+	await mail.emailChanged({ name: user.name, locale: user.locale, formerEmail: event.formerEmail, newEmail: user.email });
+}
 ```
 
 `janusMail.recoveryCodeUsed: when must be a string` is the second argument

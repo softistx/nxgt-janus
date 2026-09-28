@@ -5,7 +5,7 @@ the detail.
 
 | Page | Read it when |
 | --- | --- |
-| [Sending](guide/sending.md) | You are wiring `janusMail()` into your routes: the options, `clock` among them; each method, the welcome on `user.created` and the recovery code notice on `user.recoveryCodeUsed` among them; the expiry an e-mail states and how to set it, where each e-mail goes, what a failure looks like, retrying and tracing the mailer, and a test |
+| [Sending](guide/sending.md) | You are wiring `janusMail()` into your routes: the options, `clock` among them; each method, the welcome on `user.created`, the recovery code notice on `user.recoveryCodeUsed` and the change notices on `user.passwordChanged` and `user.emailChanged` among them; the expiry an e-mail states and how to set it, where each e-mail goes, what a failure looks like, retrying and tracing the mailer, and a test |
 | [Templates](guide/templates.md) | You want an e-mail of your own: what a template takes and answers, a partial override, `janusTemplates()`, and what the defaults say |
 | [Locales](guide/locales.md) | You send in more than one language: how the locale is picked, `fallbackLocale`, fewer locales, and adding one |
 | [Building](guide/building.md) | You work on this package: the Maizzle project in `mail/`, `mails/`, the generated files, and why none of it reaches a consumer's build |

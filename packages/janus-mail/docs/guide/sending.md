@@ -117,26 +117,52 @@ name — and only its `locale` is read.
 ### `passwordChanged(to)`
 
 ```ts
-const changed = await auth.changePassword(user, { current, next });
-await mail.passwordChanged({ name: changed.name, locale: changed.locale, email: changed.email });
+// On the user event @nxgt/janus 0.13 sends once the password is written:
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type !== 'user.passwordChanged') return;
+		const user = await auth.get(event.userId);
+		await mail.passwordChanged({ name: user.name, locale: user.locale, email: user.email });
+	},
+});
 ```
 
 A notice: the password of the account at `to.email` changed, with a link to
-`links.secureAccount()` for a user who did not change it. Send it after
-`changePassword`, `setPassword` and `resetPassword.confirm`.
+`links.secureAccount()` for a user who did not change it. Send it on the
+`user.passwordChanged` event, which `changePassword` and `setPassword` send.
+A reset sends `user.passwordReset` instead, never both: to tell a reset too,
+send the same notice on that type — `event.type === 'user.passwordChanged'
+|| event.type === 'user.passwordReset'`. The event names the user by id
+alone, so read the name, the locale and the address from the user.
+`setPassword` sends it for a user's first password too — an account created
+without one — so the notice then tells them a password was set on their
+account, which is worth knowing all the same.
 
 ### `emailChanged(to)`
 
 ```ts
-const formerEmail = user.email;
-const updated = await auth.update(user, { email: next });
-await mail.emailChanged({ name: updated.name, locale: updated.locale, formerEmail, newEmail: updated.email });
+// On the user event @nxgt/janus 0.13 sends when an update changed the e-mail:
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type !== 'user.emailChanged' || event.formerEmail == null) return;
+		const user = await auth.get(event.userId);
+		await mail.emailChanged({ name: user.name, locale: user.locale, formerEmail: event.formerEmail, newEmail: user.email });
+	},
+});
 ```
 
 Sent to **`formerEmail`**: the owner of the old address is the one to warn,
 since whoever changed it already controls the new one. It names `newEmail`,
-and links to `links.secureAccount()`. Read the former address before the
-update: the user `update` answers already holds the new one.
+and links to `links.secureAccount()`. The `user.emailChanged` event is the
+one that carries an address — `event.formerEmail`, the e-mail before the
+update — since the user read back already holds the new one. It is `null`
+for a user who had no e-mail before: there is no former inbox to tell, and
+the type refuses it unchecked. The example assumes a required e-mail: with
+an optional one, `update` also sends the event when it removes the address,
+and the user read back has no `newEmail` to name — check `user.email` first,
+and tell the former address your own way or not at all.
 
 ### `twoFactorEnabled(to)` and `twoFactorDisabled(to)`
 
