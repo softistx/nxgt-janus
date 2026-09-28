@@ -103,12 +103,14 @@ function toDelivery(reply: unknown, operation: Method): QueuedDelivery {
 
 /**
  * Every user event type, once: `satisfies` fails to compile the day
- * `@nxgt/janus` adds a ninth, which a queue must then read back too.
+ * `@nxgt/janus` adds an eleventh, which a queue must then read back too.
  */
 const TYPES = {
 	'user.created': true,
 	'user.emailVerified': true,
 	'user.passwordReset': true,
+	'user.passwordChanged': true,
+	'user.emailChanged': true,
 	'user.secondFactorEnabled': true,
 	'user.secondFactorDisabled': true,
 	'user.recoveryCodesRegenerated': true,

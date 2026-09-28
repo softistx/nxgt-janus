@@ -114,6 +114,8 @@ the keys `~janus:webhooks:*`, or `~<your prefix>*`.
 
 **No URL and no secret is stored**: the queue holds the endpoint's id, and
 the URL and secrets are read from the running configuration at each attempt.
+No e-mail address either: `@nxgt/janus-webhooks` drops the `formerEmail` of a
+`user.emailChanged` before it reaches the queue.
 Dates are milliseconds since the epoch, passed in by `@nxgt/janus-webhooks` —
 never Redis's clock.
 

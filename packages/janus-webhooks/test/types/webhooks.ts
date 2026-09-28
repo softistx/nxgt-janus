@@ -37,8 +37,19 @@ webhooks({ endpoints: [{ url, secrets: [] }] });
 webhooks({ endpoints: [{ url, secrets: [process.env.WEBHOOK_SECRET] }] });
 
 // A type janus never sends.
-// @ts-expect-error the six user event types, no other
+// @ts-expect-error the ten user event types, no other
 webhooks({ endpoints: [{ url, secrets: [secret], types: ['user.signedIn'] }] });
+
+// The change events of @nxgt/janus 0.13 are types an endpoint may take.
+webhooks({
+	endpoints: [
+		{
+			url,
+			secrets: [secret],
+			types: ['user.passwordChanged', 'user.emailChanged'],
+		},
+	],
+});
 
 // A retry written as a bare string.
 // @ts-expect-error a Duration: a number of ms, or '5s', '5m', '2h'…
