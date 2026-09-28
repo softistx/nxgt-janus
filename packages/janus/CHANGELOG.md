@@ -1,5 +1,42 @@
 # @nxgt/janus
 
+## 0.10.0
+
+### Minor Changes
+
+- [#147](https://github.com/softistx/nxgt-janus/pull/147) [`af8bf10`](https://github.com/softistx/nxgt-janus/commit/af8bf104d671f17a843d672ae86ae9ddad2559fb) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `statusOf(code)` is exported from `@nxgt/janus`: the HTTP status each `JanusErrorCode` deserves — `STORE_FAILED` 503 and nothing else, `NOT_FOUND` 404, `CREDENTIALS_INVALID` and `CODE_INVALID` 401, … — typed as `JanusErrorStatus`, the union of the eight literals it answers. It is the one table the integrations share, so a Hono route and a GraphQL field answer a code the same way; the errors guide now imports it instead of writing it out.
+  
+  `CheckArgs<C, T, P>`, the options argument of `can()` — `ctx` required exactly when a `when` is reachable — is exported from `@nxgt/janus/permissions` as a type, for a function of your own that wraps `can()` and should refuse the same mistakes.
+
+- [#146](https://github.com/softistx/nxgt-janus/pull/146) [`7a419b9`](https://github.com/softistx/nxgt-janus/commit/7a419b9989de593b354dbf1ffdf6791202be6c0b) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Recovery codes for the TOTP second factor: a user whose phone is gone can still sign in, without an operator resetting the account.
+  
+  - **`secondFactor.activate` now answers `{ user, recoveryCodes }`**: ten codes, written `xxxxx-xxxxx`, shown once. Only their keyed hashes are stored (HMAC-SHA-256 under a key derived from `secondFactor.keys`, bound to the user's id), so no call answers them again.
+  - **`secondFactor.recover(challenge, code)`** redeems `signIn`'s challenge with a recovery code instead of the app's code, and answers the session with `recoveryCodesLeft`. The code is spent in one write under the version read: of two sign-ins using the same code at once, one opens a session and the other is `VERSION_CONFLICT`. The challenge's five attempts are shared with `confirm`, and a wrong or used code is `CODE_INVALID` with `attemptsLeft`.
+  - **`secondFactor.regenerateRecoveryCodes(user, code)`** takes a fresh code from the app, replaces every code, and answers the new ones once. It is `SECOND_FACTOR_NOT_ENROLLED` without an active factor: `secondFactor.regenerateRecoveryCodes: the user has no active second factor — recovery codes come with one`.
+  - `disable` removes the codes with the factor.
+  - Two new user events: `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`, named by id alone like the others.
+  
+  **Breaking: `activate` answers `{ user, recoveryCodes }`, not the user.** `(await auth.secondFactor.activate(user, code)).hasSecondFactor` no longer compiles (`TS2339 … on type 'RecoveryCodesIssued<…>'`); read `.user`, and show `recoveryCodes` to the user.
+  
+  **Breaking: `UserEventType` has two more members.** A `switch` that exhausts it no longer compiles until it handles them. Receivers on `@nxgt/janus-webhooks` before 0.4.0 answer `null` for the two new types: upgrade them first, or leave the types out of their endpoint's `types`.
+  
+  **Keep a sealing key while recovery codes are hashed with it.** A code hashed under a key no longer in `secondFactor.keys` is a bare `TypeError`: `<call>: a recovery code is hashed with the key "<id>", which secondFactor.keys no longer holds — keep a key until no secret or recovery code uses it`. Codes cannot be hashed again under the new key, since only their hashes are kept: regenerate them, or keep the old key.
+
+- [#143](https://github.com/softistx/nxgt-janus/pull/143) [`0789c39`](https://github.com/softistx/nxgt-janus/commit/0789c39bcc86f0b14738032020254b2d9465da0f) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The identity stores' port gains a user's recovery codes. `SecondFactorRecord` has a new field, `recoveryCodes: readonly string[]`: the keyed hashes of the codes a user can sign in with when their phone is gone, opaque to a store like `secret`, in order, and `[]` for none. A patch that names `secondFactor` replaces the codes whole, and `secondFactor: null` removes them with the factor. `enroll` now writes a factor with `recoveryCodes: []`.
+  
+  The conformance case `users.secondFactorSlot` checks it: the codes round-trip in order, `[]` comes back as a factor with no codes and never as `null`, a patch replaces the array whole, and `secondFactor: null` clears it. The case now lives in `conformance/cases/users/second-factor.ts`; its id is unchanged.
+  
+  **Breaking for a third-party adapter: it must store and answer `recoveryCodes`.** Until it does, it no longer compiles against `SecondFactorRecord`, and `users.secondFactorSlot` fails. Read a factor written before the field existed as `[]` — a nullable column, an optional field — rather than rewriting every user. The port change alone changes nothing for an application; the flows that hand out and accept the codes, and what they change, are in their own entry. The official adapters follow in `@nxgt/janus-drizzle` 0.4 and `@nxgt/janus-mongo` 0.5; `@nxgt/janus-redis` stores no user.
+
+- [#149](https://github.com/softistx/nxgt-janus/pull/149) [`c9bcfe0`](https://github.com/softistx/nxgt-janus/commit/c9bcfe0ff6eff1347f6116a773be2df9d3893fa6) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **Behaviour change: `secondFactor.regenerateRecoveryCodes` counts its attempts.** Its code from the app was the only thing between a stolen session and new recovery codes, and nothing bounded the guesses. It now takes five attempts per user per 15-minute window — the same five a challenge takes — counted by the store before the code is compared, so every process over the same store shares the count.
+  
+  - A code that does not match is `CODE_INVALID` with `attemptsLeft`: what the window has left. It carried none before.
+  - Past the fifth, every call in the window is `CODE_INVALID` with `attemptsLeft: 0` — **the right code included**, compared by nobody — and writes nothing: `secondFactor.regenerateRecoveryCodes: too many codes tried — wait for the next 15-minute window`. Tell the user to wait; `attemptsLeft: 0` also comes with the fifth wrong code, after which the next call is this refusal.
+  - A code accepted — a regenerate, or a sign-in finished with the app — starts the count again. A password written does not.
+  - The same code tried twice at once regenerates once; the other call is `VERSION_CONFLICT`. A store that fails throws `STORE_FAILED`, never a refusal.
+  
+  No port change: the count is a one-time token of kind `secondFactor`, counted by `TokenStore.countAttempt`, whose secret is a keyed hash nobody is given — it cannot be redeemed as a challenge. No adapter or migration to update.
+
 ## 0.9.0
 
 ### Minor Changes

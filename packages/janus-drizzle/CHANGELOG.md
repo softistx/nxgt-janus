@@ -1,5 +1,34 @@
 # @nxgt/janus-drizzle
 
+## 0.4.0
+
+### Minor Changes
+
+- [#143](https://github.com/softistx/nxgt-janus/pull/143) [`236d954`](https://github.com/softistx/nxgt-janus/commit/236d95484348f2a37921cf533e3dd8e6c42dda44) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Recovery codes on a second factor, for `@nxgt/janus` 0.10. `users` gains `second_factor_recovery_codes`, a nullable `text[]` holding the codes' keyed hashes in order. No codes are written `null`, never `{}`, and `null` reads as `[]`, so a row written before the column existed reads as a factor with no codes. The `users_second_factor_whole` check now keeps the codes to a row with a second factor.
+  
+  **A migration is required.** Generate and apply it before deploying, as for 0.2:
+  
+  ```sh
+  bunx drizzle-kit generate --config drizzle.janus.config.ts
+  bunx drizzle-kit migrate --config drizzle.janus.config.ts
+  ```
+  
+  drizzle-kit writes two statements — the column, and the check dropped and added again — and rewrites no row:
+  
+  ```sql
+  ALTER TABLE "users" ADD COLUMN "second_factor_recovery_codes" text[];
+  ALTER TABLE "users" DROP CONSTRAINT "users_second_factor_whole", ADD CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null and "second_factor_recovery_codes" is null)));
+  ```
+  
+  Deployed before it, every query on `users` fails with `STORE_FAILED`, caused by `column "second_factor_recovery_codes" does not exist`.
+  
+  **Finish the rollout before users hold codes.** An instance still on 0.3 knows four columns: once a user holds recovery codes, its `secondFactor.disable` leaves them beside a factor removed, the check refuses the write, and the call fails with `STORE_FAILED` (it succeeds on 0.4; nothing is lost). Run the two side by side only while no user has been given codes.
+
+### Patch Changes
+
+- Updated dependencies [[`af8bf10`](https://github.com/softistx/nxgt-janus/commit/af8bf104d671f17a843d672ae86ae9ddad2559fb), [`7a419b9`](https://github.com/softistx/nxgt-janus/commit/7a419b9989de593b354dbf1ffdf6791202be6c0b), [`0789c39`](https://github.com/softistx/nxgt-janus/commit/0789c39bcc86f0b14738032020254b2d9465da0f), [`c9bcfe0`](https://github.com/softistx/nxgt-janus/commit/c9bcfe0ff6eff1347f6116a773be2df9d3893fa6)]:
+  - @nxgt/janus@0.10.0
+
 ## 0.3.3
 
 ### Patch Changes

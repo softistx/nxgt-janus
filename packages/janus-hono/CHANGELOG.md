@@ -1,5 +1,17 @@
 # @nxgt/janus-hono
 
+## 0.3.5
+
+### Patch Changes
+
+- [#147](https://github.com/softistx/nxgt-janus/pull/147) [`420936d`](https://github.com/softistx/nxgt-janus/commit/420936d0511fe8e36f26ec7ce0b99f0a8dfef774) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `statusOf(code)` now answers `@nxgt/janus`'s own `statusOf`, still typed as Hono's `ContentfulStatusCode`, instead of a copy of the table. Every code answers the status it answered before.
+
+- [#146](https://github.com/softistx/nxgt-janus/pull/146) [`170332b`](https://github.com/softistx/nxgt-janus/commit/170332bb054a1ac411d404473cae5863c8a12f60) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the routes guide shows the recovery codes of `@nxgt/janus` 0.10 — the activation route answering the codes once, a route regenerating them on a fresh code from the app, and a sign-in route redeeming the challenge with a recovery code, which `janusErrors()` answers as `confirm`'s, plus `VERSION_CONFLICT` (409) for a code used twice at once.
+
+- [#149](https://github.com/softistx/nxgt-janus/pull/149) [`6909262`](https://github.com/softistx/nxgt-janus/commit/690926259f8452ff500f5cf8065302eda2373e0d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the regenerate route needs no limiter of its own any more — `@nxgt/janus` counts five attempts per user per 15-minute window, and `janusErrors()` answers a wrong code `401 {"code":"CODE_INVALID","attemptsLeft":<n>}`, with `attemptsLeft: 0` once the window is spent.
+- Updated dependencies [[`af8bf10`](https://github.com/softistx/nxgt-janus/commit/af8bf104d671f17a843d672ae86ae9ddad2559fb), [`7a419b9`](https://github.com/softistx/nxgt-janus/commit/7a419b9989de593b354dbf1ffdf6791202be6c0b), [`0789c39`](https://github.com/softistx/nxgt-janus/commit/0789c39bcc86f0b14738032020254b2d9465da0f), [`c9bcfe0`](https://github.com/softistx/nxgt-janus/commit/c9bcfe0ff6eff1347f6116a773be2df9d3893fa6)]:
+  - @nxgt/janus@0.10.0
+
 ## 0.3.4
 
 ### Patch Changes
