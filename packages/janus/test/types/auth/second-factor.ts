@@ -12,7 +12,8 @@ import { z } from 'zod';
 import { janus } from '../../../src/index';
 import { hasher, one, Patient, store, twoFactor } from './fixtures';
 
-async function secondFactor() {
+// ── What janus() is given ────────────────────────────────────────────────────
+async function configuring() {
 	// ── 21. A schema declaring what janus sets ────────────────────────────
 	janus({
 		// @ts-expect-error hasSecondFactor is janus's own field
@@ -26,24 +27,6 @@ async function secondFactor() {
 	// @ts-expect-error no secondFactor in the configuration, so no flows
 	await one.secondFactor.enroll('0190e3b4-0000-7000-8000-000000000000');
 
-	// ── 23. A session read off a sign-in that may have asked for a code ───
-	const result = await twoFactor.patient.signIn({
-		email: 'a@b.test',
-		password: 'p',
-	});
-	// @ts-expect-error narrow on status first: a challenge has no token
-	void result.token;
-
-	// ── 24. A second factor on a type with no password ────────────────────
-	// @ts-expect-error guests do not sign in, so they have no second factor
-	await twoFactor.guest.secondFactor.enroll(
-		'0190e3b4-0000-7000-8000-000000000000',
-	);
-
-	// ── 25. Confirming a challenge without the code ───────────────────────
-	// @ts-expect-error the code is what the challenge waits for
-	await twoFactor.patient.secondFactor.confirm('challenge');
-
 	// ── 26. No key to seal with ───────────────────────────────────────────
 	janus({
 		user: Patient,
@@ -53,12 +36,21 @@ async function secondFactor() {
 		// @ts-expect-error the first key seals: there must be one
 		secondFactor: { issuer: 'Clinic', keys: [] },
 	});
+}
 
-	// ── 27. Activating without the first code ─────────────────────────────
-	// @ts-expect-error the code proves the app holds the secret
-	await twoFactor.patient.secondFactor.activate(
-		'0190e3b4-0000-7000-8000-000000000000',
-	);
+// ── Signing in when a code may be asked for ──────────────────────────────────
+async function signingIn() {
+	// ── 23. A session read off a sign-in that may have asked for a code ───
+	const result = await twoFactor.patient.signIn({
+		email: 'a@b.test',
+		password: 'p',
+	});
+	// @ts-expect-error narrow on status first: a challenge has no token
+	void result.token;
+
+	// ── 25. Confirming a challenge without the code ───────────────────────
+	// @ts-expect-error the code is what the challenge waits for
+	await twoFactor.patient.secondFactor.confirm('challenge');
 
 	// ── 28. A second factor that may be on, read as if it were off ────────
 	const maybe = janus({
@@ -78,6 +70,21 @@ async function secondFactor() {
 	const perhaps = await maybe.signIn({ email: 'a@b.test', password: 'p' });
 	// @ts-expect-error it may be on at run time: narrow on status first
 	void perhaps.token;
+}
+
+// ── Turning the factor on ────────────────────────────────────────────────────
+async function enrolling() {
+	// ── 24. A second factor on a type with no password ────────────────────
+	// @ts-expect-error guests do not sign in, so they have no second factor
+	await twoFactor.guest.secondFactor.enroll(
+		'0190e3b4-0000-7000-8000-000000000000',
+	);
+
+	// ── 27. Activating without the first code ─────────────────────────────
+	// @ts-expect-error the code proves the app holds the secret
+	await twoFactor.patient.secondFactor.activate(
+		'0190e3b4-0000-7000-8000-000000000000',
+	);
 
 	// ── 35. An activation read as the user it answered before 0.10 ────────
 	// Its recovery codes are shown once: an answer read as the user would
@@ -88,10 +95,14 @@ async function secondFactor() {
 	);
 	// @ts-expect-error the user is activated.user, beside its recoveryCodes
 	void activated.hasSecondFactor;
+}
 
+// ── The recovery codes ───────────────────────────────────────────────────────
+async function recovering() {
 	// ── 36. Recovering a sign-in without the recovery code ────────────────
 	// @ts-expect-error the recovery code is what the challenge waits for
 	await twoFactor.patient.secondFactor.recover('challenge');
+
 	// ── 37. Regenerating recovery codes as if it were disable ─────────────
 	await twoFactor.patient.secondFactor.regenerateRecoveryCodes(
 		'0190e3b4-0000-7000-8000-000000000000',
@@ -132,4 +143,10 @@ async function recoveryCodes() {
 	void [left, birthDate, codes, stillLeft, signedIn.token];
 }
 
-export const checked = { secondFactor, allowed: [recoveryCodes] };
+export const checked = {
+	configuring,
+	signingIn,
+	enrolling,
+	recovering,
+	allowed: [recoveryCodes],
+};
