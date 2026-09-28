@@ -104,8 +104,8 @@ before a store sees it, so a dump of the users cannot produce a code. Keep it
 like a password hash — byte for byte, no parsing, no trimming. The core
 rewrites it, sealed under another key, when the application
 [rotates its keys](second-factor.md#rotating-the-keys). Store
-the second factor whole: a method without a secret, or a `lastStep` without a
-method, is a record the core never writes.
+the second factor whole: a method without a secret, or a `lastStep` or
+recovery codes without a method, is a record the core never writes.
 
 `recoveryCodes` holds the hashes of the codes a user can sign in with when
 their phone is gone — **keyed hashes the core computed, never a code**, each

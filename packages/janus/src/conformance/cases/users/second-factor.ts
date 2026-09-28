@@ -49,13 +49,8 @@ export const secondFactorSlotCase: ConformanceCase = {
 		};
 		await patchFactor(stores, record.id, confirmed, 0, 'secondFactor');
 		equal(
-			(
-				await stores.users.updateUser(
-					record.id,
-					{ updatedAt: at('2026-02-02T00:00:00.000Z') },
-					1,
-				)
-			).secondFactor,
+			(await stores.users.updateUser(record.id, { updatedAt: writtenAt(1) }, 1))
+				.secondFactor,
 			confirmed,
 			'updateUser not naming secondFactor should keep it, recovery codes included',
 		);
@@ -65,9 +60,15 @@ export const secondFactorSlotCase: ConformanceCase = {
 	},
 };
 
+/** The `updatedAt` of the write under `version`: one day later per version. */
+const writtenAt = (version: number): Date =>
+	new Date(Date.UTC(2026, 1, 2 + version));
+
 /** `[]` is a factor with no codes: never `null`, never a missing field. */
 async function noCodesIsNotNoFactor(stores: JanusStores, id: Id) {
-	const found = (await stores.users.findUser(id))?.secondFactor;
+	const user = await stores.users.findUser(id);
+	ok(user !== null, 'findUser should answer the user insertUser wrote');
+	const found = user?.secondFactor;
 	ok(
 		found !== null && found !== undefined,
 		'findUser should answer a second factor with recoveryCodes [] as a factor, not as null — no codes is not no factor',
@@ -90,7 +91,7 @@ async function patchFactor(
 	const written = await stores.users.updateUser(
 		id,
 		{
-			updatedAt: at(`2026-03-0${version + 1}T00:00:00.000Z`),
+			updatedAt: writtenAt(version),
 			secondFactor: factor,
 		},
 		version,
@@ -143,7 +144,7 @@ async function nullClearsCodes(stores: JanusStores, id: Id) {
 		(
 			await stores.users.updateUser(
 				id,
-				{ updatedAt: at('2026-04-01T00:00:00.000Z'), secondFactor: null },
+				{ updatedAt: writtenAt(5), secondFactor: null },
 				5,
 			)
 		).secondFactor,

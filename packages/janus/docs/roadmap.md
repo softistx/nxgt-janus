@@ -5,7 +5,11 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **Recovery codes** — single-use codes for the TOTP second factor, so a
+  user who loses their authenticator app can still sign in, without an
+  operator resetting the account. The identity stores' port keeps them on the
+  user's second factor from 0.10, and the official adapters store them; the
+  flows that hand them out and accept them come next.
 
 ## Next
 
@@ -16,10 +20,6 @@ Nothing between releases.
   code, bound to the session that asked rather than opening one — which
   takes a token kind of its own, so a sign-in code can never confirm an
   action nor an action's code sign anyone in.
-- **Recovery codes** — single-use codes for the TOTP second factor, so a
-  user who loses their authenticator app can still sign in, without an
-  operator resetting the account.
-
 ## Later
 
 - **More official adapters** — the ports are cut where atomicity is not
