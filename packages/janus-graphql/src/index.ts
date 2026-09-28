@@ -9,8 +9,9 @@
  * - `applyJanusDirectives(schema, { auth })` — the schema transform alone;
  * - `requireUser(ctx, { type? })`, `requireFresh(ctx, maxAge)` and
  *   `can(ctx, permission, object)` — the calls a resolver makes itself;
- * - `janusMaskError(fallback?)` — Yoga's `maskError`: a `JanusError` as its
- *   code and status, `STORE_FAILED` as 503 and never as 401 or 403.
+ * - `janusMaskError({ report?, fallback? })` — Yoga's `maskError`: a
+ *   `JanusError` as its code and status, `STORE_FAILED` as 503 and never as
+ *   401 or 403, and every 5xx handed to `report`.
  * - `janusGraphQLError(error)` — a `JanusError` as the `GraphQLError` the
  *   client reads, and `denial(code, message?)` — a denial of your own.
  * - `janusConnection({ auth, access?, type?, clock?, upgrade? })` —
@@ -35,6 +36,7 @@ export {
 export {
 	type DenialCode,
 	denial,
+	type JanusMaskErrorOptions,
 	janusGraphQLError,
 	janusMaskError,
 	type MaskError,

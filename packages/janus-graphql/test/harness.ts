@@ -8,6 +8,7 @@
 import {
 	createMemoryStores,
 	fixedClock,
+	type JanusError,
 	janus,
 	StoreFailure,
 	scryptHasher,
@@ -64,11 +65,12 @@ export function setup() {
 		hasher: scryptHasher({ cost: 10 }),
 		clock,
 	});
-	// What useJanus() is given: the instance's types, and an authenticate that
-	// counts its calls.
+	// What useJanus() is given: the instance's types and cookie, and an
+	// authenticate that counts its calls.
 	const calls = { authenticate: 0, has: 0 };
-	const tracked: Pick<typeof auth, 'authenticate' | 'types'> = {
+	const tracked: Pick<typeof auth, 'authenticate' | 'types' | 'cookie'> = {
 		types: auth.types,
+		cookie: auth.cookie,
 		authenticate: ((request, options) => {
 			calls.authenticate++;
 			return auth.authenticate(request, options);
@@ -129,6 +131,8 @@ export async function users({ auth }: Setup) {
 /** What `server()` takes beside the schema: `useJanus()`'s permission wiring, and the masking. */
 export interface ServerOptions {
 	readonly masked?: boolean;
+	/** `janusMaskError({ report })`'s. */
+	readonly report?: (error: JanusError) => unknown;
 	/** In place of `context.access`: a wrapped instance. */
 	readonly access?: Setup['access'];
 	readonly loaders?: Loaders<ConfigOf<Setup['access']['model']>, unknown>;
@@ -159,7 +163,13 @@ export function server(
 			}),
 		],
 		maskedErrors:
-			options.masked === false ? false : { maskError: janusMaskError() },
+			options.masked === false
+				? false
+				: {
+						maskError: janusMaskError(
+							options.report === undefined ? {} : { report: options.report },
+						),
+					},
 		logging: false,
 	});
 }

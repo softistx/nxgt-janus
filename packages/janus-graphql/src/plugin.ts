@@ -10,6 +10,7 @@ import { acceptedOf } from './connection/credential';
 import { createJanusContext } from './context';
 import { applyJanusDirectives } from './directives/apply';
 import { checkWiring } from './options';
+import { type ResponsePayload, resendRenewed, track } from './renewal';
 import type { Auth, JanusContext, JanusOptions, UserOfAuth } from './types';
 
 /**
@@ -34,15 +35,25 @@ import type { Auth, JanusContext, JanusOptions, UserOfAuth } from './types';
  * `loaders` and `conditions` are what `@permission` needs beside `access`:
  * the objects it checks by id, and the `ctx` of the conditions it reaches.
  *
+ * A session `authenticate` renewed for a request that presented it as the
+ * session cookie is sent again, `Set-Cookie` on Yoga's response
+ * (`onResponse`), so a browser keeps the new expiry. Not to a bearer token or
+ * `X-Session-Token`, and never when nothing authenticated.
+ *
  * An operation over graphql-ws has no request: its `ctx.janus`
  * authenticates the credential its connection presented, once
- * `janusConnection().onConnect` accepted it.
+ * `janusConnection().onConnect` accepted it — and has no response to carry a
+ * renewed cookie.
  */
 export function useJanus<
 	A extends Auth<{ readonly type: string; readonly id: string }>,
 	P extends object | undefined = undefined,
 	const T extends UserOfAuth<A>['type'] = UserOfAuth<A>['type'],
->(options: JanusOptions<A, P, T>): Plugin<JanusContext<A, P, T>> {
+>(
+	options: JanusOptions<A, P, T>,
+): Plugin<JanusContext<A, P, T>> & {
+	readonly onResponse: (payload: ResponsePayload) => Promise<void>;
+} {
 	const { auth, access, type, clock, loaders, conditions } = options;
 	checkWiring('useJanus()', { auth, access, clock });
 	const applied = new WeakSet<GraphQLSchema>();
@@ -56,6 +67,9 @@ export function useJanus<
 				type,
 				clock,
 			});
+			if (typeof request === 'object' && request !== null) {
+				track(request, janus);
+			}
 			extendContext({ janus } as unknown as Partial<JanusContext<A, P, T>>);
 		},
 		// `replaceSchema` calls this hook again with the schema it was given:
@@ -72,5 +86,7 @@ export function useJanus<
 			applied.add(next);
 			replaceSchema(next);
 		},
+		// Yoga's own hook, which envelop ignores: the HTTP response, once made.
+		onResponse: (payload) => resendRenewed(payload, auth.cookie),
 	};
 }

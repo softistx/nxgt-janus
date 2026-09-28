@@ -44,6 +44,16 @@ const checks = new WeakMap<object, { memo: Check; fresh: Check }>();
 /** The clock of each context this module built with one: what `@fresh` reads. */
 const clocks = new WeakMap<object, Clock>();
 
+/**
+ * The answer of `authenticate` for each context this module built — or
+ * `undefined` while neither `user()` nor `session()` has been asked, so that
+ * reading it never authenticates.
+ */
+const answers = new WeakMap<
+	object,
+	() => Promise<Authenticated<AnyUser> | null> | undefined
+>();
+
 /** What `createJanusContext` reads from `useJanus()`'s options. */
 export interface ContextOptions {
 	readonly auth: LooseAuth;
@@ -102,7 +112,19 @@ export function createJanusContext(
 		});
 	}
 	if (clock !== undefined) clocks.set(janus, clock);
+	answers.set(janus, () => (asked ? answer : undefined));
 	return janus as Built;
+}
+
+/**
+ * What `authenticate` answered for `janus`'s request, or `undefined` when it
+ * never ran — nothing asked `user()` or `session()`, or the context was not
+ * built here. Never runs it.
+ */
+export function answerOf(
+	janus: object,
+): Promise<Authenticated<AnyUser> | null> | undefined {
+	return answers.get(janus)?.();
 }
 
 /**

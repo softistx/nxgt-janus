@@ -59,6 +59,17 @@ export const withYogas = createYoga({
 });
 export const masking = useMaskedErrors({ maskError: janusMaskError() });
 
+// Every 5xx reported, with Yoga's mask kept as the fallback.
+export const reported = createYoga({
+	schema: yoga.getEnveloped().schema,
+	maskedErrors: {
+		maskError: janusMaskError({
+			report: (error) => console.error(error.code, error.cause),
+			fallback: maskError,
+		}),
+	},
+});
+
 // One user type only: any other is anonymous.
 export const staffOnly = useJanus({ auth, type: 'staff' });
 
@@ -81,3 +92,11 @@ applyJanusDirectives(yoga.getEnveloped().schema, {});
 // 19. The transform narrowed to a user type the instance does not know.
 // @ts-expect-error — 'doctor' is neither 'patient' nor 'staff'.
 applyJanusDirectives(yoga.getEnveloped().schema, { auth, type: 'doctor' });
+
+// 36. The report misspelled: it would never be called.
+// @ts-expect-error — `reprot` is not an option; `report` is.
+janusMaskError({ reprot: (error: unknown) => console.error(error) });
+
+// 37. A report that reads what a JanusError does not carry.
+// @ts-expect-error — the report is given a JanusError, which has no `status`.
+janusMaskError({ report: (error) => error.status });

@@ -7,6 +7,7 @@
 
 import { JanusError, type JanusErrorStatus, statusOf } from '@nxgt/janus';
 import { GraphQLError } from 'graphql';
+import { reporting } from './report';
 
 /** What a guard answers without asking `@nxgt/janus`: no user, or not this one. */
 export type DenialCode = 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND';
@@ -105,6 +106,23 @@ export type MaskError = (
 	isDev?: boolean,
 ) => Error;
 
+/** What `janusMaskError()` takes. */
+export interface JanusMaskErrorOptions {
+	/**
+	 * Called once with every `JanusError` answered 5xx — `STORE_FAILED`,
+	 * `UNSUPPORTED`, `PERMISSION_DEPTH` — whichever path it took: a
+	 * directive, `requireUser()`, `can()`, or a resolver that let it through.
+	 * Its `slot`, `operation`, `reason` and cause are for your logs; the
+	 * response never carries them.
+	 *
+	 * **It cannot change the answer**: one that throws, or rejects, is a
+	 * `process.emitWarning`, and the 503 is sent all the same.
+	 */
+	readonly report?: (error: JanusError) => unknown;
+	/** Every error that is not a `JanusError`; see `janusMaskError()`. */
+	readonly fallback?: MaskError;
+}
+
 /**
  * Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through is
  * answered with its code and status — `STORE_FAILED` as 503, never masked
@@ -112,15 +130,28 @@ export type MaskError = (
  *
  * Without a `fallback`, a `GraphQLError` is kept and anything else becomes
  * `message`, with no detail. Pass Yoga's own `maskError` to keep its
- * development-mode details:
+ * development-mode details — as the options' `fallback`, or alone, as
+ * before `report` existed:
  *
  * ```ts
  * import { createYoga, maskError } from 'graphql-yoga';
- * createYoga({ schema, plugins, maskedErrors: { maskError: janusMaskError(maskError) } });
+ * createYoga({
+ *   schema,
+ *   plugins,
+ *   maskedErrors: {
+ *     maskError: janusMaskError({ report: (error) => logger.error(error), fallback: maskError }),
+ *   },
+ * });
  * ```
  */
-export function janusMaskError(fallback: MaskError = masked): MaskError {
+export function janusMaskError(
+	options: JanusMaskErrorOptions | MaskError = {},
+): MaskError {
+	const { report, fallback = masked } =
+		typeof options === 'function' ? { fallback: options } : options;
+	const reported = report === undefined ? undefined : reporting(report);
 	return (error, message, isDev) => {
+		reported?.(error);
 		const original =
 			error instanceof GraphQLError ? error.originalError : error;
 		if (original instanceof JanusError) {
