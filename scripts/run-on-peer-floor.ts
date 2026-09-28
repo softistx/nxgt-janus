@@ -1,13 +1,15 @@
 #!/usr/bin/env bun
 /**
- * Runs a command with an `@nxgt/*` peer at its floor instead of the version
- * `bun.lock` holds.
+ * Runs a command with a peer at its floor instead of the version `bun.lock`
+ * holds. The peer's name is scoped or not.
  *
  *     bun scripts/run-on-peer-floor.ts @nxgt/mongo@0.17.0 janus-mongo janus-kit -- bun test
+ *     bun scripts/run-on-peer-floor.ts graphql@16.9.0 <package> -- bun test
  *
- * The packages here peer the nxgt `0.x` libraries by `>=<floor> <1`, and the
- * specs run on the locked version, which is npm's latest. The floor is the
- * other end of that promise, and the `floors` CI job runs it through this.
+ * The packages here peer libraries by a range from a floor — the nxgt `0.x`
+ * ones by `>=<floor> <1` — and the specs run on the locked version, which is
+ * npm's latest. The floor is the other end of that promise, and the `floors`
+ * CI job runs it through this.
  *
  * Nothing it does is written to `package.json` or `bun.lock`. The floor's
  * tarball is fetched from npm and checked against the registry's integrity
@@ -89,7 +91,8 @@ export async function runOnFloor(
 	const swaps = await locate(root, plan);
 	const [first] = swaps;
 	if (!first) throw new Error('no package named');
-	// `.../node_modules/@nxgt/mongo` → `.../node_modules`.
+	// `.../node_modules/@nxgt/mongo` or `.../node_modules/graphql` →
+	// `.../node_modules`.
 	const lockedModules = join(
 		await realpath(first.link),
 		...plan.name.split('/').map(() => '..'),

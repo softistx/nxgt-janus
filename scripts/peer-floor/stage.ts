@@ -71,15 +71,16 @@ export async function stage(
 		await symlink(await realpath(join(lockedModules, entry)), at);
 		staged[entry] = (await manifestAt(at))?.version;
 	};
+	// Everything but the locked copy of `name` itself, scoped or not, whose
+	// place the floor has taken.
 	for (const entry of await readdir(lockedModules)) {
 		if (entry.startsWith('.')) continue;
-		if (!entry.startsWith('@')) {
-			await link(entry);
-			continue;
-		}
-		for (const inner of await readdir(join(lockedModules, entry))) {
-			if (`${entry}/${inner}` !== name) await link(`${entry}/${inner}`);
-		}
+		const names = entry.startsWith('@')
+			? (await readdir(join(lockedModules, entry))).map(
+					(inner) => `${entry}/${inner}`,
+				)
+			: [entry];
+		for (const each of names) if (each !== name) await link(each);
 	}
 
 	const problems = unmet((await manifestAt(target)) ?? {}, staged);
