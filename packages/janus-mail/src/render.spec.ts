@@ -34,6 +34,11 @@ const sends: Record<
 		mail.twoFactorEnabled({ name, locale, email: 'ada@example.com' }),
 	twoFactorDisabled: (mail, locale) =>
 		mail.twoFactorDisabled({ name, locale, email: 'ada@example.com' }),
+	recoveryCodeUsed: (mail, locale) =>
+		mail.recoveryCodeUsed(
+			{ name, locale, email: 'ada@example.com' },
+			{ when: '28/09/2026 14:05', recoveryCodesLeft: 9 },
+		),
 	welcome: (mail, locale) =>
 		mail.welcome({ name, locale, email: 'ada@example.com' }),
 };
@@ -67,6 +72,10 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 	twoFactorDisabled: {
 		en: 'Two-factor authentication was turned off',
 		fr: "L'authentification à deux facteurs a été désactivée",
+	},
+	recoveryCodeUsed: {
+		en: 'A recovery code was used on your account',
+		fr: 'Un code de récupération a été utilisé sur votre compte',
 	},
 	// The one subject with a placeholder: the name, written as is.
 	welcome: {

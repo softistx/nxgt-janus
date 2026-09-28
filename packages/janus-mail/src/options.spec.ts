@@ -85,6 +85,16 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 		'links.getStarted must be a function',
 	],
 	[
+		'recoveryCodes given as a URL rather than a function',
+		{
+			links: {
+				...baseOptions().links,
+				recoveryCodes: 'https://acme.example/account/recovery-codes',
+			},
+		},
+		'links.recoveryCodes must be a function, or left out',
+	],
+	[
 		'empty locales',
 		{ locales: [] },
 		"locales must list at least one locale, as ['en', 'fr']",
@@ -127,7 +137,7 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 	[
 		'a template that is not one',
 		{ templates: { magicLink: () => null } },
-		'templates has no template magicLink — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, welcome',
+		'templates has no template magicLink — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome',
 	],
 	[
 		'a template that is not a function',

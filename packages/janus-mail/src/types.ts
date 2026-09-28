@@ -55,6 +55,13 @@ export interface JanusMailLinks {
 	 * "Get started" button.
 	 */
 	readonly getStarted: () => string;
+	/**
+	 * Where a user regenerates their recovery codes — `recoveryCodeUsed`
+	 * links to it, from its "Secure my account" button. **Optional**: without
+	 * it, that e-mail links to `secureAccount`, the security settings where
+	 * the codes usually are.
+	 */
+	readonly recoveryCodes?: () => string;
 }
 
 /** The options every locale set shares. */
@@ -167,6 +174,25 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 	 * the user is inserted.
 	 */
 	welcome(to: Recipient & { readonly email: string }): Promise<SentMail>;
+	/**
+	 * Tells `to.email` a recovery code was used on their account, `when`, and
+	 * how many are left, with a link to `links.recoveryCodes` — else
+	 * `links.secureAccount` — on the `user.recoveryCodeUsed` event. The event
+	 * names the user only: read the count with
+	 * `auth.secondFactor.recoveryCodesLeft(event.userId)`.
+	 *
+	 * `when` is text, formatted in the recipient's locale and time zone.
+	 * `recoveryCodesLeft` is the count, written as the preset's plural in the
+	 * recipient's locale — "You have 1 recovery code left." — or, for a locale
+	 * the default e-mails are not built in, the sentence itself.
+	 */
+	recoveryCodeUsed(
+		to: Recipient & { readonly email: string },
+		used: {
+			readonly when: string;
+			readonly recoveryCodesLeft: number | string;
+		},
+	): Promise<SentMail>;
 	/** The templates in use: the defaults, with `templates` over them. */
 	readonly templates: JanusMailTemplates<L>;
 	/** The locales sent in. */

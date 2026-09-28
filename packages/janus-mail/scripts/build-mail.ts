@@ -6,15 +6,17 @@
  * Then, from the manifest:
  *
  * - it **fails unless the manifest's format is the one `@nxgt/mail-i18n`
- *   writes, and one `@nxgt/mail` 0.1.0 reads** — the peer is `>=0.1.0 <1`, and
+ *   writes, and one `@nxgt/mail` 0.1.0 reads** — the peer is `>=0.1.0 <2`, and
  *   a renderer reads every format up to its own, so a newer format would
  *   break an application on the floor;
- * - it **fails unless exactly the eight e-mails** of Janus's flows were built,
+ * - it **fails unless exactly the nine e-mails** of Janus's flows were built,
  *   so a preset added or dropped by a new `@nxgt/mail-presets` is a failed
  *   build here, not a surprise in a consumer's outbox;
  * - it writes `src/generated/locales.ts` — the locales built, as a type —
- *   **only when its content changed**, so a build that changes nothing leaves
- *   the tree clean and CI's `git diff --exit-code` on `src/generated` holds.
+ *   and `src/generated/codes-left.ts` — the plural of the recovery codes
+ *   left, in each of them (`./codes-left`) — **only when its content
+ *   changed**, so a build that changes nothing leaves the tree clean and
+ *   CI's `git diff --exit-code` on `src/generated` holds.
  *
  * Run by the package's `build`, before `../../build.ts`: the TypeScript build
  * reads what this one generated. No consumer ever runs it — the package ships
@@ -24,11 +26,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { MANIFEST_FORMAT } from '@nxgt/mail-i18n';
 import { $ } from 'bun';
+import { branchesOf, codesLeftMessage, codesLeftModule } from './codes-left';
 
 /** The e-mails the package promises, sorted as the manifest sorts them. */
 export const EXPECTED_EMAILS = [
 	'email-changed',
 	'password-changed',
+	'recovery-code-used',
 	'reset-password',
 	'sign-in-code',
 	'two-factor-disabled',
@@ -44,10 +48,13 @@ const MANIFEST = fileURLToPath(
 const LOCALES_MODULE = fileURLToPath(
 	new URL('../src/generated/locales.ts', import.meta.url),
 );
+const CODES_LEFT_MODULE = fileURLToPath(
+	new URL('../src/generated/codes-left.ts', import.meta.url),
+);
 
 /**
  * The newest manifest format the oldest `@nxgt/mail` the peer admits reads:
- * `>=0.1.0 <1`, and 0.1.0 through 0.5.0 read format 1 only. They export no
+ * `>=0.1.0 <2`, and 0.1.0 through 0.5.0 read format 1 only. They export no
  * `MANIFEST_FORMAT`, so the number is written here, and raising it means
  * raising the peer's floor to the first `@nxgt/mail` that reads the new format.
  */
@@ -117,6 +124,14 @@ export function localesModule(locales: readonly string[]): string {
 	].join('\n');
 }
 
+/** Writes `source` to `path` unless it already holds it: an unchanged build leaves the tree clean. */
+async function writeIfChanged(path: string, source: string): Promise<void> {
+	const current = await Bun.file(path)
+		.text()
+		.catch(() => null);
+	if (current !== source) writeFileSync(path, source);
+}
+
 async function main(): Promise<void> {
 	const build = await $`maizzle build`.cwd(MAIL_DIR).nothrow();
 	if (build.exitCode !== 0) {
@@ -135,11 +150,18 @@ async function main(): Promise<void> {
 		}
 	}
 
-	const source = localesModule(manifest.locales);
-	const current = await Bun.file(LOCALES_MODULE)
-		.text()
-		.catch(() => null);
-	if (current !== source) writeFileSync(LOCALES_MODULE, source);
+	await writeIfChanged(LOCALES_MODULE, localesModule(manifest.locales));
+	await writeIfChanged(
+		CODES_LEFT_MODULE,
+		codesLeftModule(
+			Object.fromEntries(
+				manifest.locales.map((locale) => [
+					locale,
+					branchesOf(locale, codesLeftMessage(locale)),
+				]),
+			),
+		),
+	);
 
 	console.log(
 		`@nxgt/janus-mail: ${EXPECTED_EMAILS.length} e-mails built in ${manifest.locales.join(', ')}`,

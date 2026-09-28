@@ -55,6 +55,19 @@ export interface JanusMailVariables {
 		readonly name: string;
 		readonly link: string;
 	};
+	/**
+	 * `when` is the sender's text, already in the recipient's locale and time
+	 * zone; `recoveryCodesLeft` the sentence of the codes left — "You have 9
+	 * recovery codes left." — formatted by `recoveryCodeUsed` from the count,
+	 * or the send's own text.
+	 */
+	readonly recoveryCodeUsed: {
+		readonly brand: string;
+		readonly name: string;
+		readonly when: string;
+		readonly recoveryCodesLeft: string;
+		readonly link: string;
+	};
 	/** `name` is in the subject too: "Welcome, Ada". */
 	readonly welcome: {
 		readonly brand: string;
@@ -63,7 +76,7 @@ export interface JanusMailVariables {
 	};
 }
 
-/** The name of one of the eight templates: `verifyEmail`, `resetPassword`, … */
+/** The name of one of the nine templates: `verifyEmail`, `resetPassword`, … */
 export type JanusMailTemplateName = keyof JanusMailVariables;
 
 /**
@@ -76,7 +89,7 @@ export type JanusMailTemplate<V, L extends string = JanusMailLocale> = (
 	variables: V & { readonly locale: L },
 ) => Rendered | PromiseLike<Rendered>;
 
-/** The eight templates, each for the locales `L`. */
+/** The nine templates, each for the locales `L`. */
 export type JanusMailTemplates<L extends string = JanusMailLocale> = {
 	readonly [K in JanusMailTemplateName]: JanusMailTemplate<
 		JanusMailVariables[K],

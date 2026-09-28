@@ -13,7 +13,7 @@ describe('emailsProblem', () => {
 		emails: Object.fromEntries(emails.map((email) => [email, {}])),
 	});
 
-	test('holds for exactly the eight e-mails, in any order', () => {
+	test('holds for exactly the nine e-mails, in any order', () => {
 		expect(emailsProblem(built([...EXPECTED_EMAILS].reverse()))).toBeNull();
 	});
 
@@ -21,7 +21,7 @@ describe('emailsProblem', () => {
 		expect(
 			emailsProblem(built([...EXPECTED_EMAILS, 'magic-link'])),
 		).toStartWith(
-			'build-mail: the build holds email-changed, magic-link, password-changed, reset-password, sign-in-code, two-factor-disabled, two-factor-enabled, verify-email, welcome, ',
+			'build-mail: the build holds email-changed, magic-link, password-changed, recovery-code-used, reset-password, sign-in-code, two-factor-disabled, two-factor-enabled, verify-email, welcome, ',
 		);
 		expect(emailsProblem(built(EXPECTED_EMAILS.slice(1)))).not.toBeNull();
 		expect(emailsProblem(built([]))).toStartWith(

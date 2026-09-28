@@ -8,6 +8,7 @@
 import { expiringMails } from './expiring-mails';
 import { noticeMails } from './notice-mails';
 import { resolveOptions } from './options';
+import { recoveryMail } from './recovery-mail';
 import type { JanusMail, JanusMailLocale, JanusMailOptions } from './types';
 
 /**
@@ -23,6 +24,7 @@ import type { JanusMail, JanusMailLocale, JanusMailOptions } from './types';
  * 		resetPassword: (token) => `https://acme.example/reset?token=${token}`,
  * 		secureAccount: () => 'https://acme.example/account/security',
  * 		getStarted: () => 'https://acme.example/',
+ * 		recoveryCodes: () => 'https://acme.example/account/recovery-codes', // optional
  * 	},
  * });
  *
@@ -39,6 +41,7 @@ export function janusMail<const L extends string = JanusMailLocale>(
 	const mail: JanusMail<string> = Object.freeze({
 		...expiringMails(resolved),
 		...noticeMails(resolved),
+		...recoveryMail(resolved),
 		templates: resolved.templates,
 		locales: resolved.locales,
 	});
