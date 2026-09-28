@@ -74,9 +74,10 @@ still held 0.17.1. Both passed, with typecheck clean, and passed again on
 0.18.1 from the lock. `@nxgt/mail`, from
 nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.8.0 from
 the lock, with `@nxgt/mail-config` 0.2.1, `@nxgt/mail-i18n` 0.6.0,
-`@nxgt/mail-ui` 0.5.0 and `@nxgt/mail-presets` 0.4.1 building `mails/` — whose
+`@nxgt/mail-ui` 0.6.0 and `@nxgt/mail-presets` 0.4.2 building `mails/` — whose
 HTML follows dark mode since `@nxgt/mail-ui` 0.4.0, with a dark primary of its
-own (`color-primary-dark`) since 0.5.0 (the manifest is still format 1), and
+own (`color-primary-dark`) since 0.5.0 and a dark muted (`color-muted-dark`,
+the sign-in code's box) since 0.6.0 (the manifest is still format 1), and
 whose
 text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, and keep
 each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it),

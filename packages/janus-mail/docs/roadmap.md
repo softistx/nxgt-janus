@@ -48,6 +48,12 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A sign-in code box that is not a light slab in dark mode, v0.3.2.** Under
+  dark mode the code's box is a mid slate, 6.95:1 against the dark card, with
+  the near-black code at 7.76:1 on it, and the page behind the card is darker
+  again; light mode, the text parts, subjects and variables are unchanged.
+  Built from `@nxgt/mail-ui` 0.6.0 and `@nxgt/mail-presets` 0.4.2; the
+  manifest is still format 1, and the `@nxgt/mail` peer stays `>=0.1.0 <1`.
 - **A button that shows in dark mode, v0.3.1.** Under dark mode the button
   is near-white with near-black text, no longer a near-black one that all but
   vanished on the dark card; light mode, the text parts, subjects and
