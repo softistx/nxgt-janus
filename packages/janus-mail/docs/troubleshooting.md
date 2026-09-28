@@ -437,8 +437,9 @@ ui({
 
 A `signInCode` template of your own, built with `@nxgt/mail-ui`'s `NxCode`,
 keeps its light box (`#f1f5f9`) on the dark card for a reader in dark mode;
-the defaults turn theirs dark there since 0.3.2. The box is muted, which
-keeps its light value under dark mode unless the build gives it a dark one.
+the defaults turn theirs a mid slate there since 0.3.2, and dark since
+0.4.1. The box is muted, which keeps its light value under dark mode unless
+the build gives it a dark one.
 Build the override with `@nxgt/mail-ui` 0.7.0 or later and set the muted
 pair, as the defaults do since 0.4.1:
 
@@ -456,7 +457,7 @@ ui({
 
 A template of your own built as the defaults were before 0.4.1 — a mid-slate
 `color-muted-dark: '#94a3b8'` and no `color-muted-foreground-dark` — shows
-the code at 1.86:1 once rebuilt with `@nxgt/mail-ui` 0.7.0. Until 0.6.0,
+the code at 1.86:1 once rebuilt with `@nxgt/mail-ui` 0.7.0. Through 0.6.0,
 `NxCode`'s text stayed the light foreground (`#020918`) in both modes; since
 0.7.0 it turns `color-muted-foreground-dark` wherever its box turns
 `color-muted-dark`, and that token falls back to the light muted text,

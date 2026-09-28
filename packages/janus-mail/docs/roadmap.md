@@ -52,7 +52,7 @@ Newest first; from the first release on, the package's CHANGELOG holds every one
   it, 9.85:1, and the muted text turns light, 13.31:1 on the page and
   12.01:1 on the card; in light mode
   the muted grey is a shade darker, 4.53:1 on the page and 4.56:1 on the
-  notices' warning. Built from `@nxgt/mail-ui` 0.7.0 and
+  notices' alerts at the least. Built from `@nxgt/mail-ui` 0.7.0 and
   `@nxgt/mail-presets` 0.4.3; the text parts, subjects and variables are
   unchanged, the manifest is still format 1, and the `@nxgt/mail` peer stays
   `>=0.1.0 <1`.

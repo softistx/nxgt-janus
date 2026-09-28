@@ -196,8 +196,8 @@ step above the dark card (`#1e293b`) with light code (`#cbd5e1`) in dark
 mode, 9.85:1. The muted text — the footer, and the closing *if you did not
 ask for this* — is a slate grey (`#5f718a`) in light mode, 4.53:1 on the
 page, and turns `#cbd5e1` in dark mode, 12.01:1 on the dark card and
-13.31:1 on the page. The notices' warning keeps
-its light ground and its grey text in both modes, 4.56:1 at the least. Every
+13.31:1 on the page. The notices' alerts keep their light ground and grey
+text in both modes, 4.56:1 at the least. Every
 text of the defaults reads at 4.5:1 or more in both modes, but the link
 under the button, which `@nxgt/mail-ui` colours with its info blue in
 both: 6.78:1 on the dark card, 2.63:1 on the light one, and no theme token

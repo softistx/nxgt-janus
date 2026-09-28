@@ -306,10 +306,11 @@ retries a `MAIL_FAILED`, rather than to a promise nobody awaits.
 
 ### Retrying and tracing the mailer
 
-From `@nxgt/mail` 0.8, wrap the mailer before you hand it to `janusMail()`:
-`withRetry` retries a `MailFailure` with backoff, reusing one idempotency
-key for every attempt, and never retries a `MailRefused`; `withMailTelemetry`
-from `@nxgt/mail/telemetry` opens a `mail.send` span per send. That entry
+Wrap the mailer before you hand it to `janusMail()`: `withRetry`, from
+`@nxgt/mail` 0.8, retries a `MailFailure` with backoff, reusing one
+idempotency key for every attempt, and never retries a `MailRefused`;
+`withMailTelemetry`, from `@nxgt/mail/telemetry` 0.9 (`withTelemetry` on
+0.8), opens a `mail.send` span per send. That entry
 needs `@opentelemetry/api` installed (an optional peer, loaded by it alone);
 with no OpenTelemetry SDK registered, its spans are no-ops. Put telemetry on the outside, so one
 send is one span:
