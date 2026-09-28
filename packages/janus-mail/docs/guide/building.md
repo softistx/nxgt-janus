@@ -58,7 +58,7 @@ specs and its typecheck run on in the Floors job, on every CI run. The
 manifest says which format it is in — `formatVersion`, its first key,
 `MANIFEST_FORMAT` of the `@nxgt/mail-i18n` that built it — and within 0.x a
 renderer reads every format up to its own.
-`@nxgt/mail` 0.1.0 through 0.8.0 read format 1, and a manifest without the
+`@nxgt/mail` 0.1.0 through 0.9.0 read format 1, and a manifest without the
 field is format 1.
 
 `formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build

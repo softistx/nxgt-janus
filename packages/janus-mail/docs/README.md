@@ -9,7 +9,7 @@ the detail.
 | [Templates](guide/templates.md) | You want an e-mail of your own: what a template takes and answers, a partial override, `janusTemplates()`, and what the defaults say |
 | [Locales](guide/locales.md) | You send in more than one language: how the locale is picked, `fallbackLocale`, fewer locales, and adding one |
 | [Building](guide/building.md) | You work on this package: the Maizzle project in `mail/`, `mails/`, the generated files, and why none of it reaches a consumer's build |
-| [Troubleshooting](troubleshooting.md) | A `TypeError` at wiring or at a call, a `MailRefused`, a `MailFailure`, or a compile error |
+| [Troubleshooting](troubleshooting.md) | A `TypeError` at wiring or at a call, a `MailRefused`, a `MailFailure`, a compile error, or an e-mail that reads wrong in dark or light mode |
 | [Roadmap](roadmap.md) | You want to know what is coming, and what is deliberately not planned |
 
 ## Words

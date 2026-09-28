@@ -1,5 +1,15 @@
 export const USAGE =
-	'usage: run-on-peer-floor.ts <@scope/name>@<version> <package>... -- <command>...';
+	'usage: run-on-peer-floor.ts <name>@<version> <package>... -- <command>...';
+
+/**
+ * An npm package name, scoped (`@nxgt/mongo`) or not (`graphql`): lowercase,
+ * each part starting with a letter or a digit and holding only those, `-`,
+ * `.` and `_`, which also keeps `..` and a second `/` out of the paths it
+ * becomes.
+ */
+const NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
+/** npm's own limit on a name's length. */
+const NAME_MAX = 214;
 
 export interface Plan {
 	readonly name: string;
@@ -20,8 +30,8 @@ export function parsePlan(argv: readonly string[]): Plan {
 	}
 	const name = spec.slice(0, at);
 	const version = spec.slice(at + 1);
-	if (!/^@[a-z0-9-]+\/[a-z0-9-]+$/.test(name)) {
-		throw new Error(`${name} is not a scoped package name. ${USAGE}`);
+	if (!NAME.test(name) || name.length > NAME_MAX) {
+		throw new Error(`${name} is not an npm package name. ${USAGE}`);
 	}
 	if (!/^\d+\.\d+\.\d+$/.test(version)) {
 		throw new Error(`${version} is not an exact version. ${USAGE}`);

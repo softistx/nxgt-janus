@@ -54,6 +54,8 @@ How the messages are shaped:
 - [An e-mail stays light in dark mode](#an-e-mail-stays-light-in-dark-mode)
 - [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
 - [The sign-in code's box stays a light slab in dark mode](#the-sign-in-codes-box-stays-a-light-slab-in-dark-mode)
+- [The sign-in code turns unreadable in dark mode after upgrading `@nxgt/mail-ui` to 0.7](#the-sign-in-code-turns-unreadable-in-dark-mode-after-upgrading-nxgtmail-ui-to-07)
+- [The link under the button is faint in light mode](#the-link-under-the-button-is-faint-in-light-mode)
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
@@ -436,20 +438,49 @@ ui({
 
 A `signInCode` template of your own, built with `@nxgt/mail-ui`'s `NxCode`,
 keeps its light box (`#f1f5f9`) on the dark card for a reader in dark mode;
-the defaults turn theirs a mid slate there since 0.3.2. The box is muted,
-which keeps its light value under dark mode unless the build gives it a dark
-one. Build the override with `@nxgt/mail-ui` 0.6.0 or later and set
-`color-muted-dark`. The code's text stays the light foreground (`#020918`) in
-both modes, so a dark muted such as `#1e293b` leaves it at 1.36:1: pick one
-light enough for that text, as the defaults do:
+the defaults turn theirs a mid slate there since 0.3.2, and dark since
+0.4.1. The box is muted, which keeps its light value under dark mode unless
+the build gives it a dark one.
+Build the override with `@nxgt/mail-ui` 0.7.0 or later and set the muted
+pair, as the defaults do since 0.4.1:
 
 ```ts
 ui({
 	brand: { name: 'Acme' },
 	theme: {
-		'color-muted-dark': '#94a3b8', // the code at 7.76:1 on it, 6.95:1 against the dark card
+		'color-muted-dark': '#1e293b', // the box, a step above the dark card
+		'color-muted-foreground-dark': '#cbd5e1', // the code, 9.85:1 on it; muted text, 12.01:1 on the card
 	},
 });
+```
+
+### The sign-in code turns unreadable in dark mode after upgrading `@nxgt/mail-ui` to 0.7
+
+A template of your own built as the defaults were before 0.4.1 — a mid-slate
+`color-muted-dark: '#94a3b8'` and no `color-muted-foreground-dark` — shows
+the code at 1.86:1 once rebuilt with `@nxgt/mail-ui` 0.7.0. Through 0.6.0,
+`NxCode`'s text stayed the light foreground (`#020918`) in both modes; since
+0.7.0 it turns `color-muted-foreground-dark` wherever its box turns
+`color-muted-dark`, and that token falls back to the light muted text,
+`#62748e`. The same token colours muted text on the dark card and page, so
+no one value suits a mid-slate box: set a dark `color-muted-dark` and a
+light `color-muted-foreground-dark`, as in the entry above.
+
+### The link under the button is faint in light mode
+
+The link repeated in text under the button, for a client that shows no
+button, is `@nxgt/mail-ui`'s `NxLink`, coloured with its info blue
+(`#54a2ff`) in both modes: 2.63:1 on the light card, 6.78:1 on the dark
+one. It is the one text of the defaults under 4.5:1. `color-info` has no
+dark twin, and no single value reaches 4.5:1 on both the white card and the
+dark card, so the defaults leave it as it is rather than trade the dark
+mode for the light one; it is `@nxgt/mail-ui`'s to fix. A template of your
+own can colour its link with the primary instead, which has a dark twin:
+`NxLink` merges a `class` over its own `text-info`, and
+`nx-dark-text-primary` follows `color-primary-dark` in dark mode:
+
+```vue
+<NxLink :href="link" class="text-primary nx-dark-text-primary">{{ link }}</NxLink>
 ```
 
 ## Compile errors
