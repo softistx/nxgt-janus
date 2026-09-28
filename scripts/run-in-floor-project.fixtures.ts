@@ -27,7 +27,7 @@ export interface Workspace {
 	readonly expectCleaned: () => Promise<void>;
 }
 
-export async function write(path: string, content: string | object) {
+async function write(path: string, content: string | object) {
 	await mkdir(dirname(path), { recursive: true });
 	await Bun.write(
 		path,

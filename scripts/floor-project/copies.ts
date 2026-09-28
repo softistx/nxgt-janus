@@ -35,8 +35,13 @@ export async function versionFrom(
 
 /** The package directories directly under a `node_modules`, scoped or not. */
 async function packagesIn(modules: string): Promise<string[]> {
+	// A package with no `node_modules` of its own is the usual case; any other
+	// error is rethrown, so an unreadable directory never hides a copy.
 	const entries = await readdir(modules, { withFileTypes: true }).catch(
-		() => [],
+		(error: NodeJS.ErrnoException) => {
+			if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return [];
+			throw error;
+		},
 	);
 	const dirs: string[] = [];
 	for (const entry of entries) {
