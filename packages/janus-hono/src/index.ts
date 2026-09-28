@@ -4,6 +4,9 @@
  * - `session(auth, options?)` — middleware: `c.var.user` and `c.var.session`
  *   on every request, a 401 where a user is required, the renewed cookie sent
  *   again;
+ * - `fresh(maxAge, options?)` — middleware, behind `session(auth)`: the
+ *   route runs only for a session that proved who it is less than `maxAge`
+ *   ago, `STEP_UP_REQUIRED` otherwise;
  * - `sendSession(c, auth, signedIn)` and `signOut(c, auth)` — the cookie, set
  *   and cleared; `sendSession` answers the user;
  * - `permission(access, permission, type, load)` — middleware: the route runs
@@ -36,6 +39,7 @@ export {
 	janusErrors,
 	statusOf,
 } from './errors';
+export { type FreshOptions, fresh } from './fresh';
 export {
 	byParam,
 	type ObjectData,

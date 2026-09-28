@@ -48,9 +48,10 @@ declarations import without extensions, so `nodenext` is not supported.
 | --- | --- |
 | `session(auth, options?)` | Middleware. Reads who the request belongs to — `auth.authenticate(c.req.raw)` — and sets `c.var.user` and `c.var.session`, `null` for an anonymous request. `{ required: true }` answers an anonymous request 401 and types `c.var.user` as never `null`. `{ type: 'staff' }` treats a user of any other type as anonymous. Sends a renewed session's cookie again |
 | `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, `secondFactor.confirm`, `secondFactor.recover`, or anything that answered `{ token, session, user }` — and answers the user. With a second factor configured, narrow `signIn`'s answer on `status` first |
+| `fresh(maxAge, { clock? })` | Middleware, after `session()`. The route runs only for a session that proved who it is less than `maxAge` ago — signed in, or confirmed since by `auth.stepUp.confirm`. An older one throws `STEP_UP_REQUIRED`, which `janusErrors()` answers 403; an anonymous request is 401 with no body. `clock` is the one given to `janus()`, in a spec |
 | `signOut(c, auth)` | Revokes the session the request presents and clears the cookie, whatever the answer. `false` when the request presented no session, or an unknown one |
 | `janusErrors({ report?, fallback? })` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)`; anything else to `fallback`, or to Hono's own handling. `report(error, c)` sees every one answered 5xx first — `STORE_FAILED` and the like, for your logs |
-| `statusOf(code)` | The status a code deserves — `@nxgt/janus`'s `statusOf`, typed as Hono's `ContentfulStatusCode`: `STORE_FAILED` 503, `CREDENTIALS_INVALID` and `CODE_INVALID` 401, `USER_INACTIVE` 403, `LOGIN_TAKEN`, `SECOND_FACTOR_NOT_ENROLLED` and `SECOND_FACTOR_ACTIVE` 409, … Exhaustive over `JanusErrorCode` |
+| `statusOf(code)` | The status a code deserves — `@nxgt/janus`'s `statusOf`, typed as Hono's `ContentfulStatusCode`: `STORE_FAILED` 503, `CREDENTIALS_INVALID` and `CODE_INVALID` 401, `USER_INACTIVE` and `STEP_UP_REQUIRED` 403, `LOGIN_TAKEN`, `SECOND_FACTOR_NOT_ENROLLED` and `SECOND_FACTOR_ACTIVE` 409, … Exhaustive over `JanusErrorCode` |
 | `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT` and `attemptsLeft` for any `CODE_INVALID` that carries it — `secondFactor.confirm`'s, `secondFactor.recover`'s and `signInCode.confirm`'s — what the client can act on, and nothing else |
 | `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
@@ -60,6 +61,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | `bindJanus({ auth?, access? })` | The functions above with the instances bound: `session(options?)`, `sendSession(c, signedIn)` and `signOut(c)` with `auth`; `permission(permission, type, load, options?)` with `access`; `provide()` always |
 | `provide({ auth?, access? })` | Middleware. Sets `c.var.auth` and `c.var.access` to the instances given — only those — for a route that writes users or tuples |
 | `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
+| `FreshOptions` | `{ clock? }`, the options of `fresh()` |
 | `JanusErrorsOptions` | `{ report?, fallback? }`, the options of `janusErrors()` — for a wrapper of your own |
 | `Bound<I>` | What `bindJanus(instances)` answers, for `I` the type of `instances` — to pass a bound `j` to a module of routes |
 | `Bindable` | What `bindJanus()` takes: `{ auth?, access? }`, the constraint on `Bound`'s `I` |
@@ -120,6 +122,40 @@ app.onError(janusErrors()); // a wrong code: 401 { code: 'CODE_INVALID', attempt
 `TOKEN_*` 400 — sign in again — and `SECOND_FACTOR_NOT_ENROLLED` and
 `SECOND_FACTOR_ACTIVE` 409. The enrolment routes and a bearer client's
 sign-in are in [the routes guide](docs/guide/routes.md#a-second-factor).
+
+## Step-up
+
+A sensitive route asks for a recent proof: `fresh(maxAge)` after
+`session()`. An older session is answered 403 `STEP_UP_REQUIRED`; the client
+asks for a step-up, confirms it, and sends the request again:
+
+```ts
+import { fresh, janusErrors, session } from '@nxgt/janus-hono';
+import { getCookie, setCookie } from 'hono/cookie';
+
+const app = new Hono()
+	.delete('/account', session(auth, { required: true }), fresh('10m'), deleteAccount)
+	.post('/step-up', session(auth, { required: true }), async (c) => {
+		const issued = await auth.stepUp.request(c.var.user);
+		if (issued.via === 'email') await sendMail(issued.email, issued.code); // yours
+		setCookie(c, 'step-up-challenge', issued.challenge, {
+			path: '/step-up', httpOnly: true, secure: true, sameSite: 'Strict', expires: issued.expiresAt,
+		});
+		return c.json({ via: issued.via }); // 'secondFactor': ask for the app's code
+	})
+	.post('/step-up/code', async (c) => {
+		const { code } = await c.req.json();
+		const challenge = getCookie(c, 'step-up-challenge') ?? '';
+		await auth.stepUp.confirm(c.req.raw, challenge, code); // this request's session, fresh now
+		return c.body(null, 204);
+	});
+
+app.onError(janusErrors()); // 403 { code: 'STEP_UP_REQUIRED' }, 401 { code: 'CODE_INVALID', attemptsLeft }
+```
+
+`confirm` stamps the session the request presents and opens none: there is
+no cookie to send again. The whole flow is in
+[the routes guide](docs/guide/routes.md#a-step-up).
 
 ## Permissions
 
@@ -253,6 +289,9 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 - **One `permission()` per route.** Both would claim `c.var.object`, so a
   second throws a `TypeError`. Check a parent object through an arrow in the
   model.
+- **`fresh()` needs `session()` before it**, as `permission()` does: without
+  it, `fresh()` throws a `TypeError` at the first request. A 403
+  `STEP_UP_REQUIRED` is not a denial — ask for a step-up, then retry.
 - **`permission()` needs `session()` before it**, or `{ subject }`. Without
   either, it throws a `TypeError` at the first request — a wiring error, not
   an anonymous 401.
@@ -267,7 +306,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Type safety, counted
 
-Twenty-five plausible mistakes are refused by the compiler, each with a
+Twenty-six plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - six in `session.ts`: reading `c.var.user` where it may be `null` (twice,
@@ -285,6 +324,8 @@ Twenty-five plausible mistakes are refused by the compiler, each with a
   user, an unknown user type, a missing `ctx`, a misspelled permission — a
   `permission`, `session`, `sendSession` or `signOut` it was not given the
   instance for, and an `access` that is no `permissions()` instance.
+- one in `fresh.ts`: a `maxAge` that is no duration — `'10 minutes'` for
+  `'10m'`.
 
 ## Licence
 

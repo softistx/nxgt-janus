@@ -440,6 +440,66 @@ A user type with no password has no second factor, so its `confirm` always
 answers a session. The attempts, the lifetime and every refusal are
 [`@nxgt/janus`'s sign-in code guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sign-in-code.md).
 
+## A step-up
+
+A route a stolen session should not run alone — deleting the account,
+changing the e-mail, disabling the second factor — asks for a **recent
+proof** with `fresh(maxAge)`, after `session()`:
+
+```ts
+import { fresh, session } from '@nxgt/janus-hono';
+
+app.delete('/account', session(auth, { required: true }), fresh('10m'), async (c) => {
+	await auth.delete(c.var.user);
+	return c.body(null, 204);
+});
+```
+
+A session that signed in, or was confirmed by a step-up, less than ten
+minutes ago runs the route. An older one is answered
+`403 {"code":"STEP_UP_REQUIRED"}` by `janusErrors()` — not a denial: the
+client runs a step-up, then sends the same request again. Two routes, built
+like [the code sent by e-mail](#a-code-sent-by-e-mail), except that both
+need the session:
+
+```ts
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+
+app
+	.post('/step-up', session(auth, { required: true }), async (c) => {
+		const issued = await auth.stepUp.request(c.var.user);
+		if (issued.via === 'email') {
+			await mailer.send(issued.email, `Your confirmation code: ${issued.code}`); // yours
+		}
+		setCookie(c, 'step-up-challenge', issued.challenge, {
+			path: '/step-up', httpOnly: true, secure: true, sameSite: 'Strict', expires: issued.expiresAt,
+		});
+		return c.json({ via: issued.via }); // 'secondFactor': the code comes from their app
+	})
+	.post('/step-up/code', session(auth, { required: true }), async (c) => {
+		const { code } = await c.req.json();
+		const challenge = getCookie(c, 'step-up-challenge') ?? '';
+		await auth.stepUp.confirm(c.req.raw, challenge, code);
+		deleteCookie(c, 'step-up-challenge', { path: '/step-up' });
+		return c.body(null, 204);
+	});
+```
+
+- **`confirm` takes the request**: it stamps the session that request
+  presents — `c.req.raw`, with its cookie or its `Authorization` header —
+  and opens none, so there is no cookie to send again. A challenge carried
+  to another session is `TOKEN_UNKNOWN`, 400.
+- **`via: 'secondFactor'`** — a user whose second factor is active confirms
+  with their app's code, and no e-mail is sent. A step-up is never weaker
+  than the sign-in the account asks for.
+- **A wrong code** is `401 {"code":"CODE_INVALID","attemptsLeft":n}`, as on
+  the sign-in code form; the fifth spends the challenge.
+
+`fresh()` reads `session.authenticatedAt` and nothing else: no store read.
+In a spec, pass `janus()`'s clock — `fresh('10m', { clock })` — so
+`clock.advance()` ages the session. Every refusal is in
+[`@nxgt/janus`'s step-up guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/step-up.md).
+
 ## Sign-out
 
 ```ts

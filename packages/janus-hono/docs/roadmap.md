@@ -36,6 +36,10 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **`fresh(maxAge)`, v0.4.0** — a middleware that lets a route run only for
+  a session that proved who it is less than `maxAge` ago, signed in or
+  confirmed by a step-up; `janusErrors()` answers `STEP_UP_REQUIRED` with
+  403. Needs `@nxgt/janus` 0.12.0.
 - **The second factor's errors as statuses, v0.3.0** — `janusErrors()`
   answers `CODE_INVALID` with 401 and `attemptsLeft` in the body, and
   `SECOND_FACTOR_NOT_ENROLLED` and `SECOND_FACTOR_ACTIVE` with 409. Needs
