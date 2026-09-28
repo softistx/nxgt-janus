@@ -481,7 +481,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | --- | --- | --- |
 | `CursorPage`, `pageLimit` | `src/pagination/` | Four fields are not worth a dependency on a package from another repository |
 | `Clock`, `fixedClock` | `src/time/` | Same, and `fixedClock` is **shipped**, not test-only: a consumer testing session expiry needs it |
-| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above. `scripts/artifacts/` was split here first, and nxgt-data, nxgt-http and nxgt-core now follow it module for module. All four hold the test-code check, the guard that reports an unbuilt package as `no dist/`, and `missingFiles`, whose spec holds that a `files` entry `dis` is not covered by `dist/`. Only nxgt-core has `browser.ts`, for the `browser` export condition, which no package here declares. This copy and nxgt-data read a sibling's version from the workspace; nxgt-http and nxgt-core read it from the packed manifests. Outside `scripts/artifacts/`, `check-nxgt-versions.ts` is in nxgt-data and nxgt-core as well, ported from here (nxgt-data #139, nxgt-core #158); nxgt-http has none, since every `@nxgt/*` package it depends on is a workspace sibling. `check-changesets.ts`, `run-on-peer-floor.ts` and `scripts/peer-floor/` are this copy's alone. A check added to one copy is a check to port to the others |
+| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above. `scripts/artifacts/` was split here first, and nxgt-data, nxgt-http and nxgt-core now follow it module for module. All four hold the test-code check, the guard that reports an unbuilt package as `no dist/`, and `missingFiles`, whose spec holds that a `files` entry `dis` is not covered by `dist/`. Only nxgt-core has `browser.ts`, for the `browser` export condition, which no package here declares. This copy and nxgt-data read a sibling's version from the workspace; nxgt-http and nxgt-core read it from the packed manifests. Outside `scripts/artifacts/`, `check-nxgt-versions.ts` is in nxgt-data and nxgt-core as well, ported from here (nxgt-data #139, nxgt-core #158); nxgt-http has none, since every `@nxgt/*` package it depends on is a workspace sibling. `check-changesets.ts`, `run-on-peer-floor.ts`, `run-in-floor-project.ts`, `scripts/peer-floor/` and `scripts/floor-project/` are this copy's alone. A check added to one copy is a check to port to the others |
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/`, `packages/janus-webhooks-redis/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; three copies of 60 lines are cheaper. The Redis version in them keys the one `.cache/redis`, and `$JANUS_REDIS_VERSION` and `$REDIS_BIN` override it the same way in all three. Byte-identical, and both CI jobs, `ci` and `floors`, key their Redis cache on all three. Change one, change all |
 | The Redis script runner and reply reader — `scriptsOver`, `isNoScript`, `runner` and its `Run`, `stamp`, `readerOf`, `unreadable` | `packages/janus-redis/src/{stores,replies}.ts`, `packages/janus-webhooks-redis/src/{queue,replies}.ts` | Two adapters of two ports in two packages, and neither may depend on the other; a shared package for 80 lines would be a third to publish. The runner is the same but for its failure's message: `webhookQueue.<method>: the queue could not answer` with `operation` only, where janus-redis says `<slot>.<operation>: the store could not answer` with `slot` too. `runner` takes no `slot` here, and this copy's `Run` takes a lazy `argsOf(operation)` builder where janus-redis's takes an eager `args` array, so a refusal names the operation before any I/O. The reader reads dates the same way — any number but `''` and `NaN` — and a count's digits the same way, with two differences: janus-redis's field `count` answers `0` for an absent field (a token of an earlier version) where this copy fails, and janus-redis's reply `count` takes any number where this copy's `toCount` requires a safe integer, 0 or more. `unreadable` differs in the same way as the runner. The webhook copy adds `type` and `failure`, and refuses before any I/O what it could not read back. Change one, change both |
 | `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. Both end with the same `redisPerFile()`, the file's server started and stopped around its cases. A change to how a case opens or fails belongs in both |
@@ -555,6 +555,26 @@ The table that exists so a duplication is a decision rather than an accident.
   `bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
   bash -c 'cd packages/janus-mail && bun test src scripts && bun run typecheck'`;
   a link it refuses as left by an interrupted run is fixed by `bun install`.
+  A floor the rest of the workspace also resolves cannot be linked over:
+  graphql-yoga and the `@graphql-tools/*` packages resolve graphql 17 from
+  Bun's store, so one package's link at 16.9.0 gives its specs two copies of
+  graphql. `scripts/run-in-floor-project.ts` runs those instead: it packs the
+  package and its `workspace:` siblings, installs them in a scratch project
+  (hoisted) with the floors, `--single` ones overridden for every package,
+  and everything else the package lists at the version the workspace
+  resolves, refuses the install unless it holds exactly one copy of each
+  `--single` floor and both the copied sources and the packed package resolve
+  every floor, imports the packed package, and runs the command in a copy of
+  the package's directory — all but its `node_modules` and `dist/`, with
+  the root's `tsconfig.base.json` beside it — then removes the project. It
+  runs `@nxgt/janus-graphql` on `graphql` 16.9.0, `@envelop/core` 5.0.0 and
+  `@graphql-tools/utils` 10.0.0, one copy of graphql; graphql-yoga keeps
+  its own newer `@envelop/core` and `@graphql-tools/utils`, nested. A floor
+  outside the package's peer range, or not a peer of it, is refused before
+  anything is made. Locally, after `bun run build`, with the scratch space
+  under `TMPDIR`: `bun scripts/run-in-floor-project.ts janus-graphql
+  graphql@16.9.0 @envelop/core@5.0.0 @graphql-tools/utils@10.0.0 --single
+  graphql -- bash -c 'bun test src && bun run typecheck'`.
   A README that states a new floor adds it to that job; a
   floor that fails there means the README is wrong, and the owner decides what
   it promises instead; it is never made green by testing a newer version.
@@ -656,6 +676,21 @@ refused; `run-on-peer-floor.unscoped.spec.ts` runs the same store with an
 unscoped peer, whose locked copy sits beside its siblings rather than under a
 scope and is not linked over the floor, and holds that a success and a failed
 stage put everything back and that a missing unscoped link is refused.
+`scripts/floor-project/*.spec.ts` cover the scratch project's argument
+parsing (`--single` on a name that is no floor, a floor named twice, a
+package that is not one directory), its manifest — what is packed, what is
+carried at the workspace's version, a floor outside the peer range or not a
+peer — the copies a hoisted tree holds and what a directory resolves, and
+the copy of the package and the versions carried from the workspace, a name
+that does not resolve refused with *run bun install*;
+`scripts/run-in-floor-project.spec.ts` runs it on a scratch workspace
+(`run-in-floor-project.fixtures.ts`) with the pack and the install stubbed,
+and holds that the command runs in the copy on the floor and the project is
+removed after a success, a second copy of a `--single` floor, a packed
+package resolving another version, a packed package that does not load and
+a SIGTERM. Both floor scripts forward SIGINT and SIGTERM through
+`scripts/peer-floor/forward.ts`, whose spec holds that a signal arriving
+before the command answers `128 + <signal>` without running it.
 
 ---
 
