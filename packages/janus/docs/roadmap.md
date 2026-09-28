@@ -66,6 +66,12 @@ Nothing is in progress between releases; the next item is below.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **The recovery codes left, read again, v0.11.0** —
+  `secondFactor.recoveryCodesLeft(user)` answers the count `recover`
+  answered, for a `user.recoveryCodeUsed` listener — the event names the
+  user only — or a security settings page; `null` for a user with no active
+  factor. The listener can now tell the user how many codes remain, as
+  `@nxgt/janus-mail`'s `recoveryCodeUsed` e-mail does.
 - **Recovery codes, v0.10.0** — a user who loses their authenticator app
   still signs in, with no operator resetting the account.
   `secondFactor.activate` answers `{ user, recoveryCodes }`: ten single-use
@@ -144,10 +150,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `{ status: 'secondFactor', challenge, expiresAt }`. A challenge lives five
   minutes and takes five attempts, a code is accepted once, and a refused one
   throws `CODE_INVALID` with `attemptsLeft`.
-- **The store port holds a second factor and counts attempts on a token,
-  v0.4.0** — `UserRecord.secondFactor`, a token's `codeHash` and `attempts`,
-  the token kinds `'secondFactor'` and `'signInCode'`, and
-  `TokenStore.countAttempt`, one conditional write per attempt, with six new
-  conformance cases. The published adapters implement them in
-  `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3 and
-  `@nxgt/janus-redis` 0.2.

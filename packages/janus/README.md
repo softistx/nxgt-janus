@@ -501,6 +501,7 @@ if (result.status === 'secondFactor') {
 	// await auth.secondFactor.recover(result.challenge, recoveryCode) // { …, recoveryCodesLeft: 9 }
 }
 
+await auth.secondFactor.recoveryCodesLeft(user);             // 9, or null without an active factor
 await auth.secondFactor.regenerateRecoveryCodes(user, code); // { user, recoveryCodes }: ten new, the old ones end
 await auth.secondFactor.disable(user);                       // the factor and its recovery codes
 ```
@@ -526,7 +527,10 @@ every user type with a password.
   shown once, stored only as keyed hashes. `recover(challenge, code)` redeems a
   sign-in's challenge with one instead of the app's code, sharing its five
   attempts, and answers a `RecoveredSignIn`: the session with
-  `recoveryCodesLeft`. `regenerateRecoveryCodes(user, code)` replaces them all,
+  `recoveryCodesLeft`. `recoveryCodesLeft(user)` reads that count again —
+  for a `user.recoveryCodeUsed` listener, which has the id only — and
+  answers `null` for a user with no active factor.
+  `regenerateRecoveryCodes(user, code)` replaces them all,
   on a fresh code from the app, and answers a `RecoveryCodesIssued` too;
   `disable` removes them. `regenerateRecoveryCodes` takes five attempts per user per 15-minute
   window, counted by the store: a wrong code is `CODE_INVALID` with
@@ -634,7 +638,8 @@ await auth.signUp({ email, password }); // the listener has the event before thi
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.
 
-To tell the user their second factor was turned on or off, send
+To tell the user their second factor was turned on or off, or that a
+recovery code was used, send
 [`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s notice
 from the listener — or from a queue it feeds:
 
@@ -644,6 +649,15 @@ async events(event) {
 	if (event.type === 'user.secondFactorDisabled') {
 		const user = await auth.get(event.userId);
 		await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
+	}
+	if (event.type === 'user.recoveryCodeUsed') {
+		const user = await auth.get(event.userId);
+		const recoveryCodesLeft = await auth.secondFactor.recoveryCodesLeft(user); // the event has the id only
+		if (recoveryCodesLeft === null) return; // the factor was turned off since
+		await mail.recoveryCodeUsed(
+			{ name: user.name, locale: user.locale, email: user.email },
+			{ when: event.occurredAt.toLocaleString(user.locale), recoveryCodesLeft },
+		);
 	}
 },
 ```
@@ -1002,7 +1016,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and twenty-three plausible mistakes, one hundred and twenty-three refused at compile time — and
+**One hundred and twenty-four plausible mistakes, one hundred and twenty-four refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1010,8 +1024,8 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-three, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (thirty-seven, on `janus()`, from the point of view of
-the application — eleven of them on the second factor, three on sign-in codes,
+it), `test/types/auth/` (thirty-eight, on `janus()`, from the point of view of
+the application — twelve of them on the second factor, three on sign-in codes,
 three on user events) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
