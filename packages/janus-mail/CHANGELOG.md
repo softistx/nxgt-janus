@@ -1,5 +1,11 @@
 # @nxgt/janus-mail
 
+## 0.4.1
+
+### Patch Changes
+
+- [#144](https://github.com/softistx/nxgt-janus/pull/144) [`be48136`](https://github.com/softistx/nxgt-janus/commit/be48136e8c2bd055cc3c8179aee09597ed22f106) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Every muted text in the e-mails now reads at 4.5:1 or more, in both modes. In dark mode the sign-in code's box is a slate a step above the dark card (`#1e293b`) with light code on it (`#cbd5e1`, 9.85:1), where it was a mid slate with near-black code. The footer turns the same light slate, 13.31:1 on the dark page, where it kept its light grey at 4.15:1; the closing "if you did not ask for this" turns it too, 12.01:1 on the dark card, a step below the body text rather than as bright. In light mode the muted grey is a shade darker, `#5f718a` for `#62748e`: 4.53:1 on the page and 4.56:1 on the error notice's alert (4.67:1 on the warning's), from 4.33:1 and 4.36:1. The e-mails are rebuilt with `@nxgt/mail-ui` 0.7.0, whose `NxCode` text follows `color-muted-foreground-dark`, and `@nxgt/mail-presets` 0.4.3. Gmail still shows the light e-mail. The text parts, the subjects, the variables, the manifest (format 1) and the JavaScript are unchanged. The `@nxgt/mail` peer stays `>=0.1.0 <1`. An override that returns its own `html` is not affected.
+
 ## 0.4.0
 
 ### Minor Changes
