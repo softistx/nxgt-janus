@@ -119,8 +119,9 @@ field's, its type's, its interfaces' — **the smallest `maxAge` holds**. The
 refusal is at `maxAge` exactly: a session `maxAge` seconds old is refused,
 as `assertFresh` refuses it.
 
-**A subscription is checked when it subscribes**: a fresh one keeps
-receiving events past `maxAge`. See
+**A `@fresh` on a subscription field is checked when it subscribes**: a
+fresh one keeps receiving events past `maxAge`. A `@fresh` on the payload's
+type or its fields is checked on every event, as any field. See
 [the step-up over GraphQL](step-up.md#subscriptions).
 
 The time is `useJanus({ clock })`'s — give it the clock given to `janus()`

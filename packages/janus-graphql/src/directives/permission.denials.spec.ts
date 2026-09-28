@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, spyOn } from 'bun:test';
 import { ask, codes } from '../../test/harness';
-import { wards, wired } from './permission.fixtures';
+import { wards, wired } from '../../test/wired';
 
 const typeDefs = /* GraphQL */ `
 	type Query {

@@ -83,7 +83,7 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `ctx.janus.access` | The `permissions()` instance given to `useJanus()`. Absent from the type — and from the context — without one |
 | `janusTypeDefs` | The SDL: `@authenticated`, `@fresh`, `@permission` and the `JanusPermissionDenial` enum — prefixed, so it never collides with a type of your schema. The same text as `graphql/janus.graphqls` |
 | `@authenticated(type: [String!])` | On a field, a type or an interface. A signed-in user, of one of the `type`s when it names some. Anonymous: `UNAUTHENTICATED`. Another type: `FORBIDDEN`. Every one that applies — the field's, its type's, its interfaces' — must hold |
-| `@fresh(maxAge: Int!)` | On a field, a type or an interface. A session that proved who it is less than `maxAge` **seconds** ago — signed in, or confirmed since by `auth.stepUp.confirm`. Anonymous: `UNAUTHENTICATED`. Older: `STEP_UP_REQUIRED`, 403. Checked after `@authenticated`, before `@permission`; the smallest `maxAge` that applies holds; a subscription is checked when it subscribes |
+| `@fresh(maxAge: Int!)` | On a field, a type or an interface. A session that proved who it is less than `maxAge` **seconds** ago — signed in, or confirmed since by `auth.stepUp.confirm`. Anonymous: `UNAUTHENTICATED`. Older: `STEP_UP_REQUIRED`, 403. Checked after `@authenticated`, before `@permission`; the smallest `maxAge` that applies holds; on a subscription field, checked when it subscribes |
 | `@permission(name, type, id, onDeny)` | On a field, a type or an interface. A user holding permission `name` on the object of `type` whose id `id` reads — `args.<path>` or `parent.<path>`; `args.id` on a field, `parent.id` on a type. A list requires it on every id. Repeated, every one must hold, in order. Denied: `NOT_FOUND`, or `FORBIDDEN` with `onDeny: FORBIDDEN` |
 | `loaders: { [type]: (id, ctx) => object \| null }` | The object `@permission` checks for an id alone — from `args`, or a parent field other than `id` — required for a type with a `fromField`, whose fields `access.can` reads. `null` answers `NOT_FOUND` |
 | `conditions: { [type]: (object, ctx) => ctx }` | The `ctx` `@permission` passes to `access.can` for a permission that reaches a `when()` |
@@ -228,9 +228,10 @@ response with several errors: [the errors guide](docs/guide/errors.md).
   `janus({ clock: fixedClock(…) })` in a spec and no `useJanus({ clock })`,
   every session looks as old as the fixed date, and every `@fresh` field
   answers `STEP_UP_REQUIRED`. Pass the same clock to both.
-- **A subscription is fresh when it subscribes.** Its events keep coming
-  past `maxAge`; `@fresh` is not asked again on each one, as
-  `@permission` is.
+- **A subscription field's `@fresh` is checked when it subscribes.** Its
+  events keep coming past `maxAge`; that `@fresh` is not asked again on
+  each one, as `@permission` is. A `@fresh` on the payload's type or its
+  fields is asked on every event, like any field.
 - **A denial of a list field's item fails the whole list** where the item is
   non-null (`[Doctor!]!`), as GraphQL's null propagation always does. Guard
   the list field, or make the item nullable.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { ask, codes } from '../../test/harness';
-import { wired } from './permission.fixtures';
+import { wired } from '../../test/wired';
 
 const typeDefs = /* GraphQL */ `
 	type Query {

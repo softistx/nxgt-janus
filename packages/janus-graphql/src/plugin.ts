@@ -28,9 +28,9 @@ import type { Auth, JanusContext, JanusOptions, UserOfAuth } from './types';
  *
  * `type` treats a user of any other type as anonymous, as
  * `auth.authenticate(request, { type })` does. `clock` is what `@fresh` and
- * `requireFresh()` read the time from — the one given to `janus()`. `loaders` and `conditions`
- * are what `@permission` needs beside `access`: the objects it checks by id,
- * and the `ctx` of the conditions it reaches.
+ * `requireFresh()` read the time from — the one given to `janus()`.
+ * `loaders` and `conditions` are what `@permission` needs beside `access`:
+ * the objects it checks by id, and the `ctx` of the conditions it reaches.
  */
 export function useJanus<
 	A extends Auth<{ readonly type: string; readonly id: string }>,

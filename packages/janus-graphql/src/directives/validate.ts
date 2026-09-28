@@ -2,8 +2,8 @@
  * Decides, when the schema is built, what the directives on one field add up
  * to — and refuses with a `TypeError` what no request could ever pass: a user
  * type `auth` does not know, a `type: []`, restrictions that exclude each
- * other, a `@fresh` whose `maxAge` is not above zero, or a `@permission` the model, the field or the wiring cannot answer
- * (`permission/validate.ts`).
+ * other, a `@fresh` whose `maxAge` is not above zero, or a `@permission` the
+ * model, the field or the wiring cannot answer (`permission/validate.ts`).
  */
 
 import {
