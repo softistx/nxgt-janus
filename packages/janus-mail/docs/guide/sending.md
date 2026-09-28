@@ -271,8 +271,9 @@ retries a `MAIL_FAILED`, rather than to a promise nobody awaits.
 From `@nxgt/mail` 0.8, wrap the mailer before you hand it to `janusMail()`:
 `withRetry` retries a `MailFailure` with backoff, reusing one idempotency
 key for every attempt, and never retries a `MailRefused`; `withTelemetry`
-from `@nxgt/mail/telemetry` opens a `mail.send` span per send (its
-`@opentelemetry/api` peer is optional). Put telemetry on the outside, so one
+from `@nxgt/mail/telemetry` opens a `mail.send` span per send. That entry
+needs `@opentelemetry/api` installed (an optional peer, loaded by it alone);
+with no OpenTelemetry SDK registered, its spans are no-ops. Put telemetry on the outside, so one
 send is one span:
 
 ```ts
@@ -290,8 +291,10 @@ export const mail = janusMail({
 
 **Alias it.** `@nxgt/telemetry` — which `@nxgt/janus-telemetry` peers — also
 exports a `withTelemetry`, `withTelemetry(telemetry, fn)`, which scopes a
-telemetry to a block. The two are unrelated; import `@nxgt/mail`'s under
-another name, as above, when a module uses both.
+telemetry to a block. The two are unrelated: `mail.send` is recorded
+through OpenTelemetry, not `@nxgt/telemetry`, so it does not nest under
+`@nxgt/janus-telemetry`'s spans. Import `@nxgt/mail`'s under another name,
+as above, when a module uses both.
 
 **SMTP ignores the idempotency key**, so a retry after an ambiguous SMTP
 timeout can deliver an e-mail twice. If a duplicate sign-in code or reset
