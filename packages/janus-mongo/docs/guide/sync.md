@@ -106,8 +106,11 @@ encoded: a document read in a shell reads like the record in the code.
   finds the secrets still sealed with a key being
   [rotated out](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md#rotating-the-keys).
 - **Documents written by an earlier version need no migration.** A user
-  without `secondFactor` reads as having none; a token without `codeHash` or
-  `attempts` reads as `null` and `0`.
+  without `secondFactor` reads as having none; a second factor without
+  `recoveryCodes` as one with no recovery codes, `[]`; a token without
+  `codeHash` or `attempts` reads as `null` and `0`.
+- **Recovery codes are stored as keyed hashes**, `secondFactor.recoveryCodes`,
+  in the order written — never a code.
 - **Ids are strings**, the UUIDv7s the core minted — never an `ObjectId`: the
   store mints nothing.
 - **A tuple is unique by construction**, since it is its own `_id`, so writing
@@ -124,7 +127,8 @@ encoded: a document read in a shell reads like the record in the code.
 The validators are `additionalProperties: false`, `strict`, `error`. When a
 version adds a field, the validator the previous sync wrote refuses it: from
 0.2 to 0.3, `secondFactor` on every new user and `codeHash` and `attempts` on
-every new token. Run the sync with the new version **before** the code that
+every new token; from 0.4 to 0.5, `recoveryCodes` on every second factor
+written. Run the sync with the new version **before** the code that
 writes them:
 
 ```ts

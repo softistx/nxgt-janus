@@ -43,6 +43,11 @@ export const users = defineCollection({
 				secret: z.string(),
 				confirmedAt: at.nullable(),
 				lastStep: z.int().nonnegative().nullable(),
+				/**
+				 * The recovery codes' keyed hashes, in order. Absent on a factor
+				 * written before 0.5 — read as `[]`, so no migration is needed.
+				 */
+				recoveryCodes: z.array(z.string()).optional(),
 			})
 			.nullable()
 			.optional(),
