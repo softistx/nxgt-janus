@@ -35,7 +35,7 @@ Nothing between releases.
   `@nxgt/mail` answers every failure, whichever package sent the e-mail.
 - **Retries or a queue** — a retry is the application's decision, made where
   it can see it; hand a send to a queue that retries a `MAIL_FAILED`, or pass
-  a mailer wrapped in `@nxgt/mail` 0.8's `withRetry`.
+  a mailer wrapped in `@nxgt/mail`'s `withRetry` (0.8 or later).
 - **Sending from inside `janus()`** — `@nxgt/janus` stays free of e-mail:
   its flows answer what to send, and this package is called with that answer.
   An application that sends its own way needs neither this package nor a
@@ -47,6 +47,20 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **The recovery code notice, and a readable link in both modes, v0.5.0.**
+  `recoveryCodeUsed(to, { when, recoveryCodesLeft })`, built from
+  `@nxgt/mail-presets` 1.0.0's `recovery-code-used` in English and French:
+  send it on `@nxgt/janus`'s `user.recoveryCodeUsed` event, with the count
+  `auth.secondFactor.recoveryCodesLeft(user)` reads (`@nxgt/janus` 0.11),
+  written as the preset's plural in the recipient's locale — "You have 1
+  recovery code left." Its button links to the new, optional
+  `links.recoveryCodes()`, else `links.secureAccount()`. Nine e-mails now,
+  and nine templates to pass for a locale beyond `en` and `fr`. The link
+  under the button is a blue of each mode's own — 6.70:1 on the light card,
+  where it read 2.63:1, and 9.89:1 on the dark one — from `@nxgt/mail-ui`
+  1.0.0's `color-info-dark`. The `@nxgt/mail` peer widens to `>=0.1.0 <2`,
+  so `@nxgt/mail` 1.0 and its transports are admitted; the manifest is still
+  format 1.
 - **Muted text at 4.5:1 or more in both modes, v0.4.1.** Under dark mode the
   sign-in code's box is a slate a step above the dark card with light code on
   it, 9.85:1, and the muted text turns light, 13.31:1 on the page and

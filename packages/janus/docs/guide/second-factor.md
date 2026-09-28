@@ -421,6 +421,28 @@ spent — even if opening the session then fails. It is the one to tell the
 user about: a recovery code used by someone else is a sign-in without their
 phone.
 
+### Counting what is left
+
+`recoveryCodesLeft(user)` reads the count `recover` answered, for whoever
+did not see that answer: a `user.recoveryCodeUsed` listener, which carries
+the user's id only, or a security settings page that says "3 recovery codes
+left".
+
+```ts
+await auth.secondFactor.recoveryCodesLeft(user); // 9 — or null, with no active factor
+```
+
+- **`null` without an active factor**: a user with none, or one still
+  waiting for its first code, holds no codes to count. `0` is an active
+  factor whose codes are all spent: send them to
+  [regenerate](#regenerating-them).
+- **An unknown id is `NOT_FOUND`**, as for `get`; a store that fails throws
+  `STORE_FAILED`. It writes nothing, and takes no key: it counts hashes.
+- **Read after the write**: in a `user.recoveryCodeUsed` listener it counts
+  the code just spent out.
+  [`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s
+  `recoveryCodeUsed` says it in the e-mail — see [User events](events.md#telling-the-user-a-recovery-code-was-used).
+
 ### Regenerating them
 
 ```ts
@@ -822,6 +844,7 @@ interface SecondFactorApi<U> {
 		disable(user: UserRef, options?: WriteOptions): Promise<U>;
 		confirm(challenge: string, code: string): Promise<SignedIn<U>>;
 		recover(challenge: string, code: string): Promise<RecoveredSignIn<U>>; // code: a recovery code
+		recoveryCodesLeft(user: UserRef): Promise<number | null>; // null: no active factor
 	};
 }
 

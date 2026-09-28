@@ -430,7 +430,7 @@ try {
 
 ### `NOT_FOUND` — `<call>: no <type> has this id`
 
-`NotFoundError`, from `get`, `getUser`, `update`, `setActive`, `setPassword`, `verifyEmail.send`. Also `<call>: the user has no e-mail`.
+`NotFoundError`, from `get`, `getUser`, `update`, `setActive`, `setPassword`, `verifyEmail.send`, `secondFactor.recoveryCodesLeft`. Also `<call>: the user has no e-mail`.
 
 **When:** the id names nobody, names a user of another type (`auth.staff.get(patientId)`), or is not an id at all.
 **Why:** `get*` calls turn an absence into `NOT_FOUND`; `find*` calls answer `null` instead.

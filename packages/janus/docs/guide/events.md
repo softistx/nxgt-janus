@@ -48,7 +48,7 @@ The words — **user event**, **listener** — are defined in
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the first code made the factor active | for `enroll`, which leaves the factor waiting and asked for nowhere; for a code refused |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an **active** factor | for a user who had no factor, a factor still waiting for its first code — it was never asked for — or a second `disable` |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes`: the codes the user held stopped working | for `activate`, whose first codes come with `user.secondFactorEnabled`; for a code refused |
-| `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent — even if opening the session then fails | for a recovery code refused. How many are left is not in the event: read the user |
+| `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent — even if opening the session then fails | for a recovery code refused. How many are left is not in the event: `secondFactor.recoveryCodesLeft(event.userId)` reads it |
 | `user.deleted` | `delete`, when it deleted the user | for a replay that finds nobody, or an id of another user type |
 
 A reset whose link verifies the e-mail sends both, `user.passwordReset`
@@ -81,25 +81,38 @@ function onUserEvent(event: UserEvent): void {
 ### Telling the user a recovery code was used
 
 A recovery code used by someone else is a sign-in without the user's phone,
-so tell the user each time. `@nxgt/janus-mail` has no template for it yet:
-send your own.
+so tell the user each time — and how many codes they have left, which the
+event does not carry: `secondFactor.recoveryCodesLeft` reads it, after the
+write, so the code just spent is already out of the count.
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s
+`recoveryCodeUsed` is the e-mail, in English and French:
 
 ```ts
-// `sendMail` is your mailer, and the user schema holds an e-mail.
+// `mail` is janusMail({ … }), and the user schema holds a name and a locale.
 const auth = janus({
 	...config,
 	async events(event) {
 		if (event.type === 'user.recoveryCodeUsed') {
 			const user = await auth.get(event.userId);
-			await sendMail(
-				user.email,
-				'A recovery code was used to sign in',
-				'Someone signed in to your account with one of your recovery codes. If it was not you, change your password and regenerate your codes.',
+			const recoveryCodesLeft = await auth.secondFactor.recoveryCodesLeft(user);
+			if (recoveryCodesLeft === null) return; // the factor was turned off since
+			const when = new Intl.DateTimeFormat(user.locale, {
+				dateStyle: 'long',
+				timeStyle: 'short',
+				timeZone: 'Europe/Paris', // the user's, when you keep it
+			}).format(event.occurredAt);
+			await mail.recoveryCodeUsed(
+				{ name: user.name, locale: user.locale, email: user.email },
+				{ when, recoveryCodesLeft }, // "You have 9 recovery codes left."
 			);
 		}
 	},
 });
 ```
+
+With several user types, the count is the type's:
+`auth.patient.secondFactor.recoveryCodesLeft(event.userId)`, on
+`event.userType`.
 
 ## What an event carries
 
