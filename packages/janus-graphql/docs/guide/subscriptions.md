@@ -17,7 +17,7 @@ bun add graphql-ws ws
 ```
 
 Its range, `^6.0.0`, and the `graphql` 17 note are in the
-[README's Install](../README.md#install).
+[README's Install](../../README.md#install).
 
 ## Wiring, with Yoga
 
@@ -78,7 +78,7 @@ with no `request`, it looks for the connection the operation came from —
 by `ctx.extra`, which the `...ctx` spread carries — and authenticates the
 credential that connection presented. **Keep the spread**: a context built
 without `ctx.extra` has no connection to find, and its first guarded field
-throws [`the GraphQL context has no request to authenticate`](../troubleshooting.md#typeerror-usejanus-the-graphql-context-has-no-request-to-authenticate).
+throws [`the GraphQL context has no request to authenticate`](../troubleshooting.md#typeerror--the-graphql-context-has-no-request-to-authenticate).
 
 ## How the session travels
 

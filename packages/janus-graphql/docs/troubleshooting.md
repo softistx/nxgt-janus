@@ -47,7 +47,7 @@ for what causes each.
 - [`SERVICE_UNAVAILABLE`, 503, on every guarded field](#service_unavailable-503-on-every-guarded-field)
 - [`Unexpected error.`, 500, where a `JanusError` was thrown](#unexpected-error-500-where-a-januserror-was-thrown)
 - [`TypeError: … ctx.janus is not set`](#typeerror--ctxjanus-is-not-set)
-- [`TypeError: useJanus(): the GraphQL context has no request to authenticate`](#typeerror-usejanus-the-graphql-context-has-no-request-to-authenticate)
+- [`TypeError: …: the GraphQL context has no request to authenticate`](#typeerror--the-graphql-context-has-no-request-to-authenticate)
 - [`TypeError: can(): ctx.janus.access is not set`](#typeerror-can-ctxjanusaccess-is-not-set)
 - [`TypeError: requireUser(): type is an empty list, which no user could pass`](#typeerror-requireuser-type-is-an-empty-list-which-no-user-could-pass)
 - [`TypeError: requireFresh(): maxAge is a duration with its unit`](#typeerror-requirefresh-maxage-is-a-duration-with-its-unit)
@@ -314,9 +314,10 @@ janusConnection({ auth, upgrade: (ctx: { readonly extra: { readonly socket: Upgr
 **Why:** `onConnect` found no credential that authenticates: none at all,
 an unknown or lapsed token, a user gone or inactive, a user of another
 type than `janusConnection({ type })`, or a `connectionParams.authorization`
-that is not a string. `connectionParams.authorization` is read before the
-upgrade request, and **the first present wins**: a lapsed token there
-refuses the connection even beside a live cookie.
+that is not a string. A `Bearer` `connectionParams.authorization` is
+read before the upgrade request, and **the first present wins**: a lapsed
+token there refuses the connection even beside a live cookie. One of
+another scheme (`Basic …`) does not count, and the cookie is read.
 
 **Fix:** send `connectionParams: { authorization: 'Bearer <token>' }` —
 the key lower-case — or connect from a browser holding the session cookie,
@@ -428,15 +429,16 @@ transformed with `applyJanusDirectives()` and served by something else.
 
 **Fix:** `plugins: [useJanus({ auth })]`.
 
-### `TypeError: useJanus(): the GraphQL context has no request to authenticate`
+### `TypeError: …: the GraphQL context has no request to authenticate`
 
 **Why:** the context was built without `request`, and for no connection
 `janusConnection().onConnect` accepted: a transport that is not HTTP; a
 graphql-ws server without `onConnect`; or Yoga's recipe with the context
 built from something other than `{ ...ctx, … }`, which drops `ctx.extra`,
-where `useJanus()` finds the connection. Without Yoga, the same message
-opens with `janusConnection().context:` — the `context` of a server whose
-`onConnect` is not `janusConnection()`'s.
+where `useJanus()` finds the connection. The message opens with
+`useJanus():` under Yoga, and with `janusConnection().context:` without
+it — the `context` of a server whose `onConnect` is not
+`janusConnection()`'s.
 
 **Fix:** over graphql-ws, pass `onConnect: janusConnection({ auth }).onConnect`
 to `useServer()`, and keep the `...ctx` spread in `yoga.getEnveloped()`
