@@ -91,6 +91,24 @@ describe('fresh()', () => {
 		expect(allowed.status).toBe(204);
 	});
 
+	it('refuses a session exactly maxAge old, as assertFresh does', async () => {
+		const context = app();
+		const headers = await signedIn(context);
+		context.clock.advance(10 * 60_000 - 1);
+		const before = await context.routes.request('/account', {
+			method: 'DELETE',
+			headers,
+		});
+		expect(before.status).toBe(204);
+
+		context.clock.advance(1);
+		const at = await context.routes.request('/account', {
+			method: 'DELETE',
+			headers,
+		});
+		expect(at.status).toBe(403);
+	});
+
 	it('answers an anonymous request 401, with no body', async () => {
 		const response = await app().routes.request('/account', {
 			method: 'DELETE',

@@ -1106,9 +1106,9 @@ whole flow.
 `StepUpRequiredError`, carrying the `userId`; `statusOf` answers 403, and
 so does `@nxgt/janus-hono`'s `janusErrors()`.
 
-**When:** `assertFresh(session, maxAge)` — or `fresh(maxAge)` in a Hono app,
-whose message starts `fresh():` instead — on a session that signed in, or was last confirmed by a step-up,
-`maxAge` ago or more.
+**When:** `assertFresh(session, maxAge)` — or `fresh(maxAge)` in a Hono
+app, whose message starts `fresh():` instead — on a session that signed
+in, or was last confirmed by a step-up, `maxAge` ago or more.
 **Why:** the route asks for a recent proof of who the user is; renewal
 keeps a session alive but proves nothing, so it never moves
 `authenticatedAt`.
