@@ -13,11 +13,21 @@
  *   code and status, `STORE_FAILED` as 503 and never as 401 or 403.
  * - `janusGraphQLError(error)` — a `JanusError` as the `GraphQLError` the
  *   client reads, and `denial(code, message?)` — a denial of your own.
+ * - `janusConnection({ auth, access?, type?, clock?, upgrade? })` —
+ *   subscriptions over graphql-ws: `onConnect` and `context` for its
+ *   `useServer()`, a connection authenticated from its `connectionParams`
+ *   or its upgrade request.
  *
  * It defines no error class: a denial is a `GraphQLError`, and what it lets
  * through is `@nxgt/janus`'s own.
  */
 
+export { janusConnection } from './connection/connection';
+export type {
+	ConnectionContext,
+	JanusConnection,
+	JanusConnectionOptions,
+} from './connection/types';
 export {
 	applyJanusDirectives,
 	type JanusDirectivesOptions,

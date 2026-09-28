@@ -9,9 +9,6 @@ Nothing between releases.
 
 ## Next
 
-- **Subscriptions over graphql-ws** — `janusConnection`, which authenticates
-  a WebSocket connection once, from its `connectionParams` or its upgrade
-  request, and gives every operation on it the same `ctx.janus`.
 - **The renewed session cookie on GraphQL responses** — `authenticate`
   renews a sliding session in passing; the response would then carry its
   `Set-Cookie`, so a browser keeps the new expiry without an HTTP route of
@@ -19,7 +16,12 @@ Nothing between releases.
 
 ## Later
 
-Nothing yet.
+- **Anonymous graphql-ws connections** — `janusConnection({ anonymous:
+  true })`, accepting a connection with no credential so its public fields
+  answer and its guarded ones deny, as over HTTP.
+- **Re-authenticating a subscription on each event** — an opt-in for
+  streams that must end the moment their session is revoked, at the cost
+  of a sessions-store read per event.
 
 ## Not planned
 
@@ -40,6 +42,18 @@ Nothing yet.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **Subscriptions over graphql-ws, `janusConnection()`, v0.3.0.** The same
+  `@authenticated`, `@fresh` and `@permission` on subscriptions served over
+  a WebSocket with graphql-ws: `onConnect` for its `useServer()`
+  authenticates the connection from `connectionParams.authorization` — else
+  from the upgrade request's headers and the browser's session cookie —
+  and refuses it `4403`, or rejects on an outage, closed `4500`. Each
+  operation's `ctx.janus` is built by `useJanus()` from that credential, in
+  Yoga's recommended setup, and authenticated again when it subscribes, so
+  a session revoked since the connection opened is refused at the next
+  subscribe. `context` for a server without Yoga, `upgrade` for Bun.
+  `graphql-ws` is an optional peer, `^6.0.0`, whose floor runs in CI.
 
 - **`@fresh(maxAge)` and `requireFresh()`, v0.2.0.** A field, a type or an
   interface only a session that proved who it is less than `maxAge` seconds

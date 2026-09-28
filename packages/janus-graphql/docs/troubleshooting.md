@@ -30,6 +30,14 @@ for what causes each.
 - [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
 - [`TypeError: useJanus(): access is not what permissions() answered`](#typeerror-usejanus-access-is-not-what-permissions-answered)
 - [`TypeError: useJanus(): clock is not a Clock`](#typeerror-usejanus-clock-is-not-a-clock)
+- [`TypeError: janusConnection(): auth is not what janus() answered`, `access …`, `clock …`](#typeerror-janusconnection-auth-is-not-what-janus-answered-access--clock-)
+- [`TypeError: janusConnection(): upgrade is not a function`](#typeerror-janusconnection-upgrade-is-not-a-function)
+
+**Over graphql-ws**
+- [The socket closed `4403: Forbidden` right after connecting](#the-socket-closed-4403-forbidden-right-after-connecting)
+- [The socket closed `4500`](#the-socket-closed-4500)
+- [A stream keeps its events after its session was revoked](#a-stream-keeps-its-events-after-its-session-was-revoked)
+- [`TypeError: janusConnection(): the connection's extra is not an object`](#typeerror-janusconnection-the-connections-extra-is-not-an-object)
 
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
@@ -39,7 +47,7 @@ for what causes each.
 - [`SERVICE_UNAVAILABLE`, 503, on every guarded field](#service_unavailable-503-on-every-guarded-field)
 - [`Unexpected error.`, 500, where a `JanusError` was thrown](#unexpected-error-500-where-a-januserror-was-thrown)
 - [`TypeError: … ctx.janus is not set`](#typeerror--ctxjanus-is-not-set)
-- [`TypeError: useJanus(): the GraphQL context has no request to authenticate`](#typeerror-usejanus-the-graphql-context-has-no-request-to-authenticate)
+- [`TypeError: …: the GraphQL context has no request to authenticate`](#typeerror--the-graphql-context-has-no-request-to-authenticate)
 - [`TypeError: can(): ctx.janus.access is not set`](#typeerror-can-ctxjanusaccess-is-not-set)
 - [`TypeError: requireUser(): type is an empty list, which no user could pass`](#typeerror-requireuser-type-is-an-empty-list-which-no-user-could-pass)
 - [`TypeError: requireFresh(): maxAge is a duration with its unit`](#typeerror-requirefresh-maxage-is-a-duration-with-its-unit)
@@ -278,6 +286,74 @@ answered — or leave `access` out when no field uses `@permission` or `can()`.
 `@nxgt/janus` in a spec — or leave `clock` out for the system's:
 `useJanus({ auth, clock })`.
 
+### `TypeError: janusConnection(): auth is not what janus() answered`, `access …`, `clock …`
+
+**Why:** the same checks as `useJanus()`'s, named for `janusConnection()`:
+`auth` is not what `janus()` answered, `access` not what `permissions()`
+answered, `clock` not a `Clock`.
+
+**Fix:** `janusConnection({ auth })`, with the `access` and `clock` given to
+`useJanus()` when you pass them at all.
+
+### `TypeError: janusConnection(): upgrade is not a function`
+
+**Why:** `upgrade` is how `onConnect` finds the upgrade request on a
+transport whose `extra` does not carry it, and it was given something else.
+
+**Fix:** a function of graphql-ws's context, or nothing — `ctx.extra.request`
+is then read, as `graphql-ws/use/ws` sets it:
+
+```ts
+janusConnection({ auth, upgrade: (ctx: { readonly extra: { readonly socket: Upgraded } }) => ctx.extra.socket.data.request });
+```
+
+## Over graphql-ws
+
+### The socket closed `4403: Forbidden` right after connecting
+
+**Why:** `onConnect` found no credential that authenticates: none at all,
+an unknown or lapsed token, a user gone or inactive, a user of another
+type than `janusConnection({ type })`, or a `connectionParams.authorization`
+that is not a string. A `Bearer` `connectionParams.authorization` is
+read before the upgrade request, and **the first present wins**: a lapsed
+token there refuses the connection even beside a live cookie. One of
+another scheme (`Basic …`) does not count, and the cookie is read.
+
+**Fix:** send `connectionParams: { authorization: 'Bearer <token>' }` —
+the key lower-case — or connect from a browser holding the session cookie,
+to the origin that set it. On Bun, pass `upgrade`, or the cookie is never
+read. graphql-ws's client retries a `4403`; a `connectionParams` function
+is asked again each time.
+
+### The socket closed `4500`
+
+**Why:** the sessions store could not answer while `onConnect`
+authenticated — `STORE_FAILED`. `graphql-ws/use/ws` closes the socket
+`4500` and logs the error with `console.error`. It is an outage, **never a
+refusal**: `4403` would tell the client its session is bad.
+
+**Fix:** the store. graphql-ws's client does not retry a `4500` by default;
+set `shouldRetry` to retry an outage.
+
+### A stream keeps its events after its session was revoked
+
+**Why:** an operation is authenticated once, when it subscribes, and
+each event's `@authenticated` reads that answer. The next operation on
+the connection is refused `UNAUTHENTICATED`, and a reconnection `4403`.
+
+**Fix:** close the session's sockets when you revoke it
+([the subscriptions guide](guide/subscriptions.md#a-session-revoked-while-connected)).
+A permission revoked needs nothing: `@permission` asks again on every event.
+
+### `TypeError: janusConnection(): the connection's extra is not an object`
+
+**Why:** `onConnect` was called with a context whose `extra` is not an
+object — by hand, or by a transport of your own. It remembers the
+connection by that object.
+
+**Fix:** pass `onConnect` to graphql-ws's `useServer()` or `makeHandler()`,
+which give it the context they made.
+
 ## In a response
 
 ### `UNAUTHENTICATED` for a signed-in user
@@ -353,14 +429,21 @@ transformed with `applyJanusDirectives()` and served by something else.
 
 **Fix:** `plugins: [useJanus({ auth })]`.
 
-### `TypeError: useJanus(): the GraphQL context has no request to authenticate`
+### `TypeError: …: the GraphQL context has no request to authenticate`
 
-**Why:** the context was built without `request` — a transport that is not
-HTTP, such as a WebSocket subscription.
+**Why:** the context was built without `request`, and for no connection
+`janusConnection().onConnect` accepted: a transport that is not HTTP; a
+graphql-ws server without `onConnect`; or Yoga's recipe with the context
+built from something other than `{ ...ctx, … }`, which drops `ctx.extra`,
+where `useJanus()` finds the connection. The message opens with
+`useJanus():` under Yoga, and with `janusConnection().context:` without
+it — the `context` of a server whose `onConnect` is not
+`janusConnection()`'s.
 
-**Fix:** for now, authenticate subscriptions over HTTP (Yoga's server-sent
-events carry the request). A connection-level wiring for graphql-ws is on
-the [roadmap](roadmap.md).
+**Fix:** over graphql-ws, pass `onConnect: janusConnection({ auth }).onConnect`
+to `useServer()`, and keep the `...ctx` spread in `yoga.getEnveloped()`
+([the subscriptions guide](guide/subscriptions.md)). Without Yoga, pass
+`context: connection.context` too.
 
 ### `TypeError: can(): ctx.janus.access is not set`
 
