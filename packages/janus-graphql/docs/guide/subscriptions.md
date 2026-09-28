@@ -248,4 +248,8 @@ cookie is never read.
   operation on a connection no `onConnect` accepted has no credential: its
   first guarded field, or `ctx.janus.user()`, throws a `TypeError`, a 500.
 - **The renewed session cookie.** A WebSocket has no response to set one
-  on: renew through your HTTP routes.
+  on. An operation that renews the session renews it in the store, and the
+  browser's cookie keeps its old expiry until the next renewal over HTTP,
+  which `useJanus()` sends — a `renewAfter` later. A browser whose only
+  traffic is the WebSocket should renew through an HTTP route of yours:
+  [the context guide](context.md#ctxjanus) has the detail.

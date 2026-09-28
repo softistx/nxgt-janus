@@ -31,6 +31,7 @@ for what causes each.
 - [`403` where the user should be allowed](#403-where-the-user-should-be-allowed)
 - [`401` with an empty body, for a signed-in user](#401-with-an-empty-body-for-a-signed-in-user)
 - [`503 {"code":"STORE_FAILED"}` on every route](#503-codestore_failed-on-every-route)
+- [`Warning: janusErrors: report failed on …`](#warning-januserrors-report-failed-on-)
 - [`400 {"code":"HASH_UNSUPPORTED"}` on sign-in](#400-codehash_unsupported-on-sign-in)
 - [`401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form](#401-codecode_invalidattemptsleftn-on-the-code-form) — a second factor's, or the code sent by e-mail
 - [`409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`](#409-codesecond_factor_active-or-409-codesecond_factor_not_enrolled)
@@ -344,6 +345,15 @@ app.onError(
 	}),
 );
 ```
+
+### `Warning: janusErrors: report failed on …`
+
+**Why:** the `report` given to `janusErrors()` threw, or rejected — a logger
+that is down, a serializer that meets a circular `cause`. The name after the
+code is the class of what it threw.
+
+**Fix:** your `report`. The response was sent all the same: a `report` never
+changes the answer, so an outage is still a 503 and never a 500.
 
 ### `400 {"code":"HASH_UNSUPPORTED"}` on sign-in
 

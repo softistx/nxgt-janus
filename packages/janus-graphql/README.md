@@ -79,7 +79,7 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 
 | Export | What it is |
 | --- | --- |
-| `useJanus({ auth, access?, type?, clock?, loaders?, conditions? })` | The envelop plugin. Adds `ctx.janus` to every request's context, and applies the directives to every schema the server is given, once. `type` treats a user of any other type as anonymous. `clock` is what `@fresh` and `requireFresh()` read — the one given to `janus()`, when it is not the system's. `loaders` and `conditions` are what `@permission` needs beside `access` |
+| `useJanus({ auth, access?, type?, clock?, loaders?, conditions? })` | The envelop plugin. Adds `ctx.janus` to every request's context, and applies the directives to every schema the server is given, once. `type` treats a user of any other type as anonymous. `clock` is what `@fresh` and `requireFresh()` read — the one given to `janus()`, when it is not the system's. `loaders` and `conditions` are what `@permission` needs beside `access`. Under Yoga, a session `authenticate` renewed is sent again as `Set-Cookie` on the response, to a request that presented it as the cookie |
 | `ctx.janus.user()`, `ctx.janus.session()` | Who the request belongs to, and the session it presented — `null` for an anonymous request. `auth.authenticate(request)` runs the first time either is asked, once per request, and never when neither is |
 | `ctx.janus.access` | The `permissions()` instance given to `useJanus()`. Absent from the type — and from the context — without one |
 | `janusTypeDefs` | The SDL: `@authenticated`, `@fresh`, `@permission` and the `JanusPermissionDenial` enum — prefixed, so it never collides with a type of your schema. The same text as `graphql/janus.graphqls` |
@@ -93,11 +93,11 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `requireFresh(ctx, maxAge)` | The request's session, once it proved who it is less than `maxAge` ago — a duration with its unit, `'10m'`, never a bare number — or a denial: `UNAUTHENTICATED`, `STEP_UP_REQUIRED` |
 | `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false`. Shares the request's checks with `@permission`: one question, one check per request |
 | `janusConnection({ auth, access?, type?, clock?, upgrade? })` | Subscriptions over graphql-ws: `onConnect` for its `useServer()`, which accepts a connection whose `connectionParams.authorization` — else whose upgrade request's headers or cookie — authenticates, as a user of `type` when given, and refuses any other `4403`; an outage rejects, closed `4500`. Each operation's `ctx.janus` then authenticates from that credential, so the directives hold unchanged. `context` builds `{ janus }` for a server without Yoga; `upgrade` reads the upgrade request where the transport's `extra` does not carry it — Bun |
-| `janusMaskError(fallback?)` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback` |
+| `janusMaskError({ report?, fallback? })` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback`. `report` is called once with every `JanusError` answered 5xx — a directive's and a helper's too — and cannot change the answer. `janusMaskError(fallback)`, the fallback alone, still works |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
 | `denial(code, message?)` | A denial of your own: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404. For a stale session, call `requireFresh()`, whose `STEP_UP_REQUIRED` is `@nxgt/janus`'s |
 | `JanusContext<typeof auth, typeof access?, Type?>` | What `useJanus()` adds to the context, for your resolvers' `ctx` |
-| `JanusOptions`, `JanusOnContext`, `JanusConnectionOptions`, `JanusConnection`, `ConnectionContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError` | The types of the arguments and answers above |
+| `JanusOptions`, `JanusOnContext`, `JanusConnectionOptions`, `JanusConnection`, `ConnectionContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError`, `JanusMaskErrorOptions` | The types of the arguments and answers above |
 
 ## Directives
 
@@ -212,6 +212,25 @@ else — never `reason`, `login`, a hash prefix or a cause. The message is a
 fixed one per status, never the core's: read `code`. Detail, and the status of a
 response with several errors: [the errors guide](docs/guide/errors.md).
 
+The message carries nothing of the store's, and a directive answers an
+outage itself, before any resolver of yours could log it. `report` sees
+every `JanusError` answered 5xx, once, whichever path it took:
+
+```ts
+import { maskError } from 'graphql-yoga';
+
+createYoga({
+	schema,
+	plugins: [useJanus({ auth, access })],
+	maskedErrors: {
+		maskError: janusMaskError({
+			report: (error) => logger.error({ code: error.code, cause: error.cause }), // slot, operation: which call failed
+			fallback: maskError, // Yoga's own, for everything else
+		}),
+	},
+});
+```
+
 ## Traps
 
 - **Without `janusMaskError()`, a `JanusError` from a resolver is Yoga's
@@ -229,10 +248,16 @@ response with several errors: [the errors guide](docs/guide/errors.md).
   the highest `extensions.http.status` among the errors, so `{ open me }`
   from an anonymous request is a 401 whose `data` still holds `open`. A client
   reads `data` and `errors`, not only the status.
-- **A renewed session is not sent back as a cookie.** `authenticate` renews
-  a sliding session in passing, and nothing here sets `Set-Cookie` on the
-  GraphQL response: a browser keeps the cookie with its old expiry. Sign in
-  and renew through your HTTP routes, or send a bearer token.
+- **A renewed session is sent back only on an HTTP response from Yoga.**
+  `useJanus()` sets it in Yoga's `onResponse`, which a server on envelop
+  alone never calls; and an operation over graphql-ws has no response at
+  all. There, `ctx.janus` still renews the session in the store, but the
+  browser keeps the cookie with its old expiry until the next renewal over
+  HTTP, a `renewAfter` later: a browser whose only traffic is the WebSocket
+  should renew through an HTTP route of yours.
+- **An `auth` of your own needs `cookie` for the renewal.** A wrapper that
+  passes on only `authenticate` and `types` sends no renewed cookie; pass
+  `cookie: auth.cookie` along.
 - **`useJanus({ type })` narrows the whole server.** A user of any other type
   is anonymous everywhere, and a directive naming another type is refused
   when the schema is built.
@@ -297,7 +322,7 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 
 ## Type safety, counted
 
-Thirty-five plausible mistakes are refused by the compiler, each with a
+Thirty-seven plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
@@ -310,10 +335,11 @@ Thirty-five plausible mistakes are refused by the compiler, each with a
   permission the object's type does not declare, an object type the model
   does not, an object without a field a `fromField` reads, a condition reached
   with no `ctx`, a `ctx` of the wrong shape, and a context with no `access`;
-- five in `plugin.ts`: `useJanus()` given a user type the instance does not
+- seven in `plugin.ts`: `useJanus()` given a user type the instance does not
   know, something that is not what `janus()` answered, the `permissions()`
-  instance as `auth`, and `applyJanusDirectives()` without `auth` or narrowed
-  to a user type the instance does not know;
+  instance as `auth`, `applyJanusDirectives()` without `auth` or narrowed
+  to a user type the instance does not know, and `janusMaskError()` given a
+  misspelled `report` or one reading what a `JanusError` does not carry;
 - five in `wiring.ts`: `useJanus()`'s `loaders` for an object type the model
   does not declare, a loader answering an object without a field a
   `fromField` reads, `conditions` for a type no `when()` is reached on, a

@@ -6,11 +6,16 @@
 import type { Clock, Session, SharedApi } from '@nxgt/janus';
 import type { PermissionWiringOf } from './wiring';
 
-/** Anything `janus()` answered: the part of it this package calls. */
+/**
+ * Anything `janus()` answered: the part of it this package calls. `cookie`
+ * is what `useJanus()` sends a renewed session again with; an `auth` without
+ * one — a wrapper of your own — sends none.
+ */
 export type Auth<U extends { readonly type: string }> = Pick<
 	SharedApi<U>,
 	'authenticate' | 'types'
->;
+> &
+	Partial<Pick<SharedApi<U>, 'cookie'>>;
 
 /** The users an `auth` instance knows, as a union narrowed by `user.type`. */
 export type UserOfAuth<A> = A extends Auth<infer U> ? U : never;
