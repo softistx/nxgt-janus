@@ -53,6 +53,7 @@ How the messages are shaped:
 - [`Could not resolve "node:fs"` on an edge runtime](#could-not-resolve-nodefs-on-an-edge-runtime)
 - [An e-mail stays light in dark mode](#an-e-mail-stays-light-in-dark-mode)
 - [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
+- [The sign-in code's box stays a light slab in dark mode](#the-sign-in-codes-box-stays-a-light-slab-in-dark-mode)
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
@@ -417,6 +418,26 @@ ui({
 		'color-primary': '#27272a',
 		'color-primary-dark': '#fafafa', // 17:1 on the dark card
 		'color-primary-foreground-dark': '#18181b', // the button's text, in dark mode
+	},
+});
+```
+
+### The sign-in code's box stays a light slab in dark mode
+
+A `signInCode` template of your own, built with `@nxgt/mail-ui`'s `NxCode`,
+keeps its light box (`#f1f5f9`) on the dark card for a reader in dark mode;
+the defaults turn theirs a mid slate there since 0.3.2. The box is muted,
+which keeps its light value under dark mode unless the build gives it a dark
+one. Build the override with `@nxgt/mail-ui` 0.6.0 or later and set
+`color-muted-dark`. The code's text stays the light foreground (`#020918`) in
+both modes, so a dark muted such as `#1e293b` leaves it at 1.36:1: pick one
+light enough for that text, as the defaults do:
+
+```ts
+ui({
+	brand: { name: 'Acme' },
+	theme: {
+		'color-muted-dark': '#94a3b8', // the code at 7.76:1 on it, 6.95:1 against the dark card
 	},
 });
 ```

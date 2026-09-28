@@ -155,7 +155,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-0.4.1, built with a neutral grey theme and no logo:
+0.4.2, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -184,11 +184,13 @@ is `@nxgt/mail-ui`'s default, a deep navy, but for the primary: the button
 is near-black (`#27272a`) with light text in light mode, and near-white
 (`#fafafa`) with near-black text (`#18181b`) in dark mode — 17:1 against the
 dark card, where the light primary would be 1.2:1. The page behind the card
-follows it, 5% of the dark primary over the dark background, so it sits
-close to the card, which its border outlines. The sign-in code's box is
-`@nxgt/mail-ui`'s muted grey, which has no dark value: it stays a light box
-with dark text in both modes. Nothing is passed for any of it, the text part
-has no colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
+is 5% of the light primary over the dark background, a shade darker than the
+card, which its border outlines. The sign-in code's box is a light grey
+(`#f1f5f9`) in light mode and a mid slate (`#94a3b8`) in dark mode, 6.95:1
+against the dark card; the code on it stays near-black (`#020918`) in both,
+7.76:1 over the dark box. The footer's muted text keeps its grey (`#62748e`)
+in both modes. Nothing is passed for any of it, the text part has no
+colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
 [Dark mode](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-ui/docs/guide/dark-mode.md)
 guide has the technique, client by client.
 

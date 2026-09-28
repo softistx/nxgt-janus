@@ -117,8 +117,8 @@
         "@nxgt/mail": "0.8.0",
         "@nxgt/mail-config": "0.2.1",
         "@nxgt/mail-i18n": "0.6.0",
-        "@nxgt/mail-presets": "0.4.1",
-        "@nxgt/mail-ui": "0.5.0",
+        "@nxgt/mail-presets": "0.4.2",
+        "@nxgt/mail-ui": "0.6.0",
         "@types/bun": "^1.4.2",
         "vue": "3.5.43",
         "vue-tsc": "^3.3.11",
@@ -425,9 +425,9 @@
 
     "@nxgt/mail-i18n": ["@nxgt/mail-i18n@0.6.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "@nxgt/i18n-vue": "^0.2.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.2.1", "typescript": "^6.0.3", "vue": "^3.5.0" }, "optionalPeers": ["vue"] }, "sha512-TrrATL/XviDYT9kCMWrGTJm0bzQc9Cvco7iGUyfTkTHNVoJpznhDfkgz1AcafHnKn4UhZQ+ZBWIFKdc9qr2hNw=="],
 
-    "@nxgt/mail-presets": ["@nxgt/mail-presets@0.4.1", "", { "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-i18n": "^0.6.0", "@nxgt/mail-ui": "^0.5.0", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-2ZLCjLoc7elo6IxeQFHjjeCMYDqA5lWmp+y70vAcwL9Zdz6aruIA4iUiQ39bW8AntEHpC6Nw98xVBMi6DqbBkQ=="],
+    "@nxgt/mail-presets": ["@nxgt/mail-presets@0.4.2", "", { "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-i18n": "^0.6.0", "@nxgt/mail-ui": "^0.6.0", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-S/qkuiiwbvPO3rjacn1KYOfIPoZgo2746jTIp2hVBQBoHLvnV283TjAnaYvBvVcrW2hqit/GBW73I1OGwoTdLw=="],
 
-    "@nxgt/mail-ui": ["@nxgt/mail-ui@0.5.0", "", { "dependencies": { "unplugin-vue-components": "^32.1.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.2.1", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-htfqUPBsb/wH9KMvENqL63MprX3zYl8QJDcpp36YU4NxqT/COxbzmmT+GlPmjnW2Qrxp6Ch/8mqcve0iO7GP3A=="],
+    "@nxgt/mail-ui": ["@nxgt/mail-ui@0.6.0", "", { "dependencies": { "unplugin-vue-components": "^32.1.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^0.2.1", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-G0HHI/8uXgwlUXBRJwZQrHXnRVaVMMKWq/mMkioLstEVxW17pWwMGnfmDklnC5ZYTBPBenb6RndK9GL0MvjLtA=="],
 
     "@nxgt/mongo": ["@nxgt/mongo@0.18.1", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-zAWoeevcvw25eOXiF81uzJ9LjCj0RXF8t5HF5Uv2t33mlBB8y+cR/VN1oGtVecX8/U2KcrKBAKVpwfh1N1ZKPQ=="],
 

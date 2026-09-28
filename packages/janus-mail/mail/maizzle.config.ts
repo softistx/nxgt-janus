@@ -15,7 +15,15 @@
  *   tints follow it, so the defaults carry no one's colours. Under dark mode
  *   the button inverts to near-white with near-black text: `#27272a` on the
  *   dark card (`#0f172b`) is 1.2:1 and all but vanishes; `#fafafa` is 17.1:1
- *   against it, and `#18181b` on `#fafafa` 17.0:1.
+ *   against it, and `#18181b` on `#fafafa` 17.0:1. The sign-in code's box
+ *   (`NxCode`, on muted) turns a mid slate, `#94a3b8`, rather than staying a
+ *   light slab: its text is pinned to the light foreground (`#020918`) in both
+ *   modes, 7.76:1 on it, and the box is 6.95:1 against the dark card. A dark
+ *   muted such as `#1e293b` would leave that text at 1.36:1.
+ *   `color-muted-foreground-dark` stays unset: muted text sits both on the
+ *   dark page and on the notices' warning box, which keeps its light ground,
+ *   and the light value (`#62748e`, 4.15:1 and 4.46:1) is already near the
+ *   best one colour can do on both.
  * - **The locales are the catalogues.** Each `locales/<locale>.json` is a
  *   locale built; the presets are written in `en` and `fr`, and a locale
  *   without their messages fails the build.
@@ -58,6 +66,7 @@ const config: MaizzleConfig = productionConfig(
 					'color-primary': '#27272a',
 					'color-primary-dark': '#fafafa',
 					'color-primary-foreground-dark': '#18181b',
+					'color-muted-dark': '#94a3b8',
 				},
 			}),
 			i18n({
