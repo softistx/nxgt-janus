@@ -144,6 +144,13 @@ working against it while the deployment rolls. Deployed before the sync,
 every sign-up and every one-time token fails with `STORE_FAILED`, caused by
 `Document failed validation` (code 121). No document is rewritten either way.
 
+**From 0.4 to 0.5, finish the rollout before users hold recovery codes.** An
+instance still on 0.4 reads a second factor without its `recoveryCodes`, and
+writes the factor back whole when it accepts a code: a user who signs in
+there loses the codes an instance of 0.5 gave them. Run the two side by side
+only while no user has been given codes, which `@nxgt/janus` does from
+`secondFactor.activate` on.
+
 ## The TTL indexes are not the expiry
 
 MongoDB's TTL monitor runs every sixty seconds, so a lapsed session can stay
