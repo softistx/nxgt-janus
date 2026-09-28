@@ -19,6 +19,7 @@ const events = {
 	signedUp: event('janus.signUp'),
 	signedIn: event('janus.signIn'),
 	signInRefused: event('janus.signIn.refused'),
+	signInThrottled: event('janus.signIn.throttled'),
 	secondFactorAsked: event('janus.signIn.secondFactor'),
 	signInCodeSent: event('janus.signInCode.sent'),
 	stepUpAsked: event('janus.stepUp.asked'),
@@ -52,7 +53,15 @@ export const WRITTEN: Readonly<
 		if (outcome.ok) log.info(events.signedUp(userFields(call, outcome.value)));
 	},
 	signIn: (call, outcome) => {
-		if (!outcome.ok) {
+		if (!outcome.ok && outcome.refusal.reason === 'throttled') {
+			// Too many passwords at one login: no password was compared.
+			log.warn(
+				events.signInThrottled({
+					...refusalFields(call, outcome.refusal),
+					'janus.signIn.retryAfter': outcome.refusal.retryAfter,
+				}),
+			);
+		} else if (!outcome.ok) {
 			log.warn(events.signInRefused(refusalFields(call, outcome.refusal)));
 		} else if (statusOf(outcome.value) === 'secondFactor') {
 			// The password was right; the session waits for a code.
