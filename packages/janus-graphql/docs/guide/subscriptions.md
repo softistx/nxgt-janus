@@ -2,12 +2,10 @@
 
 A subscription over server-sent events is an HTTP request like any other:
 `useJanus()` authenticates it from its headers, and nothing more is needed.
-A subscription over a WebSocket has no request per operation: the socket is
-opened once, and every operation after that travels over it. This page
-shows how `janusConnection()` authenticates that socket, with
+Over a WebSocket, every operation travels over one socket, opened once:
+`janusConnection()` authenticates that socket, with
 [graphql-ws](https://github.com/enisdenjo/graphql-ws), the library Yoga
-recommends, so that `@authenticated`, `@fresh` and `@permission` hold on it
-unchanged.
+recommends, so the directives hold on it unchanged.
 
 ## Install
 
@@ -18,12 +16,8 @@ subscriptions over a WebSocket.
 bun add graphql-ws ws
 ```
 
-| Peer | Range | Why |
-| --- | --- | --- |
-| `graphql-ws` | `^6.0.0` | `useServer()`, which `janusConnection()` plugs into. Imported by your server only — this package imports nothing from it. Its specs run on 6.0.0, the floor, as well as the latest |
-
-`graphql-ws` 6.0.0 declares `graphql` `^15.10.1 || ^16`; for `graphql` 17,
-install a `graphql-ws` whose peer range includes it (6.3.0 does).
+Its range, `^6.0.0`, and the `graphql` 17 note are in the
+[README's Install](../README.md#install).
 
 ## Wiring, with Yoga
 
@@ -103,8 +97,10 @@ throws [`the GraphQL context has no request to authenticate`](../troubleshooting
    ```
 
    The key is `authorization`, lower-case, and its value a string — the
-   same `Bearer <token>` an HTTP request sends. Any other value refuses the
-   connection.
+   same `Bearer <token>` an HTTP request sends. A value that is not a
+   string refuses the connection; a string of another scheme (`Basic …`)
+   is not a session credential, as in `@nxgt/janus`, and the upgrade
+   request is read instead.
 
 2. **The upgrade request**, read as `auth.authenticate` reads any request:
    `Authorization: Bearer`, then `X-Session-Token`, then the session
@@ -132,11 +128,9 @@ janusConnection({ auth, type: 'staff' }); // a patient's session is refused
 
 graphql-ws's client treats `4403` as retryable — a `connectionParams`
 function asked again can present a fresh token — and `4500` as fatal. Set
-`retryAttempts` and `shouldRetry` on the client to change that.
-
-graphql-ws's `4401: Unauthorized` is the protocol's answer to an operation
-sent before the connection was acknowledged, and is fatal to its client:
-`onConnect` has no way to choose it, so a refused connection is `4403`.
+`retryAttempts` and `shouldRetry` on the client to change that. (`4401` is
+the protocol's answer to an operation sent before the acknowledgement;
+`onConnect` cannot choose it.)
 
 ## Each operation
 
@@ -199,7 +193,11 @@ the directives itself:
 
 ```ts
 import { applyJanusDirectives, janusConnection } from '@nxgt/janus-graphql';
+import { useServer } from 'graphql-ws/use/ws';
+import { WebSocketServer } from 'ws';
+import { schema } from './schema'; // your executable schema, with janusTypeDefs
 
+const wsServer = new WebSocketServer({ port: 4000, path: '/graphql' });
 const connection = janusConnection({ auth, access, clock }); // clock: the one given to janus()
 
 useServer(
@@ -246,11 +244,8 @@ cookie is never read.
 ## What is not covered
 
 - **An anonymous connection.** `onConnect` refuses every connection it
-  cannot authenticate. Serve anonymous clients their public subscriptions
-  over server-sent events, which carry the request and so are anonymous
-  where no credential is sent. A graphql-ws operation on a connection no
-  `onConnect` accepted has no credential to read: its first guarded field,
-  or `ctx.janus.user()`, throws a `TypeError`, a 500.
-- **The renewed session cookie.** `authenticate` renews a sliding session
-  in passing, and a WebSocket has no response to set a cookie on. Renew
-  through your HTTP routes.
+  cannot authenticate; serve anonymous clients over server-sent events. An
+  operation on a connection no `onConnect` accepted has no credential: its
+  first guarded field, or `ctx.janus.user()`, throws a `TypeError`, a 500.
+- **The renewed session cookie.** A WebSocket has no response to set one
+  on: renew through your HTTP routes.

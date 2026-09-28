@@ -434,7 +434,9 @@ transformed with `applyJanusDirectives()` and served by something else.
 `janusConnection().onConnect` accepted: a transport that is not HTTP; a
 graphql-ws server without `onConnect`; or Yoga's recipe with the context
 built from something other than `{ ...ctx, … }`, which drops `ctx.extra`,
-where `useJanus()` finds the connection.
+where `useJanus()` finds the connection. Without Yoga, the same message
+opens with `janusConnection().context:` — the `context` of a server whose
+`onConnect` is not `janusConnection()`'s.
 
 **Fix:** over graphql-ws, pass `onConnect: janusConnection({ auth }).onConnect`
 to `useServer()`, and keep the `...ctx` spread in `yoga.getEnveloped()`

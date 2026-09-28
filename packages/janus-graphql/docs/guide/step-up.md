@@ -140,9 +140,10 @@ seconds.
 
 **A `@fresh` on the subscription field is checked when it subscribes.** A
 stale session is refused before the stream starts; a fresh one keeps
-receiving events past `maxAge`, as it keeps its session. `@authenticated`
-and `@permission` on the field are asked again on every event; its
-`@fresh` is not. To end a stream when the session is no longer fresh, close
+receiving events past `maxAge`, as it keeps its session. `@permission` on
+the field is asked again on every event; `@authenticated` reads the
+operation's one authentication, made when it subscribed; its `@fresh` is
+not asked again. To end a stream when the session is no longer fresh, close
 it from the server.
 
 Over a WebSocket, the same holds once `janusConnection()` authenticates

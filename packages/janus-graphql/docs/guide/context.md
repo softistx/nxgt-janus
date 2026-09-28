@@ -22,7 +22,10 @@ export const yoga = createYoga({
 `useJanus()` does two things, and nothing else:
 
 - **Every request's context gets `ctx.janus`**, built from `context.request`,
-  the `Request` Yoga puts there.
+  the `Request` Yoga puts there — or, for an operation over graphql-ws,
+  from the credential of the connection `janusConnection().onConnect`
+  accepted, found through `ctx.extra`
+  ([subscriptions over graphql-ws](subscriptions.md)).
 - **Every schema the server is given has its directives applied**, once, by
   `applyJanusDirectives()`. A schema set later — a gateway reloading its
   supergraph — is applied too. The schema it made is remembered, so envelop
