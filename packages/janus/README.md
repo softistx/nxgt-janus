@@ -480,15 +480,19 @@ const auth = janus({
 });
 
 const { secret, uri } = await auth.secondFactor.enroll(user); // show uri as a QR code, secret beside it
-await auth.secondFactor.activate(user, code);                  // the first code: the factor is active
+const { recoveryCodes } = await auth.secondFactor.activate(user, code); // the first code: the factor is active
+// recoveryCodes: ten, 'xxxxx-xxxxx' — show them now, no call answers them again
 
 const result = await auth.signIn({ email, password });
 if (result.status === 'secondFactor') {
 	// no session yet: keep result.challenge for the next request — never in a URL or a log
 	const signedIn = await auth.secondFactor.confirm(result.challenge, code); // { status: 'signedIn', … }
+	// phone gone? a recovery code instead, spent once:
+	// await auth.secondFactor.recover(result.challenge, recoveryCode) // { …, recoveryCodesLeft: 9 }
 }
 
-await auth.secondFactor.disable(user);
+await auth.secondFactor.regenerateRecoveryCodes(user, code); // { user, recoveryCodes }: ten new, the old ones end
+await auth.secondFactor.disable(user);                       // the factor and its recovery codes
 ```
 
 A TOTP second factor — the six-digit codes of any authenticator app — for
@@ -507,16 +511,24 @@ every user type with a password.
   (`secondFactor.challenge`) and takes five attempts: a wrong code is
   `CODE_INVALID` with `attemptsLeft`, and the fifth spends the challenge. A
   code is accepted once, so a replay is `CODE_INVALID` too.
-- **`keys` seal every TOTP secret** with AES-256-GCM before a store sees it.
-  The first seals and every key opens, so keys rotate: put the new one first,
-  keep the old one until no secret is sealed with it.
-- **Asking for a password or a code before `enroll` or `disable` is your
-  policy**, not the library's — a recent `session.authenticatedAt` is one
-  rule.
+- **Recovery codes, for a lost phone.** `activate` answers
+  `{ user, recoveryCodes }` — ten single-use codes, shown once, stored only as
+  keyed hashes. `recover(challenge, code)` redeems a sign-in's challenge with
+  one instead of the app's code, sharing its five attempts, and answers the
+  session with `recoveryCodesLeft`. `regenerateRecoveryCodes(user, code)`
+  replaces them all, on a fresh code from the app; `disable` removes them.
+- **`keys` seal every TOTP secret** with AES-256-GCM before a store sees it,
+  and key the recovery codes' hashes. The first seals and every key opens, so
+  keys rotate: put the new one first, keep the old one until no secret is
+  sealed and no recovery code hashed with it.
+- **Asking for a password or a code before `enroll`, `disable` or
+  `regenerateRecoveryCodes` is your policy**, not the library's — a recent
+  `session.authenticatedAt` is one rule. `regenerateRecoveryCodes` asks for
+  the app's code itself.
 
 [The second factor guide](docs/guide/second-factor.md) has every option,
-error and state, key rotation, and a sign-in route with the challenge in a
-cookie.
+error and state, recovery codes, key rotation, and sign-in routes with the
+challenge in a cookie.
 
 ### Sign-in codes — `signInCode`
 
@@ -589,6 +601,8 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.passwordReset` | `resetPassword.confirm` |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor — never for a user who had none, or one still waiting |
+| `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes` — not `activate`, whose codes come with `user.secondFactorEnabled` |
+| `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent: a sign-in without the user's phone |
 | `user.deleted` | `delete`, once — a replay that deletes nobody sends nothing |
 
 - **The user is named by id, and nothing else**: no login, no e-mail, no
@@ -599,7 +613,8 @@ await auth.signUp({ email, password }); // the listener has the event before thi
   flow answers, so a durable queue has the event by then. `occurredAt` is the
   write's own time. A refused flow sends nothing.
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
-  union of the six types, so a `switch` on `event.type` is exhaustive.
+  union of the eight types, so a `switch` on `event.type` is exhaustive — and
+  a new type, like the two recovery-code ones in 0.10, breaks it until handled.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.
@@ -620,8 +635,8 @@ async events(event) {
 
 To post them as signed webhooks:
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks).
-[The user events guide](docs/guide/events.md) has the listener, the six
-types, what a failure costs, and a test.
+[The user events guide](docs/guide/events.md) has the listener, the eight
+types, mail for a recovery code used, what a failure costs, and a test.
 
 ### Permissions — `@nxgt/janus/permissions`
 
@@ -816,14 +831,27 @@ instance without keys never signs in a user whose factor is active: `signIn`
 throws a `TypeError` rather than open a session on the password alone. Build
 the configuration once and import it everywhere.
 
-**Never remove a sealing key while a secret is sealed with it, nor change a
-key under the same id.** That user's next sign-in is a `TypeError`, not a
-refusal. Put the new key first and keep the old one until your database holds
-no secret starting `v1.<old id>.`.
+**Never remove a sealing key while a secret is sealed or a recovery code
+hashed with it, nor change a key under the same id.** That user's next
+sign-in is a `TypeError`, not a refusal — or, for a key changed, recovery
+codes that silently match nothing. Put the new key first and keep the old one
+until your database holds no secret and no recovery code starting
+`v1.<old id>.`: recovery codes are never hashed again, so a user who does not
+regenerate them keeps the old key in use.
 
-**`enroll` and `disable` ask for nothing.** Whether the user proves their
-password or a code first is yours to decide; without a check, a stolen
-session can switch the factor off.
+**`activate` answers `{ user, recoveryCodes }`, not the user** (since 0.10).
+`(await activate(user, code)).hasSecondFactor` no longer compiles; read
+`.user`. The codes are shown **once** — no call answers them again — so show
+them on that response, sent with `Cache-Control: no-store`, and never log them.
+
+**`enroll`, `disable` and `regenerateRecoveryCodes` do not know who is
+calling.** Whether the user proves their password or a code first is yours
+to decide; without a check, a stolen session can switch the factor off.
+`regenerateRecoveryCodes` asks for the app's code, and nothing else.
+
+**Two sign-ins with the same recovery code at once open one session.** The
+other rejects with `VERSION_CONFLICT`, not `CODE_INVALID`: answer it as "sign
+in again".
 
 **On a user type, only `setOf` makes a set.** A user passed as it is — or
 `{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
@@ -938,7 +966,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and nineteen plausible mistakes, one hundred and nineteen refused at compile time — and
+**One hundred and twenty-one plausible mistakes, one hundred and twenty-one refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -946,8 +974,8 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-three, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (thirty-four, on `janus()`, from the point of view of
-the application — eight of them on the second factor, three on sign-in codes,
+it), `test/types/auth/` (thirty-six, on `janus()`, from the point of view of
+the application — ten of them on the second factor, three on sign-in codes,
 three on user events) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
