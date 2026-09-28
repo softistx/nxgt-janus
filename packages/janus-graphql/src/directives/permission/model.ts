@@ -37,7 +37,11 @@ export function namesOf(model: ModelLike, type: string): readonly string[] {
 	];
 }
 
-type FromFieldLike = { readonly kind: 'fromField'; readonly field: string };
+type FromFieldLike = {
+	readonly kind: 'fromField';
+	readonly field: string;
+	readonly subject: string;
+};
 
 function isFromField(value: unknown): value is FromFieldLike {
 	return (value as { readonly kind?: unknown } | null)?.kind === 'fromField';
@@ -83,7 +87,7 @@ export function reachesCondition(
 /** The object types an arrow through a relation of this definition reaches. */
 function arrowTargets(relation: unknown): readonly string[] {
 	if (isFromField(relation)) {
-		return [(relation as unknown as { readonly subject: string }).subject];
+		return [relation.subject];
 	}
 	if (!Array.isArray(relation)) return [];
 	return relation

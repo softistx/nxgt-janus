@@ -107,6 +107,19 @@ describe('@permission reading the parent', () => {
 	});
 });
 
+describe('@permission reading an integer id from the parent', () => {
+	it('checks it as graphql-js serialises it, a string', async () => {
+		const w = await wired(
+			'type Query { wards: [Ward] } type Ward @permission(name: "enter", type: "ward") { id: ID! label: String }',
+			// biome-ignore lint/style/useNamingConvention: a resolver map's keys are the schema's type names.
+			{ Query: { wards: () => [{ id: 1, label: 'one' }] } },
+		);
+		await w.access.grant({ type: 'ward', id: '1' }, 'visitors', w.ada.user);
+		const { body } = await ask(w.yoga, '{ wards { id label } }', w.ada.token);
+		expect(body).toEqual({ data: { wards: [{ id: '1', label: 'one' }] } });
+	});
+});
+
 describe('@permission reading the parent, refused', () => {
 	it('answers a user holding nothing on the parent NOT_FOUND', async () => {
 		const w = await wired(typeDefs, {

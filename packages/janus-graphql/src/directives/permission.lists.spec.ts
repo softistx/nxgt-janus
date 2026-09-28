@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import { ask, codes } from '../../test/harness';
 import { wards, wired } from './permission.fixtures';
 
@@ -100,6 +100,17 @@ describe('@permission on a list of ids', () => {
 });
 
 describe('@permission through a list in the parent', () => {
+	it('answers an empty list NOT_FOUND: the data names nothing to check', async () => {
+		const warn = spyOn(process, 'emitWarning').mockImplementation(() => {});
+		const { yoga, ada, asked } = await setUp([]);
+		const { status, body } = await ask(yoga, '{ team { names } }', ada.token);
+		expect(warn).toHaveBeenCalledTimes(1);
+		warn.mockRestore();
+		expect(status).toBe(404);
+		expect(codes(body)).toEqual(['NOT_FOUND']);
+		expect(asked.can).toBe(0);
+	});
+
 	it('checks each element the path reads', async () => {
 		const { yoga, ada, grace } = await setUp();
 		const nurse = await ask(yoga, '{ team { names } }', grace.token);

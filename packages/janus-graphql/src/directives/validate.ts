@@ -47,13 +47,11 @@ export function requirementOf(
 ): Requirement | null {
 	const { authenticated, permission } = directives;
 	if (authenticated.length === 0 && permission.length === 0) return null;
-	const [first] = authenticated;
+	const [first] = authenticated.length > 0 ? authenticated : permission;
+	const name = authenticated.length > 0 ? '@authenticated' : '@permission';
 	return {
 		where: field.name,
-		label:
-			first === undefined
-				? `@permission on ${on((permission[0] as { where: string }).where, field.name)}`
-				: `@authenticated on ${on(first.where, field.name)}`,
+		label: `${name} on ${on(first?.where ?? field.name, field.name)}`,
 		types: typesOf(field.name, authenticated, known),
 		permissions: permission.map((use) => permissionCheckOf(use, field, wiring)),
 	};

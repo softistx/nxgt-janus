@@ -16,12 +16,14 @@ export interface Resolving {
 	readonly parent: unknown;
 	readonly args: unknown;
 	readonly ctx: unknown;
+	/** A subscription's: its checks skip the request's memo, and see a revoke. */
+	readonly fresh: boolean;
 }
 
 /** Refuses the request unless it meets `requirement`. */
 export async function enforce(
 	requirement: Requirement,
-	{ parent, args, ctx }: Resolving,
+	{ parent, args, ctx, fresh }: Resolving,
 ): Promise<void> {
 	const janus = janusOf(ctx, requirement.label);
 	const user = await janus.user().then(undefined, rethrown);
@@ -29,11 +31,12 @@ export async function enforce(
 	if (requirement.types !== null && !requirement.types.has(user.type)) {
 		throw denial('FORBIDDEN');
 	}
-	if (requirement.permissions.length === 0) return;
-	const check = checkOf(janus);
+	const [first] = requirement.permissions;
+	if (first === undefined) return;
+	const check = checkOf(janus, fresh);
 	if (check === null) {
 		throw new TypeError(
-			`${requirement.label}: ctx.janus.access is not set — pass { access } to useJanus()`,
+			`${first.label}: ctx.janus.access is not set — pass { access } to useJanus()`,
 		);
 	}
 	// In order, one at a time: the first that denies answers, and the ones
@@ -49,7 +52,12 @@ export function guarded<S, C, A>(
 	requirement: Requirement,
 ): GraphQLFieldResolver<S, C, A> {
 	return async (source, args, ctx, info) => {
-		await enforce(requirement, { parent: source, args, ctx });
+		await enforce(requirement, {
+			parent: source,
+			args,
+			ctx,
+			fresh: info.operation.operation === 'subscription',
+		});
 		return resolve(source, args, ctx, info);
 	};
 }

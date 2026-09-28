@@ -35,9 +35,12 @@ export async function enforcePermission(
 	const objects = await Promise.all(
 		targets.map((target) => objectOf(permission, target, asking.ctx)),
 	).then(undefined, rethrown);
-	if (objects.includes(null)) throw denial('NOT_FOUND');
+	const found = objects.filter(
+		(object): object is ObjectLike => object !== null,
+	);
+	if (found.length < objects.length) throw denial('NOT_FOUND');
 	const answers = await Promise.all(
-		(objects as ObjectLike[]).map((object) => ask(permission, object, asking)),
+		found.map((object) => ask(permission, object, asking)),
 	).then(undefined, rethrown);
 	if (answers.includes(false)) throw denial(permission.onDeny);
 }
@@ -57,7 +60,8 @@ async function ask(
 /**
  * What no object id can hold, as `@nxgt/janus` reads the notation: `can()`
  * refuses such an id with a `TypeError`, and one sent by a client is no
- * object's.
+ * object's. A copy of the core's `RESERVED`, recorded in AGENTS.md's
+ * *Deliberate duplications*.
  */
 const UNNAMEABLE = /^$|[@#()]/;
 
@@ -73,7 +77,7 @@ async function objectOf(
 ): Promise<ObjectLike | null> {
 	const { type, load } = permission;
 	if (UNNAMEABLE.test(id)) return null;
-	if (holder !== null) return view(holder, type);
+	if (holder !== null) return view(holder, type, id);
 	if (load === null) return { type, id };
 	const loaded = await load(id, ctx);
 	if (loaded === null) return null;
@@ -86,22 +90,19 @@ async function objectOf(
 }
 
 /**
- * The object as `can()` reads it: `type` added — and `id`, the one asked
- * for — every other field read from the object itself, so a getter, a
+ * The object as `can()` reads it: `type` added — and `id`, the string read
+ * from the path, so an integer id reads as graphql-js serialises it — every
+ * other field read from the object itself, so a getter, a
  * class's `#private` state or an ORM document's accessors answer as they do
  * in the resolver. A spread would copy own enumerable fields only. The
  * proxy's target is an empty object rather than `object`, so a frozen
  * object whose own `type` means something else is read without breaking a
  * proxy invariant.
  */
-function view(object: object, type: string, id?: string): ObjectLike {
+function view(object: object, type: string, id: string): ObjectLike {
 	return new Proxy(Object.create(null) as object, {
 		get: (_, key) =>
-			key === 'type'
-				? type
-				: key === 'id' && id !== undefined
-					? id
-					: Reflect.get(object, key),
+			key === 'type' ? type : key === 'id' ? id : Reflect.get(object, key),
 		has: (_, key) => key === 'type' || Reflect.has(object, key),
 	}) as ObjectLike;
 }

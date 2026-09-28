@@ -35,7 +35,10 @@ export interface Target {
 /**
  * The objects `path` names in this request: one, or one per element where a
  * step reads a list. `null` when a step reads nothing, or an id is not a
- * string or an integer: the request resolved no object id.
+ * string or an integer: the request resolved no object id. An empty list
+ * under `parent` is `null` too — the object's data names nothing to check,
+ * and its fields are not open to everyone for it; under `args` it is the
+ * client asking for nothing, and there is nothing to refuse.
  */
 export function targetsOf(
 	path: IdPath,
@@ -57,7 +60,7 @@ export function targetsOf(
 			targets.push({ id, holder: held ? (container as object) : null });
 		}
 	}
-	return targets;
+	return path.root === 'parent' && targets.length === 0 ? null : targets;
 }
 
 /** The values `segments` reach from `values`, a list read as its elements. */
