@@ -49,6 +49,7 @@ const mail = janusMail({
 		verifyEmail: (token) => `https://app.example/verify?token=${token}`,
 		resetPassword: (token) => `https://app.example/reset?token=${token}`,
 		secureAccount: () => 'https://app.example/account/security',
+		getStarted: () => 'https://app.example/',
 	},
 });
 
