@@ -31,6 +31,10 @@ Nothing queued.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **Secrets held to the specification's range, v0.4.0** — a `whsec_` secret
+  of more than 64 bytes is refused as wiring, as one of fewer than 24 already
+  is, so a secret is accepted exactly when the Standard Webhooks
+  specification allows it.
 - **The second factor's events, v0.3.0** — `user.secondFactorEnabled` and
   `user.secondFactorDisabled`, from `@nxgt/janus` 0.9, are signed, posted
   and verified like the other four, and an endpoint's `types` may name them.

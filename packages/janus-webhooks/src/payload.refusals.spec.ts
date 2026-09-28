@@ -34,5 +34,9 @@ describe('verifyWebhook', () => {
 		expect(() =>
 			verifyWebhook({ secrets: ['hunter2'], now, ...request() }),
 		).toThrow(TypeError);
+		const long = `whsec_${Buffer.alloc(65).toString('base64')}`;
+		expect(() => verifyWebhook({ secrets: [long], now, ...request() })).toThrow(
+			'verifyWebhook: a secret holds at most 64 bytes of base64 after whsec_ — make one with mintWebhookSecret()',
+		);
 	});
 });

@@ -128,6 +128,7 @@ webhooks({ endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus/v2
 | `webhooks: an endpoint needs at least one secret` | `secrets` absent or `[]` |
 | `webhooks: a secret is written whsec_<base64> — make one with mintWebhookSecret()` | a secret without the `whsec_` prefix, or not a string |
 | `webhooks: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too short, or not base64 |
+| `webhooks: a secret holds at most 64 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too long: the specification sets 24 to 64 bytes |
 | `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted` | a type `janus` never sends, or `types` not a list |
 | `webhooks: retries: …`, `webhooks: timeout: …` | a duration `parseDuration` refuses: `'soon'`, `-1` |
 | `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
@@ -455,9 +456,10 @@ mintWebhookSecret(); // 'whsec_' and 32 random bytes in base64
 ```
 
 Mint one per endpoint, once, and give it to both sides — the sender's
-configuration and the receiver's. A secret is at least 24 bytes of base64
-after `whsec_`; one minted by another Standard Webhooks library is accepted
-as it stands when it holds that much.
+configuration and the receiver's. A secret is 24 to 64 bytes of base64
+after `whsec_`, the range the specification sets; one minted by another
+Standard Webhooks library is accepted as it stands when it falls in that range.
+Since 0.4.0 a longer one is refused: rotate away from it before upgrading.
 
 To rotate one without losing a request, **sign with both, let the receiver
 accept both, then drop the old one**:

@@ -177,6 +177,9 @@ import { mintWebhookSecret } from '@nxgt/janus-webhooks';
 mintWebhookSecret(); // 'whsec_…': 32 random bytes, base64 — give the same one to the sender and the receiver
 ```
 
+A secret from another Standard Webhooks library is accepted as it stands if
+it holds 24 to 64 bytes after `whsec_`, the range the specification sets.
+
 ## API
 
 | Export | What it is |
@@ -244,6 +247,12 @@ answer a second with a `2xx`, doing nothing.
 **Rotate a secret in four steps.** Sign with both
 (`secrets: [old, next]`), let the receiver accept both, then drop the old one
 from the sender, and last from the receiver.
+
+**A secret holds 24 to 64 bytes.** Past 64, `webhooks()` and `verifyWebhook()`
+throw a `TypeError` — since 0.4.0; earlier versions took any length from 24.
+A longer secret from before is refused on upgrade, so rotate away from it
+first, on the version you run: mint one with `mintWebhookSecret()`, rotate to
+it in the four steps above, then upgrade.
 
 **Upgrade the receiver before the sender.** A receiver's `verifyWebhook`
 answers `null` for a type it does not know, so the delivery fails until it is

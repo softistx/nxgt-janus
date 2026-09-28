@@ -93,6 +93,7 @@ request's:
 | `verifyWebhook: pass the endpoint's secrets — at least one` | `secrets: []`, or `secrets` missing or not an array |
 | `verifyWebhook: a secret is written whsec_<base64> — make one with mintWebhookSecret()` | a secret without the `whsec_` prefix, or not a string |
 | `verifyWebhook: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too short, or not base64 |
+| `verifyWebhook: a secret holds at most 64 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too long: the specification sets 24 to 64 bytes |
 | `verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more` | `NaN` — `Number(process.env.X)` with `X` unset — or `Infinity`, each of which would let every timestamp through; or a negative number, which would refuse every request |
 | `verifyWebhook: now is a valid Date` | an Invalid Date, which would let every timestamp through too, or not a `Date` at all |
 
