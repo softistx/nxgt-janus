@@ -68,10 +68,11 @@ last checked, on 2026-09-27. For `@nxgt/telemetry` that is 0.2.1, the
 floor itself: no later minor was published when the range was widened.
 `@nxgt/redis` 0.3.1 and `@nxgt/drizzle` 0.6.1 are likewise their floors. For
 `@nxgt/mongo` it is 0.18.1, above the 0.17.0 floor, and CI runs that version
-from the lock. The `janus-mongo` and `janus-kit` suites were also run once by
-hand, outside the lock, against 0.17.0 (the floor) and 0.18.1, when the lock
-still held 0.17.1. Both passed, with typecheck clean, and passed again on
-0.18.1 from the lock. `@nxgt/mail`, from
+from the lock. The floor, 0.17.0, is tested in CI, step *Run janus-mongo and
+the kit's mongo specs on @nxgt/mongo 0.17.0* of the `floors` job: the
+`janus-mongo` suite and the kit's mongo specs, each with its typecheck, on the
+floor's tarball from npm, outside the lock (`scripts/run-on-peer-floor.ts`).
+`@nxgt/mail`, from
 nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.8.0 from
 the lock, with `@nxgt/mail-config` 0.2.1, `@nxgt/mail-i18n` 0.6.0,
 `@nxgt/mail-ui` 0.6.0 and `@nxgt/mail-presets` 0.4.2 building `mails/` — whose
@@ -91,14 +92,12 @@ build refuses it as `missing — en, the fallback locale, has it`;
 in `fr` alone as `not a key of en, the fallback locale`. Nothing here
 names a key — `mail/locales/*.json` are `{}` — so the move built `mails/` byte
 for byte as before. An override added to a catalogue must use the presets'
-kebab-case key. The `janus-mail`
-suite was run by hand, outside the lock, against 0.1.0 (the floor), 0.4.0 and
-0.5.0, again against 0.1.0, 0.5.0 and 0.5.1 after the move to 0.5.1, and
-against 0.1.0 and 0.5.1 after the move to 0.6.0 and presets 0.2.0, and
-against 0.1.0 and 0.7.0 after the move to 0.7.0 and presets 0.4.0, and
-against 0.1.0 and 0.8.0 after the move to 0.8.0 and presets 0.4.1. All
-passed, with typecheck clean. The `mails/` build reads the same under every
-one of them, and **the build checks that it will**: a renderer reads every
+kebab-case key. The floor, 0.1.0, is tested in CI, step *Run janus-mail on
+@nxgt/mail 0.1.0* of the `floors` job: the `janus-mail` suite and its
+typecheck, rendering the `mails/` this build wrote, on the floor's tarball
+from npm, outside the lock — so every lock bump meets the floor as well as
+the latest. The `mails/` build reads the same under every `@nxgt/mail` in
+the range, and **the build checks that it will**: a renderer reads every
 manifest format up to its own, `@nxgt/mail` 0.1.0 reads format 1, and
 `scripts/build-mail.ts` fails unless the manifest's `formatVersion` is
 `@nxgt/mail-i18n`'s `MANIFEST_FORMAT` and at most `PEER_FLOOR_READS`, 1. A new
@@ -478,7 +477,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | --- | --- | --- |
 | `CursorPage`, `pageLimit` | `src/pagination/` | Four fields are not worth a dependency on a package from another repository |
 | `Clock`, `fixedClock` | `src/time/` | Same, and `fixedClock` is **shipped**, not test-only: a consumer testing session expiry needs it |
-| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above. `scripts/artifacts/` was split here first, and nxgt-data, nxgt-http and nxgt-core now follow it module for module. All four hold the test-code check, the guard that reports an unbuilt package as `no dist/`, and `missingFiles`, whose spec holds that a `files` entry `dis` is not covered by `dist/`. Only nxgt-core has `browser.ts`, for the `browser` export condition, which no package here declares. This copy and nxgt-data read a sibling's version from the workspace; nxgt-http and nxgt-core read it from the packed manifests. Outside `scripts/artifacts/`, `check-changesets.ts` and `check-nxgt-versions.ts` are this copy's alone. A check added to one copy is a check to port to the others |
+| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above. `scripts/artifacts/` was split here first, and nxgt-data, nxgt-http and nxgt-core now follow it module for module. All four hold the test-code check, the guard that reports an unbuilt package as `no dist/`, and `missingFiles`, whose spec holds that a `files` entry `dis` is not covered by `dist/`. Only nxgt-core has `browser.ts`, for the `browser` export condition, which no package here declares. This copy and nxgt-data read a sibling's version from the workspace; nxgt-http and nxgt-core read it from the packed manifests. Outside `scripts/artifacts/`, `check-changesets.ts`, `check-nxgt-versions.ts`, `run-on-peer-floor.ts` and `scripts/peer-floor/` are this copy's alone. A check added to one copy is a check to port to the others |
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/`, `packages/janus-webhooks-redis/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; three copies of 60 lines are cheaper. The Redis version in them keys the one `.cache/redis`, and `$JANUS_REDIS_VERSION` and `$REDIS_BIN` override it the same way in all three. Byte-identical, and both CI jobs, `ci` and `floors`, key their Redis cache on all three. Change one, change all |
 | The Redis script runner and reply reader — `scriptsOver`, `isNoScript`, `runner` and its `Run`, `stamp`, `readerOf`, `unreadable` | `packages/janus-redis/src/{stores,replies}.ts`, `packages/janus-webhooks-redis/src/{queue,replies}.ts` | Two adapters of two ports in two packages, and neither may depend on the other; a shared package for 80 lines would be a third to publish. The runner is the same but for its failure's message: `webhookQueue.<method>: the queue could not answer` with `operation` only, where janus-redis says `<slot>.<operation>: the store could not answer` with `slot` too. `runner` takes no `slot` here, and this copy's `Run` takes a lazy `argsOf(operation)` builder where janus-redis's takes an eager `args` array, so a refusal names the operation before any I/O. The reader reads dates the same way — any number but `''` and `NaN` — and a count's digits the same way, with two differences: janus-redis's field `count` answers `0` for an absent field (a token of an earlier version) where this copy fails, and janus-redis's reply `count` takes any number where this copy's `toCount` requires a safe integer, 0 or more. `unreadable` differs in the same way as the runner. The webhook copy adds `type` and `failure`, and refuses before any I/O what it could not read back. Change one, change both |
 | `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. Both end with the same `redisPerFile()`, the file's server started and stopped around its cases. A change to how a case opens or fails belongs in both |
@@ -535,7 +534,19 @@ The table that exists so a duplication is a decision rather than an accident.
   README allows — `@nxgt/janus-drizzle` and the kit's PostgreSQL-URL case
   on PostgreSQL 15, the two Redis adapters and the kit's drizzle specs, whose
   Redis is real, on Redis 7.0 (7.0.15), the two Redis adapters on Valkey 7.2
-  (Valkey's first line, a built binary from download.valkey.io). A README that states a new floor adds it to that job; a
+  (Valkey's first line, a built binary from download.valkey.io). The library
+  peers' floors run there too, through `scripts/run-on-peer-floor.ts`, which
+  points the named packages' link to a peer at the floor's tarball, runs a
+  command, and puts the links back — never touching `package.json` or
+  `bun.lock`: `@nxgt/mail` 0.1.0 under `janus-mail`, and `@nxgt/mongo`
+  0.17.0 under `janus-mongo` and the kit's mongo specs. The other `@nxgt/*`
+  peers are locked at their floors, so the `ci` job already runs them; a
+  lock bump that lifts one above its floor adds a step here. Locally, the
+  command the step runs, for instance
+  `bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
+  bash -c 'cd packages/janus-mail && bun test src scripts && bun run typecheck'`;
+  a link it refuses as left by an interrupted run is fixed by `bun install`.
+  A README that states a new floor adds it to that job; a
   floor that fails there means the README is wrong, and the owner decides what
   it promises instead; it is never made green by testing a newer version.
   Locally: `JANUS_REDIS_VERSION=7.0.15 bun test src` where 7.0.15 compiles —
@@ -623,7 +634,12 @@ uses, so a shape it accepts is never let through unread.
 `scripts/check-nxgt-versions.spec.ts` covers which devDependencies are
 tracked, what counts as behind, a registry that fails or answers no version,
 and the reading of this repository's own
-`bun.lock`.
+`bun.lock`. `scripts/peer-floor/*.spec.ts` cover the floor script's argument
+parsing, the tarball's integrity check and the floor's own ranges against the
+peers staged beside it; `scripts/run-on-peer-floor.spec.ts` runs it on a
+scratch store laid out as Bun's isolated install, and holds that the links and
+the temporary directory are put back after a success, a failed stage, a failed
+download and a SIGTERM, and that a stale link is refused.
 
 ---
 

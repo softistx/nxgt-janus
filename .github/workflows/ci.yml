@@ -179,7 +179,10 @@ jobs:
   # PostgreSQL URL — its other drizzle cases run on PGlite — on PostgreSQL
   # 15; @nxgt/janus-redis and @nxgt/janus-webhooks-redis on Redis 7.0 and on
   # Valkey; and @nxgt/janus-kit's drizzle specs, whose Redis is real, on Redis
-  # 7.0 as well, since it promises the same floor. Each floor is the newest patch of its line.
+  # 7.0 as well, since it promises the same floor. Each server floor is the
+  # newest patch of its line. And, at the end of the job, the library peers'
+  # floors, `@nxgt/mail` 0.1.0 and `@nxgt/mongo` 0.17.0 — each the exact lower
+  # bound of its peer range, not the newest patch.
   #
   # A floor that fails here is not fixed by testing a newer version: the
   # README is then wrong, and that is a decision, not a CI change.
@@ -268,3 +271,34 @@ jobs:
           export REDIS_BIN="$PWD/.cache/valkey/$VALKEY_VERSION/bin/valkey-server"
           (cd packages/janus-redis && bun test src)
           (cd packages/janus-webhooks-redis && bun test src)
+      # The library floors. Every `@nxgt/*` peer is `>=<floor> <1`, and the
+      # job above runs the version bun.lock holds, npm's latest. Two floors sit
+      # below it — `@nxgt/mail` 0.1.0 and `@nxgt/mongo` 0.17.0 — while
+      # `@nxgt/redis`, `@nxgt/drizzle` and `@nxgt/telemetry` are locked at
+      # their floors, so the job above already runs those. The script points
+      # the named packages' link to the peer at the floor's tarball, fetched
+      # from npm outside the lock, runs the command, and puts the links back;
+      # package.json and bun.lock are never touched. Typecheck too: a floor
+      # can lack a type the code names, and only tsc says so.
+      - name: Run janus-mail on @nxgt/mail 0.1.0
+        run: >-
+          bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
+          bash -c 'set -e; cd packages/janus-mail; bun test src scripts; bun run typecheck'
+      # The mongod the job above caches, under a key of its own: that job runs
+      # on ubuntu-latest and this one on 24.04, and mongodb-memory-server
+      # downloads a build per distribution, so one key would hand this job
+      # the other's binary the day `latest` moves.
+      - name: Cache the mongod binary
+        uses: actions/cache@v4
+        with:
+          path: .cache/mongodb
+          key: mongod-floor-ubuntu-24.04-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts', 'packages/janus-kit/test/mongo.ts') }}
+      # Both links move together: the kit loads @nxgt/janus-mongo, which
+      # resolves @nxgt/mongo from its own directory, and two copies would be
+      # two sets of classes. The kit's Redis is the 7.0 built above.
+      - name: Run janus-mongo and the kit's mongo specs on @nxgt/mongo 0.17.0
+        run: >-
+          bun scripts/run-on-peer-floor.ts @nxgt/mongo@0.17.0 janus-mongo janus-kit --
+          bash -c 'set -e;
+          cd packages/janus-mongo; bun test src; bun run typecheck;
+          cd ../janus-kit; bun test src/mongo src/entries.spec.ts; bun run typecheck'
