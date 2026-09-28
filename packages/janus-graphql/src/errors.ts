@@ -33,8 +33,10 @@ function denialOf(code: DenialCode): readonly [number, string] {
 
 /**
  * A `JanusError` as the client may read it: its code and status, and only
- * what the client can act on — `issues`, `minLength`, `attemptsLeft`. Never
- * `reason`, `login`, `slot` or a cause: those are for your logs.
+ * what the client can act on — `issues`, `minLength`, `attemptsLeft`,
+ * `retryAfter`. Never `reason`, `login`, `slot` or a cause: those are for
+ * your logs. A throttled sign-in also carries its `Retry-After` header in
+ * `http.headers`, which Yoga answers with.
  *
  * `STORE_FAILED` is `SERVICE_UNAVAILABLE` 503 — **an outage is never a
  * denial** — and no message of the core's reaches the client.
@@ -45,7 +47,7 @@ export function janusGraphQLError(error: JanusError): GraphQLError {
 		error.code === 'STORE_FAILED' ? 'SERVICE_UNAVAILABLE' : error.code;
 	return new GraphQLError(messageOf(status), {
 		originalError: error,
-		extensions: { code, http: { status }, ...actionable(error) },
+		extensions: { code, http: httpOf(error, status), ...actionable(error) },
 	});
 }
 
@@ -73,6 +75,16 @@ function messageOf(status: JanusErrorStatus): string {
 	}
 }
 
+/** The status, and the `Retry-After` of a throttled sign-in. */
+function httpOf(
+	error: JanusError,
+	status: JanusErrorStatus,
+): Record<string, unknown> {
+	return error.retryAfter === undefined
+		? { status }
+		: { status, headers: { 'Retry-After': String(error.retryAfter) } };
+}
+
 /** The fields of a refusal a client can act on, as `@nxgt/janus-hono`'s `bodyOf`. */
 function actionable(error: JanusError): Record<string, unknown> {
 	switch (error.code) {
@@ -86,6 +98,10 @@ function actionable(error: JanusError): Record<string, unknown> {
 			return error.attemptsLeft === undefined
 				? {}
 				: { attemptsLeft: error.attemptsLeft };
+		case 'CREDENTIALS_INVALID':
+			return error.retryAfter === undefined
+				? {}
+				: { retryAfter: error.retryAfter };
 		default:
 			return {};
 	}

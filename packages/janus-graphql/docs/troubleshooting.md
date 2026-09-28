@@ -41,6 +41,7 @@ for what causes each.
 
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
+- [`CREDENTIALS_INVALID` with `retryAfter`, 401, for the right password](#credentials_invalid-with-retryafter-401-for-the-right-password)
 - [`FORBIDDEN` where the user should be allowed](#forbidden-where-the-user-should-be-allowed)
 - [`STEP_UP_REQUIRED`, 403](#step_up_required-403)
 - [`STEP_UP_REQUIRED` for a user who just signed in](#step_up_required-for-a-user-who-just-signed-in)
@@ -367,6 +368,20 @@ was revoked; or `useJanus({ type })` treats this user's type as anonymous.
 
 **Fix:** send `Authorization: Bearer <token>`, `X-Session-Token`, or the
 session cookie; check `useJanus()`'s `type`.
+
+### `CREDENTIALS_INVALID` with `retryAfter`, 401, for the right password
+
+With `extensions.retryAfter` and a `Retry-After` header.
+
+**Why:** `@nxgt/janus` throttles password guessing per login, on by default:
+past ten passwords at one login in a 15-minute window, `signIn` refuses every
+one — the right password included — until the window ends. `retryAfter` is
+the seconds until then. Nothing locks.
+
+**Fix:** show the wait, not "wrong password": read `extensions.retryAfter`
+in the client. To change the limit, `janus({ signIn: { throttle: { attempts,
+window } } })`; in a test over a `fixedClock`, advance the clock past
+`retryAfter`, or wire `signIn: { throttle: false }`.
 
 ### `FORBIDDEN` where the user should be allowed
 

@@ -207,7 +207,9 @@ every one carries a `code` and the HTTP status Yoga answers with:
 
 The status sits in `extensions.http.status`, which Yoga reads to answer the
 HTTP response and strips from the body. `USER_INVALID` adds `issues`,
-`PASSWORD_TOO_SHORT` `minLength` and `CODE_INVALID` `attemptsLeft`; nothing
+`PASSWORD_TOO_SHORT` `minLength`, `CODE_INVALID` `attemptsLeft`, and a
+throttled `CREDENTIALS_INVALID` `retryAfter` — with a `Retry-After` header in
+`extensions.http.headers`, which Yoga answers with; nothing
 else — never `reason`, `login`, a hash prefix or a cause. The message is a
 fixed one per status, never the core's: read `code`. Detail, and the status of a
 response with several errors: [the errors guide](docs/guide/errors.md).

@@ -40,6 +40,11 @@ Nothing yet.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A throttled sign-in's `retryAfter`, v0.4.0.** `janusGraphQLError()`
+  answers `@nxgt/janus`'s throttled `CREDENTIALS_INVALID` with `retryAfter`
+  in `extensions` and a `Retry-After` header in `extensions.http.headers`,
+  which Yoga answers with. Needs `@nxgt/janus` 0.13.0.
+
 - **The renewed session cookie, and `report` for every outage, v0.4.0.**
   Under Yoga, `useJanus()` sends a session `authenticate` renewed back as
   `Set-Cookie`, so a browser keeps the new expiry without an HTTP route of
