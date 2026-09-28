@@ -581,6 +581,29 @@ Load the record first: `can()` needs its `doctorId` and `patientId`. An
 anonymous caller is `null`, which `can()` answers `false` without a store call
 — a `401` here, a `403` for a signed-in one.
 
+### A function of your own around `can()`
+
+`Can<C>` is `can()`'s signature, and `CheckArgs<C, T, P>` its options
+argument — required exactly when a `when` is reachable, as for `can()`
+itself. A wrapper that spreads them refuses the same mistakes:
+
+```ts
+import type {
+	CheckableOf, CheckArgs, ModelConfig, ObjectRef, ObjectTypeOf, Permissions, SubjectRef,
+} from '@nxgt/janus/permissions';
+
+export function audited<C extends ModelConfig, const T extends ObjectTypeOf<C>, const P extends CheckableOf<C, T>>(
+	access: Permissions<C>,
+	subject: SubjectRef<C> | null,
+	permission: P,
+	object: ObjectRef<C, T>,
+	...options: CheckArgs<C, T, P>
+): Promise<boolean> {
+	log.info({ permission, object: object.id });
+	return access.can(subject, permission, object, ...options);
+}
+```
+
 ## Subjects and the notation
 
 A user **is** a subject: `subjectOf(user)` from `@nxgt/janus` answers its

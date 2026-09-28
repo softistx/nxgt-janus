@@ -306,8 +306,10 @@ What this commits us to in the code:
 
 ## Layout
 
-Ten packages under `packages/`: the core `@nxgt/janus`, and the adapters and
-integrations that peer it. The core has several entry points, below. A
+Eleven packages under `packages/`: the core `@nxgt/janus`, and the adapters
+and integrations that peer it — one of them, `@nxgt/janus-graphql`, still
+private (see *A new package starts private*). The core has several entry
+points, below. A
 published entry point is a **public promise**, so a subpath appears in
 `exports` only once it exports something a consumer should call.
 
@@ -445,7 +447,7 @@ about what an outage is.** Three guard rails, all mandatory from the first
 commit:
 
 1. `@nxgt/janus` is a **required peer** of every adapter and integration
-   (`@nxgt/janus-hono`), never a dependency, and neither **defines an error
+   (`@nxgt/janus-hono`, `@nxgt/janus-graphql`), never a dependency, and neither **defines an error
    class** — they throw, and test `instanceof` against, the peer's.
 2. The **one-class-per-entry-point scan** that `scripts/verify-artifacts.ts`
    runs (`scripts/artifacts/classes.ts`), plus
@@ -485,6 +487,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. Both end with the same `redisPerFile()`, the file's server started and stopped around its cases. A change to how a case opens or fails belongs in both |
 | `test/mongo.ts`, the pinned replica set the specs start | `packages/janus-mongo/test/server.ts`, `packages/janus-kit/test/mongo.ts` | Same; the mongod version in both keys the one `.cache/mongodb` |
 | The DDL helper, drizzle-kit's `generateMigration` over `defineJanusTables()` | `packages/janus-drizzle/test/db.ts`, `packages/janus-kit/test/postgres.ts` | Same |
+| The integrations' reading of `janus()` and of a refusal — `Auth`, `UserOfAuth`, and the fields a client may read from a `JanusError` (`issues`, `minLength`, `attemptsLeft`) | `packages/janus-hono/src/{session,errors}.ts` (`bodyOf`), `packages/janus-graphql/src/{types,errors}.ts` (`actionable`) | Each is a few lines typed against its framework — Hono's `Env`, GraphQL's `extensions` — and the rule behind the fields is `@nxgt/janus`'s: never `reason`, `login` or a cause. The status table is **not** duplicated: both answer `@nxgt/janus`'s `statusOf`, moved there so a third integration does not copy it. A field added to what a client may read belongs in both |
 | The conformance helpers — `equal`, `ok`, `rejects`, `isOurs`, `describeSuite`, `fromGlobals` | `packages/janus/src/conformance/{assert,describe}.ts`, `packages/janus-webhooks/src/conformance/{assert,describe}.ts` | `@nxgt/janus/conformance` exports its suites, not its helpers, and a second port's suite in another package needs them; exporting them would make them a public promise for 150 lines. Both `isOurs` take the error's `name` rather than reading `cls.name`, since `@nxgt/janus`'s bundle renames `StoreFailure` to `StoreFailure2`, and their bodies are identical. The copy has no `isNull`: a queue answers no `null`. Change one, change both |
 
 ---
