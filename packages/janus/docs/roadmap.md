@@ -5,19 +5,7 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **Confirm an action with an e-mailed code (step-up)** — a signed-in user
-  proves they still read their inbox before something a stolen session should
-  not do alone: changing the e-mail, disabling the second factor, deleting
-  the account. The same six digits, challenge and five attempts as a sign-in
-  code, bound to the session that asked rather than opening one — which
-  takes a token kind of its own, so a sign-in code can never confirm an
-  action nor an action's code sign anyone in. A user with an active second
-  factor confirms with a code from their app instead. The confirmation
-  moves the session's `authenticatedAt`, so "signed in less than ten
-  minutes ago" is one field of the session `authenticate` already answers.
-  The port comes first — the token kind `stepUp` and
-  `SessionStore.reauthenticateSession`, in the three adapters and the
-  conformance suite — and the flows follow.
+Nothing between releases.
 
 ## Next
 
@@ -73,6 +61,15 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Confirm an action with a code (step-up), v0.12.0** —
+  `auth.stepUp.request(user)` and `stepUp.confirm(request, challenge, code)`:
+  a signed-in user proves again who they are before a sensitive action, with
+  a six-digit code sent by e-mail — or, when their second factor is active,
+  the code from their app. The confirmation moves the session's
+  `authenticatedAt` and opens no session, and `assertFresh(session, maxAge)`
+  refuses an older one with `STEP_UP_REQUIRED` (403). A token kind of its
+  own, `stepUp`, and `SessionStore.reauthenticateSession`, in the three
+  adapters and the conformance suite.
 - **The recovery codes left, read again, v0.11.0** —
   `secondFactor.recoveryCodesLeft(user)` answers the count `recover`
   answered, for a `user.recoveryCodeUsed` listener — the event names the
@@ -149,11 +146,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   without a password included; an active second factor is still asked for.
   A challenge lives ten minutes (`tokens.signInCode`) and takes five
   attempts, and only the code's hash is stored, keyed by the challenge.
-- **A TOTP second factor, v0.5.0** — `janus({ secondFactor: { issuer, keys } })`
-  and `auth.<type>.secondFactor`'s `enroll`, `activate`, `disable` and
-  `confirm`, for every user type with a password; each secret sealed with
-  AES-256-GCM under keys your application holds, and rotated by adding a key.
-  Breaking once configured: `signIn` answers `{ status: 'signedIn', … }` or
-  `{ status: 'secondFactor', challenge, expiresAt }`. A challenge lives five
-  minutes and takes five attempts, a code is accepted once, and a refused one
-  throws `CODE_INVALID` with `attemptsLeft`.
