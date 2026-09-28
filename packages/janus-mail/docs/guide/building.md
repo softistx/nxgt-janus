@@ -59,6 +59,9 @@ that built it — and within 0.x a renderer reads every format up to its own.
 `@nxgt/mail` 0.1.0 through 0.8.0 read format 1, and a manifest without the
 field is format 1.
 
+That floor is tested, not claimed: the package's specs and its typecheck run
+on `@nxgt/mail` 0.1.0 as well, in the Floors job, on every CI run.
+
 `formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build
 when:
 
