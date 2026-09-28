@@ -33,7 +33,8 @@ import { type Tarball, tarballProblems } from './tarball';
  *     `.gitignore` keeps out of the repository: an unbuilt folder, or a packer
  *     that honours that `.gitignore`, would publish a package whose every
  *     default e-mail fails.
- *   - **test code**: a spec, a snapshot, or a `<subject>.fixtures.*` file.
+ *   - **test code**: a `*.spec.*` or `*.test.*` file, a snapshot, or a
+ *     `<subject>.fixtures.*` file.
  */
 export async function manifestProblems(
 	tarballs: readonly Tarball[],
