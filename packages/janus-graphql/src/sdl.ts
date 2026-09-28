@@ -7,9 +7,6 @@
  * ```ts
  * createSchema({ typeDefs: [janusTypeDefs, typeDefs], resolvers });
  * ```
- *
- * `@permission` is declared, and not enforced yet: `applyJanusDirectives`
- * refuses a schema that uses it, rather than let a field it guards through.
  */
 export const janusTypeDefs: string = `"""
 Only a signed-in user reaches this field, or every field of this type or
@@ -36,9 +33,10 @@ enum PermissionDenial {
 
 """
 Only a user holding permission \`name\` on the object of \`type\` whose id \`id\`
-reads reaches this field. \`id\` is \`args.<path>\` or \`parent.<path>\`: \`args.id\`
-on a field and \`parent.id\` on a type when absent. Repeated, every one must
-hold, in the order written.
+reads reaches this field, or every field of this type or interface. \`id\` is
+\`args.<path>\` or \`parent.<path>\`: \`args.id\` on a field and \`parent.id\` on a
+type or an interface when absent. A list of ids requires the permission on
+every one. Repeated, every one must hold, in the order written.
 """
 directive @permission(
 	name: String!

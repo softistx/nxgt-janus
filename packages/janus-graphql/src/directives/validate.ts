@@ -2,20 +2,32 @@
  * Decides, when the schema is built, what the directives on one field add up
  * to — and refuses with a `TypeError` what no request could ever pass: a user
  * type `auth` does not know, a `type: []`, restrictions that exclude each
- * other, or a `@permission`, which is declared and not enforced yet.
+ * other, or a `@permission` the model, the field or the wiring cannot answer
+ * (`permission/validate.ts`).
  */
 
-import type { FieldDirectives } from './read';
+import {
+	type FieldShape,
+	type PermissionCheck,
+	type PermissionWiring,
+	permissionCheckOf,
+} from './permission/validate';
+import type { AuthenticatedUse, FieldDirectives } from './read';
+import { list, on, PREFIX } from './words';
 
 /** What a field requires before its resolver runs. */
 export interface Requirement {
 	/** `Type.field`, for the messages. */
 	readonly where: string;
+	/** The directive a missing `ctx.janus` is reported against. */
+	readonly label: string;
 	/**
 	 * The user types allowed, every `type:` intersected; `null` when none
 	 * narrows it: any signed-in user.
 	 */
 	readonly types: ReadonlySet<string> | null;
+	/** The permissions asked after that, in order: every one must hold. */
+	readonly permissions: readonly PermissionCheck[];
 }
 
 /** The user types a schema may name: `auth.types`, or the one `useJanus({ type })` keeps. */
@@ -23,27 +35,38 @@ export interface Known {
 	readonly types: readonly string[];
 }
 
-const PREFIX = 'applyJanusDirectives()';
-
 /**
  * The requirement of one field, or `null` when nothing guards it. Throws a
  * `TypeError` naming the field for a directive no request could pass.
  */
 export function requirementOf(
-	field: string,
+	field: FieldShape,
 	directives: FieldDirectives,
 	known: Known,
+	wiring: PermissionWiring,
 ): Requirement | null {
-	const [permission] = directives.permission;
-	if (permission !== undefined) {
-		throw new TypeError(
-			`${PREFIX}: @permission on ${on(permission, field)} is not enforced yet — check it in the resolver with can(ctx, …) until it is`,
-		);
-	}
-	if (directives.authenticated.length === 0) return null;
+	const { authenticated, permission } = directives;
+	if (authenticated.length === 0 && permission.length === 0) return null;
+	const [first] = authenticated;
+	return {
+		where: field.name,
+		label:
+			first === undefined
+				? `@permission on ${on((permission[0] as { where: string }).where, field.name)}`
+				: `@authenticated on ${on(first.where, field.name)}`,
+		types: typesOf(field.name, authenticated, known),
+		permissions: permission.map((use) => permissionCheckOf(use, field, wiring)),
+	};
+}
 
+/** Every `type:` intersected, or `null` when none names any. */
+function typesOf(
+	field: string,
+	uses: readonly AuthenticatedUse[],
+	known: Known,
+): ReadonlySet<string> | null {
 	let types: Set<string> | null = null;
-	for (const { where, types: named } of directives.authenticated) {
+	for (const { where, types: named } of uses) {
 		if (named === null) continue;
 		if (named.length === 0) {
 			throw new TypeError(
@@ -67,14 +90,5 @@ export function requirementOf(
 			`${PREFIX}: the @authenticated on ${field} and on its type or interfaces admit no user type in common`,
 		);
 	}
-	return { where: field, types };
-}
-
-/** `Query.me`, or `Record (read by Record.title)` for a type's directive. */
-function on(where: string, field: string): string {
-	return where === field ? field : `${where} (read by ${field})`;
-}
-
-function list(names: readonly string[]): string {
-	return names.map((name) => `'${name}'`).join(', ');
+	return types;
 }

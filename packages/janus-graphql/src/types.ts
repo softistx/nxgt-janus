@@ -4,6 +4,7 @@
  */
 
 import type { Session, SharedApi } from '@nxgt/janus';
+import type { PermissionWiringOf } from './wiring';
 
 /** Anything `janus()` answered: the part of it this package calls. */
 export type Auth<U extends { readonly type: string }> = Pick<
@@ -14,18 +15,31 @@ export type Auth<U extends { readonly type: string }> = Pick<
 /** The users an `auth` instance knows, as a union narrowed by `user.type`. */
 export type UserOfAuth<A> = A extends Auth<infer U> ? U : never;
 
-/** What `useJanus()` takes. */
-export interface JanusOptions<A, P, T extends string> {
+/**
+ * What `useJanus()` takes. `loaders` and `conditions` are what `@permission`
+ * needs beside `access`, typed from its model — see `Loaders` and
+ * `Conditions`.
+ */
+export type JanusOptions<A, P, T extends string> = {
 	/** What `janus()` answered. */
 	readonly auth: A;
 	/**
-	 * What `permissions()` answered: `ctx.janus.access`, and what `can()`
-	 * asks. Absent, the context has no `access`, and `can()` does not compile.
+	 * What `permissions()` answered: `ctx.janus.access`, what `can()` and
+	 * `@permission` ask. Absent, the context has no `access`, and `can()` does
+	 * not compile.
 	 */
 	readonly access?: P;
 	/** Only a user of this type is authenticated here; any other is anonymous. */
 	readonly type?: T;
-}
+} & PermissionWiringOf<
+	P,
+	{
+		readonly janus: JanusOnContext<
+			Extract<UserOfAuth<A>, { readonly type: T }>,
+			P
+		>;
+	}
+>;
 
 /**
  * `ctx.janus`, one per request.

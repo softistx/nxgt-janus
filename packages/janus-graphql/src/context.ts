@@ -5,6 +5,7 @@
  */
 
 import type { Authenticated, RequestLike } from '@nxgt/janus';
+import { memoized } from './memo';
 import type { JanusOnContext } from './types';
 
 /** One check, as `access.can` answers it — loose: the typing is the caller's. */
@@ -81,13 +82,14 @@ export function createJanusContext(
 		session: () => authenticated().then((current) => current?.session ?? null),
 		...(access === undefined ? {} : { access }),
 	});
-	if (access !== undefined) checks.set(janus, access.can as Check);
+	if (access !== undefined) checks.set(janus, memoized(access));
 	return janus as Built;
 }
 
 /**
  * The check `ctx.janus` answers through: the one its context was built
- * with, or `access.can` for a context built by hand. `null` when it has no
+ * with — `access.can`, memoized for the request (`memo.ts`) — or
+ * `access.can` itself for a context built by hand. `null` when it has no
  * `access` at all.
  */
 export function checkOf(janus: object): Check | null {

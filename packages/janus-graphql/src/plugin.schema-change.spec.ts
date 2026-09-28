@@ -43,16 +43,30 @@ describe('useJanus() on a schema change', () => {
 		expect(replaced).toHaveLength(1);
 	});
 
-	it('refuses a schema that uses @permission, which is not enforced yet', () => {
+	it('refuses a schema that uses @permission when it was given no access', () => {
 		const { auth } = setup();
 		const schema = schemaOf(
-			'type Query { record(id: ID!): String @permission(name: "view", type: "record") }',
+			'type Query { ward(id: ID!): String @permission(name: "enter", type: "ward") }',
 		);
 		expect(() => change(useJanus({ auth }), schema)).toThrow(
 			new TypeError(
-				'applyJanusDirectives(): @permission on Query.record is not enforced yet — check it in the resolver with can(ctx, …) until it is',
+				'applyJanusDirectives(): @permission on Query.ward needs the permissions() instance — pass useJanus({ auth, access }), with access what permissions() answered',
 			),
 		);
+	});
+
+	it('applies @permission with the access, loaders and conditions it was given', () => {
+		const { auth, access } = setup();
+		const schema = schemaOf(
+			'type Query { record(id: ID!): String @permission(name: "edit", type: "record") }',
+		);
+		const plugin = useJanus({
+			auth,
+			access,
+			loaders: { record: () => null },
+			conditions: { record: () => ({ locked: false }) },
+		});
+		expect(change(plugin, schema)).toHaveLength(1);
 	});
 
 	it('refuses a @permission on a type, naming the field that reads it', () => {
@@ -62,7 +76,7 @@ describe('useJanus() on a schema change', () => {
 		expect(() =>
 			applyJanusDirectives(schema, { auth: { types: ['patient'] } }),
 		).toThrow(
-			/@permission on Record \(read by Record\.id\) is not enforced yet/,
+			/@permission on Record \(read by Record\.id\) needs the permissions\(\) instance/,
 		);
 	});
 
