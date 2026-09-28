@@ -57,6 +57,31 @@ Node.
 | `@nxgt/janus-webhooks` | **Sending and receiving**: `webhooks()`, `verifyWebhook()`, `mintWebhookSecret()`, and the `WebhookQueue` port with its in-memory reference, `createMemoryWebhookQueue()` |
 | `@nxgt/janus-webhooks/conformance` | **For queue adapters**: the suite a `WebhookQueue` runs — see [API](#api) |
 
+An adapter's spec runs the suite against a fresh, empty queue per case:
+
+```ts
+import { describe, it } from 'bun:test';
+import { describeWebhookQueues } from '@nxgt/janus-webhooks/conformance';
+
+describeWebhookQueues({
+	name: 'my queue',
+	runner: { describe, it }, // under bun test, pass them: they are not on globalThis
+	harness: {
+		async open() {
+			const db = await openEmptyDatabase();
+			return {
+				queue: createMyWebhookQueue(db),
+				faults: { fail: async (method) => db.failEvery(method) }, // leave out, and the outage cases pass with a JANUS_CONFORMANCE_SKIPPED warning
+				close: () => db.drop(),
+			};
+		},
+	},
+});
+```
+
+The [queues guide](docs/guide/queues.md#testing-an-adapter) has every case
+and what fails it.
+
 ## Usage
 
 ### Sending — `webhooks()`
