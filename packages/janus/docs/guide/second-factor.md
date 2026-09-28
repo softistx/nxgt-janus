@@ -497,7 +497,7 @@ import { TokenError, assertFresh } from '@nxgt/janus';
 export async function regenerateRecoveryCodes(request: Request): Promise<Response> {
 	const current = await auth.authenticate(request);
 	if (current === null) return new Response(null, { status: 401 });
-	assertFresh(current.session, '5m'); // STEP_UP_REQUIRED (403): a step-up first
+	assertFresh(current.session, '5m'); // STEP_UP_REQUIRED: your error handler answers 403, and the client steps up
 	const { code } = (await request.json()) as { code: string };
 	try {
 		const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(current.user, code);

@@ -231,8 +231,8 @@ app.delete('/account', session(auth, { required: true }), fresh('10m'), handler)
 
 ### `TypeError: fresh: maxAge: "<value>" is not a duration …`
 
-**When:** when the app is wired — the line that calls `fresh('10 minutes')`
-throws, before any request.
+**When:** when the app is wired: the line that calls `fresh('10 m')`, or
+`fresh()` with a `maxAge` computed as a string, throws before any request.
 
 **Why:** a `maxAge` is a number of milliseconds, or a number followed by
 one unit — `ms`, `s`, `m`, `h` or `d`. The type refuses most mistakes;
