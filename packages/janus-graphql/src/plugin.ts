@@ -27,7 +27,8 @@ import type { Auth, JanusContext, JanusOptions, UserOfAuth } from './types';
  * ```
  *
  * `type` treats a user of any other type as anonymous, as
- * `auth.authenticate(request, { type })` does. `loaders` and `conditions`
+ * `auth.authenticate(request, { type })` does. `clock` is what `@fresh` and
+ * `requireFresh()` read the time from — the one given to `janus()`. `loaders` and `conditions`
  * are what `@permission` needs beside `access`: the objects it checks by id,
  * and the `ctx` of the conditions it reaches.
  */
@@ -36,7 +37,7 @@ export function useJanus<
 	P extends object | undefined = undefined,
 	const T extends UserOfAuth<A>['type'] = UserOfAuth<A>['type'],
 >(options: JanusOptions<A, P, T>): Plugin<JanusContext<A, P, T>> {
-	const { auth, access, type, loaders, conditions } = options;
+	const { auth, access, type, clock, loaders, conditions } = options;
 	if (typeof auth?.authenticate !== 'function') {
 		throw new TypeError(
 			'useJanus(): auth is not what janus() answered — pass { auth }',
@@ -50,6 +51,14 @@ export function useJanus<
 			'useJanus(): access is not what permissions() answered — pass { auth, access }',
 		);
 	}
+	if (
+		clock !== undefined &&
+		typeof (clock as { readonly now?: unknown } | null)?.now !== 'function'
+	) {
+		throw new TypeError(
+			'useJanus(): clock is not a Clock — pass the clock given to janus(), or leave it out for the system clock',
+		);
+	}
 	const applied = new WeakSet<GraphQLSchema>();
 
 	return {
@@ -59,6 +68,7 @@ export function useJanus<
 				auth,
 				access: access as { readonly can: unknown } | undefined,
 				type,
+				clock,
 			});
 			extendContext({ janus } as unknown as Partial<JanusContext<A, P, T>>);
 		},

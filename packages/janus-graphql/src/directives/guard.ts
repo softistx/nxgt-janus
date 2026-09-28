@@ -1,6 +1,7 @@
 /**
  * What runs before a guarded field's resolver, at request time: the user,
- * then the requirement — its user types, then each `@permission` in order. A
+ * then the requirement — its user types, the session's freshness, then each
+ * `@permission` in order. A
  * denial is a `GraphQLError`; a failure to answer is `SERVICE_UNAVAILABLE`,
  * never a denial.
  */
@@ -8,6 +9,7 @@
 import type { GraphQLFieldResolver } from 'graphql';
 import { checkOf, janusOf } from '../context';
 import { denial, rethrown } from '../errors';
+import { freshSession } from '../fresh';
 import { enforcePermission } from './permission/enforce';
 import type { Requirement } from './validate';
 
@@ -30,6 +32,9 @@ export async function enforce(
 	if (user === null) throw denial('UNAUTHENTICATED');
 	if (requirement.types !== null && !requirement.types.has(user.type)) {
 		throw denial('FORBIDDEN');
+	}
+	if (requirement.maxAgeMs !== null) {
+		await freshSession(janus, requirement.maxAgeMs);
 	}
 	const [first] = requirement.permissions;
 	if (first === undefined) return;

@@ -10,7 +10,19 @@ describe('janusTypeDefs', () => {
 		expect(janusTypeDefs).toBe(shipped);
 	});
 
-	it('declares both directives and the denial enum', () => {
+	it('declares @fresh, with a required maxAge, where @authenticated goes', () => {
+		const schema = buildSchema(`${janusTypeDefs}type Query { ok: String }`);
+		const fresh = schema.getDirective('fresh');
+		expect(fresh?.args.map((arg) => `${arg.name}: ${arg.type}`)).toEqual([
+			'maxAge: Int!',
+		]);
+		expect(fresh?.isRepeatable).toBe(false);
+		expect(fresh?.locations).toEqual(
+			schema.getDirective('authenticated')?.locations ?? [],
+		);
+	});
+
+	it('declares the directives and the denial enum', () => {
 		const schema = buildSchema(`${janusTypeDefs}type Query { ok: String }`);
 		const authenticated = schema.getDirective('authenticated');
 		const permission = schema.getDirective('permission');

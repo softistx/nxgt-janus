@@ -3,7 +3,7 @@
  * GraphQL context. Nothing here runs.
  */
 
-import type { Session, SharedApi } from '@nxgt/janus';
+import type { Clock, Session, SharedApi } from '@nxgt/janus';
 import type { PermissionWiringOf } from './wiring';
 
 /** Anything `janus()` answered: the part of it this package calls. */
@@ -31,6 +31,11 @@ export type JanusOptions<A, P, T extends string> = {
 	readonly access?: P;
 	/** Only a user of this type is authenticated here; any other is anonymous. */
 	readonly type?: T;
+	/**
+	 * The clock `@fresh` and `requireFresh()` read: the one given to
+	 * `janus()`, when it is not the system's — `fixedClock` in a spec.
+	 */
+	readonly clock?: Clock;
 } & PermissionWiringOf<
 	P,
 	{

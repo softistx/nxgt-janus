@@ -4,7 +4,12 @@
  * through.
  */
 
-import type { Authenticated, RequestLike } from '@nxgt/janus';
+import {
+	type Authenticated,
+	type Clock,
+	type RequestLike,
+	systemClock,
+} from '@nxgt/janus';
 import { memoized } from './memo';
 import type { JanusOnContext } from './types';
 
@@ -36,11 +41,15 @@ type Built = JanusOnContext<AnyUser, unknown>;
  */
 const checks = new WeakMap<object, { memo: Check; fresh: Check }>();
 
+/** The clock of each context this module built with one: what `@fresh` reads. */
+const clocks = new WeakMap<object, Clock>();
+
 /** What `createJanusContext` reads from `useJanus()`'s options. */
 export interface ContextOptions {
 	readonly auth: LooseAuth;
 	readonly access?: { readonly can: unknown } | undefined;
 	readonly type?: string | undefined;
+	readonly clock?: Clock | undefined;
 }
 
 /**
@@ -56,7 +65,7 @@ export function createJanusContext(
 	request: RequestLike | undefined,
 	options: ContextOptions,
 ): Built {
-	const { auth, access, type } = options;
+	const { auth, access, type, clock } = options;
 	let answer: Promise<Authenticated<AnyUser> | null>;
 	let asked = false;
 	const authenticated = () => {
@@ -89,7 +98,16 @@ export function createJanusContext(
 			fresh: (...args) => can.apply(access, args),
 		});
 	}
+	if (clock !== undefined) clocks.set(janus, clock);
 	return janus as Built;
+}
+
+/**
+ * The clock `@fresh` and `requireFresh()` read the time from: the one given
+ * to `useJanus({ clock })`, or the system's.
+ */
+export function clockOf(janus: object): Clock {
+	return clocks.get(janus) ?? systemClock;
 }
 
 /**

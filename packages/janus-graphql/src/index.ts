@@ -1,14 +1,14 @@
 /**
  * `@nxgt/janus-graphql` — `@nxgt/janus` in a GraphQL server.
  *
- * - `useJanus({ auth, access?, type?, loaders?, conditions? })` — the
- *   envelop plugin: `ctx.janus` on every request, and the directives —
- *   `@authenticated`, `@permission` — applied to the schema;
+ * - `useJanus({ auth, access?, type?, clock?, loaders?, conditions? })` —
+ *   the envelop plugin: `ctx.janus` on every request, and the directives —
+ *   `@authenticated`, `@fresh`, `@permission` — applied to the schema;
  * - `janusTypeDefs` — the directives' SDL, also shipped as
  *   `graphql/janus.graphqls`;
  * - `applyJanusDirectives(schema, { auth })` — the schema transform alone;
- * - `requireUser(ctx, { type? })` and `can(ctx, permission, object)` — the
- *   calls a resolver makes itself;
+ * - `requireUser(ctx, { type? })`, `requireFresh(ctx, maxAge)` and
+ *   `can(ctx, permission, object)` — the calls a resolver makes itself;
  * - `janusMaskError(fallback?)` — Yoga's `maskError`: a `JanusError` as its
  *   code and status, `STORE_FAILED` as 503 and never as 401 or 403.
  * - `janusGraphQLError(error)` — a `JanusError` as the `GraphQLError` the
@@ -29,6 +29,7 @@ export {
 	janusMaskError,
 	type MaskError,
 } from './errors';
+export { requireFresh } from './fresh';
 export { can, type RequireUserOptions, requireUser } from './helpers';
 export { useJanus } from './plugin';
 export { janusTypeDefs } from './sdl';

@@ -21,6 +21,14 @@ export interface AuthenticatedUse {
 	readonly types: readonly string[] | null;
 }
 
+/** One `@fresh`, and where it was written. */
+export interface FreshUse {
+	/** `Type.field`, `Type`, `Interface.field` or `Interface`. */
+	readonly where: string;
+	/** Its `maxAge:` argument, in seconds, as written: checked by `validate.ts`. */
+	readonly maxAge: number;
+}
+
 /** One `@permission`, as written, and where. */
 export interface PermissionUse {
 	/** `Type.field`, `Type`, `Interface.field` or `Interface`. */
@@ -37,6 +45,7 @@ export interface PermissionUse {
 /** Everything written on one field's locations. */
 export interface FieldDirectives {
 	readonly authenticated: readonly AuthenticatedUse[];
+	readonly fresh: readonly FreshUse[];
 	/** In the order they are checked: the type's and interfaces' first, then the field's. */
 	readonly permission: readonly PermissionUse[];
 }
@@ -81,7 +90,7 @@ function locations(
 	];
 }
 
-/** Every `@authenticated` and `@permission` that applies to one object field. */
+/** Every `@authenticated`, `@fresh` and `@permission` that applies to one object field. */
 export function readField(
 	schema: GraphQLSchema,
 	field: GraphQLFieldConfig<unknown, unknown>,
@@ -89,6 +98,7 @@ export function readField(
 	typeName: string,
 ): FieldDirectives {
 	const authenticated: AuthenticatedUse[] = [];
+	const fresh: FreshUse[] = [];
 	const permission: PermissionUse[] = [];
 	for (const { where, onType, node } of locations(
 		schema,
@@ -99,6 +109,9 @@ export function readField(
 		for (const args of getDirective(schema, node, 'authenticated') ?? []) {
 			const types = args.type as readonly string[] | null | undefined;
 			authenticated.push({ where, types: types ?? null });
+		}
+		for (const args of getDirective(schema, node, 'fresh') ?? []) {
+			fresh.push({ where, maxAge: args.maxAge as number });
 		}
 		for (const args of getDirective(schema, node, 'permission') ?? []) {
 			permission.push({
@@ -111,5 +124,5 @@ export function readField(
 			});
 		}
 	}
-	return { authenticated, permission };
+	return { authenticated, fresh, permission };
 }

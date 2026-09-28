@@ -151,6 +151,7 @@ export function server(
 			useJanus({
 				auth: context.tracked,
 				access: options.access ?? context.access,
+				clock: context.clock,
 				...(options.loaders === undefined ? {} : { loaders: options.loaders }),
 				...(options.conditions === undefined
 					? {}
