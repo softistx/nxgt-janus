@@ -55,6 +55,7 @@ How the messages are shaped:
 - [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
 - [The sign-in code's box stays a light slab in dark mode](#the-sign-in-codes-box-stays-a-light-slab-in-dark-mode)
 - [The sign-in code turns unreadable in dark mode after upgrading `@nxgt/mail-ui` to 0.7](#the-sign-in-code-turns-unreadable-in-dark-mode-after-upgrading-nxgtmail-ui-to-07)
+- [The link under the button is faint in light mode](#the-link-under-the-button-is-faint-in-light-mode)
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
@@ -464,6 +465,23 @@ the code at 1.86:1 once rebuilt with `@nxgt/mail-ui` 0.7.0. Through 0.6.0,
 `#62748e`. The same token colours muted text on the dark card and page, so
 no one value suits a mid-slate box: set a dark `color-muted-dark` and a
 light `color-muted-foreground-dark`, as in the entry above.
+
+### The link under the button is faint in light mode
+
+The link repeated in text under the button, for a client that shows no
+button, is `@nxgt/mail-ui`'s `NxLink`, coloured with its info blue
+(`#54a2ff`) in both modes: 2.63:1 on the light card, 6.78:1 on the dark
+one. It is the one text of the defaults under 4.5:1. `color-info` has no
+dark twin, and no single value reaches 4.5:1 on both the white card and the
+dark card, so the defaults leave it as it is rather than trade the dark
+mode for the light one; it is `@nxgt/mail-ui`'s to fix. A template of your
+own can colour its link with the primary instead, which has a dark twin:
+`NxLink` merges a `class` over its own `text-info`, and
+`nx-dark-text-primary` follows `color-primary-dark` in dark mode:
+
+```vue
+<NxLink :href="link" class="text-primary nx-dark-text-primary">{{ link }}</NxLink>
+```
 
 ## Compile errors
 
