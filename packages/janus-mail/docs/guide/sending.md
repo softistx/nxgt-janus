@@ -266,6 +266,39 @@ advises sending *after* answering, so the time an answer takes does not tell
 whether the address exists: hand the send to a queue that awaits it and
 retries a `MAIL_FAILED`, rather than to a promise nobody awaits.
 
+### Retrying and tracing the mailer
+
+From `@nxgt/mail` 0.8, wrap the mailer before you hand it to `janusMail()`:
+`withRetry` retries a `MailFailure` with backoff, reusing one idempotency
+key for every attempt, and never retries a `MailRefused`; `withTelemetry`
+from `@nxgt/mail/telemetry` opens a `mail.send` span per send (its
+`@opentelemetry/api` peer is optional). Put telemetry on the outside, so one
+send is one span:
+
+```ts
+import { withRetry } from '@nxgt/mail';
+import { withTelemetry as withMailTelemetry } from '@nxgt/mail/telemetry';
+import { createSmtpMailer } from '@nxgt/mail-smtp';
+
+export const mail = janusMail({
+	mailer: withMailTelemetry(withRetry(createSmtpMailer({ transporter })), { transport: 'smtp' }),
+	from: 'noreply@acme.example',
+	brand: 'Acme',
+	links,
+});
+```
+
+**Alias it.** `@nxgt/telemetry` — which `@nxgt/janus-telemetry` peers — also
+exports a `withTelemetry`, `withTelemetry(telemetry, fn)`, which scopes a
+telemetry to a block. The two are unrelated; import `@nxgt/mail`'s under
+another name, as above, when a module uses both.
+
+**SMTP ignores the idempotency key**, so a retry after an ambiguous SMTP
+timeout can deliver an e-mail twice. If a duplicate sign-in code or reset
+link is not acceptable, leave an SMTP mailer unretried (`{ attempts: 1 }`,
+or no `withRetry`). See `@nxgt/mail`'s
+[sending guide](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail/docs/guide/sending.md#retrying--withretry).
+
 ## Testing
 
 `createMemoryMailer()` from `@nxgt/mail` keeps an outbox, and can be told to

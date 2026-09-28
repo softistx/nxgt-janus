@@ -155,7 +155,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-0.4.0, built with a neutral grey theme and no logo:
+0.4.1, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -180,10 +180,15 @@ or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
 `color-scheme: light dark`. A client that reads `prefers-color-scheme`, or
 Outlook's `[data-ogsc]`, shows a dark page, a dark card and light text to a
 reader in dark mode; Gmail always shows the light e-mail. The dark palette
-is `@nxgt/mail-ui`'s default, a deep navy, since the build sets only the
-primary colour; the primary has no dark value, so the button keeps its
-near-black in both modes. Nothing is passed for it, the text part has no
-colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
+is `@nxgt/mail-ui`'s default, a deep navy, but for the primary: the button
+is near-black (`#27272a`) with light text in light mode, and near-white
+(`#fafafa`) with near-black text (`#18181b`) in dark mode — 17:1 against the
+dark card, where the light primary would be 1.2:1. The page behind the card
+follows it, 5% of the dark primary over the dark background, so it sits
+close to the card, which its border outlines. The sign-in code's box is
+`@nxgt/mail-ui`'s muted grey, which has no dark value: it stays a light box
+with dark text in both modes. Nothing is passed for any of it, the text part
+has no colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
 [Dark mode](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-ui/docs/guide/dark-mode.md)
 guide has the technique, client by client.
 

@@ -66,7 +66,11 @@ runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 Each method answers the mailer's `SentMail` and **rejects with the mailer's
 `MailFailure` or `MailRefused`, untouched**: this package defines no error
-class.
+class. To retry a `MailFailure` or trace each send, wrap the mailer you pass,
+from `@nxgt/mail` 0.8: `withTelemetry(withRetry(mailer), { transport })` —
+aliasing `@nxgt/mail/telemetry`'s `withTelemetry` when `@nxgt/telemetry`'s is
+imported too; see
+[Sending](docs/guide/sending.md#retrying-and-tracing-the-mailer).
 
 | Method | Sends | To |
 | --- | --- | --- |

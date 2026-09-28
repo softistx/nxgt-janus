@@ -390,7 +390,10 @@ Two causes, neither an error:
   `prefers-color-scheme`, or Outlook's `[data-ogsc]`, shows the dark one.
 - **A template of your own.** The dark rules are in the default HTML, built
   by `@nxgt/mail-ui`. An override that returns its own `html` has none of
-  them; build it with `@nxgt/mail-ui` 0.4.0 or later to follow dark mode:
+  them; build it with `@nxgt/mail-ui` 0.4.0 or later to follow dark mode,
+  and 0.5.0 with `color-primary-dark` set in its `theme` for a dark-primary
+  button, as the defaults have — without it a near-black button vanishes on
+  the dark card:
 
 ```ts
 janusMail({ mailer, from, brand, links, templates: { verifyEmail: myVerifyEmail } });

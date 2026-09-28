@@ -12,7 +12,10 @@
  *   given. No `url` and no `logo`: both must be absolute URLs known at build
  *   time, which the package cannot know.
  * - **A neutral theme.** The primary colour is a near-black grey, and the
- *   tints follow it, so the defaults carry no one's colours.
+ *   tints follow it, so the defaults carry no one's colours. Under dark mode
+ *   the button inverts to near-white with near-black text: `#27272a` on the
+ *   dark card (`#0f172b`) is 1.2:1 and all but vanishes; `#fafafa` is 17.1:1
+ *   against it, and `#18181b` on `#fafafa` 17.0:1.
  * - **The locales are the catalogues.** Each `locales/<locale>.json` is a
  *   locale built; the presets are written in `en` and `fr`, and a locale
  *   without their messages fails the build.
@@ -51,7 +54,11 @@ const config: MaizzleConfig = productionConfig(
 		plugins: [
 			ui({
 				brand: { name: '{{ brand }}' },
-				theme: { 'color-primary': '#27272a' },
+				theme: {
+					'color-primary': '#27272a',
+					'color-primary-dark': '#fafafa',
+					'color-primary-foreground-dark': '#18181b',
+				},
 			}),
 			i18n({
 				locales,
