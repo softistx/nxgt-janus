@@ -118,6 +118,7 @@ export const tokens = defineCollection({
 			'resetPassword',
 			'secondFactor',
 			'signInCode',
+			'magicLink',
 			'stepUp',
 		]),
 		userId: z.string(),

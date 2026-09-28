@@ -18,6 +18,9 @@ import type { Id } from '../../../ids/id';
  *   attempts at `regenerateRecoveryCodes`, a token of this kind whose secret
  *   nobody is given, never redeemed, only counted.
  * - `signInCode`: a code sent by e-mail to sign in without a password.
+ * - `magicLink`: a link sent by e-mail to sign in without a password. A kind
+ *   of its own, so a sign-in code's challenge — which the visitor holds —
+ *   never signs anyone in as a link, nor a link's token as a challenge.
  * - `stepUp`: a signed-in user's confirmation of a sensitive action — a code
  *   sent by e-mail, or, with an active second factor, a code from their app.
  *   A kind of its own, so a sign-in code never confirms an action nor an
@@ -28,6 +31,7 @@ export type TokenKind =
 	| 'resetPassword'
 	| 'secondFactor'
 	| 'signInCode'
+	| 'magicLink'
 	| 'stepUp';
 
 /** A one-time token, as a store holds it: its hash, never its secret. */
@@ -120,8 +124,8 @@ export interface TokenStore {
 	 * Spends every **unspent** token of one user and one `kind` at `at` —
 	 * but the one whose hash is `except`, when given — and answers how many
 	 * it spent. What issuing a sign-in code calls, sparing the code it just
-	 * issued, so only the last code sent works — and so for a reset link and
-	 * a step-up; and what writing a password calls, so no reset link and no
+	 * issued, so only the last code sent works — and so for a sign-in link,
+	 * a reset link and a step-up; and what writing a password calls, so no reset link and no
 	 * second-factor challenge opened with the old one survives.
 	 *
 	 * - A spent token keeps its `spentAt`: it never changes once set.

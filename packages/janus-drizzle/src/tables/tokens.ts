@@ -14,6 +14,7 @@ export function tokensTable(table: TableFactory) {
 					'resetPassword',
 					'secondFactor',
 					'signInCode',
+					'magicLink',
 					'stepUp',
 				],
 			}).notNull(),
@@ -30,7 +31,7 @@ export function tokensTable(table: TableFactory) {
 		(t) => [
 			check(
 				'tokens_kind',
-				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'stepUp')`,
+				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp')`,
 			),
 			check('tokens_attempts', sql`${t.attempts} >= 0`),
 			index('tokens_user_id').on(t.userId),
