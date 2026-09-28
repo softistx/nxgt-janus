@@ -1,7 +1,7 @@
 # Troubleshooting `@nxgt/janus-graphql`
 
 Each entry is headed by what you see: a compiler error, a `TypeError` at
-start-up or in a response, or a code and its status. Search this page for its
+start-up or in a response, a warning, or a code and its status. Search this page for its
 words.
 
 This package **defines no error class**. A denial is a `GraphQLError`; any
@@ -15,7 +15,14 @@ for what causes each.
 - [`TypeError: applyJanusDirectives(): @authenticated on … names the user type '…', which is not one of …`](#typeerror-applyjanusdirectives-authenticated-on--names-the-user-type--which-is-not-one-of-)
 - [`TypeError: applyJanusDirectives(): @authenticated on … names no user type`](#typeerror-applyjanusdirectives-authenticated-on--names-no-user-type)
 - [`TypeError: applyJanusDirectives(): the @authenticated on … admit no user type in common`](#typeerror-applyjanusdirectives-the-authenticated-on--admit-no-user-type-in-common)
-- [`TypeError: applyJanusDirectives(): @permission on … is not enforced yet`](#typeerror-applyjanusdirectives-permission-on--is-not-enforced-yet)
+- [`TypeError: applyJanusDirectives(): @permission on … needs the permissions() instance`](#typeerror-applyjanusdirectives-permission-on--needs-the-permissions-instance)
+- [`TypeError: applyJanusDirectives(): @permission on … names the object type '…', which is not one of …`](#typeerror-applyjanusdirectives-permission-on--names-the-object-type--which-is-not-one-of-)
+- [`TypeError: applyJanusDirectives(): @permission on … asks '…', which … does not declare`](#typeerror-applyjanusdirectives-permission-on--asks--which--does-not-declare)
+- [`TypeError: applyJanusDirectives(): @permission on … reads its id from '…', which is not args.<name> or parent.<name>`](#typeerror-applyjanusdirectives-permission-on--reads-its-id-from--which-is-not-argsname-or-parentname)
+- [`TypeError: applyJanusDirectives(): @permission on … reads args.…, and … takes no argument …`](#typeerror-applyjanusdirectives-permission-on--reads-args-and--takes-no-argument-)
+- [`TypeError: applyJanusDirectives(): @permission on … reads the …'s id from …, and … reads '…' of the object itself (fromField)`](#typeerror-applyjanusdirectives-permission-on--reads-the-s-id-from--and--reads--of-the-object-itself-fromfield)
+- [`TypeError: applyJanusDirectives(): @permission on … asks '…' of …, which reaches a when()`](#typeerror-applyjanusdirectives-permission-on--asks--of--which-reaches-a-when)
+- [`TypeError: applyJanusDirectives(): @permission on … finds loaders.…, which is not a function`](#typeerror-applyjanusdirectives-permission-on--finds-loaders-which-is-not-a-function)
 - [`Unknown directive "@authenticated"`](#unknown-directive-authenticated)
 - [`TypeError: applyJanusDirectives(): type '…' is not a user type of auth`](#typeerror-applyjanusdirectives-type--is-not-a-user-type-of-auth)
 - [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
@@ -28,12 +35,20 @@ for what causes each.
 - [`TypeError: … ctx.janus is not set`](#typeerror--ctxjanus-is-not-set)
 - [`TypeError: useJanus(): the GraphQL context has no request to authenticate`](#typeerror-usejanus-the-graphql-context-has-no-request-to-authenticate)
 - [`TypeError: can(): ctx.janus.access is not set`](#typeerror-can-ctxjanusaccess-is-not-set)
+- [`@permission on … resolved no object id from … — answered NOT_FOUND`](#permission-on--resolved-no-object-id-from---answered-not_found)
+- [`NOT_FOUND` where the user should be allowed](#not_found-where-the-user-should-be-allowed)
+- [A 403 that tells a user the object exists](#a-403-that-tells-a-user-the-object-exists)
+- [`Unexpected error.`, 500, on a field `@permission` guards](#unexpected-error-500-on-a-field-permission-guards)
+- [`TypeError: @permission on …: ctx.janus.access is not set`](#typeerror-permission-on--ctxjanusaccess-is-not-set)
+- [`TypeError: @permission on …: loaders.… answered …`](#typeerror-permission-on--loaders-answered-)
 - [A 401 whose `data` still holds the other fields](#a-401-whose-data-still-holds-the-other-fields)
 
 **Types**
 - [`'user' is possibly 'null'`](#user-is-possibly-null)
 - [`Property 'access' does not exist on type …`](#property-access-does-not-exist-on-type-)
 - [`Expected 4 arguments, but got 3`, on `can()`](#expected-4-arguments-but-got-3-on-can)
+- [`'…' does not exist in type 'Loaders<…>'`, or `'Conditions<…>'`](#-does-not-exist-in-type-loaders-or-conditions)
+- [`Type '{ …: … }' is not assignable to type 'never'`, on `loaders`](#type----is-not-assignable-to-type-never-on-loaders)
 
 ## At start-up
 
@@ -77,21 +92,100 @@ type Ward @authenticated(type: ["staff"]) {
 **Fix:** widen one of them, or move the field to a type whose directive
 admits the users it is for.
 
-### `TypeError: applyJanusDirectives(): @permission on … is not enforced yet`
+### `TypeError: applyJanusDirectives(): @permission on … needs the permissions() instance`
 
-**Why:** `@permission` is declared in `janusTypeDefs`, and not enforced by
-this version. A directive that let the field through would be worse than
-none, so a schema using it does not start.
+**When:** at start-up, for a schema that uses `@permission`.
 
-**Fix:** remove it, and check the permission in the resolver until it lands:
+**Why:** `useJanus()` — or `applyJanusDirectives()` — was given no `access`,
+or something other than what `permissions()` answered: the directive reads
+the object types and permissions from `access.model`.
+
+**Fix:** `useJanus({ auth, access })`. An instance wrapped by
+`instrumentPermissions()` keeps its `model`, and works as the plain one.
+
+### `TypeError: applyJanusDirectives(): @permission on … names the object type '…', which is not one of …`
+
+**Why:** `type:` names an object type the model does not declare — a typo, a
+user type, or a type of another model. The message lists the model's.
+
+**Fix:** name one of them: `@permission(name: "view", type: "record")`.
+
+### `TypeError: applyJanusDirectives(): @permission on … asks '…', which … does not declare`
+
+**Why:** `name:` is neither a relation nor a permission of that type — what
+`access.can` would refuse too. The message lists what the type declares.
+
+**Fix:** name one of them, or add the permission to the model:
 
 ```ts
-record: async (_: unknown, { id }: { id: string }, ctx: Context) => {
-	const record = await records.find(id);
-	if (record === null || !(await can(ctx, 'view', { type: 'record', ...record }))) return null;
-	return record;
-},
+record: { related: { owners: ['patient'] }, permits: { view: ['owners'], delete: ['owners'] } },
 ```
+
+### `TypeError: applyJanusDirectives(): @permission on … reads its id from '…', which is not args.<name> or parent.<name>`
+
+**Why:** `id:` is not a path: it must start with `args.` or `parent.`,
+followed by one or more names — letters, numbers and `_`, not starting with a
+number — separated by dots. `"id"`, `"args"`, `"record.id"` and
+`"parent..id"` are not.
+
+**Fix:** `id: "args.recordId"`, `id: "args.input.recordId"`,
+`id: "parent.recordId"`.
+
+### `TypeError: applyJanusDirectives(): @permission on … reads args.…, and … takes no argument …`
+
+**Why:** the path's first name is not an argument of the field it guards.
+Two common causes:
+
+- the field names its argument otherwise — `record(recordId: ID!)` read
+  through the default, `args.id`;
+- the default is not what you meant: on a **field**, the default is
+  `args.id` even when the field belongs to the object, and the message then
+  ends with `— name the id with id: "parent.<field>" or id: "args.<name>"`;
+  on a **type**, `id: "args.…"` must be an argument of every field of the
+  type.
+
+**Fix:** name the path: `@permission(name: "view", type: "record", id: "args.recordId")`,
+or `id: "parent.id"` for the object a field belongs to.
+
+### `TypeError: applyJanusDirectives(): @permission on … reads the …'s id from …, and … reads '…' of the object itself (fromField)`
+
+**Why:** the type has a `fromField` relation, read from the object's own
+data, and the directive has only an id — from `args`, or from a field of the
+parent other than its `id`. `access.can` would have nothing to read the field
+from.
+
+**Fix:** give the type a loader, which answers the object for an id:
+
+```ts
+useJanus({ auth, access, loaders: { record: (id, ctx) => records.find(id) } });
+```
+
+Where the parent *is* the object — a type-level `@permission`, or
+`id: "parent.id"` — no loader is needed: the parent is checked itself, and
+must carry the field.
+
+### `TypeError: applyJanusDirectives(): @permission on … asks '…' of …, which reaches a when()`
+
+**Why:** the permission's rules reach a condition, whose `ctx` `access.can`
+requires, and `useJanus()` has no `conditions` entry for the type to answer
+it.
+
+**Fix:**
+
+```ts
+useJanus({
+	auth,
+	access,
+	conditions: { record: (record, ctx: Context) => ({ onShift: ctx.shift.open }) },
+});
+```
+
+### `TypeError: applyJanusDirectives(): @permission on … finds loaders.…, which is not a function`
+
+**Why:** a `loaders` entry is something else — the repository object rather
+than a function of it, from JavaScript or past a cast.
+
+**Fix:** `loaders: { record: (id) => records.find(id) }`.
 
 ### `Unknown directive "@authenticated"`
 
@@ -137,7 +231,9 @@ session cookie; check `useJanus()`'s `type`.
 
 **Why:** a `type:` that applies does not name the user's type. Every
 `@authenticated` that applies must hold — a type's or an interface's too, not
-only the field's.
+only the field's. Or a `@permission(onDeny: FORBIDDEN)` denied: what
+[`NOT_FOUND` where the user should be allowed](#not_found-where-the-user-should-be-allowed)
+says applies to it too.
 
 **Fix:** read the directives on the field, on its type, and on every
 interface the type implements.
@@ -146,7 +242,8 @@ interface the type implements.
 
 **Why:** a store could not answer — `STORE_FAILED`. The sessions store for
 `@authenticated`, `requireUser()` and `ctx.janus.user()`; the relation store
-for `can()`. It is never answered `UNAUTHENTICATED` or `FORBIDDEN`.
+for `can()` and `@permission` — and a loader of yours that threw
+`StoreFailure`. It is never answered `UNAUTHENTICATED` or `FORBIDDEN`.
 
 **Fix:** the store: its connection, its credentials, its availability. The
 message carries nothing of the store's; log the error where you call
@@ -183,6 +280,97 @@ the [roadmap](roadmap.md).
 
 **Fix:** `useJanus({ auth, access })`, with `access` what `permissions()`
 answered.
+
+### `@permission on … resolved no object id from … — answered NOT_FOUND`
+
+**Where:** a warning, through `process.emitWarning` with the code
+`JANUS_GRAPHQL_NO_OBJECT_ID`, once per directive; the client receives
+`NOT_FOUND`, 404.
+
+**Why:** the path read nothing it could check: an optional argument the
+client left out (`record(id: ID)`), a `null` in the parent
+(`parent.wardId` on a visit with no ward), a list holding a `null`, or a value
+that is neither a string nor an integer. There is no object to ask about, so
+there is nothing to allow.
+
+**Fix:** make the argument required — `record(id: ID!)` — or point `id:` at a
+field that always holds an id. When a `null` is a valid answer, move the
+directive to a field that is only reached when there is an object.
+
+### `NOT_FOUND` where the user should be allowed
+
+**Why:** one of the directives that apply denied — `NOT_FOUND` is
+`@permission`'s default denial — or there was nothing to check:
+
+- a `@permission` on the **type** or an **interface** it implements applies
+  too, and is asked first;
+- the `id:` path reads another object than you think — `args.id` is the
+  default on a field, even a field of the object;
+- a loader answered `null`;
+- a `fromField` field is missing from the parent, so the relation it reads
+  holds for nobody: the parent's resolver must answer the field;
+- the user holds the relation on another object type than `type:` names.
+
+**Fix:** ask `access.can` yourself with the same subject, permission and
+object to see what the model answers, and read every directive on the field,
+its type and its interfaces.
+
+### A 403 that tells a user the object exists
+
+**Why:** `onDeny: FORBIDDEN` answers *this exists, and not for you*. On
+`record(id: "r42")`, that tells a user who may not know `r42` that it exists.
+
+**Fix:** keep `NOT_FOUND`, the default, on anything reached by an id the
+client chose. `FORBIDDEN` fits a field of an object the user may already
+see — guard the type with a `NOT_FOUND` `@permission` and the field with the
+`FORBIDDEN` one; the type's is asked first:
+
+```graphql
+type Record @permission(name: "view", type: "record") {
+	billing: Billing @permission(name: "manage", type: "record", onDeny: FORBIDDEN)
+}
+```
+
+### `Unexpected error.`, 500, on a field `@permission` guards
+
+**Why:** `@permission` answers a `JanusError` — a relation store's
+`STORE_FAILED`, or one a loader threw — with its status, 503 for an outage.
+An error that is not a `JanusError` is masked by Yoga like any other: a
+database driver's own error thrown by a loader or a condition, or anything
+the resolver throws after the check. And without `janusMaskError()`, a
+`JanusError` the **resolver** lets through is masked too.
+
+**Fix:** throw `StoreFailure` from a loader whose database cannot answer, so
+the outage is a 503 rather than a 500, and wire
+`maskedErrors: { maskError: janusMaskError() }`:
+
+```ts
+import { StoreFailure } from '@nxgt/janus';
+
+loaders: {
+	record: (id) =>
+		records.find(id).catch((cause: unknown) => {
+			throw new StoreFailure('records.find could not answer', { cause });
+		}),
+},
+```
+
+### `TypeError: @permission on …: ctx.janus.access is not set`
+
+**Why:** the schema was transformed with `access` — by
+`applyJanusDirectives(schema, { auth, access })` — and is served with a
+context built without it.
+
+**Fix:** serve it through `useJanus({ auth, access })`, which builds both
+from the same options.
+
+### `TypeError: @permission on …: loaders.… answered …`
+
+**Why:** a loader answered `undefined`, or something that is not an object.
+**An absence is `null`**: a loader that forgets to `return` answers
+`undefined`, and that is refused rather than read as "not found".
+
+**Fix:** answer the object, or `null` when there is none.
 
 ### A 401 whose `data` still holds the other fields
 
@@ -224,3 +412,20 @@ user.id;
 `ctx` is required — as it is for `access.can`.
 
 **Fix:** pass it: `can(ctx, 'edit', record, { ctx: { locked: record.locked } })`.
+
+### `'…' does not exist in type 'Loaders<…>'`, or `'Conditions<…>'`
+
+**Why:** a `loaders` key is not an object type of the model; or a
+`conditions` key is a type none of whose permissions reaches a `when()`, so
+there is no `ctx` to answer.
+
+**Fix:** name an object type of the model; drop the `conditions` entry of a
+type with no condition.
+
+### `Type '{ …: … }' is not assignable to type 'never'`, on `loaders`
+
+**Why:** `useJanus()` was given `loaders` or `conditions` and no `access`:
+without the permissions instance, `@permission` cannot be used, and has
+nothing to load for.
+
+**Fix:** `useJanus({ auth, access, loaders })`.
