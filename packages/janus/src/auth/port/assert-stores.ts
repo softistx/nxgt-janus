@@ -20,6 +20,7 @@ const REQUIRED = {
 		'insertSession',
 		'findSessionByTokenHash',
 		'extendSession',
+		'reauthenticateSession',
 		'revokeSession',
 		'revokeUserSessions',
 		'deleteUserSessions',

@@ -23,7 +23,10 @@ export interface SessionRecord {
 	/** `sha256` of the session token, hex. Unique across the store. */
 	readonly tokenHash: string;
 	readonly userId: Id;
-	/** When credentials were last presented — not when the session was last extended. */
+	/**
+	 * When credentials were last presented — at the sign-in, or since by a
+	 * step-up on this session — not when the session was last extended.
+	 */
 	readonly authenticatedAt: Date;
 	readonly expiresAt: Date;
 	/** `null` while the session stands. */
@@ -59,6 +62,19 @@ export interface SessionStore {
 	 * *allowed* to be extended yet is the core's decision, made before the call.
 	 */
 	extendSession(id: SessionId, expiresAt: Date): Promise<SessionRecord | null>;
+
+	/**
+	 * Moves `authenticatedAt` to `at`, **only while the session is not
+	 * revoked**, and answers the record as written: what a step-up calls once
+	 * the user proved again, on this session, who they are. `expiresAt` and
+	 * every other field stay as they were.
+	 *
+	 * `null` when there is no such session or it has been revoked — a
+	 * confirmation racing a revocation must never bring the session back.
+	 * Whether the session may be confirmed — standing, not lapsed — is the
+	 * core's decision, made before the call.
+	 */
+	reauthenticateSession(id: SessionId, at: Date): Promise<SessionRecord | null>;
 
 	/**
 	 * Revokes one session. `true` when the session exists — revoked by this call

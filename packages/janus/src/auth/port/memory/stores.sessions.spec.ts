@@ -33,6 +33,23 @@ describe('sessions', () => {
 		expect(await sessions.extendSession(mintId(), at(2000))).toBeNull();
 	});
 
+	it('moves authenticatedAt on a standing session, and never on a revoked one', async () => {
+		const { sessions } = createMemoryStores();
+		const standing = session();
+		const revoked = session({ revokedAt: at(2) });
+		await sessions.insertSession(standing);
+		await sessions.insertSession(revoked);
+
+		expect(await sessions.reauthenticateSession(standing.id, at(900))).toEqual({
+			...standing,
+			authenticatedAt: at(900),
+		});
+		expect(
+			await sessions.reauthenticateSession(revoked.id, at(900)),
+		).toBeNull();
+		expect(await sessions.reauthenticateSession(mintId(), at(900))).toBeNull();
+	});
+
 	it('revokes once, keeps the first revokedAt, and says false only for no session', async () => {
 		const { sessions } = createMemoryStores();
 		const record = session();

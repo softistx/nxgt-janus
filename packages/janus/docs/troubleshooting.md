@@ -116,6 +116,8 @@ How the messages are shaped:
 - [`expected <Class>, got <value>`](#expected-class-got-value)
 - [`expected null, got undefined — an absence is null; undefined is a store that forgot to answer`](#expected-null-got-undefined--an-absence-is-null-undefined-is-a-store-that-forgot-to-answer)
 - [`findUser should answer recoveryCodes [] as [] — never null, never undefined`](#finduser-should-answer-recoverycodes--as---never-null-never-undefined)
+- [`reauthenticateSession racing revokeSession: the session should stay revoked — one conditional write, never a read then a write`](#reauthenticatesession-racing-revokesession-the-session-should-stay-revoked--one-conditional-write-never-a-read-then-a-write)
+- [`tokens.insertToken: the store could not answer`, in `tokens.everyKind`](#tokensinserttoken-the-store-could-not-answer-in-tokenseverykind)
 
 ---
 
@@ -249,7 +251,8 @@ An adapter written for an earlier `@nxgt/janus` reports the method a later
 release added to the port: `store.tokens has no method countAttempt` for one
 written against 0.3 (the method came in 0.4), and
 `store.tokens has no method spendUserTokens` for one written against 0.6 (the
-method came in 0.7).
+method came in 0.7), and `store.sessions has no method reauthenticateSession`
+for one written against 0.11 (the method came in 0.12).
 
 **Fix:** pass the three stores, whole:
 
@@ -259,16 +262,17 @@ import { createMemoryStores, janus } from '@nxgt/janus';
 janus({ ..., store: createMemoryStores() });
 ```
 
-Upgrade the published adapter to the release that implements both —
-`@nxgt/janus-drizzle` 0.3, `@nxgt/janus-mongo` 0.4, `@nxgt/janus-redis` 0.3:
+Upgrade the published adapter to the release that implements all three —
+`@nxgt/janus-drizzle` 0.5, `@nxgt/janus-mongo` 0.6, `@nxgt/janus-redis` 0.4:
 
 ```bash
-bun add @nxgt/janus@^0.7 @nxgt/janus-drizzle@^0.3 # or @nxgt/janus-mongo@^0.4, @nxgt/janus-redis@^0.3
+bun add @nxgt/janus@^0.12 @nxgt/janus-drizzle@^0.5 # or @nxgt/janus-mongo@^0.6, @nxgt/janus-redis@^0.4
 ```
 
 Your own adapter implements them as
-[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt) and
-[`TokenStore.spendUserTokens`](guide/adapters.md#tokenstorespendusertokens)
+[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt),
+[`TokenStore.spendUserTokens`](guide/adapters.md#tokenstorespendusertokens) and
+[`SessionStore.reauthenticateSession`](guide/adapters.md#sessionstorereauthenticatesession)
 set out, then runs the conformance suite.
 
 ### `janus: relations must be a relation store — relations.deleteEntity is missing`
@@ -1364,3 +1368,29 @@ secondFactor:
 				recoveryCodes: [...(document.secondFactor.recoveryCodes ?? [])],
 			},
 ```
+
+### `reauthenticateSession racing revokeSession: the session should stay revoked — one conditional write, never a read then a write`
+
+Also `reauthenticateSession on a revoked session — a confirmation racing a revocation must never bring it back`, followed by `expected null, got {…}`.
+
+**When:** the cases `sessions.reauthenticateRace` and `sessions.reauthenticate`, on an adapter written before `@nxgt/janus` 0.12, or one that implemented `reauthenticateSession` as a read followed by a write.
+**Why:** a step-up moves `authenticatedAt` with `reauthenticateSession`. An adapter that reads the session, then writes it back whole, writes `revokedAt: null` over a revocation that landed between the two: a signed-out session stands again.
+**Fix:** one conditional write, whose condition holds `revokedAt` null — the one `extendSession` already has:
+
+```ts
+// MongoDB
+const written = await sessions.findOneAndUpdate(
+	{ _id: id, revokedAt: null },
+	{ $set: { authenticatedAt: at } },
+	{ returnDocument: 'after' },
+);
+return written === null ? null : toSession(written);
+```
+
+In SQL, `update … set authenticated_at = $2 where id = $1 and revoked_at is null returning *`; in Redis, a Lua script that checks `revokedAt == ''` before its `HSET`. See [`SessionStore.reauthenticateSession`](guide/adapters.md#sessionstorereauthenticatesession).
+
+### `tokens.insertToken: the store could not answer`, in `tokens.everyKind`
+
+**When:** the case `tokens.everyKind`, on an adapter whose database lists the token kinds — a `CHECK`, a validator's enum.
+**Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
+**Fix:** add `stepUp` to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'stepUp'`.

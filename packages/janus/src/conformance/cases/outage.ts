@@ -5,7 +5,7 @@ import { at, sessionRecord, tokenRecord, userRecord } from '../fixtures';
 import type { CaseContext, ConformanceCase, PortMethod } from '../types';
 
 /**
- * **The invariant, as cases.** For each of the thirteen methods whose honest
+ * **The invariant, as cases.** For each of the fourteen methods whose honest
  * answer can be "nothing" — `null`, `false`, `0`, an empty page — a store that
  * cannot answer must **reject**, and the rejection must not be `NOT_FOUND`.
  *
@@ -99,6 +99,12 @@ export const outageCases: readonly ConformanceCase[] = [
 		'extendSession',
 		({ stores }) =>
 			stores.sessions.extendSession(session.id, at('2099-06-01T00:00:00.000Z')),
+		seed,
+	),
+	outage(
+		'sessions',
+		'reauthenticateSession',
+		({ stores }) => stores.sessions.reauthenticateSession(session.id, now),
 		seed,
 	),
 	outage(

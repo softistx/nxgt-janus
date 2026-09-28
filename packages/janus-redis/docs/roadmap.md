@@ -33,6 +33,10 @@ Nothing yet.
 
 ## Shipped
 
+- **`reauthenticateSession` in one script, v0.4.0** — for `@nxgt/janus`
+  0.12: moves `authenticatedAt` only while `revokedAt` is empty, leaves
+  every TTL as it was, with the commands the ACL already allows. The token
+  kind `stepUp` needs nothing: no migration.
 - **A user's tokens spent in one script, v0.3.0** — for `@nxgt/janus` 0.7:
   `spendUserTokens(userId, kind, at, except?)` walks the user's set of
   tokens in one Lua script, with the commands the ACL already allows, and

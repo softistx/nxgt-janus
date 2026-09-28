@@ -1,12 +1,13 @@
 /**
  * The stores and what their methods answer: a missing method, an absence as
  * undefined, answers too poor to act on, the wrong store in a slot. Cases
- * 1–5 and 16 of the twenty-three — see `fixtures.ts`.
+ * 1–5, 16 and 24 of the twenty-four — see `fixtures.ts`.
  */
 
 import { createMemoryStores } from '../../../src/auth/port/memory';
 import type {
 	JanusStores,
+	SessionRecord,
 	SessionStore,
 	TokenStore,
 	UserStore,
@@ -67,7 +68,20 @@ const numberCount: TokenStore = {
 	countAttempt: async () => 1,
 };
 
+// ── 24. reauthenticateSession answering a boolean ─────────────────────────
+// revokeSession's answer, copied: `true` cannot say the session was revoked
+// meanwhile rather than written, and the core answers the session it wrote.
+const booleanReauth: SessionStore = {
+	...sessions,
+	// @ts-expect-error reauthenticateSession answers the session as written, or null
+	reauthenticateSession: async () => true,
+};
+
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
+
+// A step-up's write answers the record, or null once revoked.
+const reauthenticated: Promise<SessionRecord | null> =
+	sessions.reauthenticateSession('id', new Date());
 
 // The optional capability may be absent.
 const { deleteExpiredSessions: _, ...withoutCollect } = sessions;
@@ -101,6 +115,7 @@ export const checked = {
 		booleanConsume,
 		swapped,
 		numberCount,
+		booleanReauth,
 	],
-	allowed: [minimalSessions, reference, ClassStore],
+	allowed: [minimalSessions, reference, ClassStore, reauthenticated],
 };

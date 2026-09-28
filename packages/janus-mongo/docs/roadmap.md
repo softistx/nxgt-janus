@@ -40,6 +40,10 @@ Nothing yet.
 
 Each entry names the version it came in; `CHANGELOG.md` holds the rest.
 
+- **The step-up kind and `reauthenticateSession`, v0.6.0** — for
+  `@nxgt/janus` 0.12: one `findOneAndUpdate` filtered on `revokedAt: null`,
+  and the `kind` enum admits `stepUp`, so run the sync before deploying. No
+  document is rewritten.
 - **Recovery codes on a second factor, v0.5.0** — for `@nxgt/janus` 0.10:
   a user's `secondFactor` keeps its `recoveryCodes`, the codes' keyed hashes,
   in order. A factor written before reads as having none, so no document is

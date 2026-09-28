@@ -1,5 +1,5 @@
 import type { PgDatabase } from '@nxgt/drizzle/pg';
-import type { SessionStore } from '@nxgt/janus';
+import type { SessionRecord, SessionStore } from '@nxgt/janus';
 import { and, eq, isNull, lte, ne, sql } from 'drizzle-orm';
 import { run } from '../translate';
 import type { IdentityTables } from './identity-tables';
@@ -46,6 +46,11 @@ export function sessionStore(
 				return row === undefined ? null : toSession(row);
 			}),
 
+		reauthenticateSession: (id, at) =>
+			run$('reauthenticateSession', () =>
+				reauthenticateSession(db, tables, id, at),
+			),
+
 		revokeSession: (id, at) =>
 			run$('revokeSession', () => revokeSession(db, tables, id, at)),
 
@@ -72,6 +77,22 @@ export function sessionStore(
 				return deleted.length;
 			}),
 	};
+}
+
+async function reauthenticateSession(
+	db: PgDatabase,
+	tables: IdentityTables,
+	id: string,
+	at: Date,
+): Promise<SessionRecord | null> {
+	// The same condition as an extension's: a confirmation racing a
+	// revocation matches nothing.
+	const [row] = await db
+		.update(tables.sessions)
+		.set({ authenticatedAt: at })
+		.where(and(eq(tables.sessions.id, id), isNull(tables.sessions.revokedAt)))
+		.returning();
+	return row === undefined ? null : toSession(row);
 }
 
 async function revokeSession(

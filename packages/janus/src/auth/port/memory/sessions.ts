@@ -31,15 +31,11 @@ export function memorySessionStore(): SessionStore {
 		},
 
 		async extendSession(id, expiresAt) {
-			const stored = byId.get(id);
-			if (stored === undefined || stored.revokedAt !== null) return null;
+			return standingWrite(index, id, { expiresAt: new Date(expiresAt) });
+		},
 
-			const written: SessionRecord = {
-				...stored,
-				expiresAt: new Date(expiresAt),
-			};
-			byId.set(id, written);
-			return copy(written);
+		async reauthenticateSession(id, at) {
+			return standingWrite(index, id, { authenticatedAt: new Date(at) });
 		},
 
 		async revokeSession(id, at) {
@@ -78,6 +74,23 @@ export function memorySessionStore(): SessionStore {
 			);
 		},
 	};
+}
+
+/**
+ * Writes `patch` on a session **only while it is not revoked**, and answers
+ * it as written — or `null` for none, or a revoked one, never brought back.
+ */
+function standingWrite(
+	{ byId }: SessionIndex,
+	id: SessionId,
+	patch: Pick<Partial<SessionRecord>, 'expiresAt' | 'authenticatedAt'>,
+): SessionRecord | null {
+	const stored = byId.get(id);
+	if (stored === undefined || stored.revokedAt !== null) return null;
+
+	const written: SessionRecord = { ...stored, ...patch };
+	byId.set(id, written);
+	return copy(written);
 }
 
 function revoke(
