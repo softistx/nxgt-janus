@@ -306,10 +306,11 @@ retries a `MAIL_FAILED`, rather than to a promise nobody awaits.
 
 ### Retrying and tracing the mailer
 
-From `@nxgt/mail` 0.8, wrap the mailer before you hand it to `janusMail()`:
-`withRetry` retries a `MailFailure` with backoff, reusing one idempotency
-key for every attempt, and never retries a `MailRefused`; `withTelemetry`
-from `@nxgt/mail/telemetry` opens a `mail.send` span per send. That entry
+Wrap the mailer before you hand it to `janusMail()`: `withRetry`, from
+`@nxgt/mail` 0.8, retries a `MailFailure` with backoff, reusing one
+idempotency key for every attempt, and never retries a `MailRefused`;
+`withMailTelemetry`, from `@nxgt/mail/telemetry` 0.9 (`withTelemetry` on
+0.8), opens a `mail.send` span per send. That entry
 needs `@opentelemetry/api` installed (an optional peer, loaded by it alone);
 with no OpenTelemetry SDK registered, its spans are no-ops. Put telemetry on the outside, so one
 send is one span:
@@ -317,7 +318,7 @@ send is one span:
 ```ts
 import { janusMail } from '@nxgt/janus-mail';
 import { withRetry } from '@nxgt/mail';
-import { withTelemetry as withMailTelemetry } from '@nxgt/mail/telemetry';
+import { withMailTelemetry } from '@nxgt/mail/telemetry';
 import { createSmtpMailer } from '@nxgt/mail-smtp';
 
 export const mail = janusMail({
@@ -328,12 +329,14 @@ export const mail = janusMail({
 });
 ```
 
-**Alias it.** `@nxgt/telemetry` — which `@nxgt/janus-telemetry` peers — also
-exports a `withTelemetry`, `withTelemetry(telemetry, fn)`, which scopes a
-telemetry to a block. The two are unrelated: `mail.send` is recorded
-through OpenTelemetry, not `@nxgt/telemetry`, so it does not nest under
-`@nxgt/janus-telemetry`'s spans. Import `@nxgt/mail`'s under another name,
-as above, when a module uses both.
+**Two telemetries, unrelated.** `@nxgt/telemetry` — which
+`@nxgt/janus-telemetry` peers — exports `withTelemetry(telemetry, fn)`,
+which scopes a telemetry to a block. `mail.send` is recorded through
+OpenTelemetry, not `@nxgt/telemetry`, so it does not nest under
+`@nxgt/janus-telemetry`'s spans. `@nxgt/mail` 0.9 renamed its decorator
+`withMailTelemetry` so the two no longer share a name; on 0.8 it is
+`withTelemetry`, still exported by 0.9 as a deprecated alias until 1.0 —
+import it under another name there when a module uses both.
 
 **SMTP ignores the idempotency key**, so a retry after an ambiguous SMTP
 timeout can deliver an e-mail twice. If a duplicate sign-in code or reset

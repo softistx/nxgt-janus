@@ -44,6 +44,10 @@ error class and throws the peer's own, so `instanceof StoreFailure` holds in
 your code. Like it, this package expects `"moduleResolution": "bundler"`: the
 declarations import without extensions, so `nodenext` is not supported.
 
+The `@nxgt/mongo` floor is tested, not claimed: the package's specs and its
+typecheck run on `@nxgt/mongo` 0.17.0 as well, in the Floors job, on every CI
+run.
+
 ## API
 
 | Export | What it is |
