@@ -1,5 +1,18 @@
 # @nxgt/janus-drizzle
 
+## 0.5.0
+
+### Minor Changes
+
+- [#157](https://github.com/softistx/nxgt-janus/pull/157) [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Implements `SessionStore.reauthenticateSession` — one `update … where revoked_at is null returning` — and admits the token kind `stepUp`.
+  
+  **A migration is required: the `tokens_kind` check admits `stepUp`.** Run `drizzle-kit generate`, then migrate. It writes one statement, `ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind" CHECK (… 'stepUp')`, and rewrites no row. Deployed without it, a step-up request fails with `STORE_FAILED`, caused by `violates check constraint "tokens_kind"`; every other flow keeps working. `sessions` gains no column.
+
+### Patch Changes
+
+- Updated dependencies [[`87852d5`](https://github.com/softistx/nxgt-janus/commit/87852d5652adcc9a980d9a5f700d27defadffcd7), [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199)]:
+  - @nxgt/janus@0.12.0
+
 ## 0.4.1
 
 ### Patch Changes

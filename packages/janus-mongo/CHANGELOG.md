@@ -1,5 +1,18 @@
 # @nxgt/janus-mongo
 
+## 0.6.0
+
+### Minor Changes
+
+- [#157](https://github.com/softistx/nxgt-janus/pull/157) [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Implements `SessionStore.reauthenticateSession` — one `findOneAndUpdate` filtered on `revokedAt: null` — and admits the token kind `stepUp`.
+  
+  **Run `syncMongoAdapter(db)` or `syncMongoStores(db)` before deploying.** The `kind` enum the previous sync wrote refuses `stepUp`, so a step-up request fails with `STORE_FAILED` (`Document failed validation`) until it runs. No document is rewritten.
+
+### Patch Changes
+
+- Updated dependencies [[`87852d5`](https://github.com/softistx/nxgt-janus/commit/87852d5652adcc9a980d9a5f700d27defadffcd7), [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199)]:
+  - @nxgt/janus@0.12.0
+
 ## 0.5.1
 
 ### Patch Changes
