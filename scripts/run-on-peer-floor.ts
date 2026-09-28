@@ -35,10 +35,10 @@ import {
 	symlink,
 	unlink,
 } from 'node:fs/promises';
-import { constants, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
-import type { Subprocess } from 'bun';
 import { download } from './peer-floor/fetch';
+import { forwardSignals } from './peer-floor/forward';
 import { type Plan, parsePlan } from './peer-floor/plan';
 import { stage } from './peer-floor/stage';
 
@@ -98,30 +98,7 @@ export async function runOnFloor(
 		...plan.name.split('/').map(() => '..'),
 	);
 	const dir = await mkdtemp(join(options.tmp ?? tmpdir(), 'peer-floor-'));
-	let child: Subprocess | undefined;
-	let interrupted: NodeJS.Signals | undefined;
-	// Named per signal, not read from the listener's argument, which a
-	// `process.emit` does not pass.
-	const forward = (signal: NodeJS.Signals) => () => {
-		interrupted = signal;
-		child?.kill(signal);
-	};
-	const onInt = forward('SIGINT');
-	const onTerm = forward('SIGTERM');
-	process.on('SIGINT', onInt);
-	process.on('SIGTERM', onTerm);
-	let restoring: Promise<void> | undefined;
-	const restore = () => {
-		restoring ??= (async () => {
-			for (const { link, original } of swaps) {
-				await rm(link, { force: true });
-				await symlink(original, link);
-			}
-			await rm(dir, { recursive: true, force: true });
-		})();
-		return restoring;
-	};
-
+	const signals = forwardSignals();
 	try {
 		const tarball = await options.download(plan.name, plan.version);
 		const floor = await stage(plan.name, tarball, lockedModules, dir);
@@ -138,17 +115,14 @@ export async function runOnFloor(
 			}
 			console.log(`${relative(root, link)} → ${plan.name}@${version}`);
 		}
-		if (interrupted) return 128 + constants.signals[interrupted];
-		child = Bun.spawn([...plan.command], {
-			cwd: root,
-			stdio: ['inherit', 'inherit', 'inherit'],
-		});
-		const code = await child.exited;
-		return interrupted ? 128 + constants.signals[interrupted] : code;
+		return await signals.run(plan.command, root);
 	} finally {
-		await restore();
-		process.off('SIGINT', onInt);
-		process.off('SIGTERM', onTerm);
+		for (const { link, original } of swaps) {
+			await rm(link, { force: true });
+			await symlink(original, link);
+		}
+		await rm(dir, { recursive: true, force: true });
+		signals.dispose();
 	}
 }
 
