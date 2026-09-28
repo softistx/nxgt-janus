@@ -22,6 +22,7 @@ import type { JanusMail, JanusMailLocale, JanusMailOptions } from './types';
  * 		verifyEmail: (token) => `https://acme.example/verify?token=${token}`,
  * 		resetPassword: (token) => `https://acme.example/reset?token=${token}`,
  * 		secureAccount: () => 'https://acme.example/account/security',
+ * 		getStarted: () => 'https://acme.example/',
  * 	},
  * });
  *

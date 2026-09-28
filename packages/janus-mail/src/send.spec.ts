@@ -24,6 +24,7 @@ describe('sending', () => {
 		await mail.passwordChanged({ name: 'Ada', email: 'changed@example.com' });
 		await mail.twoFactorEnabled({ name: 'Ada', email: 'on@example.com' });
 		await mail.twoFactorDisabled({ name: 'Ada', email: 'off@example.com' });
+		await mail.welcome({ name: 'Ada', email: 'new@example.com' });
 		expect(options.mailer.sent.map((sent) => sent.to)).toEqual([
 			'verify@example.com',
 			'reset@example.com',
@@ -31,6 +32,7 @@ describe('sending', () => {
 			'changed@example.com',
 			'on@example.com',
 			'off@example.com',
+			'new@example.com',
 		]);
 		for (const sent of options.mailer.sent) {
 			expect(sent.from).toBe('noreply@acme.example');

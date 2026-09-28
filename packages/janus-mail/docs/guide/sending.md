@@ -26,6 +26,7 @@ export const mail = janusMail({
 		verifyEmail: (token) => `https://acme.example/verify?token=${encodeURIComponent(token)}`,
 		resetPassword: (token) => `https://acme.example/reset?token=${encodeURIComponent(token)}`,
 		secureAccount: () => 'https://acme.example/account/security',
+		getStarted: () => 'https://acme.example/',
 	},
 });
 ```
@@ -45,6 +46,7 @@ time one is sent, and kept.
 | `links.verifyEmail` | `(token) => string` | required | The page that confirms an address, given the one-time token |
 | `links.resetPassword` | `(token) => string` | required | The page that sets a new password, given the one-time token |
 | `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it |
+| `links.getStarted` | `() => string` | required | Where a new user starts — your home page, or your sign-in page for an account someone else created: the welcome's **Get started** button links to it |
 | `locales` | `readonly L[]` | `['en', 'fr']` | The locales sent in — see [Locales](locales.md) |
 | `fallbackLocale` | one of `locales` | `'en'`, else the first of `locales` | The locale when the recipient wants none of `locales` |
 | `templates` | `Partial<JanusMailTemplates<L>>` | none | Your own templates, over the defaults — see [Templates](templates.md) |
@@ -134,6 +136,68 @@ since whoever changed it already controls the new one. It names `newEmail`,
 and links to `links.secureAccount()`. Read the former address before the
 update: the user `update` answers already holds the new one.
 
+### `twoFactorEnabled(to)` and `twoFactorDisabled(to)`
+
+```ts
+// On the user events @nxgt/janus sends once the write landed:
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type !== 'user.secondFactorEnabled' && event.type !== 'user.secondFactorDisabled') return;
+		const user = await auth.get(event.userId);
+		const to = { name: user.name, locale: user.locale, email: user.email };
+		await (event.type === 'user.secondFactorEnabled' ? mail.twoFactorEnabled(to) : mail.twoFactorDisabled(to));
+	},
+});
+```
+
+Two notices: two-factor authentication was turned on, or off, for the
+account at `to.email`, each with a link to `links.secureAccount()` — the
+user's security settings — for a user who did not make the change. Send
+`twoFactorEnabled` on the `user.secondFactorEnabled` event, which
+`auth.secondFactor.activate` sends once the factor is active, and
+`twoFactorDisabled` on `user.secondFactorDisabled`, which
+`auth.secondFactor.disable` sends only when it removed an active factor: a
+`disable` on a user who had none tells nobody anything. The event names the
+user by id alone, so read the name, the locale and the address from the
+user. Calling them right after `activate` or `disable` answered works as
+well — without the events, check `hasSecondFactor` before the `disable`.
+
+### `welcome(to)`
+
+```ts
+// On the user event @nxgt/janus sends once the user is inserted:
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type !== 'user.created') return;
+		const user = await auth.get(event.userId);
+		await mail.welcome({ name: user.name, locale: user.locale, email: user.email });
+	},
+});
+```
+
+Welcomes the new user at `to.email` — "Welcome, Ada", "Bienvenue, Ada", the
+name in the subject too — with a **Get started** button that links to
+`links.getStarted()`: your home page, or your sign-in page when the account
+was created for the user rather than by them. Send it on the `user.created`
+event, which `auth.signUp` and `auth.create` send once the user is inserted —
+even when `signUp`'s session then fails to open — and never for a sign-up
+refused. The event names the user by id alone, so read the name, the locale
+and the address from the user. With several user types, check
+`event.userType` first: a type with no e-mail has nobody to welcome.
+
+- **It goes out before the address is verified.** A sign-up with a mistyped
+  address welcomes whoever holds it, and with open sign-up anyone can make
+  your brand send "Welcome, <any name>" to any address. To welcome proven addresses only, send
+  it on `user.emailVerified` instead, sent once the address is proven —
+  and again after an address changed and was proven anew, so welcome only
+  a user you have not welcomed before.
+- **A failed welcome fails no sign-up.** `janus()` awaits the listener, but a
+  listener that throws is a `JANUS_EVENT_FAILED` warning: the user exists,
+  and `signUp` answers as it would have. For a welcome that must arrive, put
+  the event in a queue that retries a `MAIL_FAILED`, and send from there.
+
 ## The expiry
 
 `verifyEmail`, `resetPassword` and `signInCode` say how long the link or the
@@ -178,33 +242,6 @@ through JSON on its way to a queue holds a string — or is already past, is
 a `TypeError`, and nothing reaches the mailer: revive the date with
 `new Date(issued.expiresAt)` when the job runs, or pass `expiresIn`.
 
-### `twoFactorEnabled(to)` and `twoFactorDisabled(to)`
-
-```ts
-// On the user events @nxgt/janus sends once the write landed:
-const auth = janus({
-	...config,
-	async events(event) {
-		if (event.type !== 'user.secondFactorEnabled' && event.type !== 'user.secondFactorDisabled') return;
-		const user = await auth.get(event.userId);
-		const to = { name: user.name, locale: user.locale, email: user.email };
-		await (event.type === 'user.secondFactorEnabled' ? mail.twoFactorEnabled(to) : mail.twoFactorDisabled(to));
-	},
-});
-```
-
-Two notices: two-factor authentication was turned on, or off, for the
-account at `to.email`, each with a link to `links.secureAccount()` — the
-user's security settings — for a user who did not make the change. Send
-`twoFactorEnabled` on the `user.secondFactorEnabled` event, which
-`auth.secondFactor.activate` sends once the factor is active, and
-`twoFactorDisabled` on `user.secondFactorDisabled`, which
-`auth.secondFactor.disable` sends only when it removed an active factor: a
-`disable` on a user who had none tells nobody anything. The event names the
-user by id alone, so read the name, the locale and the address from the
-user. Calling them right after `activate` or `disable` answered works as
-well — without the events, check `hasSecondFactor` before the `disable`.
-
 ## Where each e-mail goes
 
 | Method | To | Never to |
@@ -215,6 +252,7 @@ well — without the events, check `hasSecondFactor` before the `disable`.
 | `passwordChanged` | `to.email` | — |
 | `emailChanged` | `to.formerEmail` | `to.newEmail` |
 | `twoFactorEnabled`, `twoFactorDisabled` | `to.email` | — |
+| `welcome` | `to.email` | — |
 
 `issued.email` is the address the user's record holds, as they registered
 it; what the visitor typed may differ in case or spacing. The recipient is a
@@ -322,6 +360,7 @@ const links = {
 	verifyEmail: (token: string) => `https://acme.example/verify?token=${token}`,
 	resetPassword: (token: string) => `https://acme.example/reset?token=${token}`,
 	secureAccount: () => 'https://acme.example/account/security',
+	getStarted: () => 'https://acme.example/',
 };
 
 it('sends the code, and never the challenge', async () => {

@@ -10,4 +10,5 @@ export interface MailEmails {
 	"two-factor-disabled": { readonly brand: string | number; readonly link: string; readonly name: string | number };
 	"two-factor-enabled": { readonly brand: string | number; readonly link: string; readonly name: string | number };
 	"verify-email": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };
+	"welcome": { readonly brand: string | number; readonly link: string; readonly name: string | number };
 }

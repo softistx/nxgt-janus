@@ -109,7 +109,7 @@
     },
     "packages/janus-mail": {
       "name": "@nxgt/janus-mail",
-      "version": "0.3.2",
+      "version": "0.4.0",
       "devDependencies": {
         "@maizzle/framework": "6.1.7",
         "@maizzle/tailwindcss": "1.5.6",
@@ -122,6 +122,7 @@
         "@types/bun": "^1.4.2",
         "vue": "3.5.43",
         "vue-tsc": "^3.3.11",
+        "zod": "^4.6.5",
       },
       "peerDependencies": {
         "@nxgt/janus": "workspace:^",

@@ -21,6 +21,7 @@ const mail = janusMail({
 		verifyEmail: (token) => `https://acme.example/verify?token=${token}`,
 		resetPassword: (token) => `https://acme.example/reset?token=${token}`,
 		secureAccount: () => 'https://acme.example/account/security',
+		getStarted: () => 'https://acme.example/start',
 	},
 });
 const ada: Recipient = { name: 'Ada', locale: 'fr-CA' };
@@ -53,6 +54,7 @@ janusMail({
 		verifyEmail: (token) => token,
 		resetPassword: (token) => token,
 		secureAccount: () => 'https://acme.example/account/security',
+		getStarted: () => 'https://acme.example/start',
 	},
 	// @ts-expect-error
 	clock: () => new Date(),
@@ -69,6 +71,7 @@ janusMail({
 		verifyEmail: (token) => token,
 		resetPassword: (token) => token,
 		secureAccount: () => 'https://acme.example/account/security',
+		getStarted: () => 'https://acme.example/start',
 	},
 	clock: fixedClock(Date.UTC(2026, 0, 1)),
 });

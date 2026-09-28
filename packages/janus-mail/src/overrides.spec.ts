@@ -72,7 +72,7 @@ describe('templates', () => {
 			new TypeError(
 				'janusMail: the default templates are built in en and fr only — with another ' +
 					'locale in locales, pass every template in templates; resetPassword, ' +
-					'signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled missing',
+					'signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, welcome missing',
 			),
 		);
 	});
@@ -100,6 +100,9 @@ describe('templates', () => {
 			return plain('Hallo');
 		}
 		twoFactorDisabled() {
+			return plain('Hallo');
+		}
+		welcome() {
 			return plain('Hallo');
 		}
 	}
@@ -157,6 +160,7 @@ describe('templates', () => {
 			emailChanged: own('email'),
 			twoFactorEnabled: own('enabled'),
 			twoFactorDisabled: own('disabled'),
+			welcome: own('welcome'),
 		};
 		const mail = janusMail({
 			...options,

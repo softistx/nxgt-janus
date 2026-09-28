@@ -51,7 +51,7 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 	[
 		'no links',
 		{ links: undefined },
-		'links must be an object, as { verifyEmail, resetPassword, secureAccount }',
+		'links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }',
 	],
 	[
 		'a link given as a URL',
@@ -72,6 +72,17 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 		'secureAccount missing',
 		{ links: { verifyEmail: () => '', resetPassword: () => '' } },
 		'links.secureAccount must be a function',
+	],
+	[
+		'getStarted missing — links written before welcome',
+		{
+			links: {
+				verifyEmail: () => '',
+				resetPassword: () => '',
+				secureAccount: () => '',
+			},
+		},
+		'links.getStarted must be a function',
 	],
 	[
 		'empty locales',
@@ -115,8 +126,8 @@ const cases: readonly [string, Record<string, unknown>, string][] = [
 	],
 	[
 		'a template that is not one',
-		{ templates: { welcome: () => null } },
-		'templates has no template welcome — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled',
+		{ templates: { magicLink: () => null } },
+		'templates has no template magicLink — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, welcome',
 	],
 	[
 		'a template that is not a function',

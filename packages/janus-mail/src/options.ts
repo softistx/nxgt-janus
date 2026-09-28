@@ -22,9 +22,16 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'emailChanged',
 	'twoFactorEnabled',
 	'twoFactorDisabled',
+	'welcome',
 ];
 
-const LINK_NAMES = ['verifyEmail', 'resetPassword', 'secureAccount'] as const;
+/** Every link of `JanusMailLinks`: checked, then copied, by these names. */
+const LINK_NAMES = [
+	'verifyEmail',
+	'resetPassword',
+	'secureAccount',
+	'getStarted',
+] as const;
 
 /** The options once checked, with `string` for the locales: the degenericised mirror. */
 export interface ResolvedOptions {
@@ -81,7 +88,7 @@ function checkSending(options: Record<string, unknown>): void {
 	}
 	if (!isObject(links)) {
 		refuse(
-			'links must be an object, as { verifyEmail, resetPassword, secureAccount }',
+			'links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }',
 		);
 	}
 	for (const name of LINK_NAMES) {
@@ -201,11 +208,12 @@ function frozenAddress(address: Address): Address {
  * `janusMail()` cannot undo the check.
  */
 function frozenLinks(links: JanusMailLinks): JanusMailLinks {
-	return Object.freeze({
-		verifyEmail: links.verifyEmail.bind(links),
-		resetPassword: links.resetPassword.bind(links),
-		secureAccount: links.secureAccount.bind(links),
-	});
+	// LINK_NAMES is every key of JanusMailLinks, each checked a function.
+	return Object.freeze(
+		Object.fromEntries(
+			LINK_NAMES.map((name) => [name, links[name].bind(links)]),
+		),
+	) as unknown as JanusMailLinks;
 }
 
 /**

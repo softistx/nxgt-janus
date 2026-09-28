@@ -9,10 +9,9 @@ Nothing between releases.
 
 ## Next
 
-- **The other presets** — `magic-link`, `new-sign-in`, `welcome` and
-  `invitation` from `@nxgt/mail-presets`, each once `@nxgt/janus` has a flow
-  that sends it: a sign-in link, a sign-in from a new device, a user created,
-  an invitation to a user type.
+- **The other presets** — `magic-link`, `new-sign-in` and `invitation` from
+  `@nxgt/mail-presets`, each once `@nxgt/janus` has a flow that sends it: a
+  sign-in link, a sign-in from a new device, an invitation to a user type.
 - **The other presets of `@nxgt/mail-presets` 0.4.0** — `account-deleted`,
   after a user is deleted, once `@nxgt/janus` has a deletion a link can
   undo; and `invitation-accepted`, once it has invitations.
@@ -47,6 +46,13 @@ Nothing between releases.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The welcome e-mail, v0.4.0.** `welcome(to)`, built from
+  `@nxgt/mail-presets` 0.4.2's `welcome` in English and French — "Welcome,
+  Ada" — with a **Get started** button linking to the new
+  `links.getStarted()`: send it on `@nxgt/janus`'s `user.created` event.
+  `links` now requires `getStarted`, and a locale beyond `en` and `fr` takes
+  eight templates.
 
 - **A sign-in code box that is not a light slab in dark mode, v0.3.2.** Under
   dark mode the code's box is a mid slate, 6.95:1 against the dark card, with
