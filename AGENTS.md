@@ -666,7 +666,10 @@ pure one (`packages.ts` reads the workspace, `tarball.ts` a tarball's entries,
 file under 250 lines, and the three other copies have since followed it; the
 skeleton's row in *Deliberate duplications* says where they still differ.
 
-The scripts have specs of their own, run by the root `test`:
+The scripts have specs of their own, run by the root `test` through
+`bun test ./scripts/`. The leading `./` matters: a bare
+`bun test scripts` is a substring filter, and on 2026-09-28 it ran 166 tests
+across 23 files, `janus-mail`'s two `scripts/*.spec.ts` included a second time.
 `scripts/artifacts/*.spec.ts` covers the pure checks. Among them is the
 one-class-per-entry scan, proven against a real `Bun.build` both with and
 without `splitting`. `scripts/publish.spec.ts` covers the publish order and the
