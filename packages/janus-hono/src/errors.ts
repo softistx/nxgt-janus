@@ -1,46 +1,22 @@
-import { JanusError, type JanusErrorCode } from '@nxgt/janus';
+import {
+	JanusError,
+	type JanusErrorCode,
+	statusOf as janusStatusOf,
+} from '@nxgt/janus';
 import type { Context, ErrorHandler } from 'hono';
 import type { HTTPException } from 'hono/http-exception';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
 /**
- * The status each code deserves. Exhaustive: a code added to `@nxgt/janus`
- * stops this file compiling instead of answering `undefined`.
+ * The status each code deserves: `@nxgt/janus`'s own table, typed as the
+ * `ContentfulStatusCode` `c.json()` takes. Kept as an export of its own so a
+ * route that answers by hand reads the same status `janusErrors()` does.
  *
  * `STORE_FAILED` is 503 and nothing else — **an outage is not a negative
  * answer**, and a 401 or a 404 would tell every user they do not exist.
  */
 export function statusOf(code: JanusErrorCode): ContentfulStatusCode {
-	switch (code) {
-		case 'STORE_FAILED':
-			return 503;
-		case 'NOT_FOUND':
-			return 404;
-		case 'LOGIN_TAKEN':
-		case 'VERSION_CONFLICT':
-			return 409;
-		case 'USER_INVALID':
-		case 'PASSWORD_TOO_SHORT':
-		case 'HASH_UNSUPPORTED':
-		case 'INVALID_CURSOR':
-		case 'TOKEN_UNKNOWN':
-		case 'TOKEN_SPENT':
-		case 'TOKEN_EXPIRED':
-		case 'TOKEN_STALE':
-			return 400;
-		case 'CREDENTIALS_INVALID':
-		case 'CODE_INVALID':
-			return 401;
-		case 'SECOND_FACTOR_NOT_ENROLLED':
-		case 'SECOND_FACTOR_ACTIVE':
-			return 409;
-		case 'USER_INACTIVE':
-			return 403;
-		case 'UNSUPPORTED':
-			return 501;
-		case 'PERMISSION_DEPTH':
-			return 500;
-	}
+	return janusStatusOf(code);
 }
 
 /**
