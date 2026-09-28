@@ -98,6 +98,55 @@ describe('createDrizzleStores(), beyond the port suite', () => {
 	});
 });
 
+describe('the recovery codes column', () => {
+	const factor = {
+		method: 'totp',
+		secret: 'v1.k.aXY.Y2lwaGVydGV4dA',
+		confirmedAt: at,
+		lastStep: 59_000_000,
+		recoveryCodes: ['v1.k.aGFzaA'],
+	} as const;
+
+	it('reads a factor written before 0.4, its column null, as one with no recovery codes', async () => {
+		const test = await openTestDb();
+		try {
+			const { users } = createDrizzleStores(test.db);
+			const record = { ...user(['ada@x.test']), secondFactor: factor };
+			await users.insertUser(record);
+			await test.exec(
+				`update users set second_factor_recovery_codes = null where id = '${record.id}'`,
+			);
+
+			expect((await users.findUser(record.id))?.secondFactor).toEqual({
+				...factor,
+				recoveryCodes: [],
+			});
+		} finally {
+			await test.close();
+		}
+	});
+
+	it('refuses recovery codes on a row with no second factor', async () => {
+		const test = await openTestDb();
+		try {
+			const record = user(['ada@x.test']);
+			await createDrizzleStores(test.db).users.insertUser(record);
+
+			const outcome = await test
+				.exec(
+					`update users set second_factor_recovery_codes = '{h}' where id = '${record.id}'`,
+				)
+				.then(
+					() => 'written',
+					(error: Error) => error.message,
+				);
+			expect(outcome).toContain('users_second_factor_whole');
+		} finally {
+			await test.close();
+		}
+	});
+});
+
 describe('createDrizzleAdapter(db, { tables }), in a schema of their own', () => {
 	it("never touches the application's own tables of the same names", async () => {
 		const janus = pgSchema('janus');

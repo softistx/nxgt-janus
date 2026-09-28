@@ -101,7 +101,7 @@ tables.
 
 | Table | Keys and indexes |
 | --- | --- |
-| `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither · a check that a second factor (`second_factor_method`, `_secret`, `_confirmed_at`, `_last_step`) has its method and its secret, or none of the four · a check that the method is `totp` and the last step not negative |
+| `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither · a check that a second factor (`second_factor_method`, `_secret`, `_confirmed_at`, `_last_step`, `_recovery_codes`) has its method and its secret, or none of the five · a check that the method is `totp` and the last step not negative |
 | `logins` | primary key `(type, login)`: **a login is unique per user type** · `(user_id, type)` references the user, `on delete cascade` |
 | `sessions` | `id` · `token_hash` unique · `user_id` · `expires_at`, for `collectExpired()` |
 | `tokens` | `token_hash` · `user_id` · a check on `kind` · `code_hash`, and `attempts`, `not null default 0`, checked `>= 0` |
@@ -116,6 +116,8 @@ requires. No secret is stored: sessions and tokens hold `sha256` of the secret,
 passwords a self-describing hash, and `second_factor_secret` a TOTP secret
 `@nxgt/janus` has already sealed with your application's key —
 `v1.<key id>.…` — which the store keeps byte for byte.
+`second_factor_recovery_codes` holds keyed hashes of the recovery codes, never
+a code, in the order written; `null` reads as `[]`.
 
 ## Traps
 
@@ -131,6 +133,12 @@ passwords a self-describing hash, and `second_factor_secret` a TOTP secret
   Run `bunx drizzle-kit generate`, then `bunx drizzle-kit migrate`, before
   deploying — with `--config` naming Janus's config if it has its own.
   [Upgrading](docs/guide/migrations.md#upgrading) shows what it writes.
+- **Upgrading to 0.4 needs a migration too.** `users` gained
+  `second_factor_recovery_codes`, and its whole-factor check now covers it.
+  Deployed without it, every query on `users` fails with `STORE_FAILED`,
+  caused by `column "second_factor_recovery_codes" does not exist`.
+  [To 0.4](docs/guide/migrations.md#to-04-recovery-codes) shows the two
+  statements drizzle-kit writes.
 - **Your migrations create the tables, not this package.** The core never
   manages a schema, and the stores create nothing per request. Without the
   exports in your schema file, the first sign-up fails with `STORE_FAILED`,

@@ -55,13 +55,19 @@ export function toUserSet(patch: UserPatch): Partial<UserInsert> {
 	return set;
 }
 
-/** A second factor as its four columns, all `null` for none. */
+/**
+ * A second factor as its five columns, all `null` for none. Its recovery
+ * codes are written as they are, `[]` included: `null` is left to a row
+ * with no factor, and to one written before the column existed.
+ */
 function toSecondFactorColumns(secondFactor: UserRecord['secondFactor']) {
 	return {
 		secondFactorMethod: secondFactor?.method ?? null,
 		secondFactorSecret: secondFactor?.secret ?? null,
 		secondFactorConfirmedAt: secondFactor?.confirmedAt ?? null,
 		secondFactorLastStep: secondFactor?.lastStep ?? null,
+		secondFactorRecoveryCodes:
+			secondFactor === null ? null : [...secondFactor.recoveryCodes],
 	};
 }
 
@@ -85,6 +91,7 @@ export function toUser(row: UserRow): UserRecord {
 						secret: row.secondFactorSecret,
 						confirmedAt: row.secondFactorConfirmedAt,
 						lastStep: row.secondFactorLastStep,
+						recoveryCodes: [...(row.secondFactorRecoveryCodes ?? [])],
 					},
 		emailVerifiedAt: row.emailVerifiedAt,
 		version: row.version,

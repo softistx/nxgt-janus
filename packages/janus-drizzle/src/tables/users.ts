@@ -34,6 +34,11 @@ export function usersTable(table: TableFactory) {
 			secondFactorSecret: text('second_factor_secret'),
 			secondFactorConfirmedAt: at('second_factor_confirmed_at'),
 			secondFactorLastStep: integer('second_factor_last_step'),
+			/**
+			 * The recovery codes' keyed hashes, in order — `null` read as `[]`,
+			 * so a row written before the column existed reads as no codes.
+			 */
+			secondFactorRecoveryCodes: text('second_factor_recovery_codes').array(),
 			emailVerifiedAt: at('email_verified_at'),
 			version: integer('version').notNull(),
 			createdAt: at('created_at').notNull(),
@@ -51,11 +56,11 @@ export function usersTable(table: TableFactory) {
 			),
 			/**
 			 * A second factor is a method and a secret, or neither; its
-			 * confirmation and last step exist only beside them.
+			 * confirmation, last step and recovery codes exist only beside them.
 			 */
 			check(
 				'users_second_factor_whole',
-				sql`(${t.secondFactorMethod} is null) = (${t.secondFactorSecret} is null) and (${t.secondFactorMethod} is not null or (${t.secondFactorConfirmedAt} is null and ${t.secondFactorLastStep} is null))`,
+				sql`(${t.secondFactorMethod} is null) = (${t.secondFactorSecret} is null) and (${t.secondFactorMethod} is not null or (${t.secondFactorConfirmedAt} is null and ${t.secondFactorLastStep} is null and ${t.secondFactorRecoveryCodes} is null))`,
 			),
 			/** `'totp'` is the one method; a step counts up from the epoch. */
 			check(
