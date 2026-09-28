@@ -462,8 +462,10 @@ The full message reads `Type '[]' is not assignable to type '"patient" |
 "staff" | readonly ["patient" | "staff", ...("patient" | "staff")[]] |
 undefined'`.
 
-**Why:** `requireUser(ctx, { type: [] })` — an empty list admits no user,
-so every call would answer `FORBIDDEN`.
+**Why:** `requireUser(ctx, { type: [] })` — an empty list admits no user.
+The compiler refuses it here; a list built at run time that comes out empty
+throws
+[`TypeError: requireUser(): type is an empty list, which no user could pass`](#typeerror-requireuser-type-is-an-empty-list-which-no-user-could-pass).
 
 **Fix:** name at least one user type, `{ type: ['staff'] }`, or leave `type`
 out to admit any signed-in user.
