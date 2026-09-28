@@ -32,6 +32,8 @@ import { hashSecret } from '../secrets';
 /** How long the attempts of one window last: fifteen minutes. */
 export const REGENERATE_WINDOW_MS = 15 * 60_000;
 
+const WINDOW_MINUTES = REGENERATE_WINDOW_MS / 60_000;
+
 /** What the key is derived for: never the key that seals a secret itself. */
 const PURPOSE = 'janus/second-factor/regenerate-attempts/v1';
 
@@ -83,7 +85,10 @@ export async function countRegenerateAttempt(
 ): Promise<number> {
 	const now = context.clock.now().getTime();
 	const window = Math.floor(now / REGENERATE_WINDOW_MS);
-	const times = { now, expiresAt: (window + 1) * REGENERATE_WINDOW_MS };
+	// A window of slack: a store whose clock runs ahead of this one must not
+	// drop a link before its window ends. The window is in the hash, so a
+	// link never counts for the next one.
+	const times = { now, expiresAt: (window + 2) * REGENERATE_WINDOW_MS };
 	let spent = 0;
 	for (let link = 0; link < MAX_LINKS; link += 1) {
 		const hash = linkHash(sealer, record, window, link);
@@ -137,7 +142,7 @@ function attemptsLeft(
 	if (attempts > CODE_ATTEMPTS) {
 		throw new TokenError(
 			'CODE_INVALID',
-			`${where}: too many codes tried — wait for the next 15-minute window`,
+			`${where}: too many codes tried — wait for the next ${WINDOW_MINUTES}-minute window`,
 			{
 				operation: where,
 				userId: record.id,

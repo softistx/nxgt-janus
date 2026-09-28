@@ -78,6 +78,49 @@ describe('secondFactor.regenerateRecoveryCodes, at once', () => {
 	});
 });
 
+describe('secondFactor.regenerateRecoveryCodes, a count that cannot go on', () => {
+	it('is VERSION_CONFLICT when the count is gone right after it was stored — a user deleted meanwhile', async () => {
+		const stores = createMemoryStores();
+		// Stored, then answered as none: what a deletion in between looks like.
+		const tokens = { ...stores.tokens, countAttempt: async () => null };
+		const context = setup({ store: { ...stores, tokens } });
+		const { auth, codeOf } = context;
+		const { secret, user } = await enrolled(context);
+
+		expect(
+			await rejection(
+				auth.secondFactor.regenerateRecoveryCodes(user, codeOf(secret)),
+			),
+		).toMatchObject({
+			code: 'VERSION_CONFLICT',
+			message:
+				'secondFactor.regenerateRecoveryCodes: the user changed while the code was checked — read it again and retry',
+		});
+	});
+
+	it('refuses as too many when every link it finds is already spent — the chain has a bound', async () => {
+		const stores = createMemoryStores();
+		const countAttempt = stores.tokens.countAttempt.bind(stores.tokens);
+		const tokens = {
+			...stores.tokens,
+			// A store answering every link spent, with nothing counted on it.
+			countAttempt: async (...args: Parameters<typeof countAttempt>) => {
+				const counted = await countAttempt(...args);
+				return counted && { ...counted, attempts: 0, spentAt: new Date(0) };
+			},
+		};
+		const context = setup({ store: { ...stores, tokens } });
+		const { auth, codeOf } = context;
+		const { secret, user } = await enrolled(context);
+
+		expect(
+			await rejection(
+				auth.secondFactor.regenerateRecoveryCodes(user, codeOf(secret)),
+			),
+		).toMatchObject({ code: 'CODE_INVALID', attemptsLeft: 0 });
+	});
+});
+
 describe('secondFactor.regenerateRecoveryCodes, store outage', () => {
 	for (const method of ['countAttempt', 'insertToken'] as const) {
 		it(`throws STORE_FAILED when tokens.${method} fails — never a refusal, and counts nothing`, async () => {
