@@ -17,8 +17,8 @@ for what causes each.
 - [`TypeError: applyJanusDirectives(): the @authenticated on … admit no user type in common`](#typeerror-applyjanusdirectives-the-authenticated-on--admit-no-user-type-in-common)
 - [`TypeError: applyJanusDirectives(): @permission on … is not enforced yet`](#typeerror-applyjanusdirectives-permission-on--is-not-enforced-yet)
 - [`Unknown directive "@authenticated"`](#unknown-directive-authenticated)
-- [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
 - [`TypeError: applyJanusDirectives(): type '…' is not a user type of auth`](#typeerror-applyjanusdirectives-type--is-not-a-user-type-of-auth)
+- [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
 
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
