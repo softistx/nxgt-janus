@@ -85,17 +85,19 @@ then `other` — and writes the count with `Intl.NumberFormat`.
   `recovery-code-used.codes-left` when it overrides it, else the preset's.
 - **Its shape is checked**: one cardinal plural on `recoveryCodesLeft`, with
   an `other` branch and no offset, holding only text and `#`. Anything else
-  fails the build, naming the locale — the send could not format it:
+  fails the build, naming the locale — the send could not format it (below).
+- **It equals `createTranslator`**: `src/codes-left.spec.ts` formats every
+  count from 0 to 1,100 in every built locale both ways, and
+  `scripts/codes-left.spec.ts` holds the committed file equal to what the
+  build writes.
+
+The build's messages for the codes left:
 
 | Message | Cause | Fix |
 | --- | --- | --- |
 | `build-mail: de has no recovery-code-used.codes-left — add it to mail/locales/de.json` | A built locale whose catalogue lacks the message | Add `recovery-code-used.codes-left` to `mail/locales/<locale>.json` |
 | `build-mail: de's recovery-code-used.codes-left must be one plural on recoveryCodesLeft, with an other branch and no offset` | The message is not a single cardinal plural on that argument, lacks `other`, or has an `offset` | Write it as `{recoveryCodesLeft, plural, one {…} other {…}}` |
 | `build-mail: de's recovery-code-used.codes-left holds something other than text and # in a branch` | A branch holds another argument, a nested plural or a tag | Keep each branch to text and `#` |
-- **It equals `createTranslator`**: `src/codes-left.spec.ts` formats every
-  count from 0 to 1,100 in every built locale both ways, and
-  `scripts/codes-left.spec.ts` holds the committed file equal to what the
-  build writes.
 
 ## The manifest's format keeps the peer honest
 
