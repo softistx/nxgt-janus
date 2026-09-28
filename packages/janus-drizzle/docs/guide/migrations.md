@@ -164,7 +164,8 @@ bunx drizzle-kit migrate --config drizzle.janus.config.ts
 ```
 
 Deployed first, every query on `users` or `tokens` fails with `STORE_FAILED`,
-caused by `column "…" does not exist`.
+caused by `column "…" does not exist` — or, from 0.4 to 0.5, only a write of
+a `stepUp` token, caused by `violates check constraint "tokens_kind"`.
 
 ### To 0.2: the second factor and attempts
 

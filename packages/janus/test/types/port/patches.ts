@@ -1,7 +1,7 @@
 /**
  * What an update patch may say: never the version, the id or the type, never
  * undefined over a field, and always the time. Cases 8–11, 14 and 21 of the
- * twenty-three — see `fixtures.ts`.
+ * twenty-four — see `fixtures.ts`.
  */
 
 import type { UserPatch } from '../../../src/auth/port/types';

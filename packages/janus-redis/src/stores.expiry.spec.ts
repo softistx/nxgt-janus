@@ -25,6 +25,13 @@ describe('createRedisStores(), beyond the port suite', () => {
 			const later = new Date(expiresAt.getTime() + 60_000);
 			await sessions.extendSession(record.id, later);
 			expect(await expiryOf(`session:${record.id}`)).toBe(later.getTime());
+
+			// A step-up moves authenticatedAt, and no expiry.
+			await sessions.reauthenticateSession(record.id, new Date());
+			expect(await expiryOf(`session:${record.id}`)).toBe(later.getTime());
+			expect(await expiryOf(`session:token:${record.tokenHash}`)).toBe(
+				later.getTime(),
+			);
 		}));
 
 	it("keeps a user's set of sessions as long as their longest session", () =>

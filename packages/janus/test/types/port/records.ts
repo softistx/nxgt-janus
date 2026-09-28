@@ -1,7 +1,7 @@
 /**
  * What a record a store answers must hold: readonly, JSON fields, and every
  * field present — null when absent, 0 when uncounted, never left out. Cases
- * 12, 13, 15, 18, 19, 20 and 23 of the twenty-three — see `fixtures.ts`.
+ * 12, 13, 15, 18, 19, 20 and 23 of the twenty-four — see `fixtures.ts`.
  */
 
 import type {

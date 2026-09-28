@@ -140,8 +140,9 @@ for (const report of reports) console.log(report.name, report);
 await syncMongoStores(db); // then write the validators
 ```
 
-The new fields are optional in the validator, so the previous version keeps
-working against it while the deployment rolls. Deployed before the sync,
+The new fields are optional in the validator, and a widened enum refuses
+nothing the previous version writes, so the previous version keeps working
+against it while the deployment rolls. Deployed before the sync,
 every sign-up and every one-time token fails with `STORE_FAILED`, caused by
 `Document failed validation` (code 121) — from 0.5 to 0.6, every step-up
 request only. No document is rewritten either way.

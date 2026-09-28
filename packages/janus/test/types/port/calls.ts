@@ -1,7 +1,7 @@
 /**
  * What a call to the port must say: the version an update expects, and the
  * kind of token it redeems, counts or spends. Cases 6, 7, 17 and 22 of the
- * twenty-three — see `fixtures.ts`.
+ * twenty-four — see `fixtures.ts`.
  */
 
 import { now, record, tokens, users } from './fixtures';

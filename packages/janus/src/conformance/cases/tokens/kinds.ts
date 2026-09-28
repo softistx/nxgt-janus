@@ -9,15 +9,16 @@ const group = 'tokens';
 /**
  * Every kind the port names. A store that lists them — a column's `CHECK`, a
  * schema's enum — refuses a kind it was not told of, and this is where that
- * shows.
+ * shows. A record over the union, so a kind added to the port and not here
+ * stops this file compiling.
  */
-const KINDS = [
-	'verifyEmail',
-	'resetPassword',
-	'secondFactor',
-	'signInCode',
-	'stepUp',
-] as const satisfies readonly TokenKind[];
+const KINDS = Object.keys({
+	verifyEmail: true,
+	resetPassword: true,
+	secondFactor: true,
+	signInCode: true,
+	stepUp: true,
+} satisfies Record<TokenKind, true>) as TokenKind[];
 
 /** Each kind stored and redeemed as itself, and the two codes kept apart. */
 export const tokenKindCases: readonly ConformanceCase[] = [

@@ -36,6 +36,11 @@ Nothing yet.
 
 ## Shipped
 
+- **The step-up kind and `reauthenticateSession`, v0.5.0** — for
+  `@nxgt/janus` 0.12: `reauthenticateSession` is one `update … where
+  revoked_at is null returning`, and the `tokens_kind` check admits
+  `stepUp` — a migration drizzle-kit writes as one statement, rewriting no
+  row.
 - **Recovery codes on a second factor, v0.4.0** — for `@nxgt/janus` 0.10:
   `users` gains `second_factor_recovery_codes`, a nullable `text[]` of the
   codes' keyed hashes, read in order and `null` as `[]`, and the
