@@ -314,8 +314,7 @@ janus({ …, hasher: bunHasher(), verifiers: [scryptHasher()] }); // old hashes 
 ### `401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form
 
 Also `401 {"code":"CODE_INVALID"}`, with no `attemptsLeft`, from
-`secondFactor.activate` and `secondFactor.regenerateRecoveryCodes`: neither
-has a challenge to count attempts against.
+`secondFactor.activate`: it has no challenge to count attempts against.
 
 **When:** a route calling `secondFactor.confirm(challenge, code)`,
 `secondFactor.recover(challenge, code)` with a recovery code,
@@ -334,8 +333,16 @@ is a clock off by more than about 30 seconds, or a code used already — see
 On `signInCode.confirm`, `attemptsLeft` counts the same five attempts, and
 at `0` the challenge is spent too: the right code no longer works with it.
 
-**Fix:** read `attemptsLeft` in the client: ask again while it is above `0`,
-and go back to the sign-in form once it is `0`.
+On `secondFactor.regenerateRecoveryCodes`, `attemptsLeft` is what the user
+has left of five attempts in the current 15-minute window. At `0`, every
+call answers `401 {"code":"CODE_INVALID","attemptsLeft":0}` — the right code
+included, compared by nobody — until the next window: tell the user to wait,
+at most 15 minutes. The message, in your logs, is
+`secondFactor.regenerateRecoveryCodes: too many codes tried — wait for the next 15-minute window`.
+
+**Fix:** read `attemptsLeft` in the client: ask again while it is above `0`.
+Once it is `0`, a sign-in goes back to the sign-in form; the regenerate form
+tells the signed-in user to wait for the next window.
 
 ```ts
 const response = await fetch('/sign-in/code', { method: 'POST', body: JSON.stringify({ challenge, code }) });

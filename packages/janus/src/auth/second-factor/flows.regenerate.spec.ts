@@ -41,7 +41,7 @@ describe('secondFactor.regenerateRecoveryCodes', () => {
 
 		expect(
 			await rejection(auth.secondFactor.regenerateRecoveryCodes(user, code)),
-		).toMatchObject({ code: 'CODE_INVALID', attemptsLeft: undefined });
+		).toMatchObject({ code: 'CODE_INVALID', attemptsLeft: 4 });
 		expect(
 			await rejection(auth.secondFactor.confirm(await challenged(auth), code)),
 		).toMatchObject({ code: 'CODE_INVALID' });

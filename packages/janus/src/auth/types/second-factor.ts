@@ -69,6 +69,12 @@ export interface SecondFactorApi<U> {
 		 * on a fresh code from the app: the old ones stop working.
 		 * `CODE_INVALID` when the code does not match or was already used,
 		 * `SECOND_FACTOR_NOT_ENROLLED` without an active factor.
+		 *
+		 * It takes **five attempts per user per 15-minute window**, counted by
+		 * the store: a code that does not match is `CODE_INVALID` with
+		 * `attemptsLeft`, and past the fifth every call is `CODE_INVALID` with
+		 * `attemptsLeft: 0`, the right code included, until the next window. A
+		 * code accepted — here, or at sign-in — starts the count again.
 		 */
 		regenerateRecoveryCodes(
 			user: UserRef,

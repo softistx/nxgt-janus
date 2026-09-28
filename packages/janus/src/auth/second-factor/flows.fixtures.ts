@@ -41,7 +41,14 @@ export function setup(
 	/** The code an authenticator app shows now, `drift` steps away. */
 	const codeOf = (secret: string, drift = 0) =>
 		codeAt(fromBase32(secret), stepAt(clock.now()) + drift);
-	return { auth, store, clock, codeOf };
+	/** A six-digit code the app shows at no step the check accepts now. */
+	const wrongCodeOf = (secret: string) => {
+		const near = [-2, -1, 0, 1, 2].map((drift) => codeOf(secret, drift));
+		let guess = 0;
+		while (near.includes(String(guess).padStart(6, '0'))) guess += 1;
+		return String(guess).padStart(6, '0');
+	};
+	return { auth, store, clock, codeOf, wrongCodeOf };
 }
 
 /**

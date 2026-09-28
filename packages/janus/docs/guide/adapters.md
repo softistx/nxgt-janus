@@ -176,7 +176,9 @@ interface TokenRecord {
 
 A token redeemed for another kind is unknown: every method that takes a
 `kind` matches on it. A `secondFactor` token is the challenge `signIn`
-answers, and its `address` is `''`: a column or a validator that refuses an
+answers — or the count of a user's attempts at `regenerateRecoveryCodes`,
+a token of the same kind whose secret nobody is given, never redeemed and
+only counted — and its `address` is `''`: a column or a validator that refuses an
 empty string refuses every sign-in with a code. `codeHash` and `attempts` round-trip like every other
 field. An adapter whose stored tokens predate them reads them as `null` and
 `0`, as the three published adapters do, so no data migration is needed for
@@ -209,6 +211,12 @@ A **lapsed** token is counted all the same, or answered `null` by a store that
 has already dropped it (a TTL index, a Redis key TTL). Do not compare
 `expiresAt` in the store: as for `consumeToken`, the core compares it after
 the call.
+
+A **spent** token is kept, and answered as spent, **until its `expiresAt`**.
+Drop it sooner — on `consumeToken`, on `spendUserTokens` — and the next
+`countAttempt` answers `null`: the core inserts a fresh token, and a count of
+`regenerateRecoveryCodes`' attempts starts over. A TTL on `expiresAt`, as the
+published adapters set, keeps it exactly as long as needed.
 
 In MongoDB, one `findOneAndUpdate` answering the document after it, then a
 plain read for the spent case:
