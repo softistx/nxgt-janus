@@ -66,6 +66,7 @@ How the messages are shaped:
 - [`TS2339: Property 'token' does not exist on type 'SignInResult<…>'.`](#ts2339-property-token-does-not-exist-on-type-signinresult)
 - [`TS2339: Property 'hasSecondFactor' does not exist on type 'RecoveryCodesIssued<…>'.`](#ts2339-property-hassecondfactor-does-not-exist-on-type-recoverycodesissued)
 - [`CODE_INVALID` — `<call>: the code does not match, or was already used`](#code_invalid--call-the-code-does-not-match-or-was-already-used)
+- [`CODE_INVALID` — `secondFactor.regenerateRecoveryCodes: too many codes tried …`](#code_invalid--secondfactorregeneraterecoverycodes-too-many-codes-tried--wait-for-the-next-15-minute-window)
 - [The code the authenticator app shows is refused with `CODE_INVALID`](#the-code-the-authenticator-app-shows-is-refused-with-code_invalid)
 - [A recovery code the user kept is refused with `CODE_INVALID`](#a-recovery-code-the-user-kept-is-refused-with-code_invalid)
 - [`SECOND_FACTOR_NOT_ENROLLED` — `secondFactor.regenerateRecoveryCodes: the user has no active second factor …`](#second_factor_not_enrolled--secondfactorregeneraterecoverycodes-the-user-has-no-active-second-factor--recovery-codes-come-with-one)
@@ -747,9 +748,13 @@ try {
 
 **`secondFactor.regenerateRecoveryCodes(user, code)`** — the app's code.
 **Why:** as for `activate`: the code is wrong, or was accepted before — by a
-sign-in or by an earlier regeneration. No `attemptsLeft`, and the user's
-recovery codes are unchanged.
-**Fix:** ask for the next code the app shows.
+sign-in or by an earlier regeneration. The user's recovery codes are
+unchanged. Every call costs one of the user's five attempts in the current
+15-minute window, counted before the code is compared, and the error carries
+`attemptsLeft`; past the fifth, the message is
+[*too many codes tried*](#code_invalid--secondfactorregeneraterecoverycodes-too-many-codes-tried--wait-for-the-next-15-minute-window).
+**Fix:** ask for the next code the app shows, and answer 401 with
+`attemptsLeft`.
 
 **`secondFactor.recover(challenge, code)`** — a recovery code.
 **Why:** the recovery code is not one of the user's — a typo past what is
@@ -789,6 +794,30 @@ try {
 
 If the visitor typed the code from the e-mail correctly, see
 [the code from an earlier e-mail](#the-code-from-an-earlier-e-mail-is-refused-with-code_invalid).
+
+### `CODE_INVALID` — `secondFactor.regenerateRecoveryCodes: too many codes tried — wait for the next 15-minute window`
+
+`TokenError`, with `attemptsLeft: 0`.
+
+**When:** `secondFactor.regenerateRecoveryCodes(user, code)` after five codes
+were already tried for that user in the current window — whatever this code
+is, **the right one included**. Nothing is compared and nothing is written.
+**Why:** the call's code is the only thing between a stolen session and new
+recovery codes, so its attempts are bounded as a challenge's are: five per
+user, counted by the store, in fixed 15-minute windows of the clock. Every
+process over the same store shares the count. A code accepted — a
+regenerate, or a sign-in finished with the app — starts it again; a password
+written does not.
+**Fix:** tell the user to wait for the next window — 15 minutes at most —
+and answer 429 rather than 401. If nobody tried five codes, somebody else
+holds a session of theirs: revoke them with `signOutEverywhere(user)`.
+
+```ts
+if (error instanceof TokenError && error.code === 'CODE_INVALID') {
+  const status = error.attemptsLeft === 0 ? 429 : 401;
+  return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status });
+}
+```
 
 ### The code the authenticator app shows is refused with `CODE_INVALID`
 

@@ -434,14 +434,34 @@ stolen session alone cannot mint codes that outlive it — and spends that code
 as a sign-in would: the same code cannot regenerate twice, nor then confirm a
 sign-in. It sends a [`user.recoveryCodesRegenerated` event](events.md).
 
+**It takes five attempts per user per 15-minute window**, the same five a
+challenge takes, counted by the store before the code is compared — so a
+stolen session cannot guess the app's code one call at a time. A code that
+does not match is `CODE_INVALID` with `attemptsLeft`; past the fifth, every
+call in the window is `CODE_INVALID` with `attemptsLeft: 0`, **the right code
+included**, and writes nothing:
+
+```text
+secondFactor.regenerateRecoveryCodes: too many codes tried — wait for the next 15-minute window
+```
+
+The windows are fixed slices of the clock — 00:00, 00:15, 00:30 — so the wait
+is 15 minutes at most. A code accepted starts the count again: a regenerate
+that succeeded, or a sign-in finished with the app. Writing a password does
+not: the attempts already spent in the window stay spent. The count lives in
+the tokens store as a token of kind `secondFactor` whose secret is never
+given out — no store method and no migration of its own — so every process
+over the same store shares it, and a store that fails throws `STORE_FAILED`,
+never a refusal.
+
 A factor activated before 0.10 holds no recovery codes; this is how it gets
 its first ten.
 
 | Rejects with | When |
 | --- | --- |
-| `CODE_INVALID` | the app's code does not match, or was already accepted. **No `attemptsLeft`**: there is no challenge, so rate-limit it as any authenticated form |
+| `CODE_INVALID` | the app's code does not match, or was already accepted — with `attemptsLeft`, what the window has left. `attemptsLeft: 0` with *too many codes tried*: five were already tried in this window, and the code was not compared |
 | `SECOND_FACTOR_NOT_ENROLLED` | the user has no active factor — none, or one still waiting for its first code |
-| `VERSION_CONFLICT` | `{ ifVersion }` no longer matches |
+| `VERSION_CONFLICT` | `{ ifVersion }` no longer matches, or another call changed the user meanwhile — the same code tried twice at once regenerates once |
 
 Like `enroll` and `disable`, `regenerateRecoveryCodes` does not know who is
 calling: pass the user from `auth.authenticate(request)`, and apply your
@@ -465,7 +485,9 @@ export async function regenerateRecoveryCodes(request: Request): Promise<Respons
 		return Response.json({ recoveryCodes }, { headers: { 'Cache-Control': 'no-store' } });
 	} catch (error) {
 		if (error instanceof TokenError && error.code === 'CODE_INVALID') {
-			return Response.json({ code: error.code }, { status: 401 });
+			// 0 left: no code is compared again until the next window.
+			const status = error.attemptsLeft === 0 ? 429 : 401;
+			return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status });
 		}
 		throw error;
 	}

@@ -518,7 +518,10 @@ every user type with a password.
   attempts, and answers a `RecoveredSignIn`: the session with
   `recoveryCodesLeft`. `regenerateRecoveryCodes(user, code)` replaces them all,
   on a fresh code from the app, and answers a `RecoveryCodesIssued` too;
-  `disable` removes them.
+  `disable` removes them. It takes five attempts per user per 15-minute
+  window, counted by the store: a wrong code is `CODE_INVALID` with
+  `attemptsLeft`, and past the fifth every call is refused until the next
+  window.
 - **`keys` seal every TOTP secret** with AES-256-GCM before a store sees it,
   and key the recovery codes' hashes. The first seals and every key opens, so
   keys rotate: put the new one first, keep the old one until no secret is
@@ -854,10 +857,14 @@ calling.** Whether the user proves their password or a code first is yours
 to decide; without a check, a stolen session can switch the factor off.
 `regenerateRecoveryCodes` asks for the app's code, and nothing else.
 
-**Rate-limit `regenerateRecoveryCodes` per user.** Its code counts no
-attempts — there is no challenge to spend — so a stolen session alone can
-guess it, one call at a time. Limit the route on the user's id, as you would
-`signIn` on the address.
+**Past five wrong codes, `regenerateRecoveryCodes` refuses the right one
+too**. The attempts are counted per user, in the store, in
+15-minute windows: the sixth call in a window is `CODE_INVALID` with
+`attemptsLeft: 0` and the message *too many codes tried*, whatever code it
+carries, and nothing is written. Tell the user to wait; a code accepted —
+a regenerate, or a sign-in finished with the app — starts the count again.
+A thief with the session can therefore spend a user's five attempts and
+hold them off for a window: that is the price of bounding the guesses.
 
 **Two sign-ins with the same recovery code at once open one session.** The
 other rejects with `VERSION_CONFLICT`, not `CODE_INVALID`: answer it as "sign
