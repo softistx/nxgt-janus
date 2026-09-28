@@ -35,7 +35,8 @@ Nothing between releases.
   `MailFailure` or `MailRefused`, untouched, so one `instanceof` against
   `@nxgt/mail` answers every failure, whichever package sent the e-mail.
 - **Retries or a queue** — a retry is the application's decision, made where
-  it can see it; hand a send to a queue that retries a `MAIL_FAILED`.
+  it can see it; hand a send to a queue that retries a `MAIL_FAILED`, or pass
+  a mailer wrapped in `@nxgt/mail` 0.8's `withRetry`.
 - **Sending from inside `janus()`** — `@nxgt/janus` stays free of e-mail:
   its flows answer what to send, and this package is called with that answer.
   An application that sends its own way needs neither this package nor a
@@ -47,6 +48,12 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A button that shows in dark mode, v0.3.1.** Under dark mode the button
+  is near-white with near-black text, no longer a near-black one that all but
+  vanished on the dark card; light mode, the text parts, subjects and
+  variables are unchanged. Built from `@nxgt/mail-ui` 0.5.0,
+  `@nxgt/mail-presets` 0.4.1 and `@nxgt/mail-i18n` 0.6.0; the manifest is
+  still format 1, and the `@nxgt/mail` peer stays `>=0.1.0 <1`.
 - **The two-factor notices, v0.3.0.** `twoFactorEnabled(to)` and
   `twoFactorDisabled(to)`, built from `@nxgt/mail-presets` 0.4.0's
   `two-factor-enabled` and `two-factor-disabled` in English and French, each
