@@ -53,9 +53,11 @@ Then `../../build.ts` builds `dist/`, as for every package.
 ## The manifest's format keeps the peer honest
 
 The package peers `@nxgt/mail` at `>=0.1.0 <1`, so the build it ships must
-be readable by `@nxgt/mail` 0.1.0. The manifest says which format it is in —
-`formatVersion`, its first key, `MANIFEST_FORMAT` of the `@nxgt/mail-i18n`
-that built it — and within 0.x a renderer reads every format up to its own.
+be readable by `@nxgt/mail` 0.1.0 — the peer's floor, which the package's
+specs and its typecheck run on in the Floors job, on every CI run. The
+manifest says which format it is in — `formatVersion`, its first key,
+`MANIFEST_FORMAT` of the `@nxgt/mail-i18n` that built it — and within 0.x a
+renderer reads every format up to its own.
 `@nxgt/mail` 0.1.0 through 0.8.0 read format 1, and a manifest without the
 field is format 1.
 
