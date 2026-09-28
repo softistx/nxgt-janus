@@ -3,7 +3,7 @@
  * mistake in a send the compiler refuses, and fails the typecheck the moment
  * it stops being refused. The README counts them with those of
  * `option-refusals.ts` (9 to 20), `expiry-refusals.ts` (21 to 25) and
- * `notice-refusals.ts` (26 and 27). Below
+ * `notice-refusals.ts` (26 to 29). Below
  * them, the sends that must keep compiling: a refusal that also refuses the
  * right call is a bug.
  *
@@ -25,6 +25,7 @@ const mail = janusMail({
 		verifyEmail: (token) => `https://acme.example/verify?token=${token}`,
 		resetPassword: (token) => `https://acme.example/reset?token=${token}`,
 		secureAccount: () => 'https://acme.example/account/security',
+		getStarted: () => 'https://acme.example/start',
 	},
 });
 const ada: Recipient = { name: 'Ada', locale: 'fr-CA' };

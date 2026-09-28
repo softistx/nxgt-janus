@@ -2,8 +2,8 @@
 
 The e-mails of [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus)'s
 flows, ready to send: **e-mail verification, password reset, sign-in code,
-password changed, e-mail changed, and two-factor authentication turned on or
-off**, in English and French, with your brand
+password changed, e-mail changed, two-factor authentication turned on or
+off, and a welcome to a new user**, in English and French, with your brand
 in them. `@nxgt/janus` sends no e-mail — its flows answer what to send — and
 this package turns that answer into an e-mail and hands it to any
 [`@nxgt/mail`](https://www.npmjs.com/package/@nxgt/mail) transport.
@@ -20,6 +20,7 @@ const mail = janusMail({
 		verifyEmail: (token) => `https://acme.example/verify?token=${token}`,
 		resetPassword: (token) => `https://acme.example/reset?token=${token}`,
 		secureAccount: () => 'https://acme.example/account/security',
+		getStarted: () => 'https://acme.example/',
 	},
 });
 
@@ -55,10 +56,10 @@ runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The seven default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The eight default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the seven of them, and their names |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the eight of them, and their names |
 | `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn` or `newEmail` as its e-mail needs |
 | `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword` and `signInCode`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
@@ -81,6 +82,7 @@ imported too; see
 | `emailChanged(to)` | A notice naming `to.newEmail`, with `links.secureAccount()` | `to.formerEmail` |
 | `twoFactorEnabled(to)` | A notice: two-factor authentication was turned on, with `links.secureAccount()` | `to.email` |
 | `twoFactorDisabled(to)` | A notice: two-factor authentication was turned off, with `links.secureAccount()` | `to.email` |
+| `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
 
 The three e-mails of a link or a code say how long it lasts — "This link
 expires in 1 hour.", "Ce lien expire dans 1 heure." — from the flow's
@@ -171,6 +173,29 @@ const auth = janus({
 The link is `links.secureAccount()`, the page where the user manages their
 security settings.
 
+### Welcoming a new user
+
+`@nxgt/janus` sends `user.created` once `signUp` or `create` inserted the
+user. Read the user by id, and welcome them:
+
+```ts
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.created') {
+			const user = await auth.get(event.userId);
+			await mail.welcome({ name: user.name, locale: user.locale, email: user.email });
+		}
+	},
+});
+```
+
+The **Get started** button links to `links.getStarted()`: your home page,
+or your sign-in page for an account someone else created. The welcome goes
+out before the address is verified; to welcome proven addresses only, send
+it on `user.emailVerified` instead — see
+[Sending](docs/guide/sending.md#welcometo).
+
 ### Replacing a template
 
 Any template can be your own function — React Email, a string, another
@@ -204,6 +229,23 @@ into an unhandled rejection and a user waiting for an e-mail that never
 comes. `await` it, or hand it to a queue that retries — which is also how to
 send after answering, as the sign-in code guide advises.
 
+**A welcome sent from `janus({ events })` fails no sign-up.** `janus()`
+awaits the listener, but a listener that throws is a `JANUS_EVENT_FAILED`
+warning: the user exists, `signUp` answers, and a `MailFailure` is not
+thrown to anyone. For a welcome that must arrive, put the event in a queue
+that retries, and send from there.
+
+**With open sign-up, welcome on `user.emailVerified`, not `user.created`.**
+Whoever signs up picks both the address and the name, and the welcome
+writes that name in its subject — "Welcome, <anything>" — so on
+`user.created` anyone can make your brand send it to any address. Once the
+address is proven, only its owner receives it.
+
+**Every link is required, `getStarted` included.** `links` written for 0.3
+has no `getStarted`: a compile error on `links`, and in JavaScript
+`janusMail: links.getStarted must be a function`. Add it even if you never
+send the welcome.
+
 **`node:fs` means no edge runtime.** The default e-mails are read from the
 package's `mails/` folder, on the first one sent. On an edge runtime, pass
 every template yourself — or wait for the inlined build on the
@@ -231,7 +273,7 @@ and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all seven
+built in those two only, so `locales: ['en', 'fr', 'de']` without all eight
 templates is a compile error, and a `TypeError` in JavaScript.
 
 **The brand is text only.** `brand: 'Acme'` is written in the header, the
@@ -289,7 +331,7 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Twenty-seven plausible mistakes, twenty-seven refused at compile time.**
+**Twenty-nine plausible mistakes, twenty-nine refused at compile time.**
 Four files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
@@ -299,8 +341,8 @@ of `janusMail()`'s options, 9 to 20, beside adding a language with every
 template;
 [`test/types/expiry-refusals.ts`](test/types/expiry-refusals.ts) the five of
 the expiry and the clock, 21 to 25; and
-[`test/types/notice-refusals.ts`](test/types/notice-refusals.ts) the two of
-the two-factor notices, 26 and 27:
+[`test/types/notice-refusals.ts`](test/types/notice-refusals.ts) the four of
+the two-factor notices and the welcome, 26 to 29:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -329,9 +371,11 @@ the two-factor notices, 26 and 27:
 25. `clock` given as a function rather than `@nxgt/janus`'s `Clock`.
 26. The user event itself given to `twoFactorDisabled`: it has neither a name nor an address.
 27. `twoFactorEnabled` given `emailChanged`'s `formerEmail` rather than `email`.
+28. The `user.created` event itself given to `welcome`: it has neither a name nor an address.
+29. `links` written before the welcome, without `getStarted`.
 
-In JavaScript, 19 to 23, 26 and 27 are a `TypeError` at send time instead, naming the
-call or the field, and 25 one from `janusMail()`.
+In JavaScript, 19 to 23 and 26 to 28 are a `TypeError` at send time instead, naming the
+call or the field, and 25 and 29 one from `janusMail()`.
 
 [`test/types/variables.ts`](test/types/variables.ts) also holds
 `JanusMailVariables` equal to the variables of the build: an e-mail that

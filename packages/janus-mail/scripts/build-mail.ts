@@ -9,7 +9,7 @@
  *   writes, and one `@nxgt/mail` 0.1.0 reads** — the peer is `>=0.1.0 <1`, and
  *   a renderer reads every format up to its own, so a newer format would
  *   break an application on the floor;
- * - it **fails unless exactly the seven e-mails** of Janus's flows were built,
+ * - it **fails unless exactly the eight e-mails** of Janus's flows were built,
  *   so a preset added or dropped by a new `@nxgt/mail-presets` is a failed
  *   build here, not a surprise in a consumer's outbox;
  * - it writes `src/generated/locales.ts` — the locales built, as a type —
@@ -34,6 +34,7 @@ export const EXPECTED_EMAILS = [
 	'two-factor-disabled',
 	'two-factor-enabled',
 	'verify-email',
+	'welcome',
 ] as const;
 
 const MAIL_DIR = fileURLToPath(new URL('../mail/', import.meta.url));

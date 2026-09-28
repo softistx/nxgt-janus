@@ -34,6 +34,8 @@ const sends: Record<
 		mail.twoFactorEnabled({ name, locale, email: 'ada@example.com' }),
 	twoFactorDisabled: (mail, locale) =>
 		mail.twoFactorDisabled({ name, locale, email: 'ada@example.com' }),
+	welcome: (mail, locale) =>
+		mail.welcome({ name, locale, email: 'ada@example.com' }),
 };
 
 const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
@@ -65,6 +67,11 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 	twoFactorDisabled: {
 		en: 'Two-factor authentication was turned off',
 		fr: "L'authentification à deux facteurs a été désactivée",
+	},
+	// The one subject with a placeholder: the name, written as is.
+	welcome: {
+		en: 'Welcome, Ada <3',
+		fr: 'Bienvenue, Ada <3',
 	},
 };
 
@@ -123,7 +130,9 @@ describe('the default e-mails', () => {
 		await mail.passwordChanged({ name: 'Ada', email: 'ada@example.com' });
 		await mail.twoFactorEnabled({ name: 'Ada', email: 'ada@example.com' });
 		await mail.twoFactorDisabled({ name: 'Ada', email: 'ada@example.com' });
-		const [verify, resetMail, changed, enabled, disabled] = options.mailer.sent;
+		await mail.welcome({ name: 'Ada', email: 'ada@example.com' });
+		const [verify, resetMail, changed, enabled, disabled, welcome] =
+			options.mailer.sent;
 		expect(verify?.html).toContain(
 			'https://acme.example/verify?token=tok-verify-123',
 		);
@@ -137,6 +146,11 @@ describe('the default e-mails', () => {
 			expect(notice?.text).toContain('https://acme.example/account/security');
 			expect(notice?.html).toContain('https://acme.example/account/security');
 		}
+		expect(welcome?.text).toContain('https://acme.example/start');
+		expect(welcome?.html).toContain('https://acme.example/start');
+		expect(welcome?.html).not.toContain(
+			'https://acme.example/account/security',
+		);
 	});
 
 	test('the new address is in the e-mail-changed e-mail', async () => {
