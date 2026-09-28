@@ -35,8 +35,9 @@ export function usersTable(table: TableFactory) {
 			secondFactorConfirmedAt: at('second_factor_confirmed_at'),
 			secondFactorLastStep: integer('second_factor_last_step'),
 			/**
-			 * The recovery codes' keyed hashes, in order — `null` read as `[]`,
-			 * so a row written before the column existed reads as no codes.
+			 * The recovery codes' keyed hashes, in order — `null` for none, read
+			 * as `[]`, so a row written before the column existed reads as no
+			 * codes.
 			 */
 			secondFactorRecoveryCodes: text('second_factor_recovery_codes').array(),
 			emailVerifiedAt: at('email_verified_at'),

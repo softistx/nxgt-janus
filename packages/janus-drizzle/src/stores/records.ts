@@ -56,18 +56,19 @@ export function toUserSet(patch: UserPatch): Partial<UserInsert> {
 }
 
 /**
- * A second factor as its five columns, all `null` for none. Its recovery
- * codes are written as they are, `[]` included: `null` is left to a row
- * with no factor, and to one written before the column existed.
+ * A second factor as its five columns, all `null` for none. No recovery
+ * codes are written `null` too, never `{}`, and read back as `[]`: a row
+ * then holds a code array only while it holds codes, so an instance of 0.3
+ * — which knows four columns — can still remove a factor that has none.
  */
 function toSecondFactorColumns(secondFactor: UserRecord['secondFactor']) {
+	const codes = secondFactor?.recoveryCodes ?? [];
 	return {
 		secondFactorMethod: secondFactor?.method ?? null,
 		secondFactorSecret: secondFactor?.secret ?? null,
 		secondFactorConfirmedAt: secondFactor?.confirmedAt ?? null,
 		secondFactorLastStep: secondFactor?.lastStep ?? null,
-		secondFactorRecoveryCodes:
-			secondFactor === null ? null : [...secondFactor.recoveryCodes],
+		secondFactorRecoveryCodes: codes.length === 0 ? null : [...codes],
 	};
 }
 

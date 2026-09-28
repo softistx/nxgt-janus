@@ -141,8 +141,8 @@ migration creates is what the conformance suites ran on.
   `where second_factor_secret like 'v1.<id>.%'` finds the secrets still sealed
   with a key being [rotated out](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md#rotating-the-keys).
 - **Recovery codes as a `text[]`, `null` read as `[]`.** Each element is a
-  keyed hash the core wrote, never a code, kept in order; a factor with no
-  codes left is written `{}`, and a row with no factor holds `null`. A row
+  keyed hash the core wrote, never a code, kept in order. No codes — a
+  factor with none left, or no factor at all — is `null`, never `{}`. A row
   from before the column existed reads as a factor with no codes, so an
   upgrade rewrites nothing.
 - **`attempts` is `not null default 0`**, checked `>= 0`, so the rows an upgrade finds read
@@ -205,6 +205,13 @@ the length of one scan; the rows already satisfy it, since the column is new.
 Deployed before the migration, every query on `users` fails with
 `STORE_FAILED`, caused by `column "second_factor_recovery_codes" does not
 exist`.
+
+**Finish the rollout before users hold codes.** An instance still on 0.3
+knows four columns: once a user holds recovery codes, its `disable` leaves
+them beside a factor removed, and the check refuses the write with
+`STORE_FAILED`. Nothing is lost — the call fails, and succeeds on an instance
+of 0.4 — but run 0.3 and 0.4 side by side only while no user has been given
+codes, which `@nxgt/janus` does from `secondFactor.activate` on.
 
 ## Collecting lapsed sessions
 

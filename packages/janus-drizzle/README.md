@@ -117,7 +117,7 @@ passwords a self-describing hash, and `second_factor_secret` a TOTP secret
 `@nxgt/janus` has already sealed with your application's key —
 `v1.<key id>.…` — which the store keeps byte for byte.
 `second_factor_recovery_codes` holds keyed hashes of the recovery codes, never
-a code, in the order written; `null` reads as `[]`.
+a code, in the order written; no codes are `null`, read as `[]`.
 
 ## Traps
 
