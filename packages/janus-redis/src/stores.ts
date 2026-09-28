@@ -19,6 +19,7 @@ import {
 	FIND_SESSION,
 	INSERT_SESSION,
 	INSERT_TOKEN,
+	REAUTHENTICATE_SESSION,
 	REVOKE_SESSION,
 	REVOKE_USER_SESSIONS,
 	SPEND_USER_TOKENS,
@@ -157,6 +158,14 @@ function sessionStore(evaluate: Evaluate, prefix: string): SessionStore {
 
 		extendSession: (id, expiresAt) =>
 			run('extendSession', EXTEND_SESSION, [id, stamp(expiresAt)], toSession),
+
+		reauthenticateSession: (id, at) =>
+			run(
+				'reauthenticateSession',
+				REAUTHENTICATE_SESSION,
+				[id, stamp(at)],
+				toSession,
+			),
 
 		revokeSession: (id, at) =>
 			run(

@@ -25,6 +25,7 @@ const COMMAND_OF: Record<string, readonly string[]> = {
 	listUsers: ['find'],
 	findSessionByTokenHash: ['find'],
 	extendSession: ['findAndModify'],
+	reauthenticateSession: ['findAndModify'],
 	revokeSession: ['update'],
 	revokeUserSessions: ['update'],
 	consumeToken: ['findAndModify'],

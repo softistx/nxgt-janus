@@ -18,12 +18,17 @@ import type { Id } from '../../../ids/id';
  *   attempts at `regenerateRecoveryCodes`, a token of this kind whose secret
  *   nobody is given, never redeemed, only counted.
  * - `signInCode`: a code sent by e-mail to sign in without a password.
+ * - `stepUp`: a signed-in user's confirmation of a sensitive action — a code
+ *   sent by e-mail, or, with an active second factor, a code from their app.
+ *   A kind of its own, so a sign-in code never confirms an action nor an
+ *   action's code signs anyone in.
  */
 export type TokenKind =
 	| 'verifyEmail'
 	| 'resetPassword'
 	| 'secondFactor'
-	| 'signInCode';
+	| 'signInCode'
+	| 'stepUp';
 
 /** A one-time token, as a store holds it: its hash, never its secret. */
 export interface TokenRecord {
@@ -37,7 +42,8 @@ export interface TokenRecord {
 	 */
 	readonly address: string;
 	/**
-	 * For a token redeemed with a code — `signInCode` — the code's hash, keyed
+	 * For a token redeemed with an e-mailed code — `signInCode`, and a
+	 * `stepUp` sent by e-mail — the code's hash, keyed
 	 * by the token's secret, so the tokens alone do not reveal it. `null` for
 	 * every other kind: the core writes it so, and a store keeps what it is
 	 * given.

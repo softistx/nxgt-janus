@@ -9,7 +9,13 @@ export function tokensTable(table: TableFactory) {
 		{
 			tokenHash: key('token_hash').primaryKey(),
 			kind: text('kind', {
-				enum: ['verifyEmail', 'resetPassword', 'secondFactor', 'signInCode'],
+				enum: [
+					'verifyEmail',
+					'resetPassword',
+					'secondFactor',
+					'signInCode',
+					'stepUp',
+				],
 			}).notNull(),
 			userId: key('user_id').notNull(),
 			address: text('address').notNull(),
@@ -24,7 +30,7 @@ export function tokensTable(table: TableFactory) {
 		(t) => [
 			check(
 				'tokens_kind',
-				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode')`,
+				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'stepUp')`,
 			),
 			check('tokens_attempts', sql`${t.attempts} >= 0`),
 			index('tokens_user_id').on(t.userId),

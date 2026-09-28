@@ -47,6 +47,18 @@ export function sessionStore(db: Db): SessionStore {
 				return written === null ? null : toSession(written);
 			}),
 
+		reauthenticateSession: (id, at) =>
+			run$('reauthenticateSession', async () => {
+				// The same filter as an extension's: a confirmation racing a
+				// revocation matches nothing.
+				const written = await collection.raw.findOneAndUpdate(
+					{ _id: id, revokedAt: null },
+					{ $set: { authenticatedAt: at } },
+					{ returnDocument: 'after' },
+				);
+				return written === null ? null : toSession(written);
+			}),
+
 		revokeSession: (id, at) =>
 			run$('revokeSession', () => revokeSession(collection, id, at)),
 

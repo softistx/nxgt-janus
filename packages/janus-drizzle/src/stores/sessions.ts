@@ -46,6 +46,20 @@ export function sessionStore(
 				return row === undefined ? null : toSession(row);
 			}),
 
+		reauthenticateSession: (id, at) =>
+			run$('reauthenticateSession', async () => {
+				// The same condition as an extension's: a confirmation racing a
+				// revocation matches nothing.
+				const [row] = await db
+					.update(tables.sessions)
+					.set({ authenticatedAt: at })
+					.where(
+						and(eq(tables.sessions.id, id), isNull(tables.sessions.revokedAt)),
+					)
+					.returning();
+				return row === undefined ? null : toSession(row);
+			}),
+
 		revokeSession: (id, at) =>
 			run$('revokeSession', () => revokeSession(db, tables, id, at)),
 

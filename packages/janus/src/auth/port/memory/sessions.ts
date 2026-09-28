@@ -42,6 +42,18 @@ export function memorySessionStore(): SessionStore {
 			return copy(written);
 		},
 
+		async reauthenticateSession(id, at) {
+			const stored = byId.get(id);
+			if (stored === undefined || stored.revokedAt !== null) return null;
+
+			const written: SessionRecord = {
+				...stored,
+				authenticatedAt: new Date(at),
+			};
+			byId.set(id, written);
+			return copy(written);
+		},
+
 		async revokeSession(id, at) {
 			const stored = byId.get(id);
 			if (stored === undefined) return false;
