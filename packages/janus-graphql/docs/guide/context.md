@@ -36,7 +36,7 @@ does not build, since `@authenticated` and `@permission` are not declared.
 | `auth` | What `janus()` answered. Required |
 | `access` | What `permissions()` answered: `ctx.janus.access`, what `can()` and `@permission` ask. Optional — and required once the schema uses `@permission` |
 | `type` | A user type: a user of any other type is anonymous on this server, as `auth.authenticate(request, { type })` answers |
-| `loaders` | Per object type, `(id, ctx) => object \| null`: the object `@permission` checks when it reads an id from `args`. Required for a type with a `fromField` — see [directives](directives.md#reading-the-id) |
+| `loaders` | Per object type, `(id, ctx) => object \| null`: the object `@permission` checks when it reads an id alone — from `args`, or a parent field other than `id`. Required for a type with a `fromField` — see [directives](directives.md#reading-the-id) |
 | `conditions` | Per object type, `(object, ctx) => its when()s' ctx`: what `@permission` passes as `{ ctx }` — see [directives](directives.md#conditions) |
 
 ## `ctx.janus`

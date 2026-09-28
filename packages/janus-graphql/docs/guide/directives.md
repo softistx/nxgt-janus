@@ -17,7 +17,7 @@ export const yoga = createYoga({
 			auth,
 			access,
 			loaders: { record: (id) => records.find(id) }, // what @permission loads by id
-			conditions: { record: (record, ctx) => ({ onShift: ctx.shift.open }) }, // a when()'s ctx
+			conditions: { record: (record, ctx: Context) => ({ onShift: ctx.shift.open }) }, // a when()'s ctx
 		}),
 	],
 	maskedErrors: { maskError: janusMaskError() },
@@ -138,7 +138,8 @@ A `fromField` relation is read from the object's own data — a record's
 `doctorId` — so the object must carry that field. The parent does when its
 resolver answered the record; an id alone does not, and the loader is what
 turns one into the object. A type with no `fromField` may have a loader too:
-it is then asked for every id `@permission` reads from `args`, and its
+it is then asked for every id `@permission` reads alone — from `args`, or
+from a parent field other than `id` — and its
 `null` answers `NOT_FOUND` for an object that does not exist.
 
 ```ts
@@ -168,8 +169,10 @@ type Team {
 ```
 
 **A list requires the permission on every element**: one denial denies the
-field. The checks of a list are asked together. An empty list asks nothing,
-and the resolver runs. This is not a filter: to answer only the items a user
+field. The checks of a list are asked together. An empty list in `args` asks
+nothing, and the resolver runs: the client asked for nothing. An empty list
+in the parent is answered `NOT_FOUND`: the object's data names nothing to
+check, and its fields are not open to every user for it. This is not a filter: to answer only the items a user
 may see, ask `access.list()` for their ids and load those.
 
 ### Conditions
@@ -230,7 +233,7 @@ type Record @permission(name: "view", type: "record") {
 | --- | --- |
 | anonymous | `UNAUTHENTICATED`, 401 |
 | a user of a type `@authenticated` does not name | `FORBIDDEN`, 403, before any check |
-| no id at the path, or an id no object can hold | `NOT_FOUND`, 404 |
+| no id at the path, an empty list in the parent, or an id no object can hold | `NOT_FOUND`, 404 |
 | a loader answering `null` | `NOT_FOUND`, 404 |
 | a denial | `onDeny`: `NOT_FOUND`, 404, or `FORBIDDEN`, 403 |
 | a store — or a loader — that cannot answer | `SERVICE_UNAVAILABLE`, 503, never a denial |
@@ -253,6 +256,14 @@ Not remembered: a check with a condition's `ctx`, which the question does
 not hold; an anonymous one, which costs no store call; and a failure — the
 next question asks again.
 
+**A subscription skips the memo.** It is one request whose fields resolve
+again on every event, so each event asks afresh and a `revoke()` made since
+the subscription started stops the next event. **A mutation does not**: a
+mutation that grants or revokes and then asks the same question in the same
+request reads the answer remembered before the change. Ask
+`access.can` directly after such a change, or answer from the mutation's own
+result.
+
 ## Refused when the schema is built
 
 What no request could ever pass is a `TypeError` at start-up, naming the
@@ -270,6 +281,7 @@ TypeError: applyJanusDirectives(): @permission on Query.ward reads its id from '
 TypeError: applyJanusDirectives(): @permission on Query.ward reads args.wardId, and Query.ward takes no argument wardId
 TypeError: applyJanusDirectives(): @permission on Query.record reads the record's id from args.id, and record reads 'doctorId' of the object itself (fromField) — pass useJanus({ loaders: { record: (id, ctx) => … } })
 TypeError: applyJanusDirectives(): @permission on Query.record asks 'edit' of record, which reaches a when() — pass useJanus({ conditions: { record: (object, ctx) => … } })
+TypeError: applyJanusDirectives(): @permission on Query.ward finds loaders.ward, which is not a function
 ```
 
 Each is in [troubleshooting](../troubleshooting.md), with its fix. The

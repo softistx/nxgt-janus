@@ -78,7 +78,7 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `janusTypeDefs` | The SDL: `@authenticated`, `@permission` and the `PermissionDenial` enum. The same text as `graphql/janus.graphqls` |
 | `@authenticated(type: [String!])` | On a field, a type or an interface. A signed-in user, of one of the `type`s when it names some. Anonymous: `UNAUTHENTICATED`. Another type: `FORBIDDEN`. Every one that applies — the field's, its type's, its interfaces' — must hold |
 | `@permission(name, type, id, onDeny)` | On a field, a type or an interface. A user holding permission `name` on the object of `type` whose id `id` reads — `args.<path>` or `parent.<path>`; `args.id` on a field, `parent.id` on a type. A list requires it on every id. Repeated, every one must hold, in order. Denied: `NOT_FOUND`, or `FORBIDDEN` with `onDeny: FORBIDDEN` |
-| `loaders: { [type]: (id, ctx) => object \| null }` | The object `@permission` checks for an id it read from `args` — required for a type with a `fromField`, whose fields `access.can` reads. `null` answers `NOT_FOUND` |
+| `loaders: { [type]: (id, ctx) => object \| null }` | The object `@permission` checks for an id alone — from `args`, or a parent field other than `id` — required for a type with a `fromField`, whose fields `access.can` reads. `null` answers `NOT_FOUND` |
 | `conditions: { [type]: (object, ctx) => ctx }` | The `ctx` `@permission` passes to `access.can` for a permission that reaches a `when()` |
 | `applyJanusDirectives(schema, { auth, type?, access?, loaders?, conditions? })` | The schema transform alone — what `useJanus()` runs — to check a schema in a test or a build script. Throws a `TypeError` naming the field for a directive no request could pass. Its guards read `ctx.janus`, which only `useJanus()` builds |
 | `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
@@ -110,7 +110,7 @@ useJanus({
 	auth,
 	access,
 	loaders: { record: (id, ctx) => records.find(id) }, // record has a fromField: an id alone is not enough
-	conditions: { record: (record, ctx) => ({ onShift: ctx.shift.open }) }, // the ctx of a when() record's permissions reach
+	conditions: { record: (record, ctx: Context) => ({ onShift: ctx.shift.open }) }, // the ctx of a when() record's permissions reach
 });
 ```
 
@@ -189,6 +189,11 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 - **A loader's own error is a 500.** `@permission` answers a `JanusError`
   with its status, but a driver's error thrown by a loader is masked like any
   other: throw `StoreFailure` for an outage, so it is a 503.
+- **A request remembers its checks.** The same object, permission and user
+  asked twice in one request is one check — so a mutation that grants or
+  revokes, then asks again in the same request, reads the answer from
+  before the change. Call `access.can` directly there. A subscription asks
+  afresh on every event.
 - **`@permission` is not a filter.** A list of ids requires the permission
   on every one, and one denial denies the field; to answer only the items a
   user may see, ask `access.list()` for their ids.

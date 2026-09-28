@@ -23,7 +23,7 @@ for what causes each.
 - [`TypeError: applyJanusDirectives(): @permission on … reads the …'s id from …, and … reads '…' of the object itself (fromField)`](#typeerror-applyjanusdirectives-permission-on--reads-the-s-id-from--and--reads--of-the-object-itself-fromfield)
 - [`TypeError: applyJanusDirectives(): @permission on … asks '…' of …, which reaches a when()`](#typeerror-applyjanusdirectives-permission-on--asks--of--which-reaches-a-when)
 - [`TypeError: applyJanusDirectives(): @permission on … finds loaders.…, which is not a function`](#typeerror-applyjanusdirectives-permission-on--finds-loaders-which-is-not-a-function)
-- [`Unknown directive "@authenticated"`](#unknown-directive-authenticated)
+- [`Unknown directive "@authenticated"`, or `"@permission"`](#unknown-directive-authenticated-or-permission)
 - [`TypeError: applyJanusDirectives(): type '…' is not a user type of auth`](#typeerror-applyjanusdirectives-type--is-not-a-user-type-of-auth)
 - [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
 
@@ -48,7 +48,7 @@ for what causes each.
 - [`Property 'access' does not exist on type …`](#property-access-does-not-exist-on-type-)
 - [`Expected 4 arguments, but got 3`, on `can()`](#expected-4-arguments-but-got-3-on-can)
 - [`'…' does not exist in type 'Loaders<…>'`, or `'Conditions<…>'`](#-does-not-exist-in-type-loaders-or-conditions)
-- [`Type '{ …: … }' is not assignable to type 'never'`, on `loaders`](#type----is-not-assignable-to-type-never-on-loaders)
+- [`Type '{ …: … }' is not assignable to type 'never'`, on `loaders`](#type-----is-not-assignable-to-type-never-on-loaders)
 
 ## At start-up
 
@@ -187,7 +187,7 @@ than a function of it, from JavaScript or past a cast.
 
 **Fix:** `loaders: { record: (id) => records.find(id) }`.
 
-### `Unknown directive "@authenticated"`
+### `Unknown directive "@authenticated"`, or `"@permission"`
 
 **Why:** graphql-js builds the schema before `useJanus()` sees it, and the
 directive is not declared.
@@ -289,8 +289,8 @@ answered.
 
 **Why:** the path read nothing it could check: an optional argument the
 client left out (`record(id: ID)`), a `null` in the parent
-(`parent.wardId` on a visit with no ward), a list holding a `null`, or a value
-that is neither a string nor an integer. There is no object to ask about, so
+(`parent.wardId` on a visit with no ward), an empty list in the parent, a
+list holding a `null`, or a value that is neither a string nor an integer. There is no object to ask about, so
 there is nothing to allow.
 
 **Fix:** make the argument required — `record(id: ID!)` — or point `id:` at a
