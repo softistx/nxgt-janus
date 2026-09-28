@@ -6,12 +6,14 @@ import type { RecoveryCodesIssued, UserRef, WriteOptions } from '../types';
 import { acceptCode, isActive, requireSettings } from './factor';
 import { hashRecoveryCode, mintRecoveryCodes } from './recovery-codes';
 import { refusal } from './refusal';
+import { countRegenerateAttempt } from './regenerate-attempts';
 
 /**
  * Replaces a user's recovery codes with new ones, and answers them once: the
  * old ones, used or not, stop working. Takes a **fresh code from the app** —
  * whoever holds a session alone cannot mint codes that outlive it — and
- * spends it, as a code accepted anywhere else is spent.
+ * spends it, as a code accepted anywhere else is spent. The attempts are
+ * counted first, five per user per window, as a challenge's are.
  */
 export async function regenerateRecoveryCodes(
 	context: Context,
@@ -34,7 +36,7 @@ export async function regenerateRecoveryCodes(
 		type,
 		options,
 		where,
-		(record, now) => {
+		async (record, now) => {
 			const factor = record.secondFactor;
 			if (!isActive(factor)) {
 				throw refusal(
@@ -45,6 +47,12 @@ export async function regenerateRecoveryCodes(
 					record,
 				);
 			}
+			const left = await countRegenerateAttempt(
+				context,
+				configured.sealer,
+				record,
+				where,
+			);
 			const accepted = acceptCode(
 				configured,
 				record,
@@ -53,7 +61,9 @@ export async function regenerateRecoveryCodes(
 				now,
 				where,
 			);
-			if (accepted === null) throw codeInvalid(where, record.id, type.name);
+			if (accepted === null) {
+				throw codeInvalid(where, record.id, type.name, left);
+			}
 			return {
 				secondFactor: {
 					...accepted,

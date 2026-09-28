@@ -98,7 +98,8 @@ export type JanusErrorCode =
 	 * A one-time code that does not match: a wrong TOTP code, or one already
 	 * used. Carries `attemptsLeft` when the code was checked against a
 	 * challenge: what is left of its attempts, and `0` once the last one spent
-	 * it.
+	 * it — or against `regenerateRecoveryCodes`' window: what is left of the
+	 * user's five, and `0` past them, when no code is compared at all.
 	 */
 	| 'CODE_INVALID'
 	/** `activate` before `enroll`: the user has no second factor waiting. */

@@ -43,7 +43,10 @@ export interface JanusErrorOptions {
 	readonly permission?: string;
 	/** The depth a check may walk. */
 	readonly maxDepth?: number;
-	/** What is left of a challenge's attempts after a code that did not match. */
+	/**
+	 * What is left of a challenge's attempts after a code that did not match
+	 * — or of the user's window, for `regenerateRecoveryCodes`.
+	 */
 	readonly attemptsLeft?: number;
 	readonly cause?: unknown;
 }
