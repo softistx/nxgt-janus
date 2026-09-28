@@ -44,6 +44,7 @@ for what causes each.
 - [`TypeError: requireUser(): type is an empty list, which no user could pass`](#typeerror-requireuser-type-is-an-empty-list-which-no-user-could-pass)
 - [`TypeError: requireFresh(): maxAge is a duration with its unit`](#typeerror-requirefresh-maxage-is-a-duration-with-its-unit)
 - [`TypeError: requireFresh(): maxAge: "…" is not a duration`](#typeerror-requirefresh-maxage--is-not-a-duration)
+- [`TypeError: requireFresh(): maxAge: a duration must be above zero`](#typeerror-requirefresh-maxage-a-duration-must-be-above-zero)
 - [`@permission on … resolved no object id from … — answered NOT_FOUND`](#permission-on--resolved-no-object-id-from---answered-not_found)
 - [`NOT_FOUND` where the user should be allowed](#not_found-where-the-user-should-be-allowed)
 - [A 403 that tells a user the object exists](#a-403-that-tells-a-user-the-object-exists)
@@ -393,9 +394,17 @@ guessed. The compiler refuses a literal number.
 ### `TypeError: requireFresh(): maxAge: "…" is not a duration`
 
 **Why:** the string is not a number followed by `ms`, `s`, `m`, `h` or `d`
-— `'10 minutes'`, `'10 m'` — or is zero.
+— `'10 minutes'`, `'10 m'`.
 
 **Fix:** `requireFresh(ctx, '10m')`.
+
+### `TypeError: requireFresh(): maxAge: a duration must be above zero`
+
+**Why:** `requireFresh(ctx, '0m')` — no session is ever fresh within no
+time, so every request would be refused. The compiler lets it through: the
+type reads a number and a unit, not their value.
+
+**Fix:** a duration above zero, `requireFresh(ctx, '10m')`.
 
 ### `@permission on … resolved no object id from … — answered NOT_FOUND`
 

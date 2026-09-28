@@ -128,8 +128,8 @@ useJanus({
 
 Each runs before the resolver, which a refused request never reaches.
 `@fresh(maxAge)` takes **seconds**, and answers an older session
-`STEP_UP_REQUIRED`: the client then runs `auth.stepUp.request` and
-`confirm` — as two mutations, shown in
+`STEP_UP_REQUIRED`: the client then calls your two step-up mutations,
+which run `auth.stepUp.request` and `confirm` — shown in
 [the step-up guide](docs/guide/step-up.md) — and sends the request again.
 Every `@authenticated` is checked first, then `@fresh`, then each
 `@permission`, so a stale session asks no permission check.

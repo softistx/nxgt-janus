@@ -53,8 +53,9 @@ specification URL of your own and compose them:
 ```graphql
 extend schema
 	@link(url: "https://specs.apollo.dev/federation/v2.1", import: ["@key", "@composeDirective"])
-	@link(url: "https://example.com/janus/v1.0", import: ["@authenticated", "@permission"])
+	@link(url: "https://example.com/janus/v1.0", import: ["@authenticated", "@fresh", "@permission"])
 	@composeDirective(name: "@authenticated")
+	@composeDirective(name: "@fresh")
 	@composeDirective(name: "@permission")
 ```
 

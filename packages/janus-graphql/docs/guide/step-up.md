@@ -102,7 +102,13 @@ Yoga answers it as a 500.
 | `CODE_INVALID`, with `attemptsLeft` | 401 | asks for the code again; at `0`, starts over at `requestStepUp` |
 | `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_UNKNOWN`, `TOKEN_STALE` | 400 | starts over at `requestStepUp` |
 | `SECOND_FACTOR_ACTIVE` | 409 | starts over: the user's app confirms now |
+| `SECOND_FACTOR_NOT_ENROLLED` | 409 | starts over: the factor was disabled, an e-mailed code confirms now |
+| `USER_INACTIVE` | 403 | stops: the account was deactivated |
 | `SERVICE_UNAVAILABLE` | 503 | retries later |
+
+`requestStepUp` itself answers `USER_INACTIVE`, 403, for a deactivated
+user, and `NOT_FOUND`, 404, for a user with no e-mail to send a code to
+— an optional e-mail left empty.
 
 **Rate-limit `requestStepUp` per user.** A new challenge takes only a new
 request, and each one sends an e-mail: a few an hour is plenty for a person.

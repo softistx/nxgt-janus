@@ -29,7 +29,8 @@ export const yoga = createYoga({
   calling the hook again with it does not loop.
 
 `janusTypeDefs` must be among the type definitions: without it, the schema
-does not build, since `@authenticated` and `@permission` are not declared.
+does not build, since `@authenticated`, `@fresh` and `@permission` are not
+declared.
 
 | Option | What it does |
 | --- | --- |
