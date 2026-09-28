@@ -127,6 +127,14 @@ describe('janusMaskError({ report })', () => {
 			},
 		],
 		['rejects', () => Promise.reject(new Error('logger down'))],
+		[
+			'answers a thenable that rejects',
+			() => ({
+				// biome-ignore lint/suspicious/noThenProperty: a thenable on purpose, as a logger's own promise-like.
+				then: (_: unknown, ko: (reason: unknown) => void) =>
+					ko(new Error('logger down')),
+			}),
+		],
 	] as const) {
 		it(`answers 503 all the same when report ${how}, with a warning`, async () => {
 			warning = spyOn(process, 'emitWarning').mockImplementation(() => {});
