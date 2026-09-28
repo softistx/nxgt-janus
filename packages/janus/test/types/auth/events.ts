@@ -1,7 +1,7 @@
 /**
  * User events: a listener that is not a function, an event type Janus never
  * sends, a field an event never carries — and the listener that must keep
- * compiling. Cases 32–34 of the thirty-four — see `fixtures.ts`.
+ * compiling. Cases 32–34 of the thirty-seven — see `fixtures.ts`.
  */
 
 import { janus } from '../../../src/index';
@@ -33,7 +33,7 @@ function events() {
 
 // ── And the shape that MUST keep compiling ──────────────────────────────────
 
-// A listener that switches on the six types, and one that is async.
+// A listener that switches on the eight types, and one that is async.
 const listening = janus({
 	user: Patient,
 	store,
@@ -44,6 +44,8 @@ const listening = janus({
 			case 'user.passwordReset':
 			case 'user.secondFactorEnabled':
 			case 'user.secondFactorDisabled':
+			case 'user.recoveryCodesRegenerated':
+			case 'user.recoveryCodeUsed':
 			case 'user.deleted': {
 				const who: string = event.userId;
 				const when: Date = event.occurredAt;

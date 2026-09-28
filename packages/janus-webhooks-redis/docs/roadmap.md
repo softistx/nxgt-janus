@@ -33,6 +33,9 @@ Nothing yet.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **The recovery codes' events, v0.3.0** — a delivery of
+  `user.recoveryCodesRegenerated` or `user.recoveryCodeUsed`, from
+  `@nxgt/janus` 0.10, is written and read back like the other six.
 - **The second factor's events, v0.2.0** — a delivery of
   `user.secondFactorEnabled` or `user.secondFactorDisabled`, from
   `@nxgt/janus` 0.9, is written and read back like the other four.

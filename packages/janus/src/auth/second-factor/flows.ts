@@ -7,6 +7,7 @@ import type { SecondFactorApi, SignInResult } from '../types';
 import { challengeFlows } from './challenge';
 import { isActive } from './factor';
 import { lifecycleFlows } from './lifecycle';
+import { recoverWithCode } from './recovery';
 
 /**
  * The second factor of one user type: the flows its API answers, and what
@@ -21,6 +22,8 @@ export function secondFactorFlows(
 	const api: SecondFactorApi<AnyUser>['secondFactor'] = {
 		...lifecycleFlows(context, type, at),
 		confirm: challenges.confirm,
+		recover: (challenge, code) =>
+			recoverWithCode(context, type, challenge, code, at),
 	};
 
 	return {

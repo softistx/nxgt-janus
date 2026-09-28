@@ -314,10 +314,13 @@ janus({ …, hasher: bunHasher(), verifiers: [scryptHasher()] }); // old hashes 
 ### `401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form
 
 Also `401 {"code":"CODE_INVALID"}`, with no `attemptsLeft`, from
-`secondFactor.activate`.
+`secondFactor.activate` and `secondFactor.regenerateRecoveryCodes`: neither
+has a challenge to count attempts against.
 
-**When:** a route calling `secondFactor.confirm(challenge, code)` or
-`secondFactor.activate(user, code)`, with a code that does not match or was
+**When:** a route calling `secondFactor.confirm(challenge, code)`,
+`secondFactor.recover(challenge, code)` with a recovery code,
+`secondFactor.activate(user, code)` or
+`secondFactor.regenerateRecoveryCodes(user, code)`, with a code that does not match or was
 already used — or a route calling `signInCode.confirm(challenge, code)`, the
 code sent by e-mail, with a code that does not match or is not six digits.
 
@@ -359,16 +362,20 @@ if (response.status === 401) {
 
 **When:** a route calling `secondFactor.enroll` or `secondFactor.activate`
 answers `SECOND_FACTOR_ACTIVE` for a user whose factor is already on;
-`secondFactor.activate` with no `enroll` before it, or `secondFactor.confirm`
-after the factor was disabled, answers `SECOND_FACTOR_NOT_ENROLLED`.
+`secondFactor.activate` with no `enroll` before it,
+`secondFactor.regenerateRecoveryCodes` for a user with no active factor, or
+`secondFactor.confirm` or `secondFactor.recover` after the factor was
+disabled, answers `SECOND_FACTOR_NOT_ENROLLED`.
 
 **Why:** both say the factor is not in the state the call needs — a conflict
 with the user's state, so 409, not 400. A `409 {"code":"VERSION_CONFLICT"}`
-from the code form is the other 409: the same code submitted twice at once,
-where the first call already opened the session.
+from the code form, or from the recovery code route (`/sign-in/recovery`), is
+the other 409: the same code submitted twice at once, where the first call
+already opened the session.
 
 **Fix:** read `c.var.user.hasSecondFactor` before offering "set up" or
-"turn off"; after `SECOND_FACTOR_NOT_ENROLLED` on the code form, send the
+"turn off"; after `SECOND_FACTOR_NOT_ENROLLED` on the code form or the recovery code
+route, send the
 visitor back to sign in. The causes of each are in
 [`@nxgt/janus`'s troubleshooting](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#second-factor).
 

@@ -51,6 +51,8 @@ export type {
 	Janus,
 	LoginOf,
 	PasswordApi,
+	RecoveredSignIn,
+	RecoveryCodesIssued,
 	RequestLike,
 	RequiredStringKeys,
 	ResetPasswordApi,

@@ -33,6 +33,7 @@ How PostgreSQL's errors become the port's:
 **Setup**
 - [`STORE_FAILED` caused by `relation "users" does not exist`](#store_failed-caused-by-relation-users-does-not-exist)
 - [`STORE_FAILED` caused by `column "second_factor_method" does not exist`](#store_failed-caused-by-column-second_factor_method-does-not-exist)
+- [`STORE_FAILED` caused by `column "second_factor_recovery_codes" does not exist`](#store_failed-caused-by-column-second_factor_recovery_codes-does-not-exist)
 - [`STORE_FAILED` caused by `column "type" does not exist`](#store_failed-caused-by-column-type-does-not-exist)
 - [`schema "janus" does not exist` while migrating](#schema-janus-does-not-exist-while-migrating)
 - [`syntax error at or near "NULLS"` while migrating](#syntax-error-at-or-near-nulls-while-migrating)
@@ -198,6 +199,26 @@ not generated, or not applied.
 
 **Fix:** generate and apply it with Janus's own drizzle-kit config, before the
 new version serves requests. See [upgrading](guide/migrations.md#upgrading).
+
+```sh
+bunx drizzle-kit generate --config drizzle.janus.config.ts
+bunx drizzle-kit migrate --config drizzle.janus.config.ts
+```
+
+### `STORE_FAILED` caused by `column "second_factor_recovery_codes" does not exist`
+
+The code is `42703`.
+
+**When:** after upgrading to 0.4, on the first query that reads or writes a
+user — a sign-up, a sign-in, `authenticate`.
+
+**Why:** `users` gained the `second_factor_recovery_codes` column, which holds
+the recovery codes' hashes, and the migration that adds it was not generated,
+or not applied.
+
+**Fix:** generate and apply it before the new version serves requests. It adds
+one nullable column and re-creates the `users_second_factor_whole` check; see
+[To 0.4](guide/migrations.md#to-04-recovery-codes).
 
 ```sh
 bunx drizzle-kit generate --config drizzle.janus.config.ts

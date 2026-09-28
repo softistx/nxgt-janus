@@ -85,11 +85,13 @@ and how long it stays.
 - **Hold the new event types back until every process sharing a queue is
   upgraded.** A delivery of `user.secondFactorEnabled` or
   `user.secondFactorDisabled`, written by 0.2.0, is `STORE_FAILED` (`a reply
-  that is not … a user event type`) in a 0.1.x process that claims it, and
-  that endpoint's claims fail there until every process is upgraded. Upgrade
+  that is not … a user event type`) in a 0.1.x process that claims it — and
+  so is one of `user.recoveryCodesRegenerated` or `user.recoveryCodeUsed`,
+  written by 0.3.0, in a 0.2.x process — and that endpoint's claims fail
+  there until every process is upgraded. Upgrade
   `@nxgt/janus`, `@nxgt/janus-webhooks` and `@nxgt/janus-webhooks-redis`
   together — their peer ranges move as one — with each endpoint limited to
-  the four `types` the older processes know, and drop the limit once every
+  the `types` the older processes know, and drop the limit once every
   process runs the new versions:
 
   ```ts
@@ -97,6 +99,13 @@ and how long it stays.
   	queue,
   	endpoints: [{ id: 'crm', url, secrets: [secret], types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.deleted'] }],
   });
+  ```
+
+  That list is for 0.1.x processes. When the oldest run 0.2.x, which read the
+  second factor's events but not the recovery codes', add those two:
+
+  ```ts
+  types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.deleted'],
   ```
 
 - **Eviction is data loss.** A Redis whose `maxmemory-policy` evicts keys

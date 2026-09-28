@@ -3,6 +3,7 @@ import type { Outcome } from '../traced';
 import type { Call } from './call';
 import {
 	argumentUser,
+	recoveryCodesLeft,
 	refusalFields,
 	secondFactorFields,
 	statusOf,
@@ -21,6 +22,9 @@ const events = {
 	secondFactorEnrolled: event('janus.secondFactor.enrolled'),
 	secondFactorActivated: event('janus.secondFactor.activated'),
 	secondFactorDisabled: event('janus.secondFactor.disabled'),
+	recoveryCodesRegenerated: event(
+		'janus.secondFactor.recoveryCodesRegenerated',
+	),
 	signedOut: event('janus.signOut'),
 	signedOutEverywhere: event('janus.signOutEverywhere'),
 	userDeleted: event('janus.user.deleted'),
@@ -92,6 +96,32 @@ export const WRITTEN: Readonly<
 			);
 		} else {
 			log.warn(events.signInRefused(refusalFields(call, outcome.refusal)));
+		}
+	},
+	'secondFactor.recover': (call, outcome) => {
+		// Marked, so an alert can watch sign-ins made without the phone.
+		if (outcome.ok) {
+			log.info(
+				events.signedIn({
+					...userFields(call, outcome.value),
+					'janus.signIn.recoveryCode': true,
+					'janus.secondFactor.recoveryCodesLeft': recoveryCodesLeft(
+						outcome.value,
+					),
+				}),
+			);
+		} else {
+			log.warn(
+				events.signInRefused({
+					...refusalFields(call, outcome.refusal),
+					'janus.signIn.recoveryCode': true,
+				}),
+			);
+		}
+	},
+	'secondFactor.regenerateRecoveryCodes': (call, outcome) => {
+		if (outcome.ok) {
+			log.info(events.recoveryCodesRegenerated(argumentUser(call)));
 		}
 	},
 	'secondFactor.enroll': (call, outcome) => {

@@ -57,3 +57,13 @@ export function statusOf(value: unknown): string | undefined {
 		? value.status
 		: undefined;
 }
+
+/** How many recovery codes `secondFactor.recover` left: a count, never a code. */
+export function recoveryCodesLeft(value: unknown): number | undefined {
+	return typeof value === 'object' &&
+		value !== null &&
+		'recoveryCodesLeft' in value &&
+		typeof value.recoveryCodesLeft === 'number'
+		? value.recoveryCodesLeft
+		: undefined;
+}

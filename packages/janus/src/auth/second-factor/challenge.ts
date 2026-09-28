@@ -1,19 +1,12 @@
-import { SecondFactorError, UserInactiveError } from '../../errors/janus-error';
 import type { At } from '../at';
 import type { ResolvedType } from '../config';
-import { type AnyUser, type Context, findRecord } from '../context';
-import {
-	burnOneTime,
-	codeInvalid,
-	countCodeAttempt,
-	issueOneTime,
-	spendOneTime,
-	unknownChallenge,
-} from '../one-time';
+import type { AnyUser, Context } from '../context';
+import { issueOneTime } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { openSession } from '../sessions';
 import type { SecondFactorRequired, SignedIn } from '../types';
-import { acceptCode, isActive, requireSettings } from './factor';
+import { acceptCode, requireSettings } from './factor';
+import { openChallenge, refuseCode, spendChallenge } from './redeem';
 
 /**
  * The challenge `signIn` answers instead of a session, and the code that
@@ -52,10 +45,6 @@ export function challengeFlows(context: Context, type: ResolvedType, at: At) {
 	};
 }
 
-/** Spends a second-factor challenge, refusing it when this call did not. */
-const spendChallenge = (context: Context, challenge: string, where: string) =>
-	spendOneTime(context, challenge, 'secondFactor', where, 'challenge');
-
 /**
  * Redeems a challenge with its code: counted first, then refused for a user
  * gone, inactive or without a factor any more, then compared — and the factor
@@ -69,58 +58,19 @@ async function confirmChallenge(
 	at: At,
 ): Promise<SignedIn<AnyUser>> {
 	const where = at('secondFactor.confirm');
-	const configured = requireSettings(
-		context,
-		where,
-		'a second factor is being confirmed',
-	);
-	const secret = String(challenge);
-
-	const { token, attemptsLeft } = await countCodeAttempt(
-		context,
-		secret,
-		'secondFactor',
-		where,
-		type.name,
-	);
-
-	// A user gone since, or of another type, is as good as no challenge.
-	const record = await findRecord(context, token.userId, type.name);
-	if (record === null) {
-		throw await unknownChallenge(context, token, secret, where);
-	}
-	if (!record.active) {
-		await spendChallenge(context, secret, where);
-		throw new UserInactiveError(`${where}: the user is inactive`, {
-			userId: record.id,
-			userType: type.name,
-		});
-	}
-	if (!isActive(record.secondFactor)) {
-		await spendChallenge(context, secret, where);
-		throw new SecondFactorError(
-			'SECOND_FACTOR_NOT_ENROLLED',
-			`${where}: the user no longer has a second factor — sign in again`,
-			{ operation: where, userId: record.id, userType: type.name },
-		);
-	}
+	const opened = await openChallenge(context, type, challenge, where);
+	const { record } = opened;
 
 	const now = context.clock.now();
 	const accepted = acceptCode(
-		configured,
+		opened.configured,
 		record,
 		record.secondFactor,
 		String(code),
 		now,
 		where,
 	);
-	if (accepted === null) {
-		// The last attempt, and a wrong code: the challenge is spent.
-		if (attemptsLeft === 0) {
-			await burnOneTime(context, secret, 'secondFactor');
-		}
-		throw codeInvalid(where, record.id, type.name, attemptsLeft);
-	}
+	if (accepted === null) return refuseCode(context, type, opened, where);
 
 	// Read, decided, then written under the version read: of two codes
 	// accepted at once, the second write is VERSION_CONFLICT.
@@ -129,6 +79,6 @@ async function confirmChallenge(
 		{ secondFactor: accepted, updatedAt: now },
 		record.version,
 	);
-	await spendChallenge(context, secret, where);
+	await spendChallenge(context, opened.secret, where);
 	return openSession(context, type, written);
 }

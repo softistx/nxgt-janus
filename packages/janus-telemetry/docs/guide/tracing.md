@@ -131,6 +131,33 @@ with the `user.id` they were called for — `janus.secondFactor.enrolled`,
 (`SECOND_FACTOR_ACTIVE`, a wrong first code) writes no event: its span
 carries `janus.refusal`, like any refusal.
 
+### A recovery code
+
+A sign-in with a recovery code instead of the app's code is the same two
+calls, the second being `secondFactor.recover`. Its `janus.signIn` carries
+`janus.signIn.recoveryCode: true` and how many codes the user has left —
+a count, never a code:
+
+```
+POST /sign-in/recovery                   server
+└─ janus.secondFactor.recover            janus.user.type=user  user.id=0199…
+     log  janus.signIn                   user.id=0199…  janus.signIn.recoveryCode=true  janus.secondFactor.recoveryCodesLeft=9
+```
+
+A refused one is a `janus.signIn.refused` with `janus.signIn.recoveryCode:
+true` beside its code and `janus.secondFactor.attemptsLeft`. A sign-in
+without the phone is worth watching, and a count falling to `0` is a user
+about to be locked out:
+
+```ts
+// name = 'janus.signIn' AND janus.signIn.recoveryCode = true, grouped by user.id
+// name = 'janus.signIn' AND janus.secondFactor.recoveryCodesLeft <= 2
+```
+
+`regenerateRecoveryCodes` writes `janus.secondFactor.recoveryCodesRegenerated`
+with the `user.id` it was called for. The codes it answers are in no span
+and no event.
+
 ## A code sent by e-mail
 
 A sign-in by e-mailed code is two calls too — `signInCode.request`, then

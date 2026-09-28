@@ -47,11 +47,11 @@ declarations import without extensions, so `nodenext` is not supported.
 | Export | What it is |
 | --- | --- |
 | `session(auth, options?)` | Middleware. Reads who the request belongs to — `auth.authenticate(c.req.raw)` — and sets `c.var.user` and `c.var.session`, `null` for an anonymous request. `{ required: true }` answers an anonymous request 401 and types `c.var.user` as never `null`. `{ type: 'staff' }` treats a user of any other type as anonymous. Sends a renewed session's cookie again |
-| `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, `secondFactor.confirm`, or anything that answered `{ token, session, user }` — and answers the user. With a second factor configured, narrow `signIn`'s answer on `status` first |
+| `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, `secondFactor.confirm`, `secondFactor.recover`, or anything that answered `{ token, session, user }` — and answers the user. With a second factor configured, narrow `signIn`'s answer on `status` first |
 | `signOut(c, auth)` | Revokes the session the request presents and clears the cookie, whatever the answer. `false` when the request presented no session, or an unknown one |
 | `janusErrors({ report?, fallback? })` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)`; anything else to `fallback`, or to Hono's own handling. `report(error, c)` sees every one answered 5xx first — `STORE_FAILED` and the like, for your logs |
 | `statusOf(code)` | The status a code deserves — `@nxgt/janus`'s `statusOf`, typed as Hono's `ContentfulStatusCode`: `STORE_FAILED` 503, `CREDENTIALS_INVALID` and `CODE_INVALID` 401, `USER_INACTIVE` 403, `LOGIN_TAKEN`, `SECOND_FACTOR_NOT_ENROLLED` and `SECOND_FACTOR_ACTIVE` 409, … Exhaustive over `JanusErrorCode` |
-| `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT` and `attemptsLeft` for any `CODE_INVALID` that carries it — `secondFactor.confirm`'s and `signInCode.confirm`'s — what the client can act on, and nothing else |
+| `bodyOf(error)` | `{ code }`, plus `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT` and `attemptsLeft` for any `CODE_INVALID` that carries it — `secondFactor.confirm`'s, `secondFactor.recover`'s and `signInCode.confirm`'s — what the client can act on, and nothing else |
 | `SessionOptions<Type>` | `{ type?, required? }`, the options of `session()` — for a wrapper of your own |
 | `SessionEnv<typeof auth, Type?, Required?>` | The `Env` `session()` sets, for `new Hono<SessionEnv<typeof auth>>()` |
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |

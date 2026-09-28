@@ -52,8 +52,8 @@ extensible.`
 ### A wrong password does not fail the span
 
 **When:** a `janus.signIn` span is `ok` although the sign-in threw
-`CREDENTIALS_INVALID` — or a `janus.secondFactor.confirm` or
-`janus.signInCode.confirm` span is `ok` although the code was refused with
+`CREDENTIALS_INVALID` — or a `janus.secondFactor.confirm`,
+`janus.secondFactor.recover` or `janus.signInCode.confirm` span is `ok` although the code was refused with
 `CODE_INVALID`.
 
 **Why:** a refusal is an answer — Janus worked. The span carries

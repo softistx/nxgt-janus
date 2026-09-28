@@ -2,16 +2,13 @@ import { StoreConflict } from '../../../errors/janus-error';
 import { equal, isNull, isOurs, rejects } from '../../assert';
 import { at, userRecord } from '../../fixtures';
 import type { ConformanceCase } from '../../types';
+import {
+	recoveryCodes,
+	secondFactor,
+	secondFactorSlotCase,
+} from './second-factor';
 
 const group = 'users';
-
-/** A second factor as the core writes it: the secret sealed, opaque to a store. */
-const secondFactor = {
-	method: 'totp',
-	secret: 'v1.2026-09.aXY.Y2lwaGVydGV4dA',
-	confirmedAt: null,
-	lastStep: null,
-} as const;
 
 /**
  * What a patch writes: the fields it names, and nothing else — a field left
@@ -29,6 +26,7 @@ export const userPatchCases: readonly ConformanceCase[] = [
 					...secondFactor,
 					confirmedAt: at('2026-01-03T00:00:00.000Z'),
 					lastStep: 59_000_000,
+					recoveryCodes: recoveryCodes.slice(0, 2),
 				},
 				emailVerifiedAt: at('2026-01-02T00:00:00.000Z'),
 			});
@@ -82,65 +80,7 @@ export const userPatchCases: readonly ConformanceCase[] = [
 			);
 		},
 	},
-	{
-		id: 'users.secondFactorSlot',
-		group,
-		name: 'round-trips a second factor, keeps it when a patch does not name it, and removes it when the patch names null',
-		async run({ stores }) {
-			const record = userRecord({ secondFactor });
-			equal(
-				await stores.users.insertUser(record),
-				record,
-				'insertUser should answer a pending second factor as written: confirmedAt and lastStep null',
-			);
-
-			const confirmed = {
-				...secondFactor,
-				confirmedAt: at('2026-02-01T00:00:00.000Z'),
-				lastStep: 59_000_000,
-			};
-			equal(
-				(
-					await stores.users.updateUser(
-						record.id,
-						{
-							updatedAt: at('2026-02-01T00:00:00.000Z'),
-							secondFactor: confirmed,
-						},
-						0,
-					)
-				).secondFactor,
-				confirmed,
-				'updateUser naming secondFactor should replace it whole',
-			);
-			equal(
-				(
-					await stores.users.updateUser(
-						record.id,
-						{ updatedAt: at('2026-02-02T00:00:00.000Z') },
-						1,
-					)
-				).secondFactor,
-				confirmed,
-				'updateUser not naming secondFactor should keep it',
-			);
-			equal(
-				(await stores.users.findUser(record.id))?.secondFactor,
-				confirmed,
-				'findUser should answer the second factor as written',
-			);
-			isNull(
-				(
-					await stores.users.updateUser(
-						record.id,
-						{ updatedAt: at('2026-02-03T00:00:00.000Z'), secondFactor: null },
-						2,
-					)
-				).secondFactor,
-				'updateUser with secondFactor: null should remove the second factor',
-			);
-		},
-	},
+	secondFactorSlotCase,
 	{
 		id: 'users.loginsMove',
 		group,

@@ -26,6 +26,8 @@ export type {
 export type { Janus, SharedApi, TypeApi } from './janus';
 export type { PasswordApi } from './password';
 export type {
+	RecoveredSignIn,
+	RecoveryCodesIssued,
 	SecondFactorApi,
 	SecondFactorEnrolment,
 } from './second-factor';

@@ -18,6 +18,7 @@ describe('secondFactor.enroll and activate', () => {
 			method: 'totp',
 			confirmedAt: null,
 			lastStep: null,
+			recoveryCodes: [],
 		});
 		expect(record?.secondFactor?.secret).toStartWith('v1.k1.');
 		expect(record?.secondFactor?.secret).not.toContain(secret);
@@ -33,7 +34,7 @@ describe('secondFactor.enroll and activate', () => {
 		expect((await auth.get(user.id)).hasSecondFactor).toBe(false);
 
 		const active = await auth.secondFactor.activate(user, codeOf(secret));
-		expect(active.hasSecondFactor).toBe(true);
+		expect(active.user.hasSecondFactor).toBe(true);
 		expect((await auth.signIn({ email: ada.email, password })).status).toBe(
 			'secondFactor',
 		);

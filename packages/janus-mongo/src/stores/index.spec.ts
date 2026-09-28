@@ -71,4 +71,43 @@ describe('createMongoStores(), beyond the port suite', () => {
 		});
 		await db.dropDatabase();
 	});
+
+	it('reads a second factor written before 0.5 as one with no recovery codes', async () => {
+		const db = server.client.db('janusLegacyCodes');
+		await syncMongoStores(db);
+		const { users } = createMongoStores(db);
+		const secondFactor = {
+			method: 'totp',
+			secret: 'v1.k.aXY.Y2lwaGVydGV4dA',
+			confirmedAt: at,
+			lastStep: 59_000_000,
+			recoveryCodes: ['v1.k.aGFzaA'],
+		} as const;
+		const user = await users.insertUser({
+			id: mintId(),
+			type: 'user',
+			schemaVersion: '1',
+			active: true,
+			fields: { email: 'ada@example.test' },
+			logins: ['ada@example.test'],
+			password: null,
+			secondFactor,
+			emailVerifiedAt: null,
+			version: 0,
+			createdAt: at,
+			updatedAt: at,
+		});
+		// What a document written by 0.4 holds: a factor with no codes field.
+		const unset = await getCollection(db, usersCollection).raw.updateOne(
+			{ _id: user.id },
+			{ $unset: { 'secondFactor.recoveryCodes': '' } },
+		);
+		expect(unset.modifiedCount).toBe(1);
+
+		expect((await users.findUser(user.id))?.secondFactor).toEqual({
+			...secondFactor,
+			recoveryCodes: [],
+		});
+		await db.dropDatabase();
+	});
 });

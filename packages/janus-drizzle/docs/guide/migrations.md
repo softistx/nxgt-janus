@@ -69,13 +69,14 @@ CREATE TABLE "users" (
 	"second_factor_secret" text,
 	"second_factor_confirmed_at" timestamp(3) with time zone,
 	"second_factor_last_step" integer,
+	"second_factor_recovery_codes" text[],
 	"email_verified_at" timestamp(3) with time zone,
 	"version" integer NOT NULL,
 	"created_at" timestamp(3) with time zone NOT NULL,
 	"updated_at" timestamp(3) with time zone NOT NULL,
 	CONSTRAINT "users_id_type_unique" UNIQUE("id","type"),
 	CONSTRAINT "users_password_whole" CHECK (("password_hash" is null) = ("password_updated_at" is null)),
-	CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null))),
+	CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null and "second_factor_recovery_codes" is null))),
 	CONSTRAINT "users_second_factor_values" CHECK ("second_factor_method" in ('totp') and "second_factor_last_step" >= 0)
 );
 CREATE TABLE "logins" (
@@ -131,14 +132,19 @@ migration creates is what the conformance suites ran on.
   returned verbatim and in order, and as rows in `logins`, whose primary
   key is the per-type uniqueness. PostgreSQL has no unique index over the
   elements of an array.
-- **A second factor in four columns, checked whole.** A method and a secret,
-  or neither; a confirmation date and a last step only beside them; `totp`
-  the only method, and a last step never negative. The
+- **A second factor in five columns, checked whole.** A method and a secret,
+  or neither; a confirmation date, a last step and recovery codes only beside
+  them; `totp` the only method, and a last step never negative. The
   secret is opaque to the store and kept byte for byte: `@nxgt/janus` seals
   it before the store sees it, so a dump of `users` cannot produce a code.
   Its key id is the second part of the value, so
   `where second_factor_secret like 'v1.<id>.%'` finds the secrets still sealed
   with a key being [rotated out](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md#rotating-the-keys).
+- **Recovery codes as a `text[]`, `null` read as `[]`.** Each element is a
+  keyed hash the core wrote, never a code, kept in order. No codes — a
+  factor with none left, or no factor at all — is `null`, never `{}`. A row
+  from before the column existed reads as a factor with no codes, so an
+  upgrade rewrites nothing.
 - **`attempts` is `not null default 0`**, checked `>= 0`, so the rows an upgrade finds read
   as tokens with no attempt counted yet.
 - **No foreign key from sessions and tokens to users.** Deleting a user
@@ -181,6 +187,31 @@ ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind"
 Those are the statements drizzle-kit writes from the 0.1 tables to the 0.2
 ones, in its own order and separated by `--> statement-breakpoint`; with a
 PostgreSQL schema of its own, every name is qualified.
+
+### To 0.4: recovery codes
+
+**A migration is required.** One nullable column, and the whole-factor check
+extended to it, so the migration rewrites no row and every existing factor
+reads as having no recovery codes until its user is given some:
+
+```sql
+ALTER TABLE "users" ADD COLUMN "second_factor_recovery_codes" text[];
+ALTER TABLE "users" DROP CONSTRAINT "users_second_factor_whole", ADD CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null and "second_factor_recovery_codes" is null)));
+```
+
+Those are the statements drizzle-kit writes from the 0.3 tables to the 0.4
+ones. Re-adding the check validates every row, under a lock on `users` for
+the length of one scan; the rows already satisfy it, since the column is new.
+Deployed before the migration, every query on `users` fails with
+`STORE_FAILED`, caused by `column "second_factor_recovery_codes" does not
+exist`.
+
+**Finish the rollout before users hold codes.** An instance still on 0.3
+knows four columns: once a user holds recovery codes, its `disable` leaves
+them beside a factor removed, and the check refuses the write with
+`STORE_FAILED`. Nothing is lost — the call fails, and succeeds on an instance
+of 0.4 — but run 0.3 and 0.4 side by side only while no user has been given
+codes, which `@nxgt/janus` does from `secondFactor.activate` on.
 
 ## Collecting lapsed sessions
 

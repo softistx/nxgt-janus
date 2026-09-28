@@ -13,6 +13,11 @@ import type { Context } from './context';
  *   is active: not by `enroll`, which leaves it waiting for its first code;
  * - `user.secondFactorDisabled` — by `secondFactor.disable`, when it removed
  *   an active factor; never for a user who had none, or one still waiting;
+ * - `user.recoveryCodesRegenerated` — by `secondFactor.regenerateRecoveryCodes`:
+ *   the codes the user held stopped working. Not by `activate`, whose codes
+ *   come with `user.secondFactorEnabled`;
+ * - `user.recoveryCodeUsed` — by `secondFactor.recover`, once the code is
+ *   spent: a sign-in without the user's phone;
  * - `user.deleted` — by `delete`, once; a replay that finds nobody is none.
  */
 export type UserEventType =
@@ -21,6 +26,8 @@ export type UserEventType =
 	| 'user.passwordReset'
 	| 'user.secondFactorEnabled'
 	| 'user.secondFactorDisabled'
+	| 'user.recoveryCodesRegenerated'
+	| 'user.recoveryCodeUsed'
 	| 'user.deleted';
 
 /**

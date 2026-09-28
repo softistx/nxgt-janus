@@ -279,7 +279,9 @@ The code proves the e-mail, not the second factor. With `janus({ secondFactor })
 a user whose factor is active gets **no session from the code**: `confirm`
 answers a challenge, exactly as `signIn` does with a password, and
 [`secondFactor.confirm`](second-factor.md#confirming-the-code-at-sign-in)
-redeems it with the code of their authenticator app.
+redeems it with the code of their authenticator app — or
+[`secondFactor.recover`](second-factor.md#signing-in-with-one) with a
+recovery code, when their phone is gone.
 
 ```ts
 const result = await auth.signInCode.confirm(challenge, code);

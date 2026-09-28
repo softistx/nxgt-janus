@@ -151,8 +151,10 @@ count`.
 adapter did not write: a key set by hand, another application using the same
 prefix, or a key written by another version — among them a
 `user.secondFactorEnabled` or `user.secondFactorDisabled` delivery, written
-by 0.2.0, claimed by a 0.1.x process: upgrade every process sharing the queue, with
-each endpoint's `types` limited to the four older ones until they all run 0.2.0.
+by 0.2.0, claimed by a 0.1.x process, or a `user.recoveryCodesRegenerated` or
+`user.recoveryCodeUsed` delivery, written by 0.3.0, claimed by a 0.2.x process:
+upgrade every process sharing the queue, with each endpoint's `types` limited
+to the ones the older processes know until they all run the new version.
 
 **Why:** a delivery it cannot read is a failure, never an absence — skipping
 it would hold it back for ever, and answering it would send an event that

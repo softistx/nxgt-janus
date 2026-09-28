@@ -2,11 +2,15 @@ import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, toUser, writeUser } from '../context';
 import { emit } from '../events';
 import { codeInvalid } from '../one-time';
-import type { UserRef, WriteOptions } from '../types';
+import type { RecoveryCodesIssued, UserRef, WriteOptions } from '../types';
 import { acceptCode, isActive, requireSettings } from './factor';
+import { hashRecoveryCode, mintRecoveryCodes } from './recovery-codes';
 import { refusal } from './refusal';
 
-/** Confirms a waiting factor with its first code: from then on, it is asked for. */
+/**
+ * Confirms a waiting factor with its first code: from then on, it is asked
+ * for. Its recovery codes are written in the same write, and answered once.
+ */
 export async function activateFactor(
 	context: Context,
 	type: ResolvedType,
@@ -14,12 +18,13 @@ export async function activateFactor(
 	code: string,
 	options: WriteOptions | undefined,
 	where: string,
-): Promise<AnyUser> {
+): Promise<RecoveryCodesIssued<AnyUser>> {
 	const configured = requireSettings(
 		context,
 		where,
 		'a second factor is being activated',
 	);
+	const recoveryCodes = mintRecoveryCodes();
 
 	const written = await writeUser(
 		context,
@@ -56,10 +61,18 @@ export async function activateFactor(
 				where,
 			);
 			if (accepted === null) throw codeInvalid(where, record.id, type.name);
-			return { secondFactor: { ...accepted, confirmedAt: now } };
+			return {
+				secondFactor: {
+					...accepted,
+					confirmedAt: now,
+					recoveryCodes: recoveryCodes.map((one) =>
+						hashRecoveryCode(configured.sealer, record.id, one),
+					),
+				},
+			};
 		},
 	);
 	// After the write, the flow's last step: the factor is asked for from now.
 	await emit(context, 'user.secondFactorEnabled', written, written.updatedAt);
-	return toUser(written);
+	return { user: toUser(written), recoveryCodes };
 }

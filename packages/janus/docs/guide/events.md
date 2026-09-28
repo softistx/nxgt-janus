@@ -1,7 +1,8 @@
 # User events
 
 This page is for hearing what happens to a user once it is written: created,
-e-mail verified, password reset, second factor turned on or off, deleted. Another service can then follow
+e-mail verified, password reset, second factor turned on or off, recovery
+codes regenerated or one used, deleted. Another service can then follow
 without polling. `janus` hands each event to one function you give it;
 **delivering it is yours** — or
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks)'s:
@@ -37,7 +38,7 @@ received[0];
 The words — **user event**, **listener** — are defined in
 [the vocabulary](vocabulary.md#identities).
 
-## The six types
+## The eight types
 
 | `type` | Sent by | Not sent |
 | --- | --- | --- |
@@ -46,11 +47,14 @@ The words — **user event**, **listener** — are defined in
 | `user.passwordReset` | `resetPassword.confirm` | for `setPassword` or `changePassword` — they are not resets |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the first code made the factor active | for `enroll`, which leaves the factor waiting and asked for nowhere; for a code refused |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an **active** factor | for a user who had no factor, a factor still waiting for its first code — it was never asked for — or a second `disable` |
+| `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes`: the codes the user held stopped working | for `activate`, whose first codes come with `user.secondFactorEnabled`; for a code refused |
+| `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent — even if opening the session then fails | for a recovery code refused. How many are left is not in the event: read the user |
 | `user.deleted` | `delete`, when it deleted the user | for a replay that finds nobody, or an id of another user type |
 
 A reset whose link verifies the e-mail sends both, `user.passwordReset`
-first. Switch on `type`: the six are a closed set, and TypeScript refuses a
-seventh.
+first. Switch on `type`: the eight are a closed set, and TypeScript refuses a
+ninth. A new type is a compile error in a `switch` that exhausts them — the two
+recovery-code types, added in 0.10, broke such a `switch` until it handled them.
 
 ```ts
 function onUserEvent(event: UserEvent): void {
@@ -64,10 +68,37 @@ function onUserEvent(event: UserEvent): void {
 		case 'user.secondFactorEnabled':
 		case 'user.secondFactorDisabled':
 			return noticeTheUser(event); // @nxgt/janus-mail's twoFactorEnabled or twoFactorDisabled
+		case 'user.recoveryCodesRegenerated':
+			return;
+		case 'user.recoveryCodeUsed':
+			return warnTheUser(event.userId); // a sign-in without their phone — see below
 		case 'user.deleted':
 			return forgetEverywhere(event.userId);
 	}
 }
+```
+
+### Telling the user a recovery code was used
+
+A recovery code used by someone else is a sign-in without the user's phone,
+so tell the user each time. `@nxgt/janus-mail` has no template for it yet:
+send your own.
+
+```ts
+// `sendMail` is your mailer, and the user schema holds an e-mail.
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.recoveryCodeUsed') {
+			const user = await auth.get(event.userId);
+			await sendMail(
+				user.email,
+				'A recovery code was used to sign in',
+				'Someone signed in to your account with one of your recovery codes. If it was not you, change your password and regenerate your codes.',
+			);
+		}
+	},
+});
 ```
 
 ## What an event carries
@@ -105,7 +136,8 @@ Where the listener runs within a flow, and what an outage does to it:
 | `signUp` | after the insert, **before** the session is opened | fails the call; the event is already sent |
 | `verifyEmail.confirm` | after the write — the flow's last step | — |
 | `signInCode.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
-| `secondFactor.activate`, `secondFactor.disable` | after the write — the flow's last step | — |
+| `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |
+| `secondFactor.recover` | after the recovery code is spent and the session opened — or failed to open | fails the call; the recovery code is spent and the event sent all the same, from a `finally` |
 | `resetPassword.confirm` | **after** the sessions opened with the old password are revoked and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
 | `delete` | **after** the user's sessions and one-time tokens are removed, and the relation tuples naming them when `relations` is wired | fails the call; the event is sent all the same, from a `finally` |
 
@@ -188,6 +220,8 @@ type UserEventType =
 	| 'user.passwordReset'
 	| 'user.secondFactorEnabled'
 	| 'user.secondFactorDisabled'
+	| 'user.recoveryCodesRegenerated'
+	| 'user.recoveryCodeUsed'
 	| 'user.deleted';
 
 interface UserEvent {
@@ -209,6 +243,6 @@ see [troubleshooting](../troubleshooting.md#janus-events-must-be-a-function-that
 ## See also
 
 - [E-mail verification and password reset](email-flows.md) — the flows that send `user.emailVerified` and `user.passwordReset`
-- [The second factor](second-factor.md) — `activate` and `disable`, which send `user.secondFactorEnabled` and `user.secondFactorDisabled`
+- [The second factor](second-factor.md) — `activate` and `disable`, which send `user.secondFactorEnabled` and `user.secondFactorDisabled`; [recovery codes](second-factor.md#recovery-codes), which send `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`
 - [Users](users.md) — `create`, `signUp`, `delete`
 - [Troubleshooting](../troubleshooting.md) — `JANUS_EVENT_FAILED`

@@ -5,7 +5,7 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+Nothing is in progress between releases; the next item is below.
 
 ## Next
 
@@ -16,10 +16,6 @@ Nothing between releases.
   code, bound to the session that asked rather than opening one — which
   takes a token kind of its own, so a sign-in code can never confirm an
   action nor an action's code sign anyone in.
-- **Recovery codes** — single-use codes for the TOTP second factor, so a
-  user who loses their authenticator app can still sign in, without an
-  operator resetting the account.
-
 ## Later
 
 - **More official adapters** — the ports are cut where atomicity is not
@@ -70,6 +66,17 @@ Nothing between releases.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Recovery codes, v0.10.0** — a user who loses their authenticator app
+  still signs in, with no operator resetting the account.
+  `secondFactor.activate` answers `{ user, recoveryCodes }`: ten single-use
+  codes, shown once and stored only as keyed hashes (breaking: read `.user`).
+  `secondFactor.recover(challenge, code)` redeems a sign-in's challenge with
+  one and answers the session with `recoveryCodesLeft`;
+  `secondFactor.regenerateRecoveryCodes(user, code)` replaces them all on a
+  fresh code from the app. Two user events, `user.recoveryCodesRegenerated`
+  and `user.recoveryCodeUsed`. For adapters: `SecondFactorRecord.recoveryCodes`,
+  stored by the users stores of `@nxgt/janus-drizzle` and
+  `@nxgt/janus-mongo`, with conformance cases.
 - **The second factor in the user events, v0.9.0** —
   `user.secondFactorEnabled`, once `secondFactor.activate` made a factor
   active, and `user.secondFactorDisabled`, once `secondFactor.disable`
@@ -141,8 +148,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   conformance cases. The published adapters implement them in
   `@nxgt/janus-drizzle` 0.2, `@nxgt/janus-mongo` 0.3 and
   `@nxgt/janus-redis` 0.2.
-- **Permissions on a user, v0.3.0** — a user type may also be an object type:
-  a staff member is the object `can()` asks about and is granted relations
-  on, like a record, and `grant(note, 'readers', setOf(bob, 'managers'))`
-  grants everyone who manages bob at once. A user
-  passed as it is stays that user, even with a field named `relation`.

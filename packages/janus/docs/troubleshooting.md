@@ -64,16 +64,21 @@ How the messages are shaped:
 
 **Second factor**
 - [`TS2339: Property 'token' does not exist on type 'SignInResult<…>'.`](#ts2339-property-token-does-not-exist-on-type-signinresult)
+- [`TS2339: Property 'hasSecondFactor' does not exist on type 'RecoveryCodesIssued<…>'.`](#ts2339-property-hassecondfactor-does-not-exist-on-type-recoverycodesissued)
 - [`CODE_INVALID` — `<call>: the code does not match, or was already used`](#code_invalid--call-the-code-does-not-match-or-was-already-used)
 - [The code the authenticator app shows is refused with `CODE_INVALID`](#the-code-the-authenticator-app-shows-is-refused-with-code_invalid)
+- [A recovery code the user kept is refused with `CODE_INVALID`](#a-recovery-code-the-user-kept-is-refused-with-code_invalid)
+- [`SECOND_FACTOR_NOT_ENROLLED` — `secondFactor.regenerateRecoveryCodes: the user has no active second factor …`](#second_factor_not_enrolled--secondfactorregeneraterecoverycodes-the-user-has-no-active-second-factor--recovery-codes-come-with-one)
 - [`SECOND_FACTOR_NOT_ENROLLED` — `secondFactor.activate: the user has no second factor waiting …`](#second_factor_not_enrolled--secondfactoractivate-the-user-has-no-second-factor-waiting--call-enroll-first)
 - [`SECOND_FACTOR_ACTIVE` — `secondFactor.enroll: the user's second factor is active …`](#second_factor_active--secondfactorenroll-the-users-second-factor-is-active--disable-it-first)
 - [`<call>: …, and janus() was given no secondFactor …`](#call--and-janus-was-given-no-secondfactor--pass-secondfactor--issuer-keys-)
 - [`<call>: the secret is sealed with the key "<id>", which secondFactor.keys no longer holds …`](#call-the-secret-is-sealed-with-the-key-id-which-secondfactorkeys-no-longer-holds--keep-a-key-until-no-secret-is-sealed-with-it)
 - [`<call>: the secret does not open with the key "<id>" — was that key changed under the same id, or the secret copied from another user?`](#call-the-secret-does-not-open-with-the-key-id--was-that-key-changed-under-the-same-id-or-the-secret-copied-from-another-user)
 - [`<call>: the stored secret is not a sealed one`](#call-the-stored-secret-is-not-a-sealed-one)
+- [`<call>: a recovery code is hashed with the key "<id>", which secondFactor.keys no longer holds …`](#call-a-recovery-code-is-hashed-with-the-key-id-which-secondfactorkeys-no-longer-holds--keep-a-key-until-no-secret-or-recovery-code-uses-it)
+- [`<call>: a stored recovery code is not a keyed hash`](#call-a-stored-recovery-code-is-not-a-keyed-hash)
 - [`<call>: the <type> type does not sign in with a password, so it has no second factor`](#call-the-type-type-does-not-sign-in-with-a-password-so-it-has-no-second-factor)
-- `TOKEN_*`, `USER_INACTIVE` and `VERSION_CONFLICT` from `secondFactor.confirm`: in their entries above.
+- `TOKEN_*`, `USER_INACTIVE` and `VERSION_CONFLICT` from `secondFactor.confirm` and `secondFactor.recover`: in their entries above.
 
 **Sign-in codes**
 - [`TOKEN_STALE` — `<call>: the code was sent to an e-mail the user no longer has`](#token_stale--call-the-code-was-sent-to-an-e-mail-the-user-no-longer-has)
@@ -109,6 +114,7 @@ How the messages are shaped:
 - [`the error is named <Class> but is not @nxgt/janus's <Class>: two copies of @nxgt/janus are installed …`](#the-error-is-named-class-but-is-not-nxgtjanuss-class-two-copies-of-nxgtjanus-are-installed-the-adapter-must-list-it-as-a-peer-dependency-never-a-dependency)
 - [`expected <Class>, got <value>`](#expected-class-got-value)
 - [`expected null, got undefined — an absence is null; undefined is a store that forgot to answer`](#expected-null-got-undefined--an-absence-is-null-undefined-is-a-store-that-forgot-to-answer)
+- [`findUser should answer recoveryCodes [] as [] — never null, never undefined`](#finduser-should-answer-recoverycodes--as---never-null-never-undefined)
 
 ---
 
@@ -471,6 +477,18 @@ challenge — the same code will not, it was used.
 form.addEventListener('submit', () => form.querySelector('button')?.setAttribute('disabled', ''));
 ```
 
+**From `secondFactor.recover`**, the same store message.
+
+**When:** one recovery code used by two sign-ins at once — the same
+double-submitted form, or two people holding the same printed sheet.
+**Why:** the recovery code is removed in one write under the version read.
+The first write wins and opens a session; the second writes nothing and opens
+nothing. Its challenge is not spent, and has lost one attempt.
+**Fix:** answer it as "sign in again" — that recovery code is gone either
+way — and submit the form once, as above. The route in
+[the second factor guide](guide/second-factor.md#a-sign-in-with-a-code-as-routes)
+does the first.
+
 ### `USER_INVALID` — `<call>: the fields do not match the <type> schema (<n> issues, at <paths>)`
 
 `UserInvalidError`, carrying `issues` — each a `path` and a `message`.
@@ -522,7 +540,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm`, for a user set inactive after `signIn` asked for a code, and `signInCode.confirm`, for a user set inactive after the code was sent.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, and `signInCode.confirm`, for a user set inactive after the code was sent.
 **Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
@@ -538,12 +556,14 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 janus({ ..., tokens: { verifyEmail: '72h', resetPassword: '2h' } });
 ```
 
-**On `secondFactor.confirm`**, the messages name the challenge `signIn`
-answered: `secondFactor.confirm: no such challenge`,
+**On `secondFactor.confirm` and `secondFactor.recover`**, the messages name
+the challenge `signIn` answered: `secondFactor.confirm: no such challenge`,
 `secondFactor.confirm: the challenge was already used`,
-`secondFactor.confirm: the challenge has expired`.
+`secondFactor.confirm: the challenge has expired` — and the same three from
+`secondFactor.recover`, such as `secondFactor.recover: no such challenge`.
 
-**When:** `secondFactor.confirm(challenge, code)`.
+**When:** `secondFactor.confirm(challenge, code)` or
+`secondFactor.recover(challenge, code)`.
 **Why:** a challenge lives five minutes and takes five codes. It is spent by
 the code that opens the session, by the fifth wrong code, by a refusal
 that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`), and by a
@@ -645,9 +665,11 @@ const page = await access.list(user, 'view', 'record', {
 
 Every entry here needs `janus({ ..., secondFactor })`, but for the
 `signInCode.confirm` paragraph of `CODE_INVALID`. The messages start with
-`secondFactor.enroll`, `secondFactor.activate`, `secondFactor.confirm` or
-`signIn` — prefixed by the type with several user types:
-`staff.secondFactor.confirm: …`. `secondFactor.confirm` also rejects with
+`secondFactor.enroll`, `secondFactor.activate`, `secondFactor.confirm`,
+`secondFactor.recover`, `secondFactor.regenerateRecoveryCodes` or `signIn` —
+prefixed by the type with several user types:
+`staff.secondFactor.confirm: …`. `secondFactor.confirm` and
+`secondFactor.recover` also reject with
 [`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
 [`USER_INACTIVE`](#user_inactive--call-the-user-is-inactive) and
 [`VERSION_CONFLICT`](#version_conflict--call-expected-version-n-found-m);
@@ -673,12 +695,27 @@ return Response.json({ token: result.token });
 const signedIn = await auth.secondFactor.confirm(challenge, code); // { status: 'signedIn', token, … }
 ```
 
+### `TS2339: Property 'hasSecondFactor' does not exist on type 'RecoveryCodesIssued<…>'.`
+
+The same for any field of your user — `id`, `email`, `version`.
+
+**When:** `tsc`, after upgrading to 0.10, wherever `secondFactor.activate`'s answer is read as the user.
+**Why:** `activate` now answers `{ user, recoveryCodes }`: the user, and the ten recovery codes it minted — shown once, never answered again. Reading the answer as the user would drop them unseen.
+**Fix:** read `.user`, and show the codes:
+
+```ts
+const { user, recoveryCodes } = await auth.secondFactor.activate(current.user, code);
+user.hasSecondFactor; // true
+return Response.json({ recoveryCodes }, { headers: { 'Cache-Control': 'no-store' } });
+```
+
 ### `CODE_INVALID` — `<call>: the code does not match, or was already used`
 
-`TokenError`. The same message answers three calls; there is a paragraph
+`TokenError`. The same message answers five calls; there is a paragraph
 for each below.
 
-**When:** `secondFactor.activate`, `secondFactor.confirm` or
+**When:** `secondFactor.activate`, `secondFactor.confirm`,
+`secondFactor.regenerateRecoveryCodes`, `secondFactor.recover` or
 `signInCode.confirm`, with a code that does not match.
 
 **`secondFactor.activate(user, code)`**
@@ -707,6 +744,22 @@ try {
   throw error;
 }
 ```
+
+**`secondFactor.regenerateRecoveryCodes(user, code)`** — the app's code.
+**Why:** as for `activate`: the code is wrong, or was accepted before — by a
+sign-in or by an earlier regeneration. No `attemptsLeft`, and the user's
+recovery codes are unchanged.
+**Fix:** ask for the next code the app shows.
+
+**`secondFactor.recover(challenge, code)`** — a recovery code.
+**Why:** the recovery code is not one of the user's — a typo past what is
+forgiven, a TOTP code typed in the wrong field, a code from before a
+regeneration — or it was already used. Each call costs one of the
+challenge's five attempts, the same five `confirm` counts, and the error
+carries `attemptsLeft`.
+**Fix:** answer 401 with `attemptsLeft`, exactly as for `confirm`. If the user
+is sure of the code, see
+[a recovery code refused](#a-recovery-code-the-user-kept-is-refused-with-code_invalid).
 
 **`signInCode.confirm(challenge, code)`** — the e-mailed code.
 **Why:** the code is not the one sent with this challenge, or is not six
@@ -752,18 +805,48 @@ If the visitor typed the code from the e-mail correctly, see
 timedatectl show -p NTPSynchronized   # NTPSynchronized=yes on the server
 ```
 
+### A recovery code the user kept is refused with `CODE_INVALID`
+
+**When:** `secondFactor.recover`, with a code copied from the sheet the user was shown.
+**Why**, in the order to check:
+
+1. **It was used already.** Each recovery code signs in once; `recoveryCodesLeft` told the user how many were left.
+2. **The codes were replaced.** `regenerateRecoveryCodes` ends every code shown before it, and `disable` removes them all — a factor enrolled and activated again has ten new ones.
+3. **It is the app's code.** `recover` takes a recovery code only; a six-digit code goes to `confirm`.
+4. **A sealing key was changed under the same id.** The hash then matches nothing, and nothing else says so. Restore the original key under that id.
+
+**Fix:** for 1 and 2, the user signs in with the app, or with an unused code of the latest sheet. With neither, the factor has to be removed for them — `disable`, by your support process — and enrolled again.
+
+```ts
+await auth.secondFactor.disable(userId); // after your own identity check: janus asks for nothing here
+```
+
+### `SECOND_FACTOR_NOT_ENROLLED` — `secondFactor.regenerateRecoveryCodes: the user has no active second factor — recovery codes come with one`
+
+`SecondFactorError`.
+
+**When:** `regenerateRecoveryCodes` for a user with no second factor, or one enrolled and still waiting for its first code.
+**Why:** recovery codes belong to an active factor. `activate` hands out the first ten; there is nothing to replace before that.
+**Fix:** offer regeneration only when `user.hasSecondFactor`; for a factor still waiting, finish `activate`, whose answer carries the codes:
+
+```ts
+if (!current.user.hasSecondFactor) return Response.json({ error: 'noSecondFactor' }, { status: 409 });
+const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(current.user, code);
+```
+
 ### `SECOND_FACTOR_NOT_ENROLLED` — `secondFactor.activate: the user has no second factor waiting — call enroll first`
 
-`SecondFactorError`. Also `secondFactor.confirm: the user no longer has a second factor — sign in again`.
+`SecondFactorError`. Also `secondFactor.confirm: the user no longer has a second factor — sign in again`, and the same from `secondFactor.recover`.
 
-**When:** `activate` before `enroll`, or after `disable`. On `confirm`: the factor was disabled after `signIn` asked for a code.
+**When:** `activate` before `enroll`, or after `disable`. On `confirm` or `recover`: the factor was disabled after `signIn` asked for a code.
 **Why:** `activate` checks a code against the secret `enroll` wrote, and there is none. On `confirm`, the factor the challenge asked for is gone, so the challenge is spent.
 **Fix:** `enroll`, show the `uri` as a QR code, then `activate` with a code from the app. After `confirm`'s refusal, sign in again: `signIn` answers a session directly for a user without a factor.
 
 ```ts
 const { secret, uri } = await auth.secondFactor.enroll(user);
 // …the user scans uri, or types secret…
-await auth.secondFactor.activate(user, code);
+const { user: active, recoveryCodes } = await auth.secondFactor.activate(user, code);
+// show recoveryCodes once, on this response
 ```
 
 ### `SECOND_FACTOR_ACTIVE` — `secondFactor.enroll: the user's second factor is active — disable it first`
@@ -783,7 +866,7 @@ const { uri } = await auth.secondFactor.enroll(cleared);
 
 Most often: `signIn: the user's second factor is active, and janus() was given no secondFactor — pass secondFactor: { issuer, keys }`. A `TypeError`.
 
-**When:** `signIn` for a user whose factor is active, on a `janus()` built without `secondFactor` — a second process over the same users: a worker, a script, an admin service, an older deployment. From JavaScript, `enroll`, `activate` and `confirm` on such an instance too.
+**When:** `signIn` for a user whose factor is active, on a `janus()` built without `secondFactor` — a second process over the same users: a worker, a script, an admin service, an older deployment. From JavaScript, `enroll`, `activate`, `confirm`, `recover` and `regenerateRecoveryCodes` on such an instance too.
 **Why:** the password alone never opens a session for a user with an active factor, and an instance without keys cannot check a code. It refuses rather than sign the user in on the password alone.
 **Fix:** give every `janus()` over the same users the same `secondFactor`, from one module:
 
@@ -798,7 +881,7 @@ janus({ ..., secondFactor });
 
 A `TypeError`.
 
-**When:** `activate` or `confirm`, for a user whose secret was sealed with a key since removed from `keys` — or with a key another deployment has and this one does not.
+**When:** `activate`, `confirm` or `regenerateRecoveryCodes`, for a user whose secret was sealed with a key since removed from `keys` — or with a key another deployment has and this one does not.
 **Why:** each sealed secret names its key. The first key seals, every key opens, and a secret is sealed again under the first key only the next time a code of that user is accepted. A user who has not signed in since the rotation still holds the old seal.
 **Fix:** put the old key back, after the new one:
 
@@ -812,13 +895,15 @@ secondFactor: {
 },
 ```
 
-A key can go once no stored second-factor secret starts with `v1.<its id>.`.
+A key can go once no stored second-factor secret starts with `v1.<its id>.`,
+nor any recovery code — see
+[a recovery code hashed with a key removed](#call-a-recovery-code-is-hashed-with-the-key-id-which-secondfactorkeys-no-longer-holds--keep-a-key-until-no-secret-or-recovery-code-uses-it).
 
 ### `<call>: the secret does not open with the key "<id>" — was that key changed under the same id, or the secret copied from another user?`
 
 A `TypeError`.
 
-**When:** `activate` or `confirm`.
+**When:** `activate`, `confirm` or `regenerateRecoveryCodes`.
 **Why:** the key held under that id is not the one that sealed the secret: its value was changed and its id kept, or two environments sharing one database hold different keys under one id. It is also the message for a sealed secret copied onto another user — a seal is bound to the user's id — for example a user record duplicated by hand.
 **Fix:** restore the original key under that id. A new key always takes a new id. For a copied record, disable the factor and have the user enroll again: `await auth.secondFactor.disable(user)`.
 
@@ -826,12 +911,43 @@ A `TypeError`.
 
 A `TypeError`.
 
-**When:** `activate` or `confirm`.
+**When:** `activate`, `confirm` or `regenerateRecoveryCodes`.
 **Why:** the stored secret is not `v1.<key id>.<iv>.<sealed>`: it was written into the store directly — a plain base32 secret imported from another system — or cut short.
 **Fix:** never write the second factor into the store yourself. Disable it and have the user enroll again:
 
 ```ts
 await auth.secondFactor.disable(user);
+```
+
+### `<call>: a recovery code is hashed with the key "<id>", which secondFactor.keys no longer holds — keep a key until no secret or recovery code uses it`
+
+A `TypeError`: a 500, never a `CODE_INVALID` that would blame the user.
+
+**When:** `secondFactor.recover`, for a user whose recovery codes were hashed under a key since removed from `keys`.
+**Why:** each recovery code's hash names its key, like a sealed secret. A secret is sealed again whenever a code is accepted; a recovery code cannot be hashed again — only its hash is kept — so it needs its key for as long as it exists. A rotation that waited only for the secrets removed the key too early.
+**Fix:** put the key back, after the first one. Remove it once no user holds a recovery code hashed with it — or have those users regenerate their codes, which hashes the new ones under the first key:
+
+```ts
+// MongoDB, with @nxgt/janus-mongo: matches any code in the array
+await db.collection('users').countDocuments({ 'secondFactor.recoveryCodes': { $regex: '^v1\\.2026-09\\.' } });
+```
+
+```sql
+-- PostgreSQL, with @nxgt/janus-drizzle
+select count(*) from users
+where exists (select 1 from unnest(second_factor_recovery_codes) c where c like 'v1.2026-09.%');
+```
+
+### `<call>: a stored recovery code is not a keyed hash`
+
+A `TypeError`.
+
+**When:** `secondFactor.recover`.
+**Why:** one of the user's stored recovery codes is not `v1.<key id>.<mac>`: codes written into the store directly — plain codes imported from another system — or an adapter that altered the array.
+**Fix:** never write recovery codes into the store yourself; codes from another system cannot be carried over. Have the user regenerate theirs with a code from the app, which replaces the whole array:
+
+```ts
+const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(current.user, code);
 ```
 
 ### `<call>: the <type> type does not sign in with a password, so it has no second factor`
@@ -1197,3 +1313,24 @@ try {
 **When:** a conformance case on a `find*` method.
 **Why:** the adapter answers `undefined` for "not found". Many drivers do; the port does not.
 **Fix:** `return document ?? null;`.
+
+### `findUser should answer recoveryCodes [] as [] — never null, never undefined`
+
+Also `updateUser naming secondFactor should replace the second factor whole, its recovery codes in the order written`, followed by `at .recoveryCodes: expected [...], got undefined`.
+
+**When:** the case `users.secondFactorSlot`, on an adapter written before `@nxgt/janus` 0.10.
+**Why:** `SecondFactorRecord` holds `recoveryCodes`, the keyed hashes of the user's recovery codes. An adapter that maps the factor field by field drops them, and one that stores "no codes" as a missing value answers `undefined` or `null` — a user who lost their phone could then never sign in with a code.
+**Fix:** store the array as it is, in order, and read a missing value as `[]`:
+
+```ts
+secondFactor:
+	document.secondFactor === null
+		? null
+		: {
+				method: document.secondFactor.method,
+				secret: document.secondFactor.secret,
+				confirmedAt: document.secondFactor.confirmedAt,
+				lastStep: document.secondFactor.lastStep,
+				recoveryCodes: [...(document.secondFactor.recoveryCodes ?? [])],
+			},
+```
