@@ -14,7 +14,7 @@
  * > this was last measured on `@nxgt/mongo`, seven of twelve plausible mistakes
  * > still compiled.
  *
- * **Fourteen plausible mistakes, fourteen refused** — and one measured gap, kept
+ * **Fifteen plausible mistakes, fifteen refused** — and one measured gap, kept
  * here on purpose: see `spacedUnit`. Add a case whenever a public shape gains
  * something it should refuse; never delete one to make a change pass. A count
  * that goes down is a regression, and a gap that is written down is worth more
@@ -27,11 +27,13 @@ import {
 	type Duration,
 	isSubjectSet,
 	type JanusErrorCode,
+	type JanusErrorStatus,
 	type RelationTuple,
 	StoreConflict,
 	StoreFailure,
 	type Subject,
 	type SubjectSet,
+	statusOf,
 	subjectOf,
 	TokenError,
 	UserInactiveError,
@@ -151,6 +153,12 @@ const missingCursor: CursorPage<string> = { items: [], nextCursor: undefined };
 // @ts-expect-error 'hours' is not one of ms | s | m | h | d
 const wrongUnit: Duration = '720hours';
 
+// ── 15. A status asked of a string that is not a code ──────────────────────
+// `statusOf(error.message)` or a misspelt code would answer `undefined` from
+// the switch; the parameter is the union, so it is refused instead.
+// @ts-expect-error 'STORE_FAILURE' is not a JanusErrorCode
+const wrongStatus: JanusErrorStatus = statusOf('STORE_FAILURE');
+
 /**
  * A measured GAP, recorded rather than claimed.
  *
@@ -171,6 +179,7 @@ const numericDuration: Duration = 30_000;
 // A refusal that also refuses the correct call is not type safety, it is a bug.
 
 const goodCode: JanusErrorCode = 'STORE_FAILED';
+const goodStatus: JanusErrorStatus = statusOf('STORE_FAILED');
 const goodConstraint = new StoreConflict('login', 'taken', {
 	login: 'a@b.test',
 });
@@ -198,6 +207,7 @@ export const checked = {
 	readWithNarrowing,
 	refused: [
 		wrongCode,
+		wrongStatus,
 		wrongConstraint,
 		wrongFamily,
 		wrongSession,
@@ -210,6 +220,7 @@ export const checked = {
 	],
 	allowed: [
 		goodCode,
+		goodStatus,
 		goodConstraint,
 		goodCredential,
 		goodSubject,

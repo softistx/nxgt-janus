@@ -707,6 +707,13 @@ what only running it can see: names that are not camelCase, a permission that
 reaches itself without crossing a relation, a subject set or an arrow that
 would have to read another object's field.
 
+**A function of your own around `can()`** refuses the same mistakes through
+`Can<C>`, its signature, and `CheckArgs<C, T, P>`, its options argument —
+`ctx` required exactly when a `when` is reachable. Declare `T` and `P`
+`const`, or the permission widens and the `ctx` requirement is lost; the
+[permissions guide](docs/guide/permissions.md#a-function-of-your-own-around-can)
+has the example.
+
 **A user type may also be an object type**: declare `staff` under `types`, and
 a staff member is an object too — who may edit them is a relation on them. See
 [permissions on a user](docs/guide/permissions.md#permissions-on-a-user).
@@ -948,12 +955,12 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and eighteen plausible mistakes, one hundred and eighteen refused at compile time — and
+**One hundred and nineteen plausible mistakes, one hundred and nineteen refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling. One is a single file:
-`test/types/refusals.ts` (fourteen, on the shared vocabulary). The other three
+`test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-two, on
 the identity stores' port, from the point of view of the person implementing
 it), `test/types/auth/` (thirty-four, on `janus()`, from the point of view of
