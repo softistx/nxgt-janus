@@ -122,5 +122,9 @@ function resolveTokenTtls(
 			config.tokens?.signInCode ?? '10m',
 			`${where}: tokens.signInCode`,
 		),
+		stepUp: parseDuration(
+			config.tokens?.stepUp ?? '10m',
+			`${where}: tokens.stepUp`,
+		),
 	};
 }

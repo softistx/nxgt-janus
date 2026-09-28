@@ -109,6 +109,13 @@ export type JanusErrorCode =
 	 * `disable` it first: enrolling again must not quietly switch it off.
 	 */
 	| 'SECOND_FACTOR_ACTIVE'
+	/**
+	 * The session proved who it is longer ago than the action asks —
+	 * `assertFresh`, and `fresh()` in `@nxgt/janus-hono`. Not a denial: ask
+	 * for a step-up, and the same request goes through once it is confirmed.
+	 * Carries `userId`.
+	 */
+	| 'STEP_UP_REQUIRED'
 	/** A cursor this store did not mint, or one written for another ordering.
 	 * Never a silent first page: a caller paging a list would loop for ever. */
 	| 'INVALID_CURSOR'

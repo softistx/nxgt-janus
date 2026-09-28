@@ -23,6 +23,7 @@ import type { PasswordApi } from './password';
 import type { SecondFactorApi } from './second-factor';
 import type { Authenticated, RequestLike, Session } from './session';
 import type { SignedIn, SignInResult } from './sign-in';
+import type { StepUpApi, StepUpByApp, StepUpByEmail } from './step-up';
 import type { UserRef } from './user';
 import type { UserTypeApi } from './user-type';
 
@@ -56,6 +57,16 @@ export type TypeApi<
 							? SignedIn<UserOfType<Name, Def>>
 							: SignInResult<UserOfType<Name, Def>>
 						: SignedIn<UserOfType<Name, Def>>
+				> &
+				StepUpApi<
+					UserOfType<Name, Def>,
+					TwoFactor extends true
+						? [LoginOf<Def>] extends [never]
+							? StepUpByEmail<UserOfType<Name, Def>>
+							:
+									| StepUpByEmail<UserOfType<Name, Def>>
+									| StepUpByApp<UserOfType<Name, Def>>
+						: StepUpByEmail<UserOfType<Name, Def>>
 				>) &
 	([LoginOf<Def>] extends [never]
 		? unknown

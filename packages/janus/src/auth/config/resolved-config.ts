@@ -28,6 +28,7 @@ export interface ResolvedConfig {
 		readonly verifyEmail: number;
 		readonly resetPassword: number;
 		readonly signInCode: number;
+		readonly stepUp: number;
 	};
 	readonly secondFactor: {
 		readonly issuer: string;
