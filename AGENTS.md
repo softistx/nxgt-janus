@@ -540,11 +540,14 @@ The table that exists so a duplication is a decision rather than an accident.
   peers' floors run there too, through `scripts/run-on-peer-floor.ts`, which
   points the named packages' link to a peer at the floor's tarball, runs a
   command, and puts the links back — never touching `package.json` or
-  `bun.lock`: `@nxgt/mail` 0.1.0 under `janus-mail`, and `@nxgt/mongo`
-  0.17.0 under `janus-mongo` and the kit's mongo specs. The other `@nxgt/*`
-  peers are locked at their floors, so the `ci` job already runs them; a
-  lock bump that lifts one above its floor adds a step here. Locally, the
-  command the step runs, for instance
+  `bun.lock`. The peer is any lowercase npm name, scoped (`@nxgt/mongo`) or
+  not (`graphql`) — an old name with capitals, such as `JSONStream`, is
+  refused; so is a malformed one, or a version other than an exact one, before
+  anything is fetched. It runs `@nxgt/mail` 0.1.0 under
+  `janus-mail`, and `@nxgt/mongo` 0.17.0 under `janus-mongo` and the kit's
+  mongo specs. The other `@nxgt/*` peers are locked at their floors, so the
+  `ci` job already runs them; a lock bump that lifts one above its floor adds
+  a step here. Locally, the command the step runs, for instance
   `bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
   bash -c 'cd packages/janus-mail && bun test src scripts && bun run typecheck'`;
   a link it refuses as left by an interrupted run is fixed by `bun install`.
@@ -638,10 +641,17 @@ tracked, what counts as behind, a registry that fails or answers no version,
 and the reading of this repository's own
 `bun.lock`. `scripts/peer-floor/*.spec.ts` cover the floor script's argument
 parsing, the tarball's integrity check and the floor's own ranges against the
-peers staged beside it; `scripts/run-on-peer-floor.spec.ts` runs it on a
-scratch store laid out as Bun's isolated install, and holds that the links and
-the temporary directory are put back after a success, a failed stage, a failed
-download and a SIGTERM, and that a stale link is refused.
+peers staged beside it, and `*.unscoped.spec.ts` beside them an unscoped name:
+the names parsing accepts and the malformed ones it refuses, the registry
+document and tarball the download asks for, and a tarball it refuses for its
+integrity. `scripts/run-on-peer-floor.spec.ts` runs it on a scratch store laid
+out as Bun's isolated install (`run-on-peer-floor.fixtures.ts`), and holds
+that the links and the temporary directory are put back after a success, a
+failed stage, a failed download and a SIGTERM, and that a stale link is
+refused; `run-on-peer-floor.unscoped.spec.ts` runs the same store with an
+unscoped peer, whose locked copy sits beside its siblings rather than under a
+scope and is not linked over the floor, and holds that a success and a failed
+stage put everything back and that a missing unscoped link is refused.
 
 ---
 
