@@ -16,7 +16,7 @@ other, or both.
 packages/janus         @nxgt/janus — both sides, and the vocabulary they share
 packages/janus-mongo   @nxgt/janus-mongo — the MongoDB adapter, for either side
 packages/janus-hono    @nxgt/janus-hono — the Hono integration
-packages/janus-graphql @nxgt/janus-graphql — the GraphQL integration: an envelop plugin, @authenticated, errors as statuses (private, not published yet)
+packages/janus-graphql @nxgt/janus-graphql — the GraphQL integration: an envelop plugin, @authenticated and @permission, errors as statuses
 packages/janus-telemetry @nxgt/janus-telemetry — spans and security events on @nxgt/telemetry
 packages/janus-webhooks @nxgt/janus-webhooks — user events as signed Standard Webhooks: retries through a pluggable durable queue, rotating secrets, verifyWebhook for receivers
 packages/janus-drizzle @nxgt/janus-drizzle — the PostgreSQL adapter on Drizzle and @nxgt/drizzle, for either side

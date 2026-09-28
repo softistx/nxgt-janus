@@ -306,11 +306,9 @@ What this commits us to in the code:
 
 ## Layout
 
-Eleven packages under `packages/`: the core `@nxgt/janus`, and the adapters
-and integrations that peer it — one of them, `@nxgt/janus-graphql`, still
-private (see *A new package starts private*). The core has several entry
-points, below. A
-published entry point is a **public promise**, so a subpath appears in
+Eleven packages under `packages/`, all published: the core `@nxgt/janus`, and
+the adapters and integrations that peer it. The core has several entry
+points, below. A published entry point is a **public promise**, so a subpath appears in
 `exports` only once it exports something a consumer should call.
 
 | Entry point | State |
@@ -426,7 +424,8 @@ is the whole point of having them from commit 1.
 Removing `"private"` is what makes a package publishable. It is a deliberate
 commit of its own, with the changeset that versions it, and not something to do
 while fixing something else. `@nxgt/janus` and `@nxgt/janus-mongo` lost it
-together, for v0.1, when the repository went public.
+together, for v0.1, when the repository went public; every package since has
+lost it the same way, `@nxgt/janus-graphql` last.
 
 **A private package never gets a changeset before that commit.** `changeset
 version` would consume it and `publish.ts` skip the package, keeping the

@@ -42,8 +42,7 @@ export const yoga = createYoga({
 });
 ```
 
-> **Not published yet.** The package is private until its first release —
-> see the [roadmap](docs/roadmap.md).
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 
@@ -55,7 +54,7 @@ Every peer is required:
 
 | Peer | Range | Why |
 | --- | --- | --- |
-| `@nxgt/janus` | the workspace's own version | A **peer**, never a dependency: this package defines no error class, so the `JanusError` a resolver throws is the one you import |
+| `@nxgt/janus` | the minor released beside it — `peerDependencies` states the range | A **peer**, never a dependency: this package defines no error class, so the `JanusError` a resolver throws is the one you import |
 | `graphql` | `^16.9.0 \|\| ^17.0.0` | The schema and `GraphQLError` are yours; a second copy of `graphql` fails every schema |
 | `@graphql-tools/utils` | `>=10.0.0 <13` | `mapSchema` and `getDirective`, which apply the directives |
 | `@envelop/core` | `^5.0.0` | Types only — the `Plugin` `useJanus()` answers. Yoga already brings it |
