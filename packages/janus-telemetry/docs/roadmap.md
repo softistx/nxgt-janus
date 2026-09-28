@@ -33,6 +33,12 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Recovery codes in the audit trail, v0.4.0** — a sign-in by
+  `secondFactor.recover` is a `janus.signIn` marked
+  `janus.signIn.recoveryCode: true`, with the codes left as
+  `janus.secondFactor.recoveryCodesLeft`; its refusals carry the same mark;
+  `regenerateRecoveryCodes` writes
+  `janus.secondFactor.recoveryCodesRegenerated`. No code reaches a signal.
 - **Whose sign-in waits for a second factor, v0.3.1** —
   `janus.signIn.secondFactor` carries the `user.id` of the user asked for a
   code, from `signIn` and from `signInCode.confirm` alike.
