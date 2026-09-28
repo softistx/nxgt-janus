@@ -6,40 +6,7 @@ have an error message in hand and want its cause, see
 [troubleshooting](../troubleshooting.md).
 
 ```ts
-import { JanusError, type JanusErrorCode } from '@nxgt/janus';
-
-export function statusOf(code: JanusErrorCode): number {
-	switch (code) {
-		case 'STORE_FAILED':
-			return 503;
-		case 'NOT_FOUND':
-			return 404;
-		case 'LOGIN_TAKEN':
-		case 'VERSION_CONFLICT':
-			return 409;
-		case 'USER_INVALID':
-		case 'PASSWORD_TOO_SHORT':
-		case 'HASH_UNSUPPORTED':
-		case 'INVALID_CURSOR':
-		case 'TOKEN_UNKNOWN':
-		case 'TOKEN_SPENT':
-		case 'TOKEN_EXPIRED':
-		case 'TOKEN_STALE':
-			return 400;
-		case 'CREDENTIALS_INVALID':
-		case 'CODE_INVALID':
-			return 401;
-		case 'SECOND_FACTOR_NOT_ENROLLED':
-		case 'SECOND_FACTOR_ACTIVE':
-			return 409;
-		case 'USER_INACTIVE':
-			return 403;
-		case 'UNSUPPORTED':
-			return 501;
-		case 'PERMISSION_DEPTH':
-			return 500;
-	}
-}
+import { JanusError, statusOf } from '@nxgt/janus';
 
 export function toResponse(error: unknown): Response {
 	if (!(error instanceof JanusError)) throw error;
@@ -48,9 +15,15 @@ export function toResponse(error: unknown): Response {
 }
 ```
 
-`JanusErrorCode` is a union of nineteen string literals, so that `switch` is
-exhaustive: when a code is added, a function like `statusOf` stops compiling
-instead of answering `undefined`.
+`statusOf(code)` is the table under [The codes](#the-codes), exported so every
+integration answers a code the same way — `@nxgt/janus-hono`'s `statusOf` is
+this one. It answers `JanusErrorStatus`, a union of the eight statuses it can
+give (`400 | 401 | 403 | 404 | 409 | 500 | 501 | 503`), so a framework whose
+response takes a narrower type than `number` accepts it as it is.
+
+`JanusErrorCode` is a union of nineteen string literals, and `statusOf` is a
+`switch` over it that is exhaustive: when a code is added, it stops compiling
+instead of answering `undefined` — and so does a `switch` of your own.
 
 ## The one rule
 

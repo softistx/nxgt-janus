@@ -19,7 +19,7 @@
  */
 
 export { type PermissionsOptions, permissions } from './engine';
-export type { Can } from './model/can';
+export type { Can, CheckArgs } from './model/can';
 export type {
 	ModelConfig,
 	ObjectTypeDef,

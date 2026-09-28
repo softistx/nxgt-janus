@@ -167,7 +167,17 @@ async function signIn(email: string, password: string): Promise<Response> {
 `JanusError` is the base of everything thrown at call time. It extends `Error`,
 so no consumer has to order their `catch` blocks. `code` is a union of nineteen
 string literals, so a `switch` over it is exhaustive and adding a code breaks the
-compilation of callers that exhaust it:
+compilation of callers that exhaust it. `statusOf(code)` answers the status
+below, as `JanusErrorStatus` — a union of the eight literals, which a
+framework's own status type accepts:
+
+```ts
+import { JanusError, statusOf } from '@nxgt/janus';
+
+if (error instanceof JanusError) {
+	return Response.json({ code: error.code }, { status: statusOf(error.code) }); // STORE_FAILED → 503
+}
+```
 
 | Code | Answer it deserves |
 | --- | --- |
@@ -717,6 +727,13 @@ what only running it can see: names that are not camelCase, a permission that
 reaches itself without crossing a relation, a subject set or an arrow that
 would have to read another object's field.
 
+**A function of your own around `can()`** refuses the same mistakes through
+`Can<C>`, its signature, and `CheckArgs<C, T, P>`, its options argument —
+`ctx` required exactly when a `when` is reachable. Declare `T` and `P`
+`const`, or the permission widens and the `ctx` requirement is lost; the
+[permissions guide](docs/guide/permissions.md#a-function-of-your-own-around-can)
+has the example.
+
 **A user type may also be an object type**: declare `staff` under `types`, and
 a staff member is an object too — who may edit them is a relation on them. See
 [permissions on a user](docs/guide/permissions.md#permissions-on-a-user).
@@ -985,12 +1002,12 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and twenty-two plausible mistakes, one hundred and twenty-two refused at compile time — and
+**One hundred and twenty-three plausible mistakes, one hundred and twenty-three refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling. One is a single file:
-`test/types/refusals.ts` (fourteen, on the shared vocabulary). The other three
+`test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-three, on
 the identity stores' port, from the point of view of the person implementing
 it), `test/types/auth/` (thirty-seven, on `janus()`, from the point of view of

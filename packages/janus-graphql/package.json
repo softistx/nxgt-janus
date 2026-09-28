@@ -1,0 +1,72 @@
+{
+	"name": "@nxgt/janus-graphql",
+	"version": "0.0.0",
+	"private": true,
+	"description": "GraphQL for @nxgt/janus: an envelop plugin with the signed-in user on the context, fields guarded by @authenticated, and every error with the status it deserves",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"docs",
+		"graphql",
+		"README.md",
+		"package.json",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"keywords": [
+		"identity",
+		"authentication",
+		"authorization",
+		"graphql",
+		"envelop",
+		"graphql-yoga",
+		"directives",
+		"janus",
+		"typescript"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/softistx/nxgt-janus.git",
+		"directory": "packages/janus-graphql"
+	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org",
+		"access": "public"
+	},
+	"scripts": {
+		"build": "bun run ../../build.ts",
+		"test": "bun test src",
+		"typecheck": "tsc --noEmit"
+	},
+	"nxgt": {
+		"entrypoints": [
+			"src/index.ts"
+		]
+	},
+	"devDependencies": {
+		"@envelop/core": "^5.6.1",
+		"@graphql-tools/utils": "^12.0.1",
+		"@nxgt/janus": "workspace:^",
+		"@types/bun": "^1.4.2",
+		"graphql": "^17.0.2",
+		"graphql-yoga": "^5.24.1",
+		"zod": "^4.6.5"
+	},
+	"peerDependencies": {
+		"@envelop/core": "^5.0.0",
+		"@graphql-tools/utils": ">=10.0.0 <13",
+		"@nxgt/janus": "workspace:^",
+		"graphql": "^16.9.0 || ^17.0.0",
+		"typescript": "^6.0.3"
+	}
+}
