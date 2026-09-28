@@ -47,7 +47,7 @@ bun add -d typescript
 
 Three peers, all required: `@nxgt/mail` (0.1 or later, below 2 — 1.0 and
 its transports included), which defines the `Mailer` port and the errors;
-`@nxgt/janus` (0.11), whose flows' answers the methods take — types only,
+`@nxgt/janus` (0.13), whose flows' answers the methods take — types only,
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
@@ -144,20 +144,34 @@ if (issued !== null) {
 await mail.verifyEmail(issued, { name: user.name, locale: 'fr' }, { expiresIn: '24 heures' });
 ```
 
-### Telling a user their password changed
+### Telling a user their password or e-mail changed
+
+`@nxgt/janus` 0.13 sends `user.passwordChanged` once `changePassword` or
+`setPassword` wrote the password, and `user.emailChanged` once `update`
+changed the e-mail. The e-mail change is told to the **former** address — the
+new one belongs to whoever changed it — which the event carries as
+`formerEmail`, `null` for a user who had none:
 
 ```ts
-const changed = await auth.changePassword(user, { current, next });
-await mail.passwordChanged({ name: changed.name, locale: changed.locale, email: changed.email });
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.passwordChanged') {
+			const user = await auth.get(event.userId);
+			await mail.passwordChanged({ name: user.name, locale: user.locale, email: user.email });
+		}
+		if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+			const user = await auth.get(event.userId);
+			await mail.emailChanged({ name: user.name, locale: user.locale, formerEmail: event.formerEmail, newEmail: user.email });
+		}
+	},
+});
 ```
 
-### Telling a user their e-mail changed
-
-```ts
-const before = user.email;
-const updated = await auth.update(user, { email: next });
-await mail.emailChanged({ name: updated.name, locale: updated.locale, formerEmail: before, newEmail: updated.email });
-```
+A reset sends `user.passwordReset`, not `user.passwordChanged`: add that type
+to the first test to tell a reset too. The examples assume a required e-mail;
+with an optional one, an update that removes it has no `newEmail` to name —
+see [Sending](docs/guide/sending.md#emailchangedto).
 
 ### Telling a user their second factor was turned on or off
 
@@ -380,8 +394,8 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Thirty-four plausible mistakes, thirty-four refused at compile time.**
-Five files hold one `@ts-expect-error` per mistake, beside the calls that
+**Thirty-six plausible mistakes, thirty-six refused at compile time.**
+Six files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
@@ -391,9 +405,11 @@ template;
 [`test/types/expiry-refusals.ts`](test/types/expiry-refusals.ts) the five of
 the expiry and the clock, 21 to 25;
 [`test/types/notice-refusals.ts`](test/types/notice-refusals.ts) the four of
-the two-factor notices and the welcome, 26 to 29; and
+the two-factor notices and the welcome, 26 to 29;
 [`test/types/recovery-refusals.ts`](test/types/recovery-refusals.ts) the
-five of the recovery code notice, 30 to 34:
+five of the recovery code notice, 30 to 34; and
+[`test/types/change-refusals.ts`](test/types/change-refusals.ts) the two of
+the e-mail change notice sent on its event, 35 and 36:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -429,8 +445,10 @@ five of the recovery code notice, 30 to 34:
 32. The count as `recoveryCodesLeft()` answered it, not checked for `null` first.
 33. `when` given as the event's `Date` rather than the text in the recipient's locale and time zone.
 34. `links.recoveryCodes` given as a URL rather than a function.
+35. `user.emailChanged`'s `formerEmail` given to `emailChanged` unchecked: it is `null` for a user who had none.
+36. The `user.emailChanged` event itself given to `emailChanged`: it has the former address, but neither a name nor the new one.
 
-In JavaScript, 19 to 23, 26 to 28 and 30 to 33 are a `TypeError` at send
+In JavaScript, 19 to 23, 26 to 28, 30 to 33, 35 and 36 are a `TypeError` at send
 time instead, naming the call or the field, and 25, 29 and 34 one from
 `janusMail()`.
 

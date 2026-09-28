@@ -47,6 +47,13 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **The change notices on their events, v0.6.0.** `passwordChanged` and
+  `emailChanged` are sent from `@nxgt/janus` 0.13's `user.passwordChanged`
+  and `user.emailChanged` events, as the two-factor notices are, rather than
+  after the call: whoever changed the password or the e-mail, the user is
+  told. `emailChanged` goes to the event's `formerEmail`, the inbox the
+  account just left, and the compiler refuses it unchecked for `null`.
+
 - **The recovery code notice, and a readable link in both modes, v0.5.0.**
   `recoveryCodeUsed(to, { when, recoveryCodesLeft })`, built from
   `@nxgt/mail-presets` 1.0.0's `recovery-code-used` in English and French:

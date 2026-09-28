@@ -2,7 +2,12 @@ import type { Duration, UserEvent } from '@nxgt/janus';
 import { settingsOf } from './options';
 import type { WebhookQueue } from './queue/types';
 import { reporterOf } from './report';
-import { bodyFor, type Failure, type WebhookEndpoint } from './request';
+import {
+	bodyFor,
+	deliverable,
+	type Failure,
+	type WebhookEndpoint,
+} from './request';
 import { startWorker } from './worker';
 
 export type { Failure, WebhookEndpoint };
@@ -130,10 +135,11 @@ export function webhooks(options: WebhooksOptions): Webhooks {
 	const worker = startWorker(settings, giveUp);
 	let closed = false;
 
-	const listener = (event: UserEvent): Promise<void> | undefined => {
+	const listener = (given: UserEvent): Promise<void> | undefined => {
 		// Once, before any insert: an event that is not one is a mistake of
 		// the caller's, refused at once rather than retried for a day.
-		bodyFor(event, where);
+		bodyFor(given, where);
+		const event = deliverable(given);
 		const to = targets.filter(
 			(target) => target.types === null || target.types.has(event.type),
 		);
