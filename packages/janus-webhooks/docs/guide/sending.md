@@ -458,7 +458,7 @@ mintWebhookSecret(); // 'whsec_' and 32 random bytes in base64
 Mint one per endpoint, once, and give it to both sides — the sender's
 configuration and the receiver's. A secret is 24 to 64 bytes of base64
 after `whsec_`, the range the specification sets; one minted by another
-Standard Webhooks library is accepted as it stands when it holds that much.
+Standard Webhooks library is accepted as it stands when it falls in that range.
 Since 0.4.0 a longer one is refused: rotate away from it before upgrading.
 
 To rotate one without losing a request, **sign with both, let the receiver

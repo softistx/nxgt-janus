@@ -27,11 +27,11 @@ describe('keyOf', () => {
 	});
 
 	it.each([
-		['16 bytes', secretOf(16)],
+		['fewer than 24 bytes', secretOf(16)],
 		['23 bytes', secretOf(23)],
-		['characters that are not base64', `whsec_${'!'.repeat(40)}`],
+		['not base64', `whsec_${'!'.repeat(40)}`],
 		['a trailing newline', `${secretOf(32)}\n`],
-	])('refuses a secret of %s as too short or malformed', (_, secret) => {
+	])('refuses a secret with %s', (_, secret) => {
 		expect(() => keyOf(secret, 'webhooks')).toThrow(tooShort);
 	});
 
