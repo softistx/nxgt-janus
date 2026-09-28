@@ -39,7 +39,7 @@ Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 - **A throttled sign-in's `retryAfter`, v0.5.0** — `janusErrors()` and
   `bodyOf()` answer `@nxgt/janus`'s throttled `CREDENTIALS_INVALID` with
   `retryAfter` in the body and a `Retry-After` header. Needs `@nxgt/janus`
-  0.13.0.
+  0.14.0.
 - **`fresh(maxAge)`, v0.4.0** — a middleware that lets a route run only for
   a session that proved who it is less than `maxAge` ago, signed in or
   confirmed by a step-up; `janusErrors()` answers `STEP_UP_REQUIRED` with

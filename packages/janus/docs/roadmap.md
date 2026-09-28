@@ -70,7 +70,7 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
-- **Password guessing throttled per login, v0.13.0** — past ten passwords
+- **Password guessing throttled per login, v0.14.0** — past ten passwords
   tried at one login in a 15-minute window, `signIn` answers
   `CREDENTIALS_INVALID` with `reason: 'throttled'` and `retryAfter`, the right
   password included, until the window ends. Nothing locks; a login nobody
@@ -80,6 +80,14 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `signIn: { throttle: false }` turns it off. A tokens store that cannot
   count fails the sign-in with `STORE_FAILED`. No change for adapters: the
   counts are `secondFactor` tokens, counted by `TokenStore.countAttempt`.
+- **A password or an e-mail changed, in the user events, v0.13.0** —
+  `user.passwordChanged`, sent by `changePassword` and `setPassword` once the
+  older reset links are spent (a reset stays `user.passwordReset` alone), and
+  `user.emailChanged`, sent by an `update` that changed the e-mail, carrying
+  `formerEmail` — the one event with more than the user's id — so a notice
+  can reach the inbox the account just left, as `@nxgt/janus-mail`'s
+  `passwordChanged` and `emailChanged` notices do. Breaking for a `switch`
+  that exhausts `UserEventType`.
 - **An old reset link stops working, v0.13.0** — `resetPassword.request`
   spends the links sent before, so only the last e-mail's works, and writing
   a password — a link's `confirm`, `changePassword`, `setPassword` — spends
@@ -146,9 +154,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   Webhooks specification (HMAC-SHA256, secrets that rotate) and posted to
   your endpoints, retried with backoff, and reported to `onGivingUp` when
   given up — never dropped in silence. `verifyWebhook` is the receiving side.
-- **User events, v0.8.0** — `janus({ events })` takes one listener, called
-  with `user.created`, `user.emailVerified`, `user.passwordReset` and
-  `user.deleted` once the write landed, and awaited before the flow answers.
-  An event names the user by id alone, with a UUIDv7 of its own to deliver
-  it once; a listener that throws fails no flow and is a
-  `JANUS_EVENT_FAILED` warning.

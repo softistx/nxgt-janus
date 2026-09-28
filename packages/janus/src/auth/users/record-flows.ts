@@ -12,9 +12,9 @@ import {
 } from '../context';
 import type { UserTypeApi } from '../types';
 import { deleteUser } from './delete';
-import { fieldsPatch } from './fields-patch';
 import type { Input } from './flow-types';
 import { insert } from './insert';
+import { update } from './update';
 
 /**
  * The flows every user type has, whatever its configuration: creating,
@@ -58,16 +58,16 @@ export function recordFlows(
 		},
 
 		async update(user, patch, options) {
-			const where = at('update');
-			const written = await writeUser(
-				context,
-				user,
-				type,
-				options,
-				where,
-				(record) => fieldsPatch(type, record, patch as Input, where),
+			return toUser(
+				await update(
+					context,
+					type,
+					user,
+					patch as Input,
+					options,
+					at('update'),
+				),
 			);
-			return toUser(written);
 		},
 
 		async setActive(user, active, options) {

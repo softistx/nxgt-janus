@@ -1,5 +1,15 @@
 # @nxgt/janus-hono
 
+## 0.4.1
+
+### Patch Changes
+
+- [#165](https://github.com/softistx/nxgt-janus/pull/165) [`3e21695`](https://github.com/softistx/nxgt-janus/commit/3e2169510f2c056f8801470625144aff0d622a2d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `janusErrors({ report })` now warns when `report` answers a promise-like that is not a native `Promise` and rejects — a logger's own thenable — as it already did for a native promise; the 503 is sent all the same.
+
+- [#164](https://github.com/softistx/nxgt-janus/pull/164) [`1007c85`](https://github.com/softistx/nxgt-janus/commit/1007c857fd445620dedb05a59001a7161b0a833c) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the sign-in route (the routes guide of `@nxgt/janus-hono`) and a sign-in mutation (the errors guide of `@nxgt/janus-graphql`) say to rate-limit password guesses per login and per client, with an example — `@nxgt/janus` counts no failed password.
+- Updated dependencies [[`fac44ba`](https://github.com/softistx/nxgt-janus/commit/fac44baa935d90c451d05b942c8158606da2f1b2)]:
+  - @nxgt/janus@0.13.0
+
 ## 0.4.0
 
 ### Minor Changes

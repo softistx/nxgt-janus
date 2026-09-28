@@ -1,13 +1,13 @@
 /**
  * The sign-in throttle: what `signIn.throttle` takes, and what a throttled
- * refusal carries. Cases 43–48 of the forty-eight — see `fixtures.ts`. The
+ * refusal carries. Cases 45–50 of the fifty — see `fixtures.ts`. The
  * shapes that must keep compiling are at the end of this file.
  */
 
 import { JanusError, janus } from '../../../src/index';
 import { hasher, Patient, store } from './fixtures';
 
-// ── 43. Turning the throttle on with true ──────────────────────────────────
+// ── 45. Turning the throttle on with true ──────────────────────────────────
 // It is on by default; the option takes a limit, or false.
 janus({
 	user: Patient,
@@ -18,7 +18,7 @@ janus({
 	signIn: { throttle: true },
 });
 
-// ── 44. A limit written as a string ───────────────────────────────────────
+// ── 46. A limit written as a string ───────────────────────────────────────
 janus({
 	user: Patient,
 	password: { login: 'email' },
@@ -28,7 +28,7 @@ janus({
 	signIn: { throttle: { attempts: '10' } },
 });
 
-// ── 45. A window that is not a duration ───────────────────────────────────
+// ── 47. A window that is not a duration ───────────────────────────────────
 janus({
 	user: Patient,
 	password: { login: 'email' },
@@ -38,7 +38,7 @@ janus({
 	signIn: { throttle: { window: '15 minutes' } },
 });
 
-// ── 46. Turning the throttle off with signIn: false ───────────────────────
+// ── 48. Turning the throttle off with signIn: false ───────────────────────
 // It reads as signing in turned off; the throttle is what is turned off.
 janus({
 	user: Patient,
@@ -52,12 +52,12 @@ janus({
 function refusal(error: unknown) {
 	if (!(error instanceof JanusError)) return;
 
-	// ── 47. Waiting for a lockout ─────────────────────────────────────────
+	// ── 49. Waiting for a lockout ─────────────────────────────────────────
 	// Nothing locks: a login past its attempts is `throttled` until the window ends.
 	// @ts-expect-error no refusal is 'locked'
 	if (error.reason === 'locked') return;
 
-	// ── 48. retryAfter read as a date ─────────────────────────────────────
+	// ── 50. retryAfter read as a date ─────────────────────────────────────
 	// It is seconds, as the Retry-After header takes them.
 	// @ts-expect-error retryAfter is a number of seconds
 	const at: Date | undefined = error.retryAfter;

@@ -179,7 +179,7 @@ In the one-type form these are on `auth` itself; with several types, on
 | `find(id)` | the user, or `null` — for a malformed id, an unknown one, or one of another type | |
 | `get(id)` | the user | `NOT_FOUND` |
 | `list({ after?, limit? })` | `CursorPage<User>`, in creation order | `INVALID_CURSOR` |
-| `update(user, patch, { ifVersion? })` | the user as written | `USER_INVALID`, `LOGIN_TAKEN`, `VERSION_CONFLICT`, `NOT_FOUND` |
+| `update(user, patch, { ifVersion? })` | the user as written; sends `user.emailChanged` when the e-mail changed | `USER_INVALID`, `LOGIN_TAKEN`, `VERSION_CONFLICT`, `NOT_FOUND` |
 | `setActive(user, active, { ifVersion? })` | the user as written | `VERSION_CONFLICT`, `NOT_FOUND` |
 | `delete(user)` | `true`, or `false` for an unknown id or one of another type | |
 
@@ -190,8 +190,8 @@ With a `password`, besides:
 | `signUp(fields & { password })` | `{ status: 'signedIn', user, session, token }` | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN` |
 | `signIn({ [login]: string, password })` | `{ status: 'signedIn', user, session, token }` — or, with `secondFactor` configured and the user's factor active, `{ status: 'secondFactor', challenge, expiresAt, userId }`: switch on `status` | `CREDENTIALS_INVALID` — with `retryAfter` once the login is throttled — `USER_INACTIVE`, `HASH_UNSUPPORTED` |
 | `findByLogin(login)` | the user, or `null`; the login is normalised first, and one holding a NUL or a lone surrogate is nobody's | |
-| `setPassword(user, password, { ifVersion? })` | the user — an admin's call; spends the user's reset links and second-factor challenges still waiting, and signs nobody out | `PASSWORD_TOO_SHORT` |
-| `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call; spends the user's reset links and second-factor challenges still waiting | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
+| `setPassword(user, password, { ifVersion? })` | the user — an admin's call; spends the user's reset links and second-factor challenges still waiting, and signs nobody out; sends `user.passwordChanged` | `PASSWORD_TOO_SHORT` |
+| `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call; spends the user's reset links and second-factor challenges still waiting; sends `user.passwordChanged` | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
 
 With `secondFactor` configured, a type with a password also answers
 `secondFactor.enroll`, `activate`, `disable` and `confirm` — see
@@ -221,7 +221,11 @@ await auth.delete(renamed);                        // true
 The patch is spread over the stored fields and the result is checked against
 the schema, so a patch can never leave a user the schema would refuse.
 Changing the e-mail sets `emailVerified` back to `false`, and moves the login
-with it when the e-mail is the login.
+with it when the e-mail is the login. It also sends a
+[`user.emailChanged` event](events.md#telling-the-user-their-password-or-e-mail-changed)
+carrying `formerEmail`, the address before — so the notice goes to the inbox
+the account just left. A change of case only (`Ada@…` for `ada@…`) is no
+change, and sends nothing.
 
 ### `ifVersion`
 
@@ -294,6 +298,6 @@ fields against your schema, not that `password` is a string.
 ## See also
 
 - [Sessions](sessions.md) — `authenticate`, the cookie, signing out
-- [User events](events.md) — what `create`, `signUp` and `delete` send
+- [User events](events.md) — what `create`, `signUp`, `update`, `setPassword`, `changePassword` and `delete` send
 - [Errors](errors.md) — every code, and the status it deserves
 - [Writing an adapter](adapters.md) — the identity stores behind `store`

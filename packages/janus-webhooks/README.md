@@ -25,7 +25,7 @@ export const auth = janus({
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted
+	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.passwordChanged, user.emailChanged, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted
 });
 
 process.on('SIGTERM', async () => {
@@ -44,7 +44,7 @@ bun add zod # the schema of the examples; any Standard Schema library will do
 bun add -d typescript
 ```
 
-Both peers are required: `@nxgt/janus` 0.9 — the exact range is in
+Both peers are required: `@nxgt/janus` 0.13 — the exact range is in
 `peerDependencies` — and `typescript` (6). `@nxgt/janus` is a **peer**, so one copy of it defines
 `UserEvent`. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 It uses `node:crypto`, the global `fetch` and `process.emitWarning`: Bun or
@@ -88,7 +88,7 @@ and what fails it.
 
 `webhooks({ endpoints })` answers the listener `janus({ events })` takes,
 with a `close()` for shutdown. It posts each user event to every endpoint
-whose `types` include it — all eight types when `types` is absent:
+whose `types` include it — all ten types when `types` is absent:
 
 ```ts
 import { webhooks } from '@nxgt/janus-webhooks';
@@ -258,7 +258,8 @@ it in the four steps above, then upgrade.
 answers `null` for a type it does not know, so the delivery fails until it is
 given up — `@nxgt/janus-webhooks` before 0.3.0 knows neither
 `user.secondFactorEnabled` nor `user.secondFactorDisabled`, and before 0.4.0
-neither `user.recoveryCodesRegenerated` nor `user.recoveryCodeUsed`. Until
+neither `user.recoveryCodesRegenerated` nor `user.recoveryCodeUsed`, and
+before 0.6.0 neither `user.passwordChanged` nor `user.emailChanged`. Until
 every receiver is upgraded, give its endpoint the `types` it knows:
 
 ```ts
@@ -272,6 +273,33 @@ second factor's events but not the recovery codes', add those two:
 
 ```ts
 types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.deleted'],
+```
+
+For one on 0.4.x or 0.5.x, which knows the recovery codes' events but not
+the change events', add those two:
+
+```ts
+types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.recoveryCodesRegenerated', 'user.recoveryCodeUsed', 'user.deleted'],
+```
+
+**`user.emailChanged` is posted without its `formerEmail`.** `@nxgt/janus`
+hands the listener the address the user had before, so a notice can reach
+that inbox; `webhooks()` drops it before the queue, so no endpoint, queue or
+`onGivingUp` report ever holds an address. A receiver reads the user by
+`userId` as for any type; send the notice to the former address from the
+`janus({ events })` listener instead, beside `webhooks()`:
+
+```ts
+const auth = janus({
+	...config,
+	async events(event) {
+		await listener(event); // webhooks(): every type, formerEmail dropped
+		if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+			const user = await auth.get(event.userId);
+			await mail.emailChanged({ name: user.name, formerEmail: event.formerEmail, newEmail: user.email });
+		}
+	},
+});
 ```
 
 **The warnings name the URL's origin, never the URL.** `JANUS_WEBHOOK_GAVE_UP`

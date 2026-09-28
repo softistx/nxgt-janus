@@ -36,7 +36,7 @@ Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 - **Throttled sign-ins in the audit trail, v0.6.0** —
   `janus.signIn.throttled`, a warning with `janus.signIn.retryAfter`, when
   `@nxgt/janus` refuses a login past its attempts; never the login. Needs
-  `@nxgt/janus` 0.13.0.
+  `@nxgt/janus` 0.14.0.
 - **Step-ups in the audit trail, v0.5.0** — `janus.stepUp.asked` (with
   `janus.stepUp.via`), `janus.stepUp.confirmed` and `janus.stepUp.refused`,
   each with the user's id and never the code nor the challenge.

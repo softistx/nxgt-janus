@@ -701,34 +701,45 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.created` | `create`, `signUp` |
 | `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
+| `user.passwordChanged` | `changePassword`, `setPassword` — never a reset, which is `user.passwordReset` alone |
+| `user.emailChanged` | `update`, when it changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor — never for a user who had none, or one still waiting |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes` — not `activate`, whose codes come with `user.secondFactorEnabled` |
 | `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent: a sign-in without the user's phone |
 | `user.deleted` | `delete`, once — a replay that deletes nobody sends nothing |
 
-- **The user is named by id, and nothing else**: no login, no e-mail, no
-  field, no password, no token. Whoever receives the event reads the rest
-  from where it is kept, if they may.
+- **The user is named by id, and nothing else**: no login, no field, no
+  password, no token. Whoever receives the event reads the rest from where it
+  is kept, if they may. One exception: `user.emailChanged` carries
+  `formerEmail`, which nothing keeps once the write landed, so a notice can
+  reach the inbox the account just left. `@nxgt/janus-webhooks` never posts
+  it.
 - **Each event has an `id` of its own**, a UUIDv7: the key to deliver it once.
 - **The listener runs after the write, and is awaited** before the
   flow answers, so a durable queue has the event by then. `occurredAt` is the
   write's own time. A refused flow sends nothing.
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
-  union of the eight types, so a `switch` on `event.type` is exhaustive — and
-  a new type, like the two recovery-code ones in 0.10, breaks it until handled.
+  union of the ten types, so a `switch` on `event.type` is exhaustive — and
+  a new type, like the two recovery-code ones in 0.10 or the two change ones
+  in 0.13, breaks it until handled.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.
 
-To tell the user their second factor was turned on or off, or that a
-recovery code was used, send
+To tell the user their password or e-mail changed, their second factor was
+turned on or off, or that a recovery code was used, send
 [`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s notice
 from the listener — or from a queue it feeds:
 
 ```ts
 // `mail` is janusMail({ … }), and the user schema holds a name and a locale.
 async events(event) {
+	if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+		const user = await auth.get(event.userId);
+		// To the former address: the new one belongs to whoever changed it.
+		await mail.emailChanged({ name: user.name, locale: user.locale, formerEmail: event.formerEmail, newEmail: user.email });
+	}
 	if (event.type === 'user.secondFactorDisabled') {
 		const user = await auth.get(event.userId);
 		await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
@@ -747,8 +758,8 @@ async events(event) {
 
 To post them as signed webhooks:
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks).
-[The user events guide](docs/guide/events.md) has the listener, the eight
-types, mail for a recovery code used, what a failure costs, and a test.
+[The user events guide](docs/guide/events.md) has the listener, the ten
+types, mail for a recovery code used or a password or e-mail changed, what a failure costs, and a test.
 
 ### Permissions — `@nxgt/janus/permissions`
 
@@ -1140,7 +1151,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and thirty-five plausible mistakes, one hundred and thirty-five refused at compile time — and
+**One hundred and thirty-seven plausible mistakes, one hundred and thirty-seven refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1148,9 +1159,9 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-four, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (forty-eight, on `janus()`, from the point of view of
+it), `test/types/auth/` (fifty, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
-three on user events, four on step-ups, six on the sign-in throttle) and `test/types/permissions/` (forty-eight, on the
+five on user events, four on step-ups, six on the sign-in throttle) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

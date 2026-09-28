@@ -134,6 +134,17 @@ export function bodyFor(event: UserEvent, where: string): string {
 }
 
 /**
+ * What a webhook keeps of an event: the user named by id, and nothing else.
+ * `formerEmail`, on `user.emailChanged`, stays in the process that wrote it —
+ * past here it would sit in the queue, in every endpoint's logs and in
+ * `onGivingUp`'s reports.
+ */
+export function deliverable(event: UserEvent): UserEvent {
+	const { id, type, occurredAt, userId, userType } = event;
+	return { id, type, occurredAt, userId, userType };
+}
+
+/**
  * One attempt: the body signed and posted. `null` when it succeeded — a
  * `2xx`, and nothing else — or what went wrong. It never rejects.
  */

@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.13.0
+
+### Minor Changes
+
+- [#164](https://github.com/softistx/nxgt-janus/pull/164) [`fac44ba`](https://github.com/softistx/nxgt-janus/commit/fac44baa935d90c451d05b942c8158606da2f1b2) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **Behaviour change — security fix: an old reset link no longer works.** `resetPassword.request` now spends the user's earlier reset links, so only the last e-mail's link works, and every password write — `resetPassword.confirm`, `changePassword` and `setPassword` — spends every reset link still live. Before, a link sent before the password was reset or changed could still replace the new password. Such a link now answers `TOKEN_SPENT`. The links are spent after the password is written; an outage at that step fails the call with `STORE_FAILED`, and the next `request` spends them. Sign-in codes and step-ups are not spent: the password proves neither. No change for adapters: the existing `TokenStore.spendUserTokens` does it. Docs: the passwords guide says to rate-limit `signIn` per login and per client — nothing counts failed passwords.
+
 ## 0.12.0
 
 ### Minor Changes

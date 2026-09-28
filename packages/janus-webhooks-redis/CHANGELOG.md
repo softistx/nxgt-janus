@@ -1,5 +1,13 @@
 # @nxgt/janus-webhooks-redis
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [[`fac44ba`](https://github.com/softistx/nxgt-janus/commit/fac44baa935d90c451d05b942c8158606da2f1b2)]:
+  - @nxgt/janus@0.13.0
+  - @nxgt/janus-webhooks@0.5.3
+
 ## 0.3.2
 
 ### Patch Changes

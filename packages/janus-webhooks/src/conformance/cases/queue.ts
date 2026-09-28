@@ -10,6 +10,8 @@ const TYPES: readonly UserEventType[] = [
 	'user.created',
 	'user.emailVerified',
 	'user.passwordReset',
+	'user.passwordChanged',
+	'user.emailChanged',
 	'user.secondFactorEnabled',
 	'user.secondFactorDisabled',
 	'user.recoveryCodesRegenerated',

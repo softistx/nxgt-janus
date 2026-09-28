@@ -9,7 +9,7 @@ import {
 	toUser,
 	writeUser,
 } from '../context';
-import { endWhatThePasswordOpened } from '../password-written';
+import { passwordChanged } from '../password-written';
 import { openSession } from '../sessions';
 import type { PasswordApi, SignInResult } from '../types';
 import { byLogin } from './by-login';
@@ -63,7 +63,7 @@ export function passwordFlows(
 				where,
 				(_, now) => ({ password: { hash, updatedAt: now } }),
 			);
-			await endWhatThePasswordOpened(context, written.id);
+			await passwordChanged(context, written);
 			return toUser(written);
 		},
 
