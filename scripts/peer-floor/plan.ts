@@ -19,22 +19,34 @@ export interface Plan {
 	readonly command: readonly string[];
 }
 
+/**
+ * Reads `<name>@<version>`: a lowercase npm name, scoped or not, at an exact
+ * version. Pure; throws on misuse, `usage` appended to the message.
+ */
+export function parseFloor(
+	spec: string,
+	usage: string,
+): { readonly name: string; readonly version: string } {
+	const at = spec.lastIndexOf('@');
+	if (at <= 0) throw new Error(usage);
+	const name = spec.slice(0, at);
+	const version = spec.slice(at + 1);
+	if (!NAME.test(name) || name.length > NAME_MAX) {
+		throw new Error(`${name} is not an npm package name. ${usage}`);
+	}
+	if (!/^\d+\.\d+\.\d+$/.test(version)) {
+		throw new Error(`${version} is not an exact version. ${usage}`);
+	}
+	return { name, version };
+}
+
 /** Reads `<name>@<version> <package>... -- <command>...`. Pure; throws on misuse. */
 export function parsePlan(argv: readonly string[]): Plan {
 	const dash = argv.indexOf('--');
 	const [spec, ...packages] = dash === -1 ? argv : argv.slice(0, dash);
 	const command = dash === -1 ? [] : argv.slice(dash + 1);
-	const at = spec?.lastIndexOf('@') ?? -1;
-	if (!spec || at <= 0 || packages.length === 0 || command.length === 0) {
+	if (!spec || packages.length === 0 || command.length === 0) {
 		throw new Error(USAGE);
 	}
-	const name = spec.slice(0, at);
-	const version = spec.slice(at + 1);
-	if (!NAME.test(name) || name.length > NAME_MAX) {
-		throw new Error(`${name} is not an npm package name. ${USAGE}`);
-	}
-	if (!/^\d+\.\d+\.\d+$/.test(version)) {
-		throw new Error(`${version} is not an exact version. ${USAGE}`);
-	}
-	return { name, version, packages, command };
+	return { ...parseFloor(spec, USAGE), packages, command };
 }

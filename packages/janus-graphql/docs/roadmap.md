@@ -5,11 +5,7 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **The floors, measured** — the oldest `graphql` (16.9.0) and
-  `@graphql-tools/utils` (10.0.0) the peer ranges admit, run in CI as the
-  other packages' floors are, so the range the README states is one a
-  suite has passed.
-- **The first release** — the package published, once those floors hold.
+- **The first release** — the package published, now that its floors hold.
 
 ## Next
 
@@ -50,6 +46,11 @@ Nothing released yet: the package is private until its first release.
 
 ### Unreleased, on `develop`
 
+- **The floors, measured** — the specs and the typecheck run on the oldest
+  `graphql` (16.9.0), `@graphql-tools/utils` (10.0.0) and `@envelop/core`
+  (5.0.0) the peer ranges admit, together and with one copy of `graphql`, in
+  CI's Floors job, so the ranges the README states are ones a suite has
+  passed.
 - **`@permission`, enforced** — `@permission(name, type, id, onDeny)` on a
   field, a type or an interface lets a field resolve only for a user who
   holds permission `name` on the object of `type` whose id `id` reads:
