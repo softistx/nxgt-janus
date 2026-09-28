@@ -31,7 +31,7 @@ type Record @key(fields: "id") @permission(name: "view", type: "record") {
 
 ## The shipped SDL
 
-The directives and the `PermissionDenial` enum ship twice, as the same text:
+The directives and the `JanusPermissionDenial` enum ship twice, as the same text:
 `janusTypeDefs`, and `graphql/janus.graphqls` in the package —
 `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`. Composition
 requires a directive to be declared identically in every subgraph that

@@ -85,7 +85,7 @@ directive @permission(
 	name: String!
 	type: String!
 	id: String
-	onDeny: PermissionDenial! = NOT_FOUND
+	onDeny: JanusPermissionDenial! = NOT_FOUND
 ) repeatable on OBJECT | INTERFACE | FIELD_DEFINITION
 ```
 

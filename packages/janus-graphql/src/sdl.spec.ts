@@ -23,9 +23,9 @@ describe('janusTypeDefs', () => {
 			'name: String!',
 			'type: String!',
 			'id: String',
-			'onDeny: PermissionDenial!',
+			'onDeny: JanusPermissionDenial!',
 		]);
-		const denial = schema.getType('PermissionDenial');
+		const denial = schema.getType('JanusPermissionDenial');
 		expect(denial instanceof GraphQLEnumType).toBe(true);
 		expect(
 			(denial as GraphQLEnumType).getValues().map((value) => value.name),
