@@ -144,6 +144,41 @@ export async function forgotPassword(request: Request): Promise<Response> {
 }
 ```
 
+**At most one reset link is live per user.** A `request` issues its link,
+then spends every other reset link of the user, so the link in an earlier
+e-mail answers `TOKEN_SPENT` — only the last one works, as for [sign-in
+codes](sign-in-code.md):
+
+```ts
+const first = await auth.resetPassword.request(email);
+const second = await auth.resetPassword.request(email); // the visitor asked again
+await auth.resetPassword.confirm(first.token, newPassword);  // TOKEN_SPENT
+await auth.resetPassword.confirm(second.token, newPassword); // reset
+```
+
+Requests that arrive at once cannot each keep a link: each spends the
+others' once it issued its own, so at most one survives — sometimes none, and
+the visitor asks again. **Rate-limit `request` per address**, as for sign-in
+codes: each one sends an e-mail and cancels the link before it, so without a
+limit anyone who knows an address can keep its owner from ever using a link.
+
+**Writing a password spends every reset link still live.** A `confirm`,
+`changePassword` and `setPassword` each do, so a link sent before the
+password changed cannot replace it again:
+
+```ts
+const issued = await auth.resetPassword.request(email);
+await auth.changePassword(user, { current, next });
+await auth.resetPassword.confirm(issued.token, other); // TOKEN_SPENT
+```
+
+The links are spent **after** the password is written, so a link issued
+during the write is spent too. If the store fails at that step, the call
+rejects with `STORE_FAILED` although the password is written — answer 503 as
+usual — and the older links may still be live until the next `request`,
+which spends them. Sign-in codes and step-ups are not spent: the password
+proves neither.
+
 `confirm` sets the password, marks the e-mail verified — the link proved it —
 and **signs the user out everywhere**: their sessions are revoked, and every
 second-factor challenge still open is spent, so a sign-in started with the
@@ -183,7 +218,7 @@ export async function resetPassword(request: Request): Promise<Response> {
 | Code | When |
 | --- | --- |
 | `TOKEN_UNKNOWN` | No token holds that secret — or it was issued for the other flow: a verification token is not a reset token |
-| `TOKEN_SPENT` | Already redeemed. Every token is single use |
+| `TOKEN_SPENT` | Already redeemed — every token is single use. A reset link is also spent by a newer `request` for the same user, and by any password written since it was sent |
 | `TOKEN_EXPIRED` | Its lifespan passed. It is spent all the same, so it cannot be retried |
 | `TOKEN_STALE` | Sent to an e-mail the user no longer has |
 

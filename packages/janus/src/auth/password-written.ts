@@ -11,20 +11,36 @@ import type { UserRecord } from './port/types';
 import type { SignInResult } from './types';
 
 /**
- * What writing a password ends besides: every second-factor challenge of the
- * user still open, so a sign-in started with the old password cannot be
- * finished. Called **after** the write — the other half of
- * {@link heldByPassword}, which reads **after** it issued.
+ * What writing a password ends besides. A reset, a change and a set each call
+ * it **after** the write, and a failure here throws — it is never ignored:
+ *
+ * 1. The user's reset links still unspent. A link answers a request to
+ *    replace the password; once it is replaced, an older link would replace
+ *    it again, without knowing the new one. Spent first, as the more harmful
+ *    to leave: a waiting sign-in still needs its second factor.
+ * 2. Every second-factor challenge still open, so a sign-in started with the
+ *    old password cannot be finished — the other half of
+ *    {@link heldByPassword}, which reads **after** it issued.
+ *
+ * After the write, not before: a link issued while the password is written
+ * is spent too, where one issued between an earlier spend and the write
+ * would survive. So an outage here leaves the password written and the
+ * older links live, and the caller is told, with `STORE_FAILED`; the next
+ * `resetPassword.request` spends them. Sign-in codes and step-ups are left
+ * alone: the password proves neither, and a step-up belongs to a session,
+ * which a reset revokes.
  */
-export async function endSignInsWaiting(
+export async function endWhatThePasswordOpened(
 	context: Context,
 	userId: Id,
 ): Promise<void> {
-	await context.store.tokens.spendUserTokens(
-		userId,
-		'secondFactor',
-		context.clock.now(),
-	);
+	for (const kind of ['resetPassword', 'secondFactor'] as const) {
+		await context.store.tokens.spendUserTokens(
+			userId,
+			kind,
+			context.clock.now(),
+		);
+	}
 }
 
 /**

@@ -566,7 +566,15 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 **When:** `verifyEmail.confirm`, `resetPassword.confirm`.
 **Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword`.
-**Fix:** answer 400 and offer to send a new link. To change the lifetimes:
+A reset link answers `resetPassword.confirm: the token was already used` in
+two more cases: a newer `resetPassword.request` for the same user spent it —
+only the last link sent works, so a visitor who asked twice and clicked the
+first e-mail gets `TOKEN_SPENT` — or the password was written since it was
+sent, by another link's `confirm`, `changePassword` or `setPassword`. When two
+requests race, even the last link can be spent: at most one survives,
+sometimes none.
+**Fix:** answer 400 and offer to send a new link — and tell the visitor to use
+the latest e-mail. To change the lifetimes:
 
 ```ts
 janus({ ..., tokens: { verifyEmail: '72h', resetPassword: '2h' } });

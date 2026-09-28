@@ -120,8 +120,9 @@ export interface TokenStore {
 	 * Spends every **unspent** token of one user and one `kind` at `at` —
 	 * but the one whose hash is `except`, when given — and answers how many
 	 * it spent. What issuing a sign-in code calls, sparing the code it just
-	 * issued, so only the last code sent works; and what writing a password
-	 * calls, so no second-factor challenge opened with the old one survives.
+	 * issued, so only the last code sent works — and so for a reset link and
+	 * a step-up; and what writing a password calls, so no reset link and no
+	 * second-factor challenge opened with the old one survives.
 	 *
 	 * - A spent token keeps its `spentAt`: it never changes once set.
 	 * - A token of another `kind`, or of another user, is not touched.
