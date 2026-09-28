@@ -283,12 +283,15 @@ jobs:
         run: >-
           bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
           bash -c 'set -e; cd packages/janus-mail; bun test src scripts; bun run typecheck'
-      # The same mongod as the job above, under the same key.
+      # The mongod the job above caches, under a key of its own: that job runs
+      # on ubuntu-latest and this one on 24.04, and mongodb-memory-server
+      # downloads a build per distribution, so one key would hand this job
+      # the other's binary the day `latest` moves.
       - name: Cache the mongod binary
         uses: actions/cache@v4
         with:
           path: .cache/mongodb
-          key: mongod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts', 'packages/janus-kit/test/mongo.ts') }}
+          key: mongod-floor-ubuntu-24.04-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts', 'packages/janus-kit/test/mongo.ts') }}
       # Both links move together: the kit loads @nxgt/janus-mongo, which
       # resolves @nxgt/mongo from its own directory, and two copies would be
       # two sets of classes. The kit's Redis is the 7.0 built above.

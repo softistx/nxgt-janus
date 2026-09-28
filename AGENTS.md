@@ -541,9 +541,12 @@ The table that exists so a duplication is a decision rather than an accident.
   `bun.lock`: `@nxgt/mail` 0.1.0 under `janus-mail`, and `@nxgt/mongo`
   0.17.0 under `janus-mongo` and the kit's mongo specs. The other `@nxgt/*`
   peers are locked at their floors, so the `ci` job already runs them; a
-  lock bump that lifts one above its floor adds a step here. Locally:
-  `bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail -- bash -c
-  'cd packages/janus-mail && bun test src scripts'`. A README that states a new floor adds it to that job; a
+  lock bump that lifts one above its floor adds a step here. Locally, the
+  command the step runs, for instance
+  `bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
+  bash -c 'cd packages/janus-mail && bun test src scripts && bun run typecheck'`;
+  a link it refuses as left by an interrupted run is fixed by `bun install`.
+  A README that states a new floor adds it to that job; a
   floor that fails there means the README is wrong, and the owner decides what
   it promises instead; it is never made green by testing a newer version.
   Locally: `JANUS_REDIS_VERSION=7.0.15 bun test src` where 7.0.15 compiles —
