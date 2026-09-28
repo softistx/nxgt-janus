@@ -31,6 +31,10 @@ export async function narrowing(ctx: Ctx) {
 	// @ts-expect-error — 'doctor' is neither 'patient' nor 'staff'.
 	await requireUser(ctx, { type: 'doctor' });
 
+	// 8. An empty list of user types, which no user could pass.
+	// @ts-expect-error — name at least one user type.
+	await requireUser(ctx, { type: [] });
+
 	return { id, username, type };
 }
 
@@ -38,27 +42,27 @@ export async function checking(ctx: Ctx, bare: NoAccess) {
 	const viewed: boolean = await can(ctx, 'view', record);
 	await can(ctx, 'edit', record, { ctx: { locked: false } });
 
-	// 8. A permission the object's type does not declare.
+	// 9. A permission the object's type does not declare.
 	// @ts-expect-error — 'delete' is not a permission of 'record'.
 	await can(ctx, 'delete', record);
 
-	// 9. An object type the model does not declare.
+	// 10. An object type the model does not declare.
 	// @ts-expect-error — 'invoice' is not an object type of the model.
 	await can(ctx, 'view', { type: 'invoice', id: 'i1' });
 
-	// 10. An object without the field a `fromField` reads.
+	// 11. An object without the field a `fromField` reads.
 	// @ts-expect-error — `doctorId` is missing: `doctors` reads it.
 	await can(ctx, 'view', { type: 'record', id: 'r1' });
 
-	// 11. A condition reached with no `ctx`.
+	// 12. A condition reached with no `ctx`.
 	// @ts-expect-error — `edit` reaches a when(): `{ ctx }` is required.
 	await can(ctx, 'edit', record);
 
-	// 12. A `ctx` of the wrong shape.
+	// 13. A `ctx` of the wrong shape.
 	// @ts-expect-error — `locked` is a boolean.
 	await can(ctx, 'edit', record, { ctx: { locked: 'yes' } });
 
-	// 13. A context whose useJanus() was given no `access`.
+	// 14. A context whose useJanus() was given no `access`.
 	// @ts-expect-error — `ctx.janus.access` is missing.
 	await can(bare, 'view', record);
 

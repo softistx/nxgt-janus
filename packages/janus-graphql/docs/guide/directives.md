@@ -152,8 +152,9 @@ useJanus({
 });
 ```
 
-An id that holds `@`, `#` or a parenthesis, or is empty, names no object:
-it is answered `NOT_FOUND` without asking.
+An id that holds `@`, `#`, a parenthesis, a NUL character or a lone
+surrogate, or is empty, names no object: it is answered `NOT_FOUND` without
+asking, and without calling the loader.
 
 ### Lists
 

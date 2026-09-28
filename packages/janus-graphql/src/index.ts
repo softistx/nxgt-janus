@@ -11,6 +11,8 @@
  *   calls a resolver makes itself;
  * - `janusMaskError(fallback?)` — Yoga's `maskError`: a `JanusError` as its
  *   code and status, `STORE_FAILED` as 503 and never as 401 or 403.
+ * - `janusGraphQLError(error)` — a `JanusError` as the `GraphQLError` the
+ *   client reads, and `denial(code, message?)` — a denial of your own.
  *
  * It defines no error class: a denial is a `GraphQLError`, and what it lets
  * through is `@nxgt/janus`'s own.

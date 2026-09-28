@@ -8,6 +8,7 @@ import { defaultFieldResolver, type GraphQLSchema } from 'graphql';
 import { guarded } from './guard';
 import { readField } from './read';
 import { type Known, requirementOf } from './validate';
+import { list, PREFIX } from './words';
 
 type Entries = {
 	readonly [type: string]: ((...args: never[]) => unknown) | undefined;
@@ -78,7 +79,7 @@ function knownOf({ auth, type }: JanusDirectivesOptions): Known {
 	if (type === undefined) return { types: auth.types };
 	if (!auth.types.includes(type)) {
 		throw new TypeError(
-			`applyJanusDirectives(): type '${type}' is not a user type of auth — it knows ${auth.types.map((name) => `'${name}'`).join(', ')}`,
+			`${PREFIX}: type '${type}' is not a user type of auth — it knows ${list(auth.types)}`,
 		);
 	}
 	return { types: [type] };

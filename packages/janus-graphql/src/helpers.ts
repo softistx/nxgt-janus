@@ -16,8 +16,11 @@ import { denial, rethrown } from './errors';
 
 /** What `requireUser()` takes. */
 export interface RequireUserOptions<T extends string> {
-	/** Only a user of this type, or of one of these: any other is `FORBIDDEN`. */
-	readonly type?: T | readonly T[];
+	/**
+	 * Only a user of this type, or of one of these — never an empty list,
+	 * which no user could pass: any other is `FORBIDDEN`.
+	 */
+	readonly type?: T | readonly [T, ...T[]];
 }
 
 /**
@@ -38,14 +41,20 @@ export async function requireUser<
 	ctx: { readonly janus: { user(): Promise<U | null> } },
 	options: RequireUserOptions<T> = {},
 ): Promise<Extract<U, { readonly type: T }>> {
+	const { type } = options;
+	const allowed: readonly string[] | undefined =
+		typeof type === 'string' ? [type] : type;
+	if (allowed?.length === 0) {
+		throw new TypeError(
+			'requireUser(): type is an empty list, which no user could pass — name at least one user type, or leave type out',
+		);
+	}
 	const user = await janusOf(ctx, 'requireUser()')
 		.user()
 		.then(undefined, rethrown);
 	if (user === null) throw denial('UNAUTHENTICATED');
-	const { type } = options;
-	if (type !== undefined) {
-		const allowed: readonly string[] = typeof type === 'string' ? [type] : type;
-		if (!allowed.includes(user.type)) throw denial('FORBIDDEN');
+	if (allowed !== undefined && !allowed.includes(user.type)) {
+		throw denial('FORBIDDEN');
 	}
 	return user as unknown as Extract<U, { readonly type: T }>;
 }

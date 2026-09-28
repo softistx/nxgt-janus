@@ -34,7 +34,7 @@ export const wired = useJanus({
 	},
 });
 
-// 19. A loader for an object type the model does not declare.
+// 20. A loader for an object type the model does not declare.
 useJanus({
 	auth,
 	access,
@@ -42,7 +42,7 @@ useJanus({
 	loaders: { invoice: (id: string) => ({ id }) },
 });
 
-// 20. A loader answering an object without the field a `fromField` reads.
+// 21. A loader answering an object without the field a `fromField` reads.
 useJanus({
 	auth,
 	access,
@@ -50,7 +50,7 @@ useJanus({
 	loaders: { record: (id: string) => ({ id }) },
 });
 
-// 21. A condition for a type whose permissions reach no when().
+// 22. A condition for a type whose permissions reach no when().
 useJanus({
 	auth,
 	access,
@@ -58,7 +58,7 @@ useJanus({
 	conditions: { ward: () => ({ locked: false }) },
 });
 
-// 22. A condition answering a `ctx` of the wrong shape.
+// 23. A condition answering a `ctx` of the wrong shape.
 useJanus({
 	auth,
 	access,
@@ -66,6 +66,6 @@ useJanus({
 	conditions: { record: () => ({ locked: 'yes' }) },
 });
 
-// 23. Loaders where useJanus() was given no `access`.
+// 24. Loaders where useJanus() was given no `access`.
 // @ts-expect-error — without access, @permission has nothing to load for.
 useJanus({ auth, loaders: { record: () => null } });

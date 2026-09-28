@@ -69,6 +69,20 @@ describe('requireUser()', () => {
 			'requireUser(): ctx.janus is not set — add useJanus({ auth }) to the plugins',
 		);
 	});
+
+	it('refuses with a TypeError an empty list of types, before authenticating', async () => {
+		const context = setup();
+		const { ada } = await users(context);
+		for (const token of [ada.token, undefined]) {
+			const refused = await rejection(
+				requireUser(contextOf(context, token), { type: [] as never }),
+			);
+			expect(refused).toBeInstanceOf(TypeError);
+			expect((refused as Error).message).toBe(
+				'requireUser(): type is an empty list, which no user could pass — name at least one user type, or leave type out',
+			);
+		}
+	});
 });
 
 describe('can()', () => {

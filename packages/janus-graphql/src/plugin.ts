@@ -42,6 +42,14 @@ export function useJanus<
 			'useJanus(): auth is not what janus() answered — pass { auth }',
 		);
 	}
+	if (
+		access !== undefined &&
+		typeof (access as { readonly can?: unknown } | null)?.can !== 'function'
+	) {
+		throw new TypeError(
+			'useJanus(): access is not what permissions() answered — pass { auth, access }',
+		);
+	}
 	const applied = new WeakSet<GraphQLSchema>();
 
 	return {

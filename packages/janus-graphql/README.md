@@ -86,7 +86,7 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `loaders: { [type]: (id, ctx) => object \| null }` | The object `@permission` checks for an id alone — from `args`, or a parent field other than `id` — required for a type with a `fromField`, whose fields `access.can` reads. `null` answers `NOT_FOUND` |
 | `conditions: { [type]: (object, ctx) => ctx }` | The `ctx` `@permission` passes to `access.can` for a permission that reaches a `when()` |
 | `applyJanusDirectives(schema, { auth, type?, access?, loaders?, conditions? })` | The schema transform alone — what `useJanus()` runs — to check a schema in a test or a build script. Throws a `TypeError` naming the field for a directive no request could pass. Its guards read `ctx.janus`, which only `useJanus()` builds |
-| `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
+| `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a non-empty list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
 | `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false`. Shares the request's checks with `@permission`: one question, one check per request |
 | `janusMaskError(fallback?)` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback` |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
@@ -218,15 +218,16 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 
 ## Type safety, counted
 
-Twenty-three plausible mistakes are refused by the compiler, each with a
+Twenty-four plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
   `null` (twice), a field of another user type once `JanusContext` is narrowed,
   `ctx.janus.access` where `useJanus()` was given none, and a context narrowed
   to a user type the instance does not know;
-- eight in `helpers.ts`: `requireUser()` — a field of another user type once
-  narrowed, a user type the instance does not know — and `can()` — a
+- nine in `helpers.ts`: `requireUser()` — a field of another user type once
+  narrowed, a user type the instance does not know, an empty list of user
+  types — and `can()` — a
   permission the object's type does not declare, an object type the model
   does not, an object without a field a `fromField` reads, a condition reached
   with no `ctx`, a `ctx` of the wrong shape, and a context with no `access`;

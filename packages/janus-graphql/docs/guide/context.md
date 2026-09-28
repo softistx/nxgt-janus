@@ -114,7 +114,9 @@ const resolvers = {
 The signed-in user, narrowed to `type` — or a denial: `UNAUTHENTICATED` for
 an anonymous request, `FORBIDDEN` for a user of another type. `type` takes
 one user type or a list, `{ type: ['staff', 'patient'] }`, and the answer is
-typed as the union of them. Without `type`, any signed-in user.
+typed as the union of them. Without `type`, any signed-in user. An empty list
+is refused — by the compiler, and with a `TypeError` for a list built at run
+time — since no user could pass it.
 
 Use it where a directive does not fit: a mutation that must know the user
 anyway, or a type that depends on the arguments.

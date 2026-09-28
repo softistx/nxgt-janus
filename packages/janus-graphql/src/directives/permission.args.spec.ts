@@ -20,7 +20,7 @@ const typeDefs = /* GraphQL */ `
 
 type Row = { id: string; doctorId: string | null; title: string };
 
-async function setUp() {
+async function setUp(masked = true) {
 	const ran: string[] = [];
 	const rows = new Map<string, Row>();
 	const loaded: { id: string; hasJanus: boolean }[] = [];
@@ -37,6 +37,7 @@ async function setUp() {
 		},
 	};
 	const w = await wired(typeDefs, resolvers, {
+		masked,
 		loaders: {
 			record: (id, ctx) => {
 				loaded.push({
@@ -49,7 +50,7 @@ async function setUp() {
 	});
 	await wards(w);
 	rows.set('r1', { id: 'r1', doctorId: w.grace.user.id, title: 'Blood test' });
-	return { ...w, ran, loaded };
+	return { ...w, ran, loaded, rows };
 }
 
 describe('@permission reading args', () => {
@@ -105,6 +106,38 @@ describe('@permission reading args', () => {
 			{ id: 'w1' },
 		);
 		expect(body).toEqual({ data: { ward: 'w1' } });
+	});
+});
+
+describe('@permission reading args, with a loader', () => {
+	it('answers an id no object can hold NOT_FOUND, and never calls the loader', async () => {
+		const { yoga, grace, asked, loaded } = await setUp();
+		for (const id of ['', 'r1#x', 'r1@x', '(r1)', 'r1\u0000', '\ud800']) {
+			const { status, body } = await ask(
+				yoga,
+				'query ($id: ID!) { record(id: $id) { title } }',
+				grace.token,
+				{ id },
+			);
+			expect(status).toBe(404);
+			expect(codes(body)).toEqual(['NOT_FOUND']);
+		}
+		expect(loaded).toEqual([]);
+		expect(asked.can).toBe(0);
+	});
+
+	it('fails with a TypeError naming the loader when it answers no object', async () => {
+		const { yoga, grace, rows, asked } = await setUp(false);
+		rows.set('r2', 'r2' as unknown as Row);
+		const { body } = await ask(
+			yoga,
+			'{ record(id: "r2") { title } }',
+			grace.token,
+		);
+		expect(body.errors?.[0]?.message).toBe(
+			'@permission on Query.record: loaders.record answered string — answer the object, or null when there is none',
+		);
+		expect(asked.can).toBe(0);
 	});
 });
 
