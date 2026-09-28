@@ -110,8 +110,8 @@ function reportSafely(
 			`janusErrors: report failed on ${error.code}: ${failure instanceof Error ? failure.name : typeof failure}`,
 		);
 	try {
-		const reported = report(error, c);
-		if (reported instanceof Promise) reported.then(undefined, warn);
+		// A thenable of any make, as a native promise: its rejection warns too.
+		Promise.resolve(report(error, c)).then(undefined, warn);
 	} catch (failure) {
 		warn(failure);
 	}

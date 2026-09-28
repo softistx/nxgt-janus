@@ -140,13 +140,22 @@ describe('janusErrors()', () => {
 					throw new Error('logger down');
 				},
 			});
+			// A logger's own promise-like, not a native Promise.
+			const thenable = await throwing(outage(), {
+				report: () => ({
+					// biome-ignore lint/suspicious/noThenProperty: a thenable on purpose, as a logger's own promise-like.
+					then: (_: unknown, ko: (reason: unknown) => void) =>
+						ko(new Error('logger down')),
+				}),
+			});
 			expect(thrown.status).toBe(503);
 			expect(rejected.status).toBe(503);
+			expect(thenable.status).toBe(503);
 			await new Promise((resolve) => setTimeout(resolve, 10));
 		} finally {
 			process.off('warning', warn);
 		}
-		expect(warnings.filter((w) => w.includes('report failed'))).toHaveLength(2);
+		expect(warnings.filter((w) => w.includes('report failed'))).toHaveLength(3);
 	});
 });
 
