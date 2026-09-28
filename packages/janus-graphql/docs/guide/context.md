@@ -36,6 +36,7 @@ does not build, since `@authenticated` and `@permission` are not declared.
 | `auth` | What `janus()` answered. Required |
 | `access` | What `permissions()` answered: `ctx.janus.access`, what `can()` and `@permission` ask. Optional — and required once the schema uses `@permission` |
 | `type` | A user type: a user of any other type is anonymous on this server, as `auth.authenticate(request, { type })` answers |
+| `clock` | What `@fresh` and `requireFresh()` read the time from: the clock given to `janus()`, when it is not the system's — `fixedClock` in a spec. Absent, the system's |
 | `loaders` | Per object type, `(id, ctx) => object \| null`: the object `@permission` checks when it reads an id alone — from `args`, or a parent field other than `id`. Required for a type with a `fromField` — see [directives](directives.md#reading-the-id) |
 | `conditions` | Per object type, `(object, ctx) => its when()s' ctx`: what `@permission` passes as `{ ctx }` — see [directives](directives.md#conditions) |
 
@@ -92,7 +93,7 @@ then absent from the type, as it is from the context.
 
 ## Directives
 
-`@authenticated` and `@permission` guard a field, a type or an interface
+`@authenticated`, `@fresh` and `@permission` guard a field, a type or an interface
 before its resolver runs: see [directives](directives.md). This page covers
 what a resolver checks itself, where a directive does not fit.
 
@@ -120,6 +121,34 @@ time — since no user could pass it.
 
 Use it where a directive does not fit: a mutation that must know the user
 anyway, or a type that depends on the arguments.
+
+## `requireFresh(ctx, maxAge)`
+
+```ts
+import { requireFresh } from '@nxgt/janus-graphql';
+
+const resolvers = {
+	Mutation: {
+		transfer: async (_: unknown, { amount }: { amount: number }, ctx: Context) => {
+			if (amount > 1_000) await requireFresh(ctx, '5m');
+			return payments.transfer(ctx, amount);
+		},
+	},
+};
+```
+
+The request's session, once it proved who it is less than `maxAge` ago —
+signed in, or confirmed since by `auth.stepUp.confirm` — or a denial:
+`UNAUTHENTICATED` for an anonymous request, `STEP_UP_REQUIRED`, 403, for an
+older session. A store that cannot answer is `SERVICE_UNAVAILABLE`. It is
+`@fresh` in a resolver, for a rule that depends on the arguments, on
+`useJanus({ clock })`'s clock.
+
+`maxAge` is a duration **with its unit** — `'5m'`, `'300s'`, `'1h'` — and
+never a bare number: `@nxgt/janus` reads a number as milliseconds, where
+`@fresh(maxAge: 300)` reads seconds, so the compiler refuses one and the call
+throws a `TypeError` for one built at run time. What the client does next is
+in [the step-up over GraphQL](step-up.md).
 
 ## `can(ctx, permission, object, options?)`
 

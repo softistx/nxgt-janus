@@ -30,8 +30,9 @@ Yoga reads `extensions.http.status` to answer the HTTP response, and strips
 
 | Code | Status | Message | When |
 | --- | --- | --- | --- |
-| `UNAUTHENTICATED` | 401 | `Not signed in` | An anonymous request reached a field `@authenticated` guards, or `requireUser()` |
+| `UNAUTHENTICATED` | 401 | `Not signed in` | An anonymous request reached a guarded field, `requireUser()` or `requireFresh()` |
 | `FORBIDDEN` | 403 | `Forbidden` | A user of a type the directive or `requireUser({ type })` does not name, or a `@permission(onDeny: FORBIDDEN)` denied |
+| `STEP_UP_REQUIRED` | 403 | `Forbidden` | A session older than `@fresh(maxAge)` or `requireFresh(ctx, maxAge)` allows: the client asks for a step-up — see [the step-up over GraphQL](step-up.md) |
 | `NOT_FOUND` | 404 | `Not found` | `@permission`'s default denial, a loader answering `null`, an id `@permission` could not read — and `denial('NOT_FOUND')` |
 | `SERVICE_UNAVAILABLE` | 503 | `The service is unavailable, retry later` | A store could not answer: `STORE_FAILED` |
 | any other `JanusErrorCode` | its `statusOf(code)` | fixed per status: `Invalid request` 400, `Invalid credentials` 401 (`CREDENTIALS_INVALID`, `CODE_INVALID`), `Forbidden` 403, `Not found` 404, `Conflict` 409, `Internal server error` 500 and 501 | A `JanusError` a resolver let through — `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, `TOKEN_EXPIRED` 400, … |
