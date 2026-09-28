@@ -1,5 +1,11 @@
 # @nxgt/janus-graphql
 
+## 0.2.0
+
+### Minor Changes
+
+- [#160](https://github.com/softistx/nxgt-janus/pull/160) [`1e84cac`](https://github.com/softistx/nxgt-janus/commit/1e84cacac19f2cfa79bd46429c3ff2538adae4f4) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `@fresh(maxAge: Int!)`, on a field, a type or an interface: only a session that proved who it is less than `maxAge` seconds ago — signed in, or confirmed since by `auth.stepUp.confirm` — reaches it. An anonymous request is `UNAUTHENTICATED` 401, an older session `STEP_UP_REQUIRED` 403, which tells the client to ask for a step-up, and an outage `SERVICE_UNAVAILABLE` 503. It is checked after `@authenticated` and before any `@permission`, the smallest `maxAge` that applies holds, and a subscription is checked when it subscribes. A `maxAge` not above zero is a `TypeError` naming the field at start-up. `requireFresh(ctx, '10m')` is the same check in a resolver, taking a duration with its unit and never a bare number. `useJanus({ clock })` is the clock both read — the one given to `janus()` — and the system's without it. `janusTypeDefs` and `graphql/janus.graphqls` declare the new directive. Built on `@nxgt/janus` 0.12's `assertFresh`, which the peer range already requires.
+
 ## 0.1.1
 
 ### Patch Changes
