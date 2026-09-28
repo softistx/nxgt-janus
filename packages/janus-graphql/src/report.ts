@@ -40,8 +40,8 @@ export function reporting(
 				`janusMaskError: report failed on ${janusError.code}: ${failure instanceof Error ? failure.name : typeof failure}`,
 			);
 		try {
-			const reported = report(janusError);
-			if (reported instanceof Promise) reported.then(undefined, warn);
+			// A thenable of any make, as a native promise: its rejection warns too.
+			Promise.resolve(report(janusError)).then(undefined, warn);
 		} catch (failure) {
 			warn(failure);
 		}

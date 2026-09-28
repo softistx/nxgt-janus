@@ -149,4 +149,62 @@ describe('useJanus(): a renewed session', () => {
 		]);
 		expect(response.headers.getSetCookie()).toHaveLength(1);
 	});
+
+	it('never overwrites a session cookie the response already sets', async () => {
+		const context = setup();
+		const { ada } = await users(context);
+		const name = context.auth.cookie.name;
+		const yoga = createYoga({
+			schema: createSchema({
+				typeDefs: [janusTypeDefs, typeDefs],
+				resolvers: resolvers as never,
+			}),
+			plugins: [
+				// A sign-out of the application's own, set before useJanus() answers.
+				{
+					onResponse: ({ response }: { response: Response }) => {
+						response.headers.append('Set-Cookie', `${name}=; Max-Age=0`);
+					},
+				},
+				useJanus({ auth: context.tracked, clock: context.clock }),
+			],
+			logging: false,
+		});
+		context.clock.advance(DAY + 1);
+		const response = await post(
+			{ yoga },
+			'{ me }',
+			cookie(context.auth, ada.token),
+		);
+		expect(await response.json()).toEqual({ data: { me: ada.user.id } });
+		expect(response.headers.getSetCookie()).toEqual([`${name}=; Max-Age=0`]);
+	});
+
+	it('sends nothing for an auth without cookie, and answers all the same', async () => {
+		const context = setup();
+		const { ada } = await users(context);
+		const { types, authenticate } = context.auth;
+		const yoga = createYoga({
+			schema: createSchema({
+				typeDefs: [janusTypeDefs, typeDefs],
+				resolvers: resolvers as never,
+			}),
+			plugins: [
+				useJanus({ auth: { types, authenticate }, clock: context.clock }),
+			],
+			logging: false,
+		});
+		context.clock.advance(DAY + 1);
+		const response = await post(
+			{ yoga },
+			'{ me }',
+			cookie(context.auth, ada.token),
+		);
+		expect(await response.json()).toEqual({ data: { me: ada.user.id } });
+		expect(response.headers.getSetCookie()).toEqual([]);
+		const next = await context.auth.authenticate(
+			cookie(context.auth, ada.token),
+		);
+		expect(next?.renewed).toBe(false); // renewed in the store all the same
+	});
 });

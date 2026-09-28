@@ -10,7 +10,7 @@ import { acceptedOf } from './connection/credential';
 import { createJanusContext } from './context';
 import { applyJanusDirectives } from './directives/apply';
 import { checkWiring } from './options';
-import { type ResponsePayload, resendRenewed, track } from './renewal';
+import { resendRenewed, track } from './renewal';
 import type { Auth, JanusContext, JanusOptions, UserOfAuth } from './types';
 
 /**
@@ -52,7 +52,10 @@ export function useJanus<
 >(
 	options: JanusOptions<A, P, T>,
 ): Plugin<JanusContext<A, P, T>> & {
-	readonly onResponse: (payload: ResponsePayload) => Promise<void>;
+	readonly onResponse: (payload: {
+		readonly request: Request;
+		readonly response: Response;
+	}) => Promise<void>;
 } {
 	const { auth, access, type, clock, loaders, conditions } = options;
 	checkWiring('useJanus()', { auth, access, clock });
