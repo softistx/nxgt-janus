@@ -85,7 +85,7 @@ directive @permission(
 	name: String!
 	type: String!
 	id: String
-	onDeny: PermissionDenial! = NOT_FOUND
+	onDeny: JanusPermissionDenial! = NOT_FOUND
 ) repeatable on OBJECT | INTERFACE | FIELD_DEFINITION
 ```
 
@@ -152,8 +152,9 @@ useJanus({
 });
 ```
 
-An id that holds `@`, `#` or a parenthesis, or is empty, names no object:
-it is answered `NOT_FOUND` without asking.
+An id that holds `@`, `#`, a parenthesis, a NUL character or a lone
+surrogate, or is empty, names no object: it is answered `NOT_FOUND` without
+asking, and without calling the loader.
 
 ### Lists
 

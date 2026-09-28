@@ -66,6 +66,15 @@ async function ask(
 const UNNAMEABLE = /^$|[@#()]/;
 
 /**
+ * Whether an id sent by a client can name an object: none of the characters
+ * above, no NUL and no lone surrogate — which no store keeps, so `can()`
+ * holds them for nobody, and the application's loader must never see them.
+ * A copy of the core's `isStorable`, recorded beside `UNNAMEABLE`.
+ */
+const isNameable = (id: string): boolean =>
+	!UNNAMEABLE.test(id) && !id.includes('\u0000') && id.isWellFormed();
+
+/**
  * The object `can()` is given for one target: the value that holds the id,
  * the loader's answer, or `{ type, id }`. `null` when there is none: the
  * loader found none, or the id could name no object.
@@ -76,7 +85,7 @@ async function objectOf(
 	ctx: unknown,
 ): Promise<ObjectLike | null> {
 	const { type, load } = permission;
-	if (UNNAMEABLE.test(id)) return null;
+	if (!isNameable(id)) return null;
 	if (holder !== null) return view(holder, type, id);
 	if (load === null) return { type, id };
 	const loaded = await load(id, ctx);

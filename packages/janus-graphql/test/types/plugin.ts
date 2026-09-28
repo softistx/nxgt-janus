@@ -62,22 +62,22 @@ export const masking = useMaskedErrors({ maskError: janusMaskError() });
 // One user type only: any other is anonymous.
 export const staffOnly = useJanus({ auth, type: 'staff' });
 
-// 14. A user type the instance does not know.
+// 15. A user type the instance does not know.
 // @ts-expect-error — 'doctor' is neither 'patient' nor 'staff'.
 useJanus({ auth, type: 'doctor' });
 
-// 15. Something that is not what janus() answered.
+// 16. Something that is not what janus() answered.
 // @ts-expect-error — `authenticate` and `types` are missing.
 useJanus({ auth: { name: 'janus' } });
 
-// 16. The permissions() instance passed as `auth`.
+// 17. The permissions() instance passed as `auth`.
 // @ts-expect-error — `access` is not `auth`.
 useJanus({ auth: access });
 
-// 17. The transform without the instance whose user types it checks.
+// 18. The transform without the instance whose user types it checks.
 // @ts-expect-error — `auth` is required.
 applyJanusDirectives(yoga.getEnveloped().schema, {});
 
-// 18. The transform narrowed to a user type the instance does not know.
+// 19. The transform narrowed to a user type the instance does not know.
 // @ts-expect-error — 'doctor' is neither 'patient' nor 'staff'.
 applyJanusDirectives(yoga.getEnveloped().schema, { auth, type: 'doctor' });

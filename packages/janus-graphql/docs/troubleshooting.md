@@ -26,6 +26,7 @@ for what causes each.
 - [`Unknown directive "@authenticated"`, or `"@permission"`](#unknown-directive-authenticated-or-permission)
 - [`TypeError: applyJanusDirectives(): type '…' is not a user type of auth`](#typeerror-applyjanusdirectives-type--is-not-a-user-type-of-auth)
 - [`TypeError: useJanus(): auth is not what janus() answered`](#typeerror-usejanus-auth-is-not-what-janus-answered)
+- [`TypeError: useJanus(): access is not what permissions() answered`](#typeerror-usejanus-access-is-not-what-permissions-answered)
 
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
@@ -35,6 +36,7 @@ for what causes each.
 - [`TypeError: … ctx.janus is not set`](#typeerror--ctxjanus-is-not-set)
 - [`TypeError: useJanus(): the GraphQL context has no request to authenticate`](#typeerror-usejanus-the-graphql-context-has-no-request-to-authenticate)
 - [`TypeError: can(): ctx.janus.access is not set`](#typeerror-can-ctxjanusaccess-is-not-set)
+- [`TypeError: requireUser(): type is an empty list, which no user could pass`](#typeerror-requireuser-type-is-an-empty-list-which-no-user-could-pass)
 - [`@permission on … resolved no object id from … — answered NOT_FOUND`](#permission-on--resolved-no-object-id-from---answered-not_found)
 - [`NOT_FOUND` where the user should be allowed](#not_found-where-the-user-should-be-allowed)
 - [A 403 that tells a user the object exists](#a-403-that-tells-a-user-the-object-exists)
@@ -49,6 +51,7 @@ for what causes each.
 - [`Expected 4 arguments, but got 3`, on `can()`](#expected-4-arguments-but-got-3-on-can)
 - [`'…' does not exist in type 'Loaders<…>'`, or `'Conditions<…>'`](#-does-not-exist-in-type-loaders-or-conditions)
 - [`Type '{ …: … }' is not assignable to type 'never'`, on `loaders`](#type-----is-not-assignable-to-type-never-on-loaders)
+- [`Source has 0 element(s) but target requires 1`, on `requireUser()`](#source-has-0-elements-but-target-requires-1-on-requireuser)
 
 ## At start-up
 
@@ -97,8 +100,10 @@ admits the users it is for.
 **When:** at start-up, for a schema that uses `@permission`.
 
 **Why:** `useJanus()` — or `applyJanusDirectives()` — was given no `access`,
-or something other than what `permissions()` answered: the directive reads
-the object types and permissions from `access.model`.
+or, through `applyJanusDirectives()`, an object with no `model`: the
+directive reads the object types and permissions from `access.model`.
+(`useJanus()` refuses an `access` without `can` earlier — see
+[`access is not what permissions() answered`](#typeerror-usejanus-access-is-not-what-permissions-answered).)
 
 **Fix:** `useJanus({ auth, access })`. An instance wrapped by
 `instrumentPermissions()` keeps its `model`, and works as the plain one.
@@ -215,6 +220,14 @@ its place, or the module that exports `auth` not loaded yet.
 
 **Fix:** `useJanus({ auth, access })`, with `auth` what `janus()` answered.
 
+### `TypeError: useJanus(): access is not what permissions() answered`
+
+**Why:** `access` has no `can` — `janus()`'s instance passed in its place,
+`null`, or the module that exports `access` not loaded yet.
+
+**Fix:** `useJanus({ auth, access })`, with `access` what `permissions()`
+answered — or leave `access` out when no field uses `@permission` or `can()`.
+
 ## In a response
 
 ### `UNAUTHENTICATED` for a signed-in user
@@ -280,6 +293,19 @@ the [roadmap](roadmap.md).
 
 **Fix:** `useJanus({ auth, access })`, with `access` what `permissions()`
 answered.
+
+### `TypeError: requireUser(): type is an empty list, which no user could pass`
+
+**Why:** `requireUser(ctx, { type })` was given `[]` — a list of user types
+built at run time that came out empty. The compiler refuses a literal `[]`;
+a `string[]` built elsewhere gets through, and no user could pass it.
+
+**Fix:** name at least one user type, or leave `type` out to admit any
+signed-in user:
+
+```ts
+const user = await requireUser(ctx, allowed.length > 0 ? { type: allowed } : {});
+```
 
 ### `@permission on … resolved no object id from … — answered NOT_FOUND`
 
@@ -429,3 +455,17 @@ without the permissions instance, `@permission` cannot be used, and has
 nothing to load for.
 
 **Fix:** `useJanus({ auth, access, loaders })`.
+
+### `Source has 0 element(s) but target requires 1`, on `requireUser()`
+
+The full message reads `Type '[]' is not assignable to type '"patient" |
+"staff" | readonly ["patient" | "staff", ...("patient" | "staff")[]] |
+undefined'`.
+
+**Why:** `requireUser(ctx, { type: [] })` — an empty list admits no user.
+The compiler refuses it here; a list built at run time that comes out empty
+throws
+[`TypeError: requireUser(): type is an empty list, which no user could pass`](#typeerror-requireuser-type-is-an-empty-list-which-no-user-could-pass).
+
+**Fix:** name at least one user type, `{ type: ['staff'] }`, or leave `type`
+out to admit any signed-in user.

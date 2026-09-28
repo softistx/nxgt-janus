@@ -103,7 +103,7 @@ describe('@permission denials', () => {
 
 	it('answers an id no object can hold NOT_FOUND, with no check', async () => {
 		const { yoga, ada, asked } = await setUp();
-		for (const id of ['', 'w1#nurses', 'w1@x', '(w1)']) {
+		for (const id of ['', 'w1#nurses', 'w1@x', '(w1)', 'w1\u0000', '\ud800']) {
 			const { body } = await ask(
 				yoga,
 				'query ($id: ID!) { ward(id: $id) }',

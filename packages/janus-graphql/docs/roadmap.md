@@ -5,7 +5,7 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **The first release** — the package published, now that its floors hold.
+Nothing between releases.
 
 ## Next
 
@@ -42,29 +42,18 @@ Nothing yet.
 
 ## Shipped
 
-Nothing released yet: the package is private until its first release.
+Newest first; from the first release on, the package's CHANGELOG holds every one.
 
-### Unreleased, on `develop`
-
-- **The floors, measured** — the specs and the typecheck run on the oldest
-  `graphql` (16.9.0), `@graphql-tools/utils` (10.0.0) and `@envelop/core`
-  (5.0.0) the peer ranges admit, together and with one copy of `graphql`, in
-  CI's Floors job, so the ranges the README states are ones a suite has
-  passed.
-- **`@permission`, enforced** — `@permission(name, type, id, onDeny)` on a
-  field, a type or an interface lets a field resolve only for a user who
-  holds permission `name` on the object of `type` whose id `id` reads:
-  `args.<path>` or `parent.<path>`, `args.id` on a field and `parent.id` on a
-  type or an interface when absent. The parent is checked itself, so its
-  `fromField`s are read from it; an id alone is loaded by
-  `useJanus({ loaders })`, and a condition's `ctx` comes from
-  `useJanus({ conditions })`. A list of ids requires the permission on every
-  one. Repeated, every one must hold, asked in order; a denial answers
-  `NOT_FOUND`, 404, unless `onDeny: FORBIDDEN`. The same question asked twice
-  in one request — by two fields, or by a directive and `can()` — is one
-  check. What no request could pass is refused at start-up, naming the
-  field.
-- **The first slice** — `useJanus()` with the lazy `ctx.janus`,
-  `@authenticated` on fields, types and interfaces, `requireUser()` and
-  `can()`, `janusMaskError()`, and the SDL as `janusTypeDefs` and
-  `graphql/janus.graphqls`.
+- **The first release, v0.1.0.** GraphQL for `@nxgt/janus`, as an envelop
+  plugin: `useJanus()` with a lazy `ctx.janus`, authenticated only when a
+  field asks; `@authenticated` on fields, types and interfaces, for any user
+  or some user types; `@permission(name, type, id, onDeny)`, reading the id
+  from `args.<path>` or `parent.<path>`, loading an object by id through
+  `loaders` and a condition's `ctx` through `conditions`, one check per
+  question per request, and a denial answered `NOT_FOUND` unless
+  `onDeny: FORBIDDEN`; `requireUser()` and `can()` for a resolver;
+  `janusMaskError()`, an outage as 503; and the SDL as `janusTypeDefs` and
+  `graphql/janus.graphqls`. What no request could pass is refused at
+  start-up, naming the field. The specs and the typecheck also run on the
+  peer floors — `graphql` 16.9.0, `@graphql-tools/utils` 10.0.0 and
+  `@envelop/core` 5.0.0 — in CI.

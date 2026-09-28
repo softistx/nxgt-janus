@@ -42,20 +42,20 @@ export const yoga = createYoga({
 });
 ```
 
-> **Not published yet.** The package is private until its first release —
-> see the [roadmap](docs/roadmap.md).
+> **0.x.** A minor version may still change the surface; the changelog says how.
 
 ## Install
 
 ```sh
-bun add @nxgt/janus-graphql @nxgt/janus graphql @graphql-tools/utils @envelop/core typescript
+bun add @nxgt/janus-graphql @nxgt/janus graphql @graphql-tools/utils @envelop/core
+bun add -d typescript        # 6
 ```
 
 Every peer is required:
 
 | Peer | Range | Why |
 | --- | --- | --- |
-| `@nxgt/janus` | the workspace's own version | A **peer**, never a dependency: this package defines no error class, so the `JanusError` a resolver throws is the one you import |
+| `@nxgt/janus` | the minor released beside it — `peerDependencies` states the range | A **peer**, never a dependency: this package defines no error class, so the `JanusError` a resolver throws is the one you import |
 | `graphql` | `^16.9.0 \|\| ^17.0.0` | The schema and `GraphQLError` are yours; a second copy of `graphql` fails every schema |
 | `@graphql-tools/utils` | `>=10.0.0 <13` | `mapSchema` and `getDirective`, which apply the directives |
 | `@envelop/core` | `^5.0.0` | Types only — the `Plugin` `useJanus()` answers. Yoga already brings it |
@@ -80,13 +80,13 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `useJanus({ auth, access?, type?, loaders?, conditions? })` | The envelop plugin. Adds `ctx.janus` to every request's context, and applies the directives to every schema the server is given, once. `type` treats a user of any other type as anonymous. `loaders` and `conditions` are what `@permission` needs beside `access` |
 | `ctx.janus.user()`, `ctx.janus.session()` | Who the request belongs to, and the session it presented — `null` for an anonymous request. `auth.authenticate(request)` runs the first time either is asked, once per request, and never when neither is |
 | `ctx.janus.access` | The `permissions()` instance given to `useJanus()`. Absent from the type — and from the context — without one |
-| `janusTypeDefs` | The SDL: `@authenticated`, `@permission` and the `PermissionDenial` enum. The same text as `graphql/janus.graphqls` |
+| `janusTypeDefs` | The SDL: `@authenticated`, `@permission` and the `JanusPermissionDenial` enum — prefixed, so it never collides with a type of your schema. The same text as `graphql/janus.graphqls` |
 | `@authenticated(type: [String!])` | On a field, a type or an interface. A signed-in user, of one of the `type`s when it names some. Anonymous: `UNAUTHENTICATED`. Another type: `FORBIDDEN`. Every one that applies — the field's, its type's, its interfaces' — must hold |
 | `@permission(name, type, id, onDeny)` | On a field, a type or an interface. A user holding permission `name` on the object of `type` whose id `id` reads — `args.<path>` or `parent.<path>`; `args.id` on a field, `parent.id` on a type. A list requires it on every id. Repeated, every one must hold, in order. Denied: `NOT_FOUND`, or `FORBIDDEN` with `onDeny: FORBIDDEN` |
 | `loaders: { [type]: (id, ctx) => object \| null }` | The object `@permission` checks for an id alone — from `args`, or a parent field other than `id` — required for a type with a `fromField`, whose fields `access.can` reads. `null` answers `NOT_FOUND` |
 | `conditions: { [type]: (object, ctx) => ctx }` | The `ctx` `@permission` passes to `access.can` for a permission that reaches a `when()` |
 | `applyJanusDirectives(schema, { auth, type?, access?, loaders?, conditions? })` | The schema transform alone — what `useJanus()` runs — to check a schema in a test or a build script. Throws a `TypeError` naming the field for a directive no request could pass. Its guards read `ctx.janus`, which only `useJanus()` builds |
-| `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
+| `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a non-empty list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
 | `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false`. Shares the request's checks with `@permission`: one question, one check per request |
 | `janusMaskError(fallback?)` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback` |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
@@ -218,15 +218,16 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 
 ## Type safety, counted
 
-Twenty-three plausible mistakes are refused by the compiler, each with a
+Twenty-four plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
   `null` (twice), a field of another user type once `JanusContext` is narrowed,
   `ctx.janus.access` where `useJanus()` was given none, and a context narrowed
   to a user type the instance does not know;
-- eight in `helpers.ts`: `requireUser()` — a field of another user type once
-  narrowed, a user type the instance does not know — and `can()` — a
+- nine in `helpers.ts`: `requireUser()` — a field of another user type once
+  narrowed, a user type the instance does not know, an empty list of user
+  types — and `can()` — a
   permission the object's type does not declare, an object type the model
   does not, an object without a field a `fromField` reads, a condition reached
   with no `ctx`, a `ctx` of the wrong shape, and a context with no `access`;

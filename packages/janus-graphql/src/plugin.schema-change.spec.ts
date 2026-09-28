@@ -111,4 +111,15 @@ describe('useJanus() wiring', () => {
 			),
 		);
 	});
+
+	it('refuses with a TypeError an access that is not what permissions() answered', () => {
+		const { auth } = setup();
+		for (const access of [{}, null]) {
+			expect(() => useJanus({ auth, access: access as never })).toThrow(
+				new TypeError(
+					'useJanus(): access is not what permissions() answered — pass { auth, access }',
+				),
+			);
+		}
+	});
 });

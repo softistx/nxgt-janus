@@ -316,11 +316,9 @@ What this commits us to in the code:
 
 ## Layout
 
-Eleven packages under `packages/`: the core `@nxgt/janus`, and the adapters
-and integrations that peer it — one of them, `@nxgt/janus-graphql`, still
-private (see *A new package starts private*). The core has several entry
-points, below. A
-published entry point is a **public promise**, so a subpath appears in
+Eleven packages under `packages/`, all published: the core `@nxgt/janus`, and
+the adapters and integrations that peer it. The core has several entry
+points, below. A published entry point is a **public promise**, so a subpath appears in
 `exports` only once it exports something a consumer should call.
 
 | Entry point | State |
@@ -441,7 +439,8 @@ is the whole point of having them from commit 1.
 Removing `"private"` is what makes a package publishable. It is a deliberate
 commit of its own, with the changeset that versions it, and not something to do
 while fixing something else. `@nxgt/janus` and `@nxgt/janus-mongo` lost it
-together, for v0.1, when the repository went public.
+together, for v0.1, when the repository went public; every package since has
+lost it the same way, `@nxgt/janus-graphql` last.
 
 **A private package never gets a changeset before that commit.** `changeset
 version` would consume it and `publish.ts` skip the package, keeping the
@@ -503,7 +502,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | `test/mongo.ts`, the pinned replica set the specs start | `packages/janus-mongo/test/server.ts`, `packages/janus-kit/test/mongo.ts` | Same; the mongod version in both keys the one `.cache/mongodb` |
 | The DDL helper, drizzle-kit's `generateMigration` over `defineJanusTables()` | `packages/janus-drizzle/test/db.ts`, `packages/janus-kit/test/postgres.ts` | Same |
 | The integrations' reading of `janus()` and of a refusal — `Auth`, `UserOfAuth`, and the fields a client may read from a `JanusError` (`issues`, `minLength`, `attemptsLeft`) | `packages/janus-hono/src/{session,errors}.ts` (`bodyOf`), `packages/janus-graphql/src/{types,errors}.ts` (`actionable`) | Each is a few lines typed against its framework — Hono's `Env`, GraphQL's `extensions` — and the rule behind the fields is `@nxgt/janus`'s: never `reason`, `login` or a cause. The status table is **not** duplicated: both answer `@nxgt/janus`'s `statusOf`, moved there so a third integration does not copy it. A field added to what a client may read belongs in both |
-| The characters no object id may hold — `@`, `#`, parentheses — and the empty id | `packages/janus/src/permissions/input.ts` (`RESERVED`, `idOf`), `packages/janus-graphql/src/directives/permission/enforce.ts` (`UNNAMEABLE`) | `@nxgt/janus/permissions` exports no predicate for it, and one regular expression is not worth a public promise. `can()` refuses such an id with a `TypeError`; `@permission` reads ids a client sent, so it answers them `NOT_FOUND` before asking. Change one, change both, or an id the core refuses becomes a 500 |
+| The characters no object id may hold — `@`, `#`, parentheses — and the empty id; and what no store keeps — a NUL character, a lone surrogate | `packages/janus/src/permissions/input.ts` (`RESERVED`, `idOf`) and `packages/janus/src/stores/storable.ts` (`isStorable`), `packages/janus-graphql/src/directives/permission/enforce.ts` (`UNNAMEABLE`, `isNameable`) | `@nxgt/janus/permissions` exports no predicate for either, and a regular expression and a two-term test are not worth a public promise. `can()` refuses the first with a `TypeError` and holds the second for nobody; `@permission` reads ids a client sent, so it answers both `NOT_FOUND` before asking, and never hands them to the application's loader. Change one, change both, or an id the core refuses becomes a 500 |
 | The conformance helpers — `equal`, `ok`, `rejects`, `isOurs`, `describeSuite`, `fromGlobals` | `packages/janus/src/conformance/{assert,describe}.ts`, `packages/janus-webhooks/src/conformance/{assert,describe}.ts` | `@nxgt/janus/conformance` exports its suites, not its helpers, and a second port's suite in another package needs them; exporting them would make them a public promise for 150 lines. Both `isOurs` take the error's `name` rather than reading `cls.name`, since `@nxgt/janus`'s bundle renames `StoreFailure` to `StoreFailure2`, and their bodies are identical. The copy has no `isNull`: a queue answers no `null`. Change one, change both |
 
 ---
