@@ -654,10 +654,10 @@ async events(event) {
 		const user = await auth.get(event.userId);
 		const recoveryCodesLeft = await auth.secondFactor.recoveryCodesLeft(user); // the event has the id only
 		if (recoveryCodesLeft === null) return; // the factor was turned off since
-		await mail.recoveryCodeUsed(
-			{ name: user.name, locale: user.locale, email: user.email },
-			{ when: event.occurredAt.toLocaleString(user.locale), recoveryCodesLeft },
-		);
+		const when = new Intl.DateTimeFormat(user.locale, { dateStyle: 'long', timeStyle: 'short', timeZone }).format(
+			event.occurredAt,
+		); // timeZone: the user's, from your own data
+		await mail.recoveryCodeUsed({ name: user.name, locale: user.locale, email: user.email }, { when, recoveryCodesLeft });
 	}
 },
 ```

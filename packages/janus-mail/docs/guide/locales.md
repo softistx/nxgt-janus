@@ -109,7 +109,7 @@ With only some templates, the call does not compile — the error lands on
 `templates`:
 
 ```text
-TS2740: Type '{ verifyEmail: () => Rendered; }' is missing the following properties from type 'JanusMailTemplates<"en" | "fr" | "de">': welcome, resetPassword, signInCode, passwordChanged, and 4 more.
+TS2740: Type '{ verifyEmail: () => Rendered; }' is missing the following properties from type 'JanusMailTemplates<"en" | "fr" | "de">': resetPassword, signInCode, passwordChanged, emailChanged, and 4 more.
 ```
 
 and in JavaScript it throws when `janusMail()` is called:

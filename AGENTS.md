@@ -406,7 +406,10 @@ no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
 `@nxgt/mail` 0.1.0 reads and that exactly the
 nine e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
-a peer.
+a peer. The `maizzle` bin runs on the `node` on the `PATH`, even under
+`bun run`, and Maizzle 6.1.7 needs Node `^22.22.3`, `^24.15.0` or `>=26`
+(`postcss-merge-longhand` 9 calls `Set.prototype.difference`): under Node 20
+the mail build fails, while sending stays on Node 20 or later.
 
 **What a build writes outside `dist/` goes beside it, never in it.** The root
 `build.ts` removes from `dist/` every file it did not write — that is how a

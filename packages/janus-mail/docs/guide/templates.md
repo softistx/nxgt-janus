@@ -87,7 +87,7 @@ a locale of its own is given what the caller wrote:
 templates: {
 	recoveryCodeUsed: ({ name, when, recoveryCodesLeft, link }) => ({
 		subject: 'Ein Wiederherstellungscode wurde verwendet',
-		html: `<p>Hallo ${escape(name)}, am ${escape(when)}.</p><p>${escape(recoveryCodesLeft)}</p><p><a href="${link}">Konto sichern</a></p>`,
+		html: `<p>Hallo ${escape(name)}, am ${escape(when)}.</p><p>${escape(recoveryCodesLeft)}</p><p><a href="${escape(link)}">Konto sichern</a></p>`,
 		text: `Hallo ${name}, am ${when}.\n\n${recoveryCodesLeft}\n\n${link}`,
 	}),
 },
@@ -192,7 +192,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 
 Each has a header and a footer with the brand, a heading, a greeting by name
 (but `signInCode`), a button with its link and the link again in text for a
-client that shows no button, and a text part. The four notices add a warning:
+client that shows no button, and a text part. The other four notices add a warning:
 *if this was not you, secure your account now*. `recoveryCodeUsed` says it
 too, after a warning banner — *a recovery code was used on your account at
 `when`* — the codes left, and a line on generating new ones; its button says

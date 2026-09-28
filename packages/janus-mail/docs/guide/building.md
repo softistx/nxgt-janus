@@ -15,7 +15,8 @@ bun run build:mail   # the e-mails alone
 runs on the Node installed — Bun stands in only where there is none — and
 Maizzle 6.1.7 depends on `postcss-merge-longhand` 9, whose
 `Set.prototype.difference` Node 20 lacks: under Node 20 the build fails
-inside `postcss-merge-longhand`. CI's `ubuntu-24.04` runners
+inside `postcss-merge-longhand`. CI installs no Node: its GitHub-hosted
+Ubuntu runners (`ubuntu-latest`, and `ubuntu-24.04` for the Floors job)
 carry Node 24. Sending needs none of this: `@nxgt/mail` and its transports
 run on Node 20 or later.
 
@@ -84,7 +85,13 @@ then `other` — and writes the count with `Intl.NumberFormat`.
   `recovery-code-used.codes-left` when it overrides it, else the preset's.
 - **Its shape is checked**: one cardinal plural on `recoveryCodesLeft`, with
   an `other` branch and no offset, holding only text and `#`. Anything else
-  fails the build, naming the locale — the send could not format it.
+  fails the build, naming the locale — the send could not format it:
+
+| Message | Cause | Fix |
+| --- | --- | --- |
+| `build-mail: de has no recovery-code-used.codes-left — add it to mail/locales/de.json` | A built locale whose catalogue lacks the message | Add `recovery-code-used.codes-left` to `mail/locales/<locale>.json` |
+| `build-mail: de's recovery-code-used.codes-left must be one plural on recoveryCodesLeft, with an other branch and no offset` | The message is not a single cardinal plural on that argument, lacks `other`, or has an `offset` | Write it as `{recoveryCodesLeft, plural, one {…} other {…}}` |
+| `build-mail: de's recovery-code-used.codes-left holds something other than text and # in a branch` | A branch holds another argument, a nested plural or a tag | Keep each branch to text and `#` |
 - **It equals `createTranslator`**: `src/codes-left.spec.ts` formats every
   count from 0 to 1,100 in every built locale both ways, and
   `scripts/codes-left.spec.ts` holds the committed file equal to what the
@@ -98,7 +105,7 @@ specs and its typecheck run on in the Floors job, on every CI run. The
 manifest says which format it is in — `formatVersion`, its first key,
 `MANIFEST_FORMAT` of the `@nxgt/mail-i18n` that built it — and a renderer
 reads every format up to its own.
-`@nxgt/mail` 0.1.0 through 1.0.0 read format 1, `@nxgt/mail-i18n` 1.0.0
+`@nxgt/mail` 0.1.0 through 1.0.1 read format 1, `@nxgt/mail-i18n` 1.0.1
 still writes it, and a manifest without the field is format 1.
 
 `formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build

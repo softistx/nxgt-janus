@@ -57,7 +57,7 @@ run.
 
 It reads its prebuilt e-mails with `node:fs`: **Node (20 or later), Bun or
 Deno**, not an edge runtime. Rebuilding the e-mails from this repository
-needs Node 22.22.3 or later, for Maizzle — see
+needs Node `^22.22.3`, `^24.15.0` or `>=26`, for Maizzle — see
 [Building](docs/guide/building.md); installing the package needs no build. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 ## API
