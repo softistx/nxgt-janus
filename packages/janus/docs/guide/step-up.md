@@ -69,6 +69,15 @@ try {
 type with no e-mail has no `stepUp`: it is absent from its type.
 
 ```ts
+const clinic = janus({
+	users: {
+		patient: { schema: Patient, password: { login: 'email' } },   // has stepUp
+		staff: { schema: Staff, password: { login: 'username' } },    // no e-mail field
+	},
+	store,
+	hasher,
+});
+
 // @ts-expect-error — staff have no e-mail to send a code to
 clinic.staff.stepUp;
 ```
@@ -132,6 +141,7 @@ user's is refused as `TOKEN_UNKNOWN`, as a challenge nobody issued is.
 | `SECOND_FACTOR_ACTIVE` | an e-mailed code, and the user activated a second factor since: request again, the app confirms now |
 | `SECOND_FACTOR_NOT_ENROLLED` | an app's challenge, and the factor was disabled since |
 | `USER_INACTIVE` | the user was deactivated |
+| `VERSION_CONFLICT` | an app's code sent twice at once: the other confirmation stamped the session |
 
 Every attempt is counted before anything is compared — a guess that fails
 for any reason has cost one — as for a sign-in code. An app's codes are also

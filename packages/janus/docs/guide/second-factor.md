@@ -488,21 +488,16 @@ its first ten.
 | `VERSION_CONFLICT` | `{ ifVersion }` no longer matches, or another call changed the user meanwhile — the same code tried twice at once regenerates once |
 
 Like `enroll` and `disable`, `regenerateRecoveryCodes` does not know who is
-calling: pass the user from `auth.authenticate(request)`, and apply your
-[recent sign-in rule](#asking-before-enroll-and-disable-is-your-policy)
-first. The app's code is the one check `janus` makes itself.
+calling: pass the user from `auth.authenticate(request)`, and ask for a
+[recent proof](#asking-before-enroll-and-disable-is-your-policy) first. The app's code is the one check `janus` makes itself.
 
 ```ts
-import { TokenError } from '@nxgt/janus';
-
-const RECENT = 5 * 60_000;
+import { TokenError, assertFresh } from '@nxgt/janus';
 
 export async function regenerateRecoveryCodes(request: Request): Promise<Response> {
 	const current = await auth.authenticate(request);
 	if (current === null) return new Response(null, { status: 401 });
-	if (Date.now() - current.session.authenticatedAt.getTime() > RECENT) {
-		return Response.json({ error: 'signInAgain' }, { status: 403 });
-	}
+	assertFresh(current.session, '5m'); // STEP_UP_REQUIRED (403): a step-up first
 	const { code } = (await request.json()) as { code: string };
 	try {
 		const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(current.user, code);

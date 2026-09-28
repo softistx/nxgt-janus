@@ -26,6 +26,7 @@ for what causes each.
 - [`TypeError: permission(): c.var.object is already set`](#typeerror-permission-cvarobject-is-already-set)
 - [`TypeError: permission(): c.var.user is not set`](#typeerror-permission-cvaruser-is-not-set)
 - [`TypeError: fresh(): c.var.session is not set — put session(auth) before it`](#typeerror-fresh-cvarsession-is-not-set--put-sessionauth-before-it)
+- [`TypeError: fresh: maxAge: "<value>" is not a duration …`](#typeerror-fresh-maxage-value-is-not-a-duration-)
 - [`403 {"code":"STEP_UP_REQUIRED"}` for a signed-in user](#403-codestep_up_required-for-a-signed-in-user)
 - [`403` where the user should be allowed](#403-where-the-user-should-be-allowed)
 - [`401` with an empty body, for a signed-in user](#401-with-an-empty-body-for-a-signed-in-user)
@@ -226,6 +227,21 @@ answered 401.
 
 ```ts
 app.delete('/account', session(auth, { required: true }), fresh('10m'), handler);
+```
+
+### `TypeError: fresh: maxAge: "<value>" is not a duration …`
+
+**When:** when the app is wired — the line that calls `fresh('10 minutes')`
+throws, before any request.
+
+**Why:** a `maxAge` is a number of milliseconds, or a number followed by
+one unit — `ms`, `s`, `m`, `h` or `d`. The type refuses most mistakes;
+a computed string or a space (`'10 m'`) reaches here.
+
+**Fix:**
+
+```ts
+fresh('10m'); // or fresh(600_000)
 ```
 
 ### `403 {"code":"STEP_UP_REQUIRED"}` for a signed-in user

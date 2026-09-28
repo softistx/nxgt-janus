@@ -96,7 +96,7 @@ How the messages are shaped:
 - [`SECOND_FACTOR_NOT_ENROLLED` — `stepUp.confirm: the user no longer has a second factor …`](#second_factor_not_enrolled--stepupconfirm-the-user-no-longer-has-a-second-factor--request-a-step-up-again)
 - [`CODE_INVALID` — `stepUp.confirm: too many codes tried …`](#code_invalid--stepupconfirm-too-many-codes-tried--wait-for-the-next-15-minute-window)
 - [`NOT_FOUND` — `stepUp.request: the user has no e-mail`](#not_found--stepuprequest-the-user-has-no-e-mail)
-- [`TS2339: Property 'code' does not exist on type 'StepUpByApp<…>'.`](#ts2339-property-code-does-not-exist-on-type-stepupbyapp)
+- [`TS2339: Property 'code' does not exist on type 'StepUpByEmail<…> | StepUpByApp<…>'.`](#ts2339-property-code-does-not-exist-on-type-stepupbyemail--stepupbyapp)
 - [`TS2339: Property 'stepUp' does not exist on type 'TypeApi<…>'.`](#ts2339-property-stepup-does-not-exist-on-type-typeapi)
 
 **User events**
@@ -328,7 +328,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode` and `secondFactor.challenge`. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.stepUp` and `secondFactor.challenge` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.
@@ -1197,7 +1197,9 @@ an optional field left unset — and whose second factor is not active.
 **Fix:** ask for the e-mail first. A user with an active second factor
 never meets this: the step-up asks for their app's code.
 
-### `TS2339: Property 'code' does not exist on type 'StepUpByApp<…>'.`
+### `TS2339: Property 'code' does not exist on type 'StepUpByEmail<…> | StepUpByApp<…>'.`
+
+Followed by `Property 'code' does not exist on type 'StepUpByApp<…>'.`
 
 **When:** `tsc`, on `issued.code` after `stepUp.request`, with
 `secondFactor` configured on a type with a password.

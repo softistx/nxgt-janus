@@ -81,7 +81,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.secondFactor.recoveryCodesRegenerated` | info | `regenerateRecoveryCodes`, with the `user.id` it was called for — never a code |
 | `janus.stepUp.asked` | info | `stepUp.request` issued a challenge, with the `user.id` and `janus.stepUp.via` — `email` when a code is to be sent, `secondFactor` when the user's app confirms it |
 | `janus.stepUp.confirmed` | info | `stepUp.confirm` stamped the session as freshly confirmed, with the session's `user.id` |
-| `janus.stepUp.refused` | **warn** | a step-up was refused, with `janus.refusal` — `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft`, a `TOKEN_*` code, `USER_INACTIVE`, `SECOND_FACTOR_ACTIVE` or `SECOND_FACTOR_NOT_ENROLLED` — never the code nor the challenge |
+| `janus.stepUp.refused` | **warn** | a step-up was refused, with `janus.refusal` — `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft`, a `TOKEN_*` code, `USER_INACTIVE`, `SECOND_FACTOR_ACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for an app's code sent twice at once — never the code nor the challenge |
 | `janus.signOut` | info | a session was signed out |
 | `janus.signOutEverywhere` | info | every session of a user was revoked |
 | `janus.user.deleted` | info | a user was deleted |

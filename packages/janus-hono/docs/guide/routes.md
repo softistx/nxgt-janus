@@ -286,6 +286,8 @@ app.post('/api/sign-in', async (c) => {
 The user is signed in for these, so `session()` names them:
 
 ```ts
+import { fresh, session } from '@nxgt/janus-hono';
+
 app.post('/account/second-factor', session(auth, { required: true }), async (c) => {
 	const { secret, uri } = await auth.secondFactor.enroll(c.var.user);
 	c.header('Cache-Control', 'no-store'); // the secret is shown once, and never cached
@@ -306,11 +308,8 @@ app.post('/account/second-factor/recovery-codes', session(auth, { required: true
 	return c.json({ recoveryCodes });
 });
 
-app.delete('/account/second-factor', session(auth, { required: true }), async (c) => {
-	// your policy: a session opened in the last five minutes, so its holder just proved themselves
-	if (Date.now() - c.var.session.authenticatedAt.getTime() > 5 * 60_000) {
-		return c.json({ error: 'signInAgain' }, 403);
-	}
+// Your policy: a proof in the last five minutes — a sign-in or a step-up.
+app.delete('/account/second-factor', session(auth, { required: true }), fresh('5m'), async (c) => {
 	await auth.secondFactor.disable(c.var.user);
 	return c.body(null, 204);
 });
