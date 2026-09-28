@@ -5,17 +5,11 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **`@permission`, enforced** — `@permission(name, type, id, onDeny)` on a
-  field, a type or an interface lets a field resolve only for a user who holds
-  permission `name` on the object of `type` whose id `id` reads: `args.<path>`
-  or `parent.<path>`, `args.id` on a field and `parent.id` on a type when
-  absent. It mirrors `@nxgt/janus-hono`'s `permission(access, permission, type, load)`.
-  Repeated, every one must hold, checked in the order written; an either-or
-  belongs in the model, not the schema. A denial answers `NOT_FOUND`, 404,
-  unless `onDeny: FORBIDDEN` says otherwise, and the same question asked twice
-  in one request — by two fields, or by a directive and a resolver's `can()`
-  — costs one check. Until it lands, the directive is declared and a schema
-  using it is refused at start-up.
+- **The floors, measured** — the oldest `graphql` (16.9.0) and
+  `@graphql-tools/utils` (10.0.0) the peer ranges admit, run in CI as the
+  other packages' floors are, so the range the README states is one a
+  suite has passed.
+- **The first release** — the package published, once those floors hold.
 
 ## Next
 
@@ -25,6 +19,10 @@ are no dates here, and the version something shipped in is the only number.
 - **`@fresh(maxAge)`** — a field only a session signed in less than `maxAge`
   ago may resolve: a password change, a new e-mail, a payment method, asked
   again of a session that is days old.
+- **The renewed session cookie on GraphQL responses** — `authenticate`
+  renews a sliding session in passing; the response would then carry its
+  `Set-Cookie`, so a browser keeps the new expiry without an HTTP route of
+  its own.
 
 ## Later
 
@@ -48,7 +46,24 @@ Nothing yet.
 
 ## Shipped
 
-Nothing released yet: the package is private until `@permission` lands. On
-`develop`: `useJanus()` with the lazy `ctx.janus`, `@authenticated` on
-fields, types and interfaces, `requireUser()` and `can()`, `janusMaskError()`,
-and the SDL as `janusTypeDefs` and `graphql/janus.graphqls`.
+Nothing released yet: the package is private until its first release.
+
+### Unreleased, on `develop`
+
+- **`@permission`, enforced** — `@permission(name, type, id, onDeny)` on a
+  field, a type or an interface lets a field resolve only for a user who
+  holds permission `name` on the object of `type` whose id `id` reads:
+  `args.<path>` or `parent.<path>`, `args.id` on a field and `parent.id` on a
+  type or an interface when absent. The parent is checked itself, so its
+  `fromField`s are read from it; an id alone is loaded by
+  `useJanus({ loaders })`, and a condition's `ctx` comes from
+  `useJanus({ conditions })`. A list of ids requires the permission on every
+  one. Repeated, every one must hold, asked in order; a denial answers
+  `NOT_FOUND`, 404, unless `onDeny: FORBIDDEN`. The same question asked twice
+  in one request — by two fields, or by a directive and `can()` — is one
+  check. What no request could pass is refused at start-up, naming the
+  field.
+- **The first slice** — `useJanus()` with the lazy `ctx.janus`,
+  `@authenticated` on fields, types and interfaces, `requireUser()` and
+  `can()`, `janusMaskError()`, and the SDL as `janusTypeDefs` and
+  `graphql/janus.graphqls`.

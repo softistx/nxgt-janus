@@ -5,6 +5,7 @@
  */
 
 import type { Authenticated, RequestLike } from '@nxgt/janus';
+import { memoized } from './memo';
 import type { JanusOnContext } from './types';
 
 /** One check, as `access.can` answers it — loose: the typing is the caller's. */
@@ -33,7 +34,7 @@ type Built = JanusOnContext<AnyUser, unknown>;
  * `access`; it is the one place a request's checks pass through, and so the
  * one place a per-request memo of their answers goes.
  */
-const checks = new WeakMap<object, Check>();
+const checks = new WeakMap<object, { memo: Check; fresh: Check }>();
 
 /** What `createJanusContext` reads from `useJanus()`'s options. */
 export interface ContextOptions {
@@ -81,18 +82,28 @@ export function createJanusContext(
 		session: () => authenticated().then((current) => current?.session ?? null),
 		...(access === undefined ? {} : { access }),
 	});
-	if (access !== undefined) checks.set(janus, access.can as Check);
+	if (access !== undefined) {
+		const can = access.can as Check;
+		checks.set(janus, {
+			memo: memoized(access),
+			fresh: (...args) => can.apply(access, args),
+		});
+	}
 	return janus as Built;
 }
 
 /**
  * The check `ctx.janus` answers through: the one its context was built
- * with, or `access.can` for a context built by hand. `null` when it has no
+ * with — `access.can`, memoized for the request (`memo.ts`) — or
+ * `access.can` itself for a context built by hand. `null` when it has no
  * `access` at all.
+ *
+ * `fresh` skips the memo: a subscription is one request whose checks run
+ * again on every event, and must see a `revoke()` made since it started.
  */
-export function checkOf(janus: object): Check | null {
+export function checkOf(janus: object, fresh = false): Check | null {
 	const built = checks.get(janus);
-	if (built !== undefined) return built;
+	if (built !== undefined) return fresh ? built.fresh : built.memo;
 	const access = (janus as { readonly access?: { readonly can?: unknown } })
 		.access;
 	return typeof access?.can === 'function' ? (access.can as Check) : null;

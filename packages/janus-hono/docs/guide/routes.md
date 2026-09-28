@@ -39,6 +39,16 @@ app.onError((error, c) => {
 an `HTTPException` answers its own response and anything else is a logged
 500, as Hono does by default.
 
+A wrapper around `janusErrors()` takes the same options, `JanusErrorsOptions`,
+with your defaults:
+
+```ts
+import { type JanusErrorsOptions, janusErrors } from '@nxgt/janus-hono';
+
+export const appErrors = (options: JanusErrorsOptions = {}) =>
+	janusErrors({ report: (error) => logger.error(error), ...options });
+```
+
 ### Binding the instances once
 
 Every function of this package takes `auth` or `access` first.
@@ -56,6 +66,27 @@ app.post('/sign-in', async (c) => {
 	return c.json({ id: user.id });
 });
 ```
+
+A module of routes that receives `j` rather than importing it types it
+`Bound<…>`, over the types of the instances it was given — only what is given
+is bound, so `Bound<{ auth: typeof auth }>` has no `permission`:
+
+```ts
+import { type Bound, byParam } from '@nxgt/janus-hono';
+
+export type Janus = Bound<{ auth: typeof auth; access: typeof access }>;
+
+export const recordRoutes = (j: Janus) =>
+	new Hono()
+		.use(j.session(), j.provide())
+		.get('/records/:id', j.permission('view', 'record', byParam('id', (id) => records.find(id))), (c) =>
+			c.json(c.var.object),
+		);
+```
+
+`BoundSession`, `BoundAuth` and `BoundPermission` are its parts — `j.session`,
+the three functions `auth` brings, and `j.permission` — for a helper that needs
+only one of them.
 
 The rest of this guide writes the unbound form; each call reads the same with
 `j.` and without its first argument.

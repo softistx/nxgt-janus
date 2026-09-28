@@ -27,14 +27,16 @@ import type { Auth, JanusContext, JanusOptions, UserOfAuth } from './types';
  * ```
  *
  * `type` treats a user of any other type as anonymous, as
- * `auth.authenticate(request, { type })` does.
+ * `auth.authenticate(request, { type })` does. `loaders` and `conditions`
+ * are what `@permission` needs beside `access`: the objects it checks by id,
+ * and the `ctx` of the conditions it reaches.
  */
 export function useJanus<
 	A extends Auth<{ readonly type: string; readonly id: string }>,
 	P extends object | undefined = undefined,
 	const T extends UserOfAuth<A>['type'] = UserOfAuth<A>['type'],
 >(options: JanusOptions<A, P, T>): Plugin<JanusContext<A, P, T>> {
-	const { auth, access, type } = options;
+	const { auth, access, type, loaders, conditions } = options;
 	if (typeof auth?.authenticate !== 'function') {
 		throw new TypeError(
 			'useJanus(): auth is not what janus() answered — pass { auth }',
@@ -59,6 +61,9 @@ export function useJanus<
 			const next = applyJanusDirectives(schema, {
 				auth,
 				...(type === undefined ? {} : { type }),
+				access: access as { readonly model: unknown } | undefined,
+				loaders,
+				conditions,
 			});
 			applied.add(next);
 			replaceSchema(next);

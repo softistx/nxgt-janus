@@ -31,8 +31,8 @@ Yoga reads `extensions.http.status` to answer the HTTP response, and strips
 | Code | Status | Message | When |
 | --- | --- | --- | --- |
 | `UNAUTHENTICATED` | 401 | `Not signed in` | An anonymous request reached a field `@authenticated` guards, or `requireUser()` |
-| `FORBIDDEN` | 403 | `Forbidden` | A user of a type the directive or `requireUser({ type })` does not name |
-| `NOT_FOUND` | 404 | `Not found` | `denial('NOT_FOUND')` — and, once it lands, `@permission`'s default denial |
+| `FORBIDDEN` | 403 | `Forbidden` | A user of a type the directive or `requireUser({ type })` does not name, or a `@permission(onDeny: FORBIDDEN)` denied |
+| `NOT_FOUND` | 404 | `Not found` | `@permission`'s default denial, a loader answering `null`, an id `@permission` could not read — and `denial('NOT_FOUND')` |
 | `SERVICE_UNAVAILABLE` | 503 | `The service is unavailable, retry later` | A store could not answer: `STORE_FAILED` |
 | any other `JanusErrorCode` | its `statusOf(code)` | fixed per status: `Invalid request` 400, `Invalid credentials` 401 (`CREDENTIALS_INVALID`, `CODE_INVALID`), `Forbidden` 403, `Not found` 404, `Conflict` 409, `Internal server error` 500 and 501 | A `JanusError` a resolver let through — `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, `TOKEN_EXPIRED` 400, … |
 
@@ -51,13 +51,15 @@ status, and a client tells refusals apart by `code`.
 ## An outage is never a denial
 
 **An absence is `null`; a failure throws** — and here a failure is never
-answered `UNAUTHENTICATED` or `FORBIDDEN`. A 401 during an outage tells every
-user they are signed out; a 403 tells them they lost their rights. Both send
-them somewhere a retry would not.
+answered `UNAUTHENTICATED`, `FORBIDDEN` or `NOT_FOUND`. A 401 during an
+outage tells every user they are signed out; a 403 tells them they lost their
+rights; a 404 tells them the record is gone. All send them somewhere a retry
+would not.
 
 | Where the store fails | Answered |
 | --- | --- |
-| a field `@authenticated` guards | `SERVICE_UNAVAILABLE`, 503 — with or without `janusMaskError()` |
+| a field `@authenticated` or `@permission` guards | `SERVICE_UNAVAILABLE`, 503 — with or without `janusMaskError()` |
+| a `loaders` entry throwing `StoreFailure` — or any `JanusError` — for `@permission` | the `JanusError`'s status: `SERVICE_UNAVAILABLE`, 503, for `STORE_FAILED` — with or without `janusMaskError()` |
 | `requireUser(ctx)`, `can(ctx, …)` | `SERVICE_UNAVAILABLE`, 503 — with or without `janusMaskError()` |
 | `ctx.janus.user()` read in a resolver, any `auth.*` or `access.*` call | `SERVICE_UNAVAILABLE`, 503 with `janusMaskError()`; Yoga's masked 500 without it |
 

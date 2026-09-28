@@ -2,15 +2,16 @@
 
 [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) in a GraphQL
 server: the signed-in user on the context, authenticated only when a field
-asks, fields and types guarded by `@authenticated`, and every error answered
-with the status it deserves — an outage as 503, never as 401 or 403.
+asks, fields and types guarded by `@authenticated` and `@permission`, and
+every error answered with the status it deserves — an outage as 503, never
+as 401, 403 or 404.
 
 An [envelop](https://the-guild.dev/graphql/envelop) plugin, so it runs in
 [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server) and any server built
 on envelop.
 
 ```ts
-import { janusMaskError, janusTypeDefs, type JanusContext, requireUser, useJanus } from '@nxgt/janus-graphql';
+import { janusMaskError, janusTypeDefs, type JanusContext, useJanus } from '@nxgt/janus-graphql';
 import { createSchema, createYoga, type YogaInitialContext } from 'graphql-yoga';
 import { access } from './access'; // what permissions() answered
 import { auth } from './auth'; // what janus() answered
@@ -20,10 +21,10 @@ type Context = YogaInitialContext & JanusContext<typeof auth, typeof access>;
 const typeDefs = /* GraphQL */ `
 	type Query {
 		me: User @authenticated
-		ward(id: ID!): Ward
+		ward(id: ID!): Ward @permission(name: "enter", type: "ward")
 	}
 	type User { id: ID!, email: String }
-	type Ward @authenticated(type: ["staff"]) { id: ID!, name: String }
+	type Ward { id: ID!, name: String, roster: [String!] @authenticated(type: ["staff"]) }
 `;
 
 export const yoga = createYoga({
@@ -32,10 +33,7 @@ export const yoga = createYoga({
 		resolvers: {
 			Query: {
 				me: async (_: unknown, __: unknown, ctx: Context) => ctx.janus.user(), // never null here
-				ward: async (_: unknown, { id }: { id: string }, ctx: Context) => {
-					const staff = await requireUser(ctx, { type: 'staff' }); // typed: a staff member
-					return wards.find(id, staff.id);
-				},
+				ward: (_: unknown, { id }: { id: string }) => wards.find(id), // only for a user who may enter it
 			},
 		},
 	}),
@@ -44,9 +42,8 @@ export const yoga = createYoga({
 });
 ```
 
-> **Not published yet.** The package is private while its first slice lands;
-> `@permission` is declared in the SDL and comes next — see the
-> [roadmap](docs/roadmap.md).
+> **Not published yet.** The package is private until its first release —
+> see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -75,20 +72,60 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 
 | Export | What it is |
 | --- | --- |
-| `useJanus({ auth, access?, type? })` | The envelop plugin. Adds `ctx.janus` to every request's context, and applies the directives to every schema the server is given, once. `type` treats a user of any other type as anonymous |
+| `useJanus({ auth, access?, type?, loaders?, conditions? })` | The envelop plugin. Adds `ctx.janus` to every request's context, and applies the directives to every schema the server is given, once. `type` treats a user of any other type as anonymous. `loaders` and `conditions` are what `@permission` needs beside `access` |
 | `ctx.janus.user()`, `ctx.janus.session()` | Who the request belongs to, and the session it presented — `null` for an anonymous request. `auth.authenticate(request)` runs the first time either is asked, once per request, and never when neither is |
 | `ctx.janus.access` | The `permissions()` instance given to `useJanus()`. Absent from the type — and from the context — without one |
 | `janusTypeDefs` | The SDL: `@authenticated`, `@permission` and the `PermissionDenial` enum. The same text as `graphql/janus.graphqls` |
 | `@authenticated(type: [String!])` | On a field, a type or an interface. A signed-in user, of one of the `type`s when it names some. Anonymous: `UNAUTHENTICATED`. Another type: `FORBIDDEN`. Every one that applies — the field's, its type's, its interfaces' — must hold |
-| `@permission(name, type, id, onDeny)` | **Coming.** Declared, and refused by `applyJanusDirectives` until it is enforced — see the [roadmap](docs/roadmap.md) |
-| `applyJanusDirectives(schema, { auth, type? })` | The schema transform alone — what `useJanus()` runs — to check a schema in a test or a build script. Throws a `TypeError` naming the field for a directive no request could pass. Its guards read `ctx.janus`, which only `useJanus()` builds |
+| `@permission(name, type, id, onDeny)` | On a field, a type or an interface. A user holding permission `name` on the object of `type` whose id `id` reads — `args.<path>` or `parent.<path>`; `args.id` on a field, `parent.id` on a type. A list requires it on every id. Repeated, every one must hold, in order. Denied: `NOT_FOUND`, or `FORBIDDEN` with `onDeny: FORBIDDEN` |
+| `loaders: { [type]: (id, ctx) => object \| null }` | The object `@permission` checks for an id alone — from `args`, or a parent field other than `id` — required for a type with a `fromField`, whose fields `access.can` reads. `null` answers `NOT_FOUND` |
+| `conditions: { [type]: (object, ctx) => ctx }` | The `ctx` `@permission` passes to `access.can` for a permission that reaches a `when()` |
+| `applyJanusDirectives(schema, { auth, type?, access?, loaders?, conditions? })` | The schema transform alone — what `useJanus()` runs — to check a schema in a test or a build script. Throws a `TypeError` naming the field for a directive no request could pass. Its guards read `ctx.janus`, which only `useJanus()` builds |
 | `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
-| `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false` |
+| `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false`. Shares the request's checks with `@permission`: one question, one check per request |
 | `janusMaskError(fallback?)` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback` |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
 | `denial(code, message?)` | A denial of your own: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404 |
 | `JanusContext<typeof auth, typeof access?, Type?>` | What `useJanus()` adds to the context, for your resolvers' `ctx` |
-| `JanusOptions`, `JanusOnContext`, `JanusDirectivesOptions`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError` | The types of the arguments and answers above |
+| `JanusOptions`, `JanusOnContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError` | The types of the arguments and answers above |
+
+## Directives
+
+```graphql
+type Query {
+	me: User @authenticated                                        # any signed-in user
+	record(id: ID!): Record @permission(name: "view", type: "record") # args.id
+	records(ids: [ID!]!): [Record!]!
+		@permission(name: "view", type: "record", id: "args.ids")     # every id
+}
+
+type Record @permission(name: "view", type: "record") {             # parent.id: the record itself
+	title: String
+	billing: Billing @permission(name: "manage", type: "record", onDeny: FORBIDDEN)
+}
+```
+
+```ts
+useJanus({
+	auth,
+	access,
+	loaders: { record: (id, ctx) => records.find(id) }, // record has a fromField: an id alone is not enough
+	conditions: { record: (record, ctx: Context) => ({ onShift: ctx.shift.open }) }, // the ctx of a when() record's permissions reach
+});
+```
+
+Each runs before the resolver, which a refused request never reaches.
+`@permission` implies a signed-in user, and asks `access.can` with the parent
+itself when the id is `parent.id`, with what `loaders[type]` answers for an
+id of a type with a `fromField`, and with `{ type, id }` otherwise. Every
+directive that applies must hold — the field's, its type's, its
+interfaces' — asked outermost first, so a type's `NOT_FOUND` answers before
+a field's `FORBIDDEN` could tell the object exists. The same question asked
+twice in a request, by two fields or by a directive and `can()`, is one
+check. What no request could pass — an object type or a permission the
+model does not declare, a malformed `id:`, an argument the field does not
+take, a missing loader or condition — is a `TypeError` at start-up naming
+the field. Detail: [the directives guide](docs/guide/directives.md).
 
 ## Errors
 
@@ -102,8 +139,8 @@ every one carries a `code` and the HTTP status Yoga answers with:
 | Code | Status | When |
 | --- | --- | --- |
 | `UNAUTHENTICATED` | 401 | An anonymous request reached a guarded field, or `requireUser()` |
-| `FORBIDDEN` | 403 | A user of a type the directive or `requireUser()` does not name |
-| `NOT_FOUND` | 404 | `denial('NOT_FOUND')`, and `@permission`'s default once it lands |
+| `FORBIDDEN` | 403 | A user of a type the directive or `requireUser()` does not name; a `@permission(onDeny: FORBIDDEN)` denied |
+| `NOT_FOUND` | 404 | A `@permission` denied — its default — or a loader answered `null`; `denial('NOT_FOUND')` |
 | `SERVICE_UNAVAILABLE` | 503 | A store could not answer — `STORE_FAILED`. **Never a denial** |
 | any other `JanusErrorCode` | its [`statusOf`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) | A `JanusError` a resolver let through: `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, … |
 
@@ -138,9 +175,29 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 - **`useJanus({ type })` narrows the whole server.** A user of any other type
   is anonymous everywhere, and a directive naming another type is refused
   when the schema is built.
-- **`@permission` is refused, not ignored.** A schema that uses it throws a
-  `TypeError` at start-up until it is enforced; check the permission in the
-  resolver with `can(ctx, …)` meanwhile.
+- **On a field, `@permission` reads `args.id` — even on a field of the
+  object.** `type Record { notes: String @permission(name: "view", type:
+  "record") }` is refused at start-up: `notes` takes no `id`. Write it on the
+  type, whose default is `parent.id`, or say `id: "parent.id"`.
+- **A `FORBIDDEN` tells the user the object exists.** Keep `NOT_FOUND`, the
+  default, on anything reached by an id the client chose; use
+  `onDeny: FORBIDDEN` on a field of an object the user may already see.
+- **The parent must carry the fields its `fromField`s read.** A type-level
+  `@permission` checks the parent itself, so a resolver answering
+  `{ id, title }` for a record whose `doctors` read `doctorId` denies every
+  doctor. Answer the field, or read the id from `args` with a loader.
+- **A loader's own error is a 500.** `@permission` answers a `JanusError`
+  with its status, but a driver's error thrown by a loader is masked like any
+  other: throw `StoreFailure` for an outage, so it is a 503.
+- **A request remembers its checks.** The same object, permission and user
+  asked twice in one request is one check — so a mutation that grants or
+  revokes, then asks again in the same request, reads the answer from
+  before the change. Call `access.can` directly there. In a subscription,
+  `@permission` asks afresh on every event; `can(ctx, …)` in its resolver
+  reads the memo — call `ctx.janus.access.can` there.
+- **`@permission` is not a filter.** A list of ids requires the permission
+  on every one, and one denial denies the field; to answer only the items a
+  user may see, ask `access.list()` for their ids.
 - **A context built without a request cannot authenticate.** `ctx.janus.user()`
   rejects with a `TypeError` — a transport that is not HTTP, such as a
   WebSocket, needs its own wiring, which is on the [roadmap](docs/roadmap.md).
@@ -150,13 +207,13 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 
 ## Documentation
 
-- [Guides](docs/README.md) — the context and the lazy user, and errors as statuses
+- [Guides](docs/README.md) — the directives, the context and the lazy user, errors as statuses, telemetry, and federation
 - [Troubleshooting](docs/troubleshooting.md) — by the message or status you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
-Eighteen plausible mistakes are refused by the compiler, each with a
+Twenty-three plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
@@ -171,7 +228,12 @@ Eighteen plausible mistakes are refused by the compiler, each with a
 - five in `plugin.ts`: `useJanus()` given a user type the instance does not
   know, something that is not what `janus()` answered, the `permissions()`
   instance as `auth`, and `applyJanusDirectives()` without `auth` or narrowed
-  to a user type the instance does not know.
+  to a user type the instance does not know;
+- five in `wiring.ts`: `useJanus()`'s `loaders` for an object type the model
+  does not declare, a loader answering an object without a field a
+  `fromField` reads, `conditions` for a type no `when()` is reached on, a
+  condition answering a `ctx` of the wrong shape, and `loaders` without
+  `access`.
 
 `plugin.ts` also holds this README's quick start, which must keep compiling.
 

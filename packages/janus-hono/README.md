@@ -60,8 +60,28 @@ declarations import without extensions, so `nodenext` is not supported.
 | `bindJanus({ auth?, access? })` | The functions above with the instances bound: `session(options?)`, `sendSession(c, signedIn)` and `signOut(c)` with `auth`; `permission(permission, type, load, options?)` with `access`; `provide()` always |
 | `provide({ auth?, access? })` | Middleware. Sets `c.var.auth` and `c.var.access` to the instances given — only those — for a route that writes users or tuples |
 | `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
+| `JanusErrorsOptions` | `{ report?, fallback? }`, the options of `janusErrors()` — for a wrapper of your own |
+| `Bound<I>` | What `bindJanus(instances)` answers, for `I` the type of `instances` — to pass a bound `j` to a module of routes |
+| `Bindable` | What `bindJanus()` takes: `{ auth?, access? }`, the constraint on `Bound`'s `I` |
+| `BoundAuth<typeof auth>` | The part of `Bound` that `auth` brings: `session`, `sendSession` and `signOut` |
+| `BoundSession<typeof auth>` | `j.session`: `session(auth, options?)` with `auth` bound, typed as `session()` is — `{ required: true }` types `c.var.user` as never `null` |
+| `BoundPermission<C>` | `j.permission`: `permission(access, …)` with `access` bound, for `C` the model's config: `ConfigOf<typeof model>` from `@nxgt/janus/permissions`, or take the whole type as `Bound<…>['permission']` |
 
 The whole status table is in [`@nxgt/janus`'s errors guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md).
+
+### A wrapper of your own
+
+A wrapper around `janusErrors()` takes the same options, with your defaults:
+
+```ts
+import { type JanusErrorsOptions, janusErrors } from '@nxgt/janus-hono';
+import { logger } from './logger'; // your own
+
+export const appErrors = (options: JanusErrorsOptions = {}) =>
+	janusErrors({ report: (error) => logger.error(error), ...options });
+
+app.onError(appErrors());
+```
 
 ## Second factor
 
@@ -164,6 +184,24 @@ const app = new Hono()
 ```
 
 Only what is given is bound: `bindJanus({ auth })` has no `permission`.
+
+A module of routes that receives `j` types it `Bound<…>`, over the types of
+the instances it was given:
+
+```ts
+import { type Bound, bindJanus, byParam } from '@nxgt/janus-hono';
+
+export type Janus = Bound<{ auth: typeof auth; access: typeof access }>;
+
+export const recordRoutes = (j: Janus) =>
+	new Hono()
+		.use(j.session(), j.provide())
+		.get('/records/:id', j.permission('view', 'record', byParam('id', (id) => records.find(id))), (c) =>
+			c.json(c.var.object), // typed, as with the unbound functions
+		);
+
+app.route('/', recordRoutes(bindJanus({ auth, access })));
+```
 
 Each side is usable alone. An application that signs users in some other way
 passes `{ subject: (c) => … }` to `permission()`; one without permissions uses

@@ -1,9 +1,10 @@
 # The context
 
 This page is for everything a resolver reads from `@nxgt/janus`: the user and
-the session on `ctx.janus`, the directive that guards a field or a type, the
-two helpers, and the types that make `ctx` precise. For what a client receives
-when a request is refused, see [errors](errors.md).
+the session on `ctx.janus`, the two helpers, and the types that make `ctx`
+precise. For the directives that guard a field or a type, see
+[directives](directives.md); for what a client receives when a request is
+refused, see [errors](errors.md).
 
 ## Wiring
 
@@ -28,13 +29,15 @@ export const yoga = createYoga({
   calling the hook again with it does not loop.
 
 `janusTypeDefs` must be among the type definitions: without it, the schema
-does not build, since `@authenticated` is not declared.
+does not build, since `@authenticated` and `@permission` are not declared.
 
 | Option | What it does |
 | --- | --- |
 | `auth` | What `janus()` answered. Required |
-| `access` | What `permissions()` answered: `ctx.janus.access`, and what `can()` asks. Optional |
+| `access` | What `permissions()` answered: `ctx.janus.access`, what `can()` and `@permission` ask. Optional — and required once the schema uses `@permission` |
 | `type` | A user type: a user of any other type is anonymous on this server, as `auth.authenticate(request, { type })` answers |
+| `loaders` | Per object type, `(id, ctx) => object \| null`: the object `@permission` checks when it reads an id alone — from `args`, or a parent field other than `id`. Required for a type with a `fromField` — see [directives](directives.md#reading-the-id) |
+| `conditions` | Per object type, `(object, ctx) => its when()s' ctx`: what `@permission` passes as `{ ctx }` — see [directives](directives.md#conditions) |
 
 ## `ctx.janus`
 
@@ -87,75 +90,11 @@ type StaffContext = YogaInitialContext & JanusContext<typeof auth, typeof access
 Without `access`, write `JanusContext<typeof auth>`: `ctx.janus.access` is
 then absent from the type, as it is from the context.
 
-## `@authenticated`
+## Directives
 
-```graphql
-type Query {
-	me: User @authenticated                      # any signed-in user
-	roster: [Staff!]! @authenticated(type: ["staff"])
-}
-
-type Ward @authenticated(type: ["staff"]) {    # every field of Ward
-	name: String
-	chart: String @authenticated(type: ["staff", "patient"])
-}
-
-interface Audited {
-	trail: String @authenticated(type: ["staff"]) # trail, on every type implementing Audited
-}
-```
-
-| Written on | Guards |
-| --- | --- |
-| a field | that field |
-| an object type | every field of that type |
-| an interface | every field of every object type implementing it |
-| an interface's field | the field of the same name on every object type implementing it |
-
-**Every one that applies must hold.** On `Ward.chart` above, the type's
-`["staff"]` and the field's `["staff", "patient"]` both apply: only staff pass.
-The directive runs before the resolver, which never runs for a refused
-request.
-
-| The request | Answered |
-| --- | --- |
-| anonymous | `UNAUTHENTICATED`, 401 |
-| a user of a type no `type:` names | `FORBIDDEN`, 403 |
-| a store that cannot answer | `SERVICE_UNAVAILABLE`, 503 |
-| a user every directive admits | the resolver runs |
-
-A type's directive guards the type's fields, **not the field that returns
-it**: `Query.ward` above runs for an anonymous request, and the refusal lands
-on `ward.name`. Guard the field too when the lookup itself must not run.
-
-### Refused when the schema is built
-
-What no request could ever pass is a `TypeError` at start-up, naming the
-field:
-
-```
-TypeError: applyJanusDirectives(): @authenticated on Query.me names the user type 'doctor', which is not one of 'patient', 'staff'
-TypeError: applyJanusDirectives(): @authenticated on Ward (read by Ward.name) names the user type 'nurse', which is not one of 'patient', 'staff'
-TypeError: applyJanusDirectives(): @authenticated on Query.me names no user type — leave type: out to admit any signed-in user
-TypeError: applyJanusDirectives(): the @authenticated on Ward.chart and on its type or interfaces admit no user type in common
-```
-
-Under `useJanus({ type: 'staff' })`, the only user type a directive may name
-is `'staff'`.
-
-## `@permission` — coming
-
-`@permission(name: String!, type: String!, id: String, onDeny: PermissionDenial! = NOT_FOUND)`
-is declared in `janusTypeDefs`, so a schema can be written against it, and it
-is **refused, not ignored**, until it is enforced:
-
-```
-TypeError: applyJanusDirectives(): @permission on Query.record is not enforced yet — check it in the resolver with can(ctx, …) until it is
-```
-
-A guard that let the field through silently would be worse than none. Until
-it lands, check the permission in the resolver with `can()`, below. What it
-will do is on the [roadmap](../roadmap.md).
+`@authenticated` and `@permission` guard a field, a type or an interface
+before its resolver runs: see [directives](directives.md). This page covers
+what a resolver checks itself, where a directive does not fit.
 
 ## `requireUser(ctx, { type? })`
 
@@ -203,22 +142,13 @@ permission reaches a condition. An anonymous request answers `false`, with no
 store call. A store that cannot answer is `SERVICE_UNAVAILABLE`, never
 `false`.
 
+**It shares the request's checks with `@permission`.** A question a directive
+already asked in this request — the same object, permission and user — is
+answered from that check, and two asked at once share one; a check with
+`{ ctx }` is always asked. In a subscription, whose one request lasts the
+whole stream, call `ctx.janus.access.can` instead, so a `revoke()` is seen. See
+[one check per question](directives.md#one-check-per-question-per-request).
+
 It needs `useJanus({ access })`: without it, `can(ctx, …)` does not compile,
 and a context built by hand without `access` throws
 `TypeError: can(): ctx.janus.access is not set — pass { access } to useJanus()`.
-
-## The transform alone
-
-`applyJanusDirectives(schema, { auth, type? })` is what `useJanus()` runs on
-every schema. Call it to check a schema at build time — in a test, or in a
-script that fails a deploy — without starting a server:
-
-```ts
-import { applyJanusDirectives } from '@nxgt/janus-graphql';
-
-applyJanusDirectives(schema, { auth }); // throws the TypeErrors above, or answers the guarded schema
-```
-
-The guards it installs read `ctx.janus`, which only `useJanus()` builds: a
-guarded field resolved under any other context throws
-`TypeError: @authenticated on Query.me: ctx.janus is not set — add useJanus({ auth }) to the plugins`.
