@@ -14,7 +14,9 @@ import type { Id } from '../../../ids/id';
  *
  * - `verifyEmail`, `resetPassword`: a link sent by e-mail.
  * - `secondFactor`: the challenge a sign-in answers when the user has a second
- *   factor, redeemed with a code from their app.
+ *   factor, redeemed with a code from their app — and the count of a user's
+ *   attempts at `regenerateRecoveryCodes`, a token of this kind whose secret
+ *   nobody is given, never redeemed, only counted.
  * - `signInCode`: a code sent by e-mail to sign in without a password.
  */
 export type TokenKind =
@@ -94,7 +96,9 @@ export interface TokenStore {
 	 *   answered with it. Twenty concurrent calls answer twenty distinct
 	 *   counts: one conditional write, never a read followed by a write — a
 	 *   count two guesses both read is a guess for free.
-	 * - A **spent** token is answered as it is, and nothing is written.
+	 * - A **spent** token is answered as it is, and nothing is written. A
+	 *   store keeps a spent token, answered as spent, until its `expiresAt`:
+	 *   dropping it sooner would start a count over.
 	 * - `null` means no token of this `kind` has this hash.
 	 *
 	 * A **lapsed** token is counted all the same, or answered `null` by a store

@@ -289,12 +289,14 @@ app.delete('/account/second-factor', session(auth, { required: true }), async (c
 | --- | --- |
 | `SECOND_FACTOR_ACTIVE` | 409 `{ code }` — `enroll` or `activate` on a factor already active |
 | `SECOND_FACTOR_NOT_ENROLLED` | 409 `{ code }` — `activate` before `enroll`, or `regenerateRecoveryCodes` without an active factor |
-| `CODE_INVALID` | 401 `{ code }` — `activate` and `regenerateRecoveryCodes` count no attempts, so there is no `attemptsLeft` |
+| `CODE_INVALID` | 401 `{ code }` from `activate`, which counts no attempts; 401 `{ code, attemptsLeft }` from `regenerateRecoveryCodes` |
 
-**Rate-limit the regenerate route per user.** `regenerateRecoveryCodes`
-counts no attempts, so a stolen session could guess the app's code there one
-request at a time. Put a limiter keyed on `c.var.user.id` in front of it, as
-you would key the sign-in route on the address.
+**The regenerate route needs no limiter of its own.** `regenerateRecoveryCodes`
+counts five attempts per user per 15-minute window in the store, so a stolen
+session cannot guess the app's code there one request at a time: past the
+fifth, it answers `401 {"code":"CODE_INVALID","attemptsLeft":0}`, the right
+code included, until the next window. A limiter in front of it — per IP, per
+user — is still yours to add for load, never needed for the guesses.
 
 The key rotation, the attempts and the replay rules are
 [`@nxgt/janus`'s second factor guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md).

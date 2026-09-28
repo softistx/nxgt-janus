@@ -73,8 +73,11 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `secondFactor.recover(challenge, code)` redeems a sign-in's challenge with
   one and answers the session with `recoveryCodesLeft`;
   `secondFactor.regenerateRecoveryCodes(user, code)` replaces them all on a
-  fresh code from the app. Two user events, `user.recoveryCodesRegenerated`
-  and `user.recoveryCodeUsed`. For adapters: `SecondFactorRecord.recoveryCodes`,
+  fresh code from the app, and counts its attempts itself — five per user
+  per 15-minute window, in the store — so a stolen session cannot guess the
+  code, and the route needs no limiter of its own. Two user events,
+  `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`. For adapters:
+  `SecondFactorRecord.recoveryCodes`,
   stored by the users stores of `@nxgt/janus-drizzle` and
   `@nxgt/janus-mongo`, with conformance cases.
 - **The second factor in the user events, v0.9.0** —
