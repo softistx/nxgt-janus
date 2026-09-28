@@ -66,7 +66,7 @@ told they do not exist.
 | Thrown | When | Class |
 | --- | --- | --- |
 | At **call** time, on a value that could have come from a request | a taken login, a wrong password, a spent token, an outage | a `JanusError` subclass, with a `code` |
-| At **wiring** time, from how you called the library | a lifespan that is not a duration, a store missing a method, a model with a loop, a malformed tuple string, a sealing key removed while secrets sealed with it are stored, a user with an active second factor signing in through a `janus()` given no `secondFactor` | a bare `TypeError` |
+| At **wiring** time, from how you called the library | a lifespan that is not a duration, a store missing a method, a model with a loop, a malformed tuple string, a sealing key removed while secrets sealed or recovery codes hashed with it are stored, a user with an active second factor signing in through a `janus()` given no `secondFactor` | a bare `TypeError` |
 
 No request handler should ever answer a `TypeError` — it is a bug in the code
 that wired the library, so no handler needs to tell it apart.
@@ -78,15 +78,15 @@ that wired the library, so no handler needs to tell it apart.
 | `STORE_FAILED` | `StoreFailure` | 503 | A store could not answer. **Never a negative answer** | `slot`, `operation`, `cause` |
 | `NOT_FOUND` | `NotFoundError` | 404 | `get`, `getUser`, or a write to a user who is gone. `find*` answers `null` instead | `userId` |
 | `LOGIN_TAKEN` | `StoreConflict` (`on: 'login'`) | 409 | Another user of the same type holds the login | `login`, `userType` |
-| `VERSION_CONFLICT` | `StoreConflict` (`on: 'version'`) | 409 | `ifVersion` no longer matches; nothing was written | `expectedVersion`, `actualVersion` |
+| `VERSION_CONFLICT` | `StoreConflict` (`on: 'version'`) | 409 | `ifVersion` no longer matches; nothing was written. From `secondFactor.confirm` or `recover`, the same code used by two sign-ins at once: the other opened the session | `expectedVersion`, `actualVersion` |
 | `USER_INVALID` | `UserInvalidError` | 400 | The fields failed the schema | `issues`, field by field |
 | `PASSWORD_TOO_SHORT` | `CredentialError` | 400 | Below `password.minLength` | `minLength` — never the password |
 | `CREDENTIALS_INVALID` | `CredentialError` | 401 | Unknown login, no password, or the wrong one — **one code for the three** | `reason`, for your logs only |
 | `HASH_UNSUPPORTED` | `CredentialError` | 400 | A stored hash no wired hasher reads | `hashPrefix` — never the hash |
 | `USER_INACTIVE` | `UserInactiveError` | 403 | Deactivated; told only to someone who gave the right password, or the right code | `userId` |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | `TokenError` | 400 | See [e-mail flows](email-flows.md#what-a-token-refusal-means). For a second factor's challenge: sign in again; for a sign-in code's: request a new code — see [sign-in codes](sign-in-code.md#what-confirm-refuses) | `userId` on `TOKEN_STALE` |
-| `CODE_INVALID` | `TokenError` | 401 | A one-time code that does not match: a second factor's, or one already accepted — see [the second factor](second-factor.md#confirming-the-code-at-sign-in) — or a sign-in code sent by e-mail — see [sign-in codes](sign-in-code.md#attempts) | `attemptsLeft` from either `confirm`: what the challenge has left, `0` once it is spent. None from `activate`. `userId` |
-| `SECOND_FACTOR_NOT_ENROLLED` | `SecondFactorError` | 409 | `activate` before `enroll`, or `confirm` after the factor was disabled | `userId` |
+| `CODE_INVALID` | `TokenError` | 401 | A one-time code that does not match: a second factor's, or one already accepted — see [the second factor](second-factor.md#confirming-the-code-at-sign-in) — a recovery code not the user's, or already used — see [recovery codes](second-factor.md#signing-in-with-one) — or a sign-in code sent by e-mail — see [sign-in codes](sign-in-code.md#attempts) | `attemptsLeft` from either `confirm` and from `recover`: what the challenge has left, `0` once it is spent. None from `activate` or `regenerateRecoveryCodes`. `userId` |
+| `SECOND_FACTOR_NOT_ENROLLED` | `SecondFactorError` | 409 | `activate` before `enroll`; `regenerateRecoveryCodes` without an active factor; `confirm` or `recover` after the factor was disabled | `userId` |
 | `SECOND_FACTOR_ACTIVE` | `SecondFactorError` | 409 | `enroll` or `activate` on a factor already active: `disable` it first | `userId` |
 | `INVALID_CURSOR` | `InvalidCursorError` | 400 | A cursor this store did not mint. Never a silent first page | |
 | `UNSUPPORTED` | `UnsupportedError` | 501 | The wired store lacks an optional capability — `collectExpired` without `deleteExpiredSessions` | `slot`, `operation` |
@@ -131,7 +131,7 @@ async function signIn(email: string, password: string): Promise<Response> {
 ## No message holds a secret
 
 Not a password, not a hash, not a session token, not a token's hash, not a
-challenge, a second factor's code or its secret, and not a connection URI — a
+challenge, a second factor's code, its secret or a recovery code, and not a connection URI — a
 connection string holds a password. Nor a login: a message
 reports a shape, never a value, so `LOGIN_TAKEN` carries the login in
 `error.login` and not in its message. A message names the

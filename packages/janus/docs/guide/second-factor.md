@@ -1,8 +1,8 @@
 # The second factor
 
 This page is for turning on a TOTP second factor — the six-digit codes of an
-authenticator app — and wiring its four flows: enroll, activate, confirm at
-sign-in, disable.
+authenticator app — and wiring its flows: enroll, activate, confirm at
+sign-in, recovery codes for a lost phone, disable.
 
 ```ts
 import { z } from 'zod';
@@ -21,17 +21,19 @@ const auth = janus({
 
 const { user } = await auth.signUp({ email: 'ada@example.com', password: 'correct horse' });
 const { uri } = await auth.secondFactor.enroll(user); // render uri as a QR code
-await auth.secondFactor.activate(user, '123456');      // the first code the app shows
+const { recoveryCodes } = await auth.secondFactor.activate(user, '123456'); // the first code the app shows
+// recoveryCodes: ten codes, shown to the user now and never again
 
 const result = await auth.signIn({ email: 'ada@example.com', password: 'correct horse' });
 if (result.status === 'secondFactor') {
 	// no session yet: ask for a code, then
 	const signedIn = await auth.secondFactor.confirm(result.challenge, '654321');
+	// or, with the phone gone: await auth.secondFactor.recover(result.challenge, '7k2mq-x9d4c')
 }
 ```
 
 The words — **enrolled**, **active**, **challenge**, **attempt**, **step**,
-**seal** — are defined in [the vocabulary](vocabulary.md#identities).
+**seal**, **recovery code** — are defined in [the vocabulary](vocabulary.md#identities).
 
 ## Configuration
 
@@ -123,11 +125,11 @@ Without `secondFactor`, `signIn` answers a session as before, typed
 
 ## The states of a factor
 
-| State | `hasSecondFactor` | `signIn` answers | Reached by |
-| --- | --- | --- | --- |
-| none | `false` | a session | a new user; `disable` |
-| **enrolled** — waiting for a first code | `false` | a session | `enroll` |
-| **active** | `true` | a challenge | `activate`, with a code that matches |
+| State | `hasSecondFactor` | `signIn` answers | Recovery codes | Reached by |
+| --- | --- | --- | --- | --- |
+| none | `false` | a session | none | a new user; `disable`, which removes the codes with the factor |
+| **enrolled** — waiting for a first code | `false` | a session | none | `enroll` |
+| **active** | `true` | a challenge | ten from `activate`; one fewer per `recover`; ten new from `regenerateRecoveryCodes` | `activate`, with a code that matches |
 
 Only an active factor is asked for. A user who scanned the QR code and never
 typed a code signs in with their password alone.
@@ -171,14 +173,26 @@ accepts.
 ## Activating: the first code
 
 ```ts
-const active = await auth.secondFactor.activate(user, code); // the code the app shows now
+const { user: active, recoveryCodes } = await auth.secondFactor.activate(user, code); // the code the app shows now
 active.hasSecondFactor; // true: from now on, signIn asks for a code
+recoveryCodes;          // ['7k2mq-x9d4c', …]: ten, shown once — see Recovery codes
 ```
 
 `activate` proves the user's app holds the secret before anything depends on
 it. Until it succeeds, the factor waits and `signIn` asks for nothing. Once it
-does, it sends a [`user.secondFactorEnabled` event](events.md) — `enroll`
-sends none.
+does, it answers the user **and ten [recovery codes](#recovery-codes)**, and
+sends a [`user.secondFactorEnabled` event](events.md) — `enroll` sends none.
+
+**Since 0.10, `activate` answers `{ user, recoveryCodes }`, not the user.**
+Code that read the user straight off it — `(await activate(…)).hasSecondFactor`
+— no longer compiles: read `.user`, and show the codes.
+
+```ts
+interface RecoveryCodesIssued<U> {
+	readonly user: U;
+	readonly recoveryCodes: readonly string[]; // ten, `xxxxx-xxxxx`
+}
+```
 
 | Rejects with | When |
 | --- | --- |
@@ -335,6 +349,144 @@ same code at the same moment, one opens a session and the other is refused.
 The app's code changes every thirty seconds, and the code of the step before
 or after the current one is accepted too, for a phone whose clock drifted.
 
+## Recovery codes
+
+A user whose phone is lost, reset or stolen cannot produce a TOTP code. Their
+**recovery codes** sign them in instead, once each, with no operator
+resetting anything:
+
+```ts
+const { recoveryCodes } = await auth.secondFactor.activate(user, code);
+// show them now; later, at sign-in, with the phone gone:
+const signedIn = await auth.secondFactor.recover(challenge, recoveryCodes[0] ?? '');
+signedIn.recoveryCodesLeft; // 9
+```
+
+### Showing them
+
+`activate` answers **ten codes**, each ten characters shown `xxxxx-xxxxx` —
+digits and lower-case letters without `i`, `l`, `o` and `u`, fifty random
+bits a code. **They are shown once**: only their keyed hashes are stored, so
+no call answers them again. Show them on the page that confirms activation,
+with a way to copy, download or print them, and send that answer with
+`Cache-Control: no-store`, like `enroll`'s secret:
+
+```ts
+const { user: active, recoveryCodes } = await auth.secondFactor.activate(current.user, code);
+return Response.json({ id: active.id, recoveryCodes }, { headers: { 'Cache-Control': 'no-store' } });
+```
+
+Never log them, never mail them, never keep them yourself: a recovery code
+is as good as the user's phone.
+
+### Signing in with one
+
+`recover(challenge, code)` redeems the challenge `signIn` answered — or
+`signInCode.confirm`'s — with a recovery code instead of the app's code, and
+opens the session. The recovery code is **spent**: its hash leaves the store,
+and `recoveryCodesLeft` says how many remain.
+
+```ts
+type RecoveredSignIn<U> = SignedIn<U> & { readonly recoveryCodesLeft: number };
+
+const signedIn = await auth.secondFactor.recover(challenge, ' 7K2MQ X9D4C ');
+// { status: 'signedIn', user, session, token, recoveryCodesLeft: 9 }
+```
+
+- **Read as the user may type it**: case, spaces and dashes are ignored, `o`
+  is read as `0`, and `i` and `l` as `1`.
+- **One challenge, one count of attempts.** `recover` and `confirm` share the
+  challenge's five: a wrong code in either costs one, and the fifth spends
+  the challenge. A form may offer both on one page.
+- **Each takes its own kind.** A TOTP code is never accepted by `recover`, and
+  a recovery code never by `confirm`: either is `CODE_INVALID`.
+- **At `recoveryCodesLeft: 0`**, the user has no way back in without their
+  phone: tell them, and send them to [regenerate](#regenerating-them) — with
+  a new phone, if that is why they are here.
+
+| Rejects with | When | What to do |
+| --- | --- | --- |
+| `CODE_INVALID`, with `attemptsLeft` | the recovery code is not one of the user's, or was already used | ask again while `attemptsLeft > 0`; at `0` the challenge is spent: sign in again |
+| `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED` | as for [`confirm`](#confirming-the-code-at-sign-in) | sign in again |
+| `USER_INACTIVE` | the user was deactivated since `signIn`. The challenge is spent; the recovery code is not | answer 403 |
+| `SECOND_FACTOR_NOT_ENROLLED` | the factor was disabled since `signIn`. The challenge is spent | sign in again: the password alone now opens a session |
+| `VERSION_CONFLICT` | the same recovery code, used by two sign-ins at once: the other one opened a session, this one opened nothing | sign in again |
+
+The recovery code is removed in one write under the user's version, as
+`confirm` writes the step it accepted — so of two sign-ins spending one code
+at the same moment, exactly one gets a session.
+
+`recover` sends a [`user.recoveryCodeUsed` event](events.md) once the code is
+spent — even if opening the session then fails. It is the one to tell the
+user about: a recovery code used by someone else is a sign-in without their
+phone.
+
+### Regenerating them
+
+```ts
+const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(current.user, code); // a code the app shows now
+```
+
+`regenerateRecoveryCodes(user, code)` replaces **all** the user's recovery
+codes with ten new ones, answered once like `activate`'s: the old ones, used
+or not, stop working. It takes a **fresh code from the app** — whoever holds a
+stolen session alone cannot mint codes that outlive it — and spends that code
+as a sign-in would: the same code cannot regenerate twice, nor then confirm a
+sign-in. It sends a [`user.recoveryCodesRegenerated` event](events.md).
+
+A factor activated before 0.10 holds no recovery codes; this is how it gets
+its first ten.
+
+| Rejects with | When |
+| --- | --- |
+| `CODE_INVALID` | the app's code does not match, or was already accepted. **No `attemptsLeft`**: there is no challenge, so rate-limit it as any authenticated form |
+| `SECOND_FACTOR_NOT_ENROLLED` | the user has no active factor — none, or one still waiting for its first code |
+| `VERSION_CONFLICT` | `{ ifVersion }` no longer matches |
+
+Like `enroll` and `disable`, `regenerateRecoveryCodes` does not know who is
+calling: pass the user from `auth.authenticate(request)`, and apply your
+[recent sign-in rule](#asking-before-enroll-and-disable-is-your-policy)
+first. The app's code is the one check `janus` makes itself.
+
+```ts
+import { TokenError } from '@nxgt/janus';
+
+const RECENT = 5 * 60_000;
+
+export async function regenerateRecoveryCodes(request: Request): Promise<Response> {
+	const current = await auth.authenticate(request);
+	if (current === null) return new Response(null, { status: 401 });
+	if (Date.now() - current.session.authenticatedAt.getTime() > RECENT) {
+		return Response.json({ error: 'signInAgain' }, { status: 403 });
+	}
+	const { code } = (await request.json()) as { code: string };
+	try {
+		const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(current.user, code);
+		return Response.json({ recoveryCodes }, { headers: { 'Cache-Control': 'no-store' } });
+	} catch (error) {
+		if (error instanceof TokenError && error.code === 'CODE_INVALID') {
+			return Response.json({ code: error.code }, { status: 401 });
+		}
+		throw error;
+	}
+}
+```
+
+### Disabling removes them
+
+`disable` removes the factor **and its recovery codes**. A later `enroll` and
+`activate` answer ten new ones; the old ones never work again.
+
+### How they are stored
+
+Each recovery code is stored as an HMAC-SHA-256 under a key derived (HKDF)
+from the first [sealing key](#rotating-the-keys), with the user's id bound
+in, written `v1.<key id>.<mac>` in `secondFactor.recoveryCodes`. A dump of
+the users, without the keys, cannot check a guess; a hash copied onto another
+user matches nothing. A rotation keeps them readable — see
+[Rotating the keys](#rotating-the-keys) — and what a store keeps of them is
+in [Writing an adapter](adapters.md#a-users-password-and-second-factor).
+
 ## Disabling
 
 ```ts
@@ -342,8 +494,8 @@ const user = await auth.secondFactor.disable(current.user);
 user.hasSecondFactor; // false: signIn answers a session again
 ```
 
-`disable` removes the factor, active or enrolled, and answers the user. A
-user without one is answered as they are. A challenge issued before is
+`disable` removes the factor, active or enrolled, with its recovery codes,
+and answers the user. A user without one is answered as they are. A challenge issued before is
 refused afterwards, with `SECOND_FACTOR_NOT_ENROLLED`.
 
 When the factor it removed was **active**, `disable` sends a
@@ -391,13 +543,15 @@ export async function disableSecondFactor(request: Request): Promise<Response> {
 }
 ```
 
-Use the same check before `enroll`, before `changePassword`, and before
+Use the same check before `enroll`, before `regenerateRecoveryCodes` — which
+asks for the app's code besides — before `changePassword`, and before
 anything else a stolen session should not be able to do.
 
 ## Rotating the keys
 
 **The first key seals; every key opens.** A secret names the key that sealed
-it (`v1.<key id>.…`), so a rotation is a change of order, not a migration:
+it (`v1.<key id>.…`), and so does a [recovery code](#how-they-are-stored)'s
+hash, so a rotation is a change of order, not a migration:
 
 1. Make a new key, and add it **last**: every instance can now open what it
    will seal, and none seals with it yet. Deploy that everywhere.
@@ -418,23 +572,32 @@ it (`v1.<key id>.…`), so a rotation is a change of order, not a migration:
    single instance, or one that stops before the next starts, step 1 can be
    skipped.
 3. Wait. Every secret sealed under the old key is sealed again under the new
-   one **the next time a code is accepted** for it — at `activate` or
-   `confirm`. A user who does not sign in keeps the old sealing.
-4. Remove the old key only when no secret is sealed with it. Ask your
-   database, since the key's id is the second part of the stored secret:
+   one **the next time a code is accepted** for it — at `activate`,
+   `confirm` or `regenerateRecoveryCodes`. A user who does not sign in keeps
+   the old sealing. **Recovery codes cannot be hashed again** — only their
+   hashes are kept: new ones, from `activate` or
+   `regenerateRecoveryCodes`, are hashed under the first key, and the old ones
+   keep working while their key is in `keys`.
+4. Remove the old key only when **no secret is sealed with it and no recovery
+   code is hashed with it**. Ask your database, since the key's id is the
+   second part of both:
 
    ```ts
-   // MongoDB, with @nxgt/janus-mongo
+   // MongoDB, with @nxgt/janus-mongo — the second query matches any code in the array
    await db.collection('users').countDocuments({ 'secondFactor.secret': { $regex: '^v1\\.2026-09\\.' } });
+   await db.collection('users').countDocuments({ 'secondFactor.recoveryCodes': { $regex: '^v1\\.2026-09\\.' } });
    ```
 
    ```sql
    -- PostgreSQL, with @nxgt/janus-drizzle
    select count(*) from users where second_factor_secret like 'v1.2026-09.%';
+   select count(*) from users
+   where exists (select 1 from unnest(second_factor_recovery_codes) c where c like 'v1.2026-09.%');
    ```
 
-   Those users have not signed in since the rotation. Wait longer, or
-   `disable` their factor and have them enroll again.
+   Those users have not signed in, or regenerated their recovery codes, since
+   the rotation. Wait longer; have them regenerate their codes, which leaves
+   only the secret; or `disable` their factor and have them enroll again.
 
 A key removed too early, or changed under the same id, is a wiring mistake,
 and it surfaces the next time one of those users signs in — as a bare
@@ -443,7 +606,12 @@ and it surfaces the next time one of those users signs in — as a bare
 ```
 secondFactor.confirm: the secret is sealed with the key "2026-09", which secondFactor.keys no longer holds — keep a key until no secret is sealed with it
 secondFactor.confirm: the secret does not open with the key "2026-09" — was that key changed under the same id, or the secret copied from another user?
+secondFactor.recover: a recovery code is hashed with the key "2026-09", which secondFactor.keys no longer holds — keep a key until no secret or recovery code uses it
 ```
+
+A key changed under the same id raises nothing on a recovery code: its hash
+simply matches no more, and `recover` answers `CODE_INVALID`. Never change a
+key under its id.
 
 **What sealing protects.** A secret is sealed with AES-256-GCM, and the
 user's id is bound into it: a dump of the users, without the keys, produces
@@ -475,8 +643,8 @@ export const secondFactor = {
 } as const;
 ```
 
-The same holds for `enroll`, `activate` and `confirm`, which an instance with
-no keys cannot call — for TypeScript they do not exist on it, and for a
+The same holds for `enroll`, `activate`, `confirm`, `recover` and
+`regenerateRecoveryCodes`, which an instance with no keys cannot call — for TypeScript they do not exist on it, and for a
 JavaScript caller they throw the same `TypeError`.
 
 ## A sign-in with a code, as routes
@@ -530,6 +698,36 @@ export async function confirmSecondFactor(request: Request): Promise<Response> {
 			return Response.json({ code: error.code }, { status: 400 }); // sign in again
 		}
 		throw error; // STORE_FAILED: your 503
+	}
+}
+```
+
+The recovery code route is the same, calling `recover`, and answers what is
+left besides — a form that offers both kinds posts each kind to its own route:
+
+```ts
+export async function recoverSignIn(request: Request): Promise<Response> {
+	const { recoveryCode } = (await request.json()) as { recoveryCode: string };
+	const challenge = request.headers
+		.get('cookie')
+		?.match(new RegExp(`(?:^|;\\s*)${CHALLENGE}=([^;]+)`))?.[1];
+	if (challenge === undefined) return Response.json({ code: 'TOKEN_UNKNOWN' }, { status: 400 });
+
+	try {
+		const signedIn = await auth.secondFactor.recover(challenge, recoveryCode);
+		const headers = new Headers();
+		headers.append('Set-Cookie', auth.cookie.serialize(signedIn.token, signedIn.session));
+		headers.append('Set-Cookie', `${CHALLENGE}=; Max-Age=0; ${scope}`);
+		// 0 left: have the user regenerate them once signed in
+		return Response.json({ id: signedIn.user.id, recoveryCodesLeft: signedIn.recoveryCodesLeft }, { headers });
+	} catch (error) {
+		if (error instanceof TokenError && error.code === 'CODE_INVALID') {
+			return Response.json({ code: error.code, attemptsLeft: error.attemptsLeft }, { status: 401 });
+		}
+		if (error instanceof JanusError && error.code !== 'STORE_FAILED') {
+			return Response.json({ code: error.code }, { status: 400 }); // sign in again — VERSION_CONFLICT included
+		}
+		throw error;
 	}
 }
 ```
@@ -595,12 +793,24 @@ it('asks for a code once the factor is active', async () => {
 interface SecondFactorApi<U> {
 	readonly secondFactor: {
 		enroll(user: UserRef, options?: WriteOptions): Promise<SecondFactorEnrolment>;
-		activate(user: UserRef, code: string, options?: WriteOptions): Promise<U>;
+		activate(user: UserRef, code: string, options?: WriteOptions): Promise<RecoveryCodesIssued<U>>;
+		regenerateRecoveryCodes(user: UserRef, code: string, options?: WriteOptions): Promise<RecoveryCodesIssued<U>>;
 		disable(user: UserRef, options?: WriteOptions): Promise<U>;
 		confirm(challenge: string, code: string): Promise<SignedIn<U>>;
+		recover(challenge: string, code: string): Promise<RecoveredSignIn<U>>; // code: a recovery code
 	};
 }
+
+interface RecoveryCodesIssued<U> {
+	readonly user: U;
+	readonly recoveryCodes: readonly string[]; // ten, `xxxxx-xxxxx`, shown once
+}
+
+type RecoveredSignIn<U> = SignedIn<U> & { readonly recoveryCodesLeft: number };
 ```
+
+`RecoveryCodesIssued` and `RecoveredSignIn` are exported types of
+`@nxgt/janus`.
 
 `UserRef` is a user or its id; `WriteOptions` is `{ ifVersion? }`, as on
 every write — see [Users](users.md#ifversion). Every call may also reject
@@ -610,8 +820,8 @@ with `STORE_FAILED`.
 
 - [Sign-in codes](sign-in-code.md) — a sign-in by e-mailed code, which still asks for an active factor, with the same challenge
 - [Sessions](sessions.md) — the cookie `confirm`'s session is sent in, and `authenticatedAt`
-- [User events](events.md) — `user.secondFactorEnabled` and `user.secondFactorDisabled`
+- [User events](events.md) — `user.secondFactorEnabled`, `user.secondFactorDisabled`, `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`
 - [Errors](errors.md) — `CODE_INVALID`, `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` and their statuses
-- [Writing an adapter](adapters.md#a-users-password-and-second-factor) — what a store keeps of a factor
+- [Writing an adapter](adapters.md#a-users-password-and-second-factor) — what a store keeps of a factor and its recovery codes
 - [`@nxgt/janus-telemetry`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-telemetry/docs/guide/tracing.md) — the events a second factor writes
 - [Troubleshooting](../troubleshooting.md) — by the message you see

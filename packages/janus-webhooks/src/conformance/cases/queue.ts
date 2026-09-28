@@ -12,6 +12,8 @@ const TYPES: readonly UserEventType[] = [
 	'user.passwordReset',
 	'user.secondFactorEnabled',
 	'user.secondFactorDisabled',
+	'user.recoveryCodesRegenerated',
+	'user.recoveryCodeUsed',
 	'user.deleted',
 ];
 

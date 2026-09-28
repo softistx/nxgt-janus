@@ -218,6 +218,25 @@ A wrong code leaves the cookie in place, so the visitor types the next one.
 `attemptsLeft` is the only thing the body adds: which cause of
 `CODE_INVALID` it was — a wrong code or a reused one — is not told.
 
+A user whose phone is gone answers the same challenge with a **recovery
+code** instead, on a route of its own under the cookie's path:
+
+```ts
+app.post('/sign-in/recovery', async (c) => {
+	const { code } = await c.req.json();
+	const challenge = getCookie(c, CHALLENGE);
+	if (challenge === undefined) return c.json({ code: 'TOKEN_UNKNOWN' }, 400);
+	const recovered = await auth.secondFactor.recover(challenge, code);
+	const user = sendSession(c, auth, recovered);
+	deleteCookie(c, CHALLENGE, scope);
+	return c.json({ id: user.id, recoveryCodesLeft: recovered.recoveryCodesLeft });
+});
+```
+
+It shares the challenge's five attempts with `/sign-in/code`, and
+`janusErrors()` answers it as above — plus `VERSION_CONFLICT`, 409, when the
+same code signed in elsewhere at the same instant: sign in again.
+
 A bearer client gets the challenge in the body instead, and sends it back
 with the code:
 
@@ -231,7 +250,7 @@ app.post('/api/sign-in', async (c) => {
 });
 ```
 
-### Enrolling, activating, disabling
+### Enrolling, activating, recovery codes, disabling
 
 The user is signed in for these, so `session()` names them:
 
@@ -244,8 +263,16 @@ app.post('/account/second-factor', session(auth, { required: true }), async (c) 
 
 app.post('/account/second-factor/activate', session(auth, { required: true }), async (c) => {
 	const { code } = await c.req.json();
-	await auth.secondFactor.activate(c.var.user, code);
-	return c.body(null, 204);
+	const { recoveryCodes } = await auth.secondFactor.activate(c.var.user, code);
+	c.header('Cache-Control', 'no-store'); // the recovery codes are shown once
+	return c.json({ recoveryCodes });
+});
+
+app.post('/account/second-factor/recovery-codes', session(auth, { required: true }), async (c) => {
+	const { code } = await c.req.json(); // a fresh code from the app
+	const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(c.var.user, code);
+	c.header('Cache-Control', 'no-store');
+	return c.json({ recoveryCodes });
 });
 
 app.delete('/account/second-factor', session(auth, { required: true }), async (c) => {
@@ -261,8 +288,13 @@ app.delete('/account/second-factor', session(auth, { required: true }), async (c
 | Thrown | Answered |
 | --- | --- |
 | `SECOND_FACTOR_ACTIVE` | 409 `{ code }` — `enroll` or `activate` on a factor already active |
-| `SECOND_FACTOR_NOT_ENROLLED` | 409 `{ code }` — `activate` before `enroll` |
-| `CODE_INVALID` | 401 `{ code }` — `activate` counts no attempts, so there is no `attemptsLeft` |
+| `SECOND_FACTOR_NOT_ENROLLED` | 409 `{ code }` — `activate` before `enroll`, or `regenerateRecoveryCodes` without an active factor |
+| `CODE_INVALID` | 401 `{ code }` — `activate` and `regenerateRecoveryCodes` count no attempts, so there is no `attemptsLeft` |
+
+**Rate-limit the regenerate route per user.** `regenerateRecoveryCodes`
+counts no attempts, so a stolen session could guess the app's code there one
+request at a time. Put a limiter keyed on `c.var.user.id` in front of it, as
+you would key the sign-in route on the address.
 
 The key rotation, the attempts and the replay rules are
 [`@nxgt/janus`'s second factor guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md).

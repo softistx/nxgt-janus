@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
 import type { UserEvent } from '../events';
-import { enrolled, setup } from './flows.fixtures';
+import { createMemoryStores } from '../port/memory';
+import { challenged, enrolled, setup } from './flows.fixtures';
 
 /** An instance whose listener records what it hears. */
 function listening() {
@@ -158,5 +159,71 @@ describe('a listener that fails', () => {
 		await new Promise((resolve) => setImmediate(resolve));
 		expect(warnings.join('\n')).toContain('user.secondFactorEnabled');
 		expect(warnings.join('\n')).toContain('user.secondFactorDisabled');
+	});
+});
+
+describe('recovery codes', () => {
+	it('reports user.recoveryCodesRegenerated, and nothing for a refusal', async () => {
+		const context = listening();
+		const { auth, codeOf, types } = context;
+		const { secret, user } = await enrolled(context);
+		await rejection(auth.secondFactor.regenerateRecoveryCodes(user, 'x'));
+		expect(types().at(-1)).toBe('user.secondFactorEnabled');
+
+		await auth.secondFactor.regenerateRecoveryCodes(user, codeOf(secret));
+
+		expect(types().at(-1)).toBe('user.recoveryCodesRegenerated');
+	});
+
+	it('reports user.recoveryCodeUsed once a code signed a user in, and nothing for one refused', async () => {
+		const context = listening();
+		const { auth, types } = context;
+		const { recoveryCodes } = await enrolled(context);
+		await rejection(
+			auth.secondFactor.recover(await challenged(auth), 'zzzzz-zzzzz'),
+		);
+		expect(types().at(-1)).toBe('user.secondFactorEnabled');
+
+		await auth.secondFactor.recover(
+			await challenged(auth),
+			recoveryCodes[0] ?? '',
+		);
+
+		expect(types().at(-1)).toBe('user.recoveryCodeUsed');
+	});
+
+	it('reports user.recoveryCodeUsed once the code is written, even when the session then fails to open', async () => {
+		const stores = createMemoryStores();
+		const failing = { on: false };
+		const insertSession = stores.sessions.insertSession.bind(stores.sessions);
+		const received: UserEvent[] = [];
+		const context = setup({
+			store: {
+				...stores,
+				sessions: {
+					...stores.sessions,
+					insertSession: (session) => {
+						if (failing.on) throw new Error('sessions down');
+						return insertSession(session);
+					},
+				},
+			},
+			events: (event) => void received.push(event),
+		});
+		const { recoveryCodes, user } = await enrolled(context);
+		const challenge = await challenged(context.auth);
+		failing.on = true;
+
+		const failed = await rejection(
+			context.auth.secondFactor.recover(challenge, recoveryCodes[0] ?? ''),
+		);
+
+		expect(failed).toMatchObject({ code: 'STORE_FAILED' });
+		expect(received.at(-1)?.type).toBe('user.recoveryCodeUsed');
+		expect(
+			received.filter((event) => event.type === 'user.recoveryCodeUsed'),
+		).toHaveLength(1);
+		const stored = await stores.users.findUser(user.id);
+		expect(stored?.secondFactor?.recoveryCodes).toHaveLength(9);
 	});
 });

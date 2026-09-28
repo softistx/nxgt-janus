@@ -8,10 +8,12 @@ import { hashRecoveryCode, mintRecoveryCodes } from './recovery-codes';
 import { refusal } from './refusal';
 
 /**
- * Confirms a waiting factor with its first code: from then on, it is asked
- * for. Its recovery codes are written in the same write, and answered once.
+ * Replaces a user's recovery codes with new ones, and answers them once: the
+ * old ones, used or not, stop working. Takes a **fresh code from the app** —
+ * whoever holds a session alone cannot mint codes that outlive it — and
+ * spends it, as a code accepted anywhere else is spent.
  */
-export async function activateFactor(
+export async function regenerateRecoveryCodes(
 	context: Context,
 	type: ResolvedType,
 	user: UserRef,
@@ -22,7 +24,7 @@ export async function activateFactor(
 	const configured = requireSettings(
 		context,
 		where,
-		'a second factor is being activated',
+		'recovery codes are being regenerated',
 	);
 	const recoveryCodes = mintRecoveryCodes();
 
@@ -34,20 +36,11 @@ export async function activateFactor(
 		where,
 		(record, now) => {
 			const factor = record.secondFactor;
-			if (factor === null) {
+			if (!isActive(factor)) {
 				throw refusal(
 					type,
 					'SECOND_FACTOR_NOT_ENROLLED',
-					'the user has no second factor waiting — call enroll first',
-					where,
-					record,
-				);
-			}
-			if (isActive(factor)) {
-				throw refusal(
-					type,
-					'SECOND_FACTOR_ACTIVE',
-					"the user's second factor is already active",
+					'the user has no active second factor — recovery codes come with one',
 					where,
 					record,
 				);
@@ -64,7 +57,6 @@ export async function activateFactor(
 			return {
 				secondFactor: {
 					...accepted,
-					confirmedAt: now,
 					recoveryCodes: recoveryCodes.map((one) =>
 						hashRecoveryCode(configured.sealer, record.id, one),
 					),
@@ -72,7 +64,11 @@ export async function activateFactor(
 			};
 		},
 	);
-	// After the write, the flow's last step: the factor is asked for from now.
-	await emit(context, 'user.secondFactorEnabled', written, written.updatedAt);
+	await emit(
+		context,
+		'user.recoveryCodesRegenerated',
+		written,
+		written.updatedAt,
+	);
 	return { user: toUser(written), recoveryCodes };
 }

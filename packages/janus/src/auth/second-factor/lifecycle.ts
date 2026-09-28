@@ -5,16 +5,18 @@ import type { SecondFactorApi } from '../types';
 import { activateFactor } from './activate';
 import { disableFactor } from './disable';
 import { enrollFactor } from './enroll';
+import { regenerateRecoveryCodes } from './regenerate';
 
 type Lifecycle = Pick<
 	SecondFactorApi<AnyUser>['secondFactor'],
-	'enroll' | 'activate' | 'disable'
+	'enroll' | 'activate' | 'regenerateRecoveryCodes' | 'disable'
 >;
 
 /**
- * Enrolling, activating and disabling a factor: each one write under a
- * version. This module only names each call; each step is a module of its
- * own — `./enroll`, `./activate`, `./disable`.
+ * Enrolling, activating, regenerating its recovery codes and disabling a
+ * factor: each one write under a version. This module only names each call;
+ * each step is a module of its own — `./enroll`, `./activate`,
+ * `./regenerate`, `./disable`.
  */
 export function lifecycleFlows(
 	context: Context,
@@ -40,6 +42,17 @@ export function lifecycleFlows(
 				code,
 				options,
 				at('secondFactor.activate'),
+			);
+		},
+
+		async regenerateRecoveryCodes(user, code, options) {
+			return regenerateRecoveryCodes(
+				context,
+				type,
+				user,
+				code,
+				options,
+				at('secondFactor.regenerateRecoveryCodes'),
 			);
 		},
 

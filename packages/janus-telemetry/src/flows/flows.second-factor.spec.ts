@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { createHmac } from 'node:crypto';
 import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
 import { z } from 'zod';
 import { collect, rejection } from '../../test/collect';
-import { email, password } from './flows.fixtures';
+import { email, password, totp } from './flows.fixtures';
 import { instrumentJanus } from './index';
 
 describe('instrumentJanus()', () => {
@@ -83,21 +82,3 @@ describe('instrumentJanus()', () => {
 		for (const secret of secrets) expect(written).not.toContain(secret);
 	});
 });
-
-/** The code an authenticator app shows at `ms`: RFC 6238, as the core checks it. */
-function totp(base32: string, ms: number): string {
-	const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-	let bits = '';
-	for (const char of base32)
-		bits += alphabet.indexOf(char).toString(2).padStart(5, '0');
-	const key = Buffer.from(
-		(bits.match(/.{8}/g) ?? []).map((byte) => Number.parseInt(byte, 2)),
-	);
-	const counter = Buffer.alloc(8);
-	counter.writeBigUInt64BE(BigInt(Math.floor(ms / 30_000)));
-	const digest = createHmac('sha1', key).update(counter).digest();
-	const offset = (digest[19] as number) & 0x0f;
-	return String(
-		(digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000,
-	).padStart(6, '0');
-}
