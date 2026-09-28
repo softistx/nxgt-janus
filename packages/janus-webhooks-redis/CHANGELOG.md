@@ -1,5 +1,21 @@
 # @nxgt/janus-webhooks-redis
 
+## 0.4.0
+
+### Minor Changes
+
+- [#167](https://github.com/softistx/nxgt-janus/pull/167) [`1c91d8f`](https://github.com/softistx/nxgt-janus/commit/1c91d8f69893bac631e3240ec0b28911c7771ced) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The change events, from `@nxgt/janus` 0.14: `user.passwordChanged` and `user.emailChanged` are signed, posted and verified like the other eight. An endpoint's `types` may name them, and the Redis queue stores and reads them back. The messages that list the event types — `webhooks: an endpoint's types are user event types — …` and `webhooks: the listener takes a user event — …` — now list ten.
+  
+  **`user.emailChanged` is posted without its `formerEmail`.** `webhooks()` drops the address `@nxgt/janus` hands its listener before the queue, so no endpoint, queue — yours or the Redis one — or `onGivingUp` report ever holds it. Send the notice to the former address from the `janus({ events })` listener, beside `webhooks()`.
+  
+  **Upgrade the receiver before the sender.** A receiver's `verifyWebhook` before 0.6.0 answers `null` for the two new types, so their deliveries fail until they are given up. Until every receiver is upgraded, give its endpoint the `types` it knows. **Upgrade `@nxgt/janus-webhooks-redis` with `@nxgt/janus`, too**: a queue before 0.4.0 cannot read back a delivery of a new type, and the claims of that endpoint fail in its processes until they are upgraded.
+
+### Patch Changes
+
+- Updated dependencies [[`1c91d8f`](https://github.com/softistx/nxgt-janus/commit/1c91d8f69893bac631e3240ec0b28911c7771ced), [`f171ae3`](https://github.com/softistx/nxgt-janus/commit/f171ae3abed8780e9cf61999daf48a3d2cd192ef), [`b3c2487`](https://github.com/softistx/nxgt-janus/commit/b3c248732df07bac2d5ca4e8d218092b491b7b10)]:
+  - @nxgt/janus-webhooks@0.6.0
+  - @nxgt/janus@0.14.0
+
 ## 0.3.3
 
 ### Patch Changes

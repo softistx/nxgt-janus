@@ -1,5 +1,25 @@
 # @nxgt/janus-mail
 
+## 0.6.0
+
+### Minor Changes
+
+- [#167](https://github.com/softistx/nxgt-janus/pull/167) [`17ef79c`](https://github.com/softistx/nxgt-janus/commit/17ef79c1cf610ea1af55d99f02ed59dadb7a4d67) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The change notices on their events. `passwordChanged` and `emailChanged` are shown sent from `@nxgt/janus` 0.14's `user.passwordChanged` and `user.emailChanged` events, as the two-factor notices are, rather than right after the call — so the user is told whoever made the change. `emailChanged` goes to the event's `formerEmail`, the inbox the account just left (`@nxgt/mail-presets`' `email-changed` is written for the former address), naming the new one read from the user:
+  
+  ```ts
+  if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+  	const user = await auth.get(event.userId);
+  	await mail.emailChanged({ name: user.name, locale: user.locale, formerEmail: event.formerEmail, newEmail: user.email });
+  }
+  ```
+  
+  No change to the methods themselves. Two more plausible mistakes are refused at compile time, thirty-six in all: `event.formerEmail` passed unchecked — it is `null` for a user who had no e-mail — and the event itself passed as the recipient.
+
+### Patch Changes
+
+- Updated dependencies [[`f171ae3`](https://github.com/softistx/nxgt-janus/commit/f171ae3abed8780e9cf61999daf48a3d2cd192ef), [`b3c2487`](https://github.com/softistx/nxgt-janus/commit/b3c248732df07bac2d5ca4e8d218092b491b7b10)]:
+  - @nxgt/janus@0.14.0
+
 ## 0.5.2
 
 ### Patch Changes
