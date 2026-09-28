@@ -56,7 +56,7 @@ seventh.
 function onUserEvent(event: UserEvent): void {
 	switch (event.type) {
 		case 'user.created':
-			return welcome(event.userId); // @nxgt/janus-mail's welcome
+			return welcomeTheUser(event.userId); // reads the user, then @nxgt/janus-mail's mail.welcome
 		case 'user.emailVerified':
 			return unlockFeatures(event.userId);
 		case 'user.passwordReset':
