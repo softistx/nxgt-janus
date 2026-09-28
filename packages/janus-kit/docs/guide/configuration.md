@@ -148,6 +148,10 @@ its own.
 `prefix` starts every key, `janus:` by default. Two applications sharing one
 Redis each take their own.
 
+The one-time tokens include `signIn`'s password counts, which throttle
+guessing per login: **a flushed Redis forgets them**, and every login may try
+ten passwords again — as a flush signs everybody out. Keep `FLUSHDB` for tests.
+
 Absent, sessions and tokens stay in the database. On PostgreSQL, schedule
 `kit.auth.collectExpired()` then: PostgreSQL has no TTL. On MongoDB, a TTL index
 removes them, and `collectExpired()` answers `UNSUPPORTED`.

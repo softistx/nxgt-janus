@@ -63,6 +63,44 @@ describe('connectKit()', () => {
 		}
 	});
 
+	it('throttles sign-in in Redis, and forgets the counts when Redis is flushed', async () => {
+		const pg = await openPglite();
+		const prefix = `kit${Date.now()}:`;
+		try {
+			const kit = await connectKit(
+				defineConfig({
+					postgres: { db: pg.db },
+					redis: { url: redisUrl, prefix },
+					auth: (adapters) =>
+						janus({
+							user,
+							password: { login: 'email' },
+							hasher,
+							signIn: { throttle: { attempts: 2 } },
+							...adapters,
+						}),
+				}),
+			);
+			const signedUp = credentials();
+			await kit.auth.signUp(signedUp);
+			const reasonOf = (password: string) =>
+				kit.auth.signIn({ email: signedUp.email, password }).then(
+					() => 'signedIn',
+					(error: { reason?: string }) => error.reason,
+				);
+
+			expect(await reasonOf('wrong')).toBe('wrongPassword');
+			expect(await reasonOf('wrong')).toBe('wrongPassword');
+			expect(await reasonOf(signedUp.password)).toBe('throttled');
+
+			await server.admin.send('FLUSHDB', []);
+			expect(await reasonOf(signedUp.password)).toBe('signedIn');
+			await kit.close();
+		} finally {
+			await pg.close();
+		}
+	});
+
 	it("passes @nxgt/redis's refusal of a URL already connected with other options through", async () => {
 		const pg = await openPglite();
 		const mine = await connectRedis(redisUrl);
