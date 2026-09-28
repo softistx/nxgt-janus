@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { bearer } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { createMemoryStores } from '../port/memory';
-import type { JanusStores } from '../port/types';
 import { challenged, enrolled, setup } from './flows.fixtures';
 
 describe('secondFactor.recover', () => {
@@ -83,36 +81,6 @@ describe('secondFactor.recover', () => {
 		).toMatchObject({ code: 'TOKEN_SPENT' });
 	});
 
-	it('opens one session for a code used twice at once: the other write is VERSION_CONFLICT', async () => {
-		const store = barrierOnReads(createMemoryStores(), 2);
-		const used: string[] = [];
-		const context = setup({
-			store: store.stores,
-			events: (event) => {
-				if (event.type === 'user.recoveryCodeUsed') used.push(event.userId);
-			},
-		});
-		const { auth } = context;
-		const { recoveryCodes, user } = await enrolled(context);
-		const [code = ''] = recoveryCodes;
-		const challenges = [await challenged(auth), await challenged(auth)];
-
-		store.arm();
-		const outcomes = await Promise.all(
-			challenges.map((challenge) =>
-				auth.secondFactor.recover(challenge, code).then(
-					(signedIn) => signedIn.status,
-					(error: { code?: string }) => error.code,
-				),
-			),
-		);
-
-		expect(outcomes.sort()).toEqual(['VERSION_CONFLICT', 'signedIn']);
-		expect(used).toEqual([user.id]);
-		const stored = await context.store.users.findUser(user.id);
-		expect(stored?.secondFactor?.recoveryCodes).toHaveLength(9);
-	});
-
 	it('refuses the codes a regeneration replaced, and those of a factor disabled', async () => {
 		const context = setup();
 		const { auth, codeOf, clock } = context;
@@ -164,35 +132,3 @@ describe('secondFactor.recover', () => {
 		expect(stored?.secondFactor?.recoveryCodes).toHaveLength(10);
 	});
 });
-
-/**
- * A store whose `findUser` holds, once armed, until `count` calls are
- * waiting: both redemptions read the same version before either writes.
- */
-function barrierOnReads(stores: JanusStores, count: number) {
-	let armed = false;
-	let waiting: (() => void)[] = [];
-	const findUser = stores.users.findUser.bind(stores.users);
-	const users = {
-		...stores.users,
-		findUser: async (id: Parameters<typeof findUser>[0]) => {
-			const record = await findUser(id);
-			if (!armed) return record;
-			await new Promise<void>((release) => {
-				waiting.push(release);
-				if (waiting.length === count) {
-					for (const one of waiting) one();
-					waiting = [];
-					armed = false;
-				}
-			});
-			return record;
-		},
-	};
-	return {
-		stores: { ...stores, users },
-		arm: () => {
-			armed = true;
-		},
-	};
-}

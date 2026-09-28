@@ -220,6 +220,9 @@ describe('recovery codes', () => {
 
 		expect(failed).toMatchObject({ code: 'STORE_FAILED' });
 		expect(received.at(-1)?.type).toBe('user.recoveryCodeUsed');
+		expect(
+			received.filter((event) => event.type === 'user.recoveryCodeUsed'),
+		).toHaveLength(1);
 		const stored = await stores.users.findUser(user.id);
 		expect(stored?.secondFactor?.recoveryCodes).toHaveLength(9);
 	});
