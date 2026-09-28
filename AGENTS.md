@@ -680,14 +680,17 @@ stage put everything back and that a missing unscoped link is refused.
 parsing (`--single` on a name that is no floor, a floor named twice, a
 package that is not one directory), its manifest — what is packed, what is
 carried at the workspace's version, a floor outside the peer range or not a
-peer — and the copies a hoisted tree holds and what a directory resolves;
+peer — the copies a hoisted tree holds and what a directory resolves, and
+the copy of the package and the versions carried from the workspace, a name
+that does not resolve refused with *run bun install*;
 `scripts/run-in-floor-project.spec.ts` runs it on a scratch workspace
 (`run-in-floor-project.fixtures.ts`) with the pack and the install stubbed,
 and holds that the command runs in the copy on the floor and the project is
 removed after a success, a second copy of a `--single` floor, a packed
 package resolving another version, a packed package that does not load and
 a SIGTERM. Both floor scripts forward SIGINT and SIGTERM through
-`scripts/peer-floor/forward.ts`.
+`scripts/peer-floor/forward.ts`, whose spec holds that a signal arriving
+before the command answers `128 + <signal>` without running it.
 
 ---
 
