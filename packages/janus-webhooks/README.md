@@ -25,7 +25,7 @@ export const auth = janus({
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted
+	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted
 });
 
 process.on('SIGTERM', async () => {
@@ -88,7 +88,7 @@ and what fails it.
 
 `webhooks({ endpoints })` answers the listener `janus({ events })` takes,
 with a `close()` for shutdown. It posts each user event to every endpoint
-whose `types` include it — all six types when `types` is absent:
+whose `types` include it — all eight types when `types` is absent:
 
 ```ts
 import { webhooks } from '@nxgt/janus-webhooks';
@@ -257,8 +257,9 @@ it in the four steps above, then upgrade.
 **Upgrade the receiver before the sender.** A receiver's `verifyWebhook`
 answers `null` for a type it does not know, so the delivery fails until it is
 given up — `@nxgt/janus-webhooks` before 0.3.0 knows neither
-`user.secondFactorEnabled` nor `user.secondFactorDisabled`. Until every
-receiver is upgraded, give its endpoint the `types` it knows:
+`user.secondFactorEnabled` nor `user.secondFactorDisabled`, and before 0.4.0
+neither `user.recoveryCodesRegenerated` nor `user.recoveryCodeUsed`. Until
+every receiver is upgraded, give its endpoint the `types` it knows:
 
 ```ts
 webhooks({

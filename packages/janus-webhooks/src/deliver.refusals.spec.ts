@@ -25,7 +25,7 @@ describe('an event whose body cannot be built', () => {
 			{ userType: 42 },
 		]) {
 			expect(() => listener({ ...event, ...wrong } as never)).toThrow(
-				'webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted, a userId and a userType',
+				'webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted, a userId and a userType',
 			);
 		}
 		await new Promise((resolve) => setTimeout(resolve, 20));

@@ -36,7 +36,7 @@ How the messages are shaped:
 - [`<call>: a secret is written whsec_<base64> — make one with mintWebhookSecret()`](#call-a-secret-is-written-whsec_base64--make-one-with-mintwebhooksecret)
 - [`<call>: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()`](#call-a-secret-holds-at-least-24-bytes-of-base64-after-whsec_--make-one-with-mintwebhooksecret)
 - [`<call>: a secret holds at most 64 bytes of base64 after whsec_ — make one with mintWebhookSecret()`](#call-a-secret-holds-at-most-64-bytes-of-base64-after-whsec_--make-one-with-mintwebhooksecret)
-- [`webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted`](#webhooks-an-endpoints-types-are-user-event-types--usercreated-useremailverified-userpasswordreset-usersecondfactorenabled-usersecondfactordisabled-userdeleted)
+- [`webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted`](#webhooks-an-endpoints-types-are-user-event-types--usercreated-useremailverified-userpasswordreset-usersecondfactorenabled-usersecondfactordisabled-userrecoverycodesregenerated-userrecoverycodeused-userdeleted)
 - [`webhooks: retries: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`](#webhooks-retries-value-is-not-a-duration-write-a-number-followed-by-ms-s-m-h-or-d--for-example-15m-or-720h)
 - [`webhooks: retries: a duration in milliseconds must be a finite number above zero`](#webhooks-retries-a-duration-in-milliseconds-must-be-a-finite-number-above-zero)
 - [`webhooks: retries is a list of durations`](#webhooks-retries-is-a-list-of-durations)
@@ -49,7 +49,7 @@ How the messages are shaped:
 - [`webhooks: lease must be at least timeout plus 1s — a request that outlives its lease is sent twice`](#webhooks-lease-must-be-at-least-timeout-plus-1s--a-request-that-outlives-its-lease-is-sent-twice)
 - [`webhooks: timeout is too long — the default lease, timeout plus 30s, waits at most 24 days`](#webhooks-timeout-is-too-long--the-default-lease-timeout-plus-30s-waits-at-most-24-days)
 - [`webhooks: <lease or poll> waits at most 24 days`](#webhooks-lease-or-poll-waits-at-most-24-days)
-- [`webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted, a userId and a userType`](#webhooks-the-listener-takes-a-user-event--an-id-one-of-usercreated-useremailverified-userpasswordreset-usersecondfactorenabled-usersecondfactordisabled-userdeleted-a-userid-and-a-usertype)
+- [`webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted, a userId and a userType`](#webhooks-the-listener-takes-a-user-event--an-id-one-of-usercreated-useremailverified-userpasswordreset-usersecondfactorenabled-usersecondfactordisabled-userrecoverycodesregenerated-userrecoverycodeused-userdeleted-a-userid-and-a-usertype)
 - [`webhooks: an event's occurredAt is a valid Date`](#webhooks-an-events-occurredat-is-a-valid-date)
 - [`verifyWebhook: pass the endpoint's secrets — at least one`](#verifywebhook-pass-the-endpoints-secrets--at-least-one)
 - [`verifyWebhook: toleranceSeconds is a finite number of seconds, 0 or more`](#verifywebhook-toleranceseconds-is-a-finite-number-of-seconds-0-or-more)
@@ -206,7 +206,7 @@ import { mintWebhookSecret } from '@nxgt/janus-webhooks';
 const next = mintWebhookSecret(); // store it beside the old one, then rotate
 ```
 
-### `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted`
+### `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted`
 
 **When:** calling `webhooks({ … })` with an endpoint whose `types` is not an
 array (`types: 'user.created'`), or names a type `@nxgt/janus` does not send
@@ -407,7 +407,7 @@ webhooks({ endpoints, queue, timeout: '30s' });
 **Fix:** a shorter one: a poll is seconds, a lease a little more than a
 request can take.
 
-### `webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.deleted, a userId and a userType`
+### `webhooks: the listener takes a user event — an id, one of user.created, user.emailVerified, user.passwordReset, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted, a userId and a userType`
 
 **When:** calling the listener yourself, from JavaScript or through a cast,
 with something that is not a user event — a type `janus` never sends
@@ -837,7 +837,8 @@ purpose it never says which check failed. In order of likelihood:
   the user event types this receiver knows — a newer sender with a type this
   receiver does not know yet included: `@nxgt/janus-webhooks` before 0.3.0
   answers `null` for `user.secondFactorEnabled` and
-  `user.secondFactorDisabled`. Upgrade the receiver before the sender, or
+  `user.secondFactorDisabled`, and before 0.4.0 for
+  `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`. Upgrade the receiver before the sender, or
   give its endpoint the `types` it knows.
 
 **Fix:** verify first, on the raw body and the request's own headers, and
