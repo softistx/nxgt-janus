@@ -105,6 +105,9 @@ The cookie is `auth.cookie.serialize(token, session)`, under the attributes
   only traffic is the WebSocket for longer than the lifespan minus
   `renewAfter` should renew through an HTTP route of yours. See
   [subscriptions](subscriptions.md).
+- **A session first read after the response started** — by a field under
+  `@defer`, when no field of the initial payload read it — is not sent: the
+  headers had already gone.
 - **An `auth` of your own** — a wrapper that counts or caches — must pass on
   `cookie: auth.cookie` beside `authenticate` and `types`; without it, no
   renewed cookie is sent.
