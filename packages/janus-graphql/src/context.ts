@@ -57,7 +57,8 @@ export interface ContextOptions {
  * or `session()` is asked, once, and its answer — or its failure — is the
  * answer of both from then on.
  *
- * A context with no request — a transport that is not HTTP — answers a
+ * A context with no request — a transport that is not HTTP, or a graphql-ws
+ * connection no `janusConnection().onConnect` accepted — answers a
  * `TypeError` from `user()`, not `null`: anonymous is an answer, and nothing
  * here asked.
  */
@@ -75,7 +76,7 @@ export function createJanusContext(
 				request === undefined
 					? Promise.reject(
 							new TypeError(
-								'useJanus(): the GraphQL context has no request to authenticate — build the context from an HTTP request',
+								'useJanus(): the GraphQL context has no request to authenticate — build the context from an HTTP request, or accept a graphql-ws connection with janusConnection().onConnect',
 							),
 						)
 					: auth.authenticate(
