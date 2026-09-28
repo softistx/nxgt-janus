@@ -2,6 +2,7 @@ import { mkdir, readdir, realpath, symlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 export interface FloorManifest {
+	readonly version?: string;
 	readonly dependencies?: Readonly<Record<string, string>>;
 	readonly peerDependencies?: Readonly<Record<string, string>>;
 	readonly peerDependenciesMeta?: Readonly<
@@ -68,7 +69,7 @@ export async function stage(
 		const at = join(modules, entry);
 		await mkdir(dirname(at), { recursive: true });
 		await symlink(await realpath(join(lockedModules, entry)), at);
-		staged[entry] = ((await manifestAt(at)) as { version?: string })?.version;
+		staged[entry] = (await manifestAt(at))?.version;
 	};
 	for (const entry of await readdir(lockedModules)) {
 		if (entry.startsWith('.')) continue;

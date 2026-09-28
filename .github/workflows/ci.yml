@@ -179,9 +179,10 @@ jobs:
   # PostgreSQL URL — its other drizzle cases run on PGlite — on PostgreSQL
   # 15; @nxgt/janus-redis and @nxgt/janus-webhooks-redis on Redis 7.0 and on
   # Valkey; and @nxgt/janus-kit's drizzle specs, whose Redis is real, on Redis
-  # 7.0 as well, since it promises the same floor. Each floor is the newest patch of its line.
-  # And the library peers' floors, `@nxgt/mail` 0.1.0 and `@nxgt/mongo`
-  # 0.17.0, at the end of the job.
+  # 7.0 as well, since it promises the same floor. Each server floor is the
+  # newest patch of its line. And, at the end of the job, the library peers'
+  # floors, `@nxgt/mail` 0.1.0 and `@nxgt/mongo` 0.17.0 — each the exact lower
+  # bound of its peer range, not the newest patch.
   #
   # A floor that fails here is not fixed by testing a newer version: the
   # README is then wrong, and that is a decision, not a CI change.

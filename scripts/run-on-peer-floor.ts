@@ -55,7 +55,7 @@ interface Swap {
 
 /** Each named package's link to the peer, checked to be the install's own. */
 async function locate(root: string, plan: Plan): Promise<Swap[]> {
-	const store = join(root, 'node_modules', '.bun') + sep;
+	const store = (await realpath(join(root, 'node_modules', '.bun'))) + sep;
 	const swaps: Swap[] = [];
 	let locked: string | undefined;
 	for (const pkg of plan.packages) {
@@ -97,12 +97,16 @@ export async function runOnFloor(
 	const dir = await mkdtemp(join(options.tmp ?? tmpdir(), 'peer-floor-'));
 	let child: Subprocess | undefined;
 	let interrupted: NodeJS.Signals | undefined;
-	const forward = (signal: NodeJS.Signals) => {
+	// Named per signal, not read from the listener's argument, which a
+	// `process.emit` does not pass.
+	const forward = (signal: NodeJS.Signals) => () => {
 		interrupted = signal;
 		child?.kill(signal);
 	};
-	process.on('SIGINT', forward);
-	process.on('SIGTERM', forward);
+	const onInt = forward('SIGINT');
+	const onTerm = forward('SIGTERM');
+	process.on('SIGINT', onInt);
+	process.on('SIGTERM', onTerm);
 	let restoring: Promise<void> | undefined;
 	const restore = () => {
 		restoring ??= (async () => {
@@ -121,7 +125,11 @@ export async function runOnFloor(
 		for (const { link } of swaps) {
 			await unlink(link);
 			await symlink(floor, link);
-			const { version } = await Bun.file(join(link, 'package.json')).json();
+			const { version } = (await Bun.file(
+				join(link, 'package.json'),
+			).json()) as {
+				version?: string;
+			};
 			if (version !== plan.version) {
 				throw new Error(`${link} resolves ${version}, not ${plan.version}`);
 			}
@@ -136,8 +144,8 @@ export async function runOnFloor(
 		return interrupted ? 128 + constants.signals[interrupted] : code;
 	} finally {
 		await restore();
-		process.off('SIGINT', forward);
-		process.off('SIGTERM', forward);
+		process.off('SIGINT', onInt);
+		process.off('SIGTERM', onTerm);
 	}
 }
 
