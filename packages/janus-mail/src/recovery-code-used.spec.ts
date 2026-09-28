@@ -48,7 +48,7 @@ async function wired(mailLinks: JanusMailLinks = links) {
 		}),
 		password: { login: 'email' },
 		store: createMemoryStores(),
-		hasher: scryptHasher(),
+		hasher: scryptHasher({ cost: 10 }), // the cheapest: ten sign-ins in one test
 		clock,
 		secondFactor: {
 			issuer: 'Acme',
