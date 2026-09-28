@@ -33,6 +33,9 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Step-ups in the audit trail, v0.5.0** — `janus.stepUp.asked` (with
+  `janus.stepUp.via`), `janus.stepUp.confirmed` and `janus.stepUp.refused`,
+  each with the user's id and never the code nor the challenge.
 - **Recovery codes in the audit trail, v0.4.0** — a sign-in by
   `secondFactor.recover` is a `janus.signIn` marked
   `janus.signIn.recoveryCode: true`, with the codes left as

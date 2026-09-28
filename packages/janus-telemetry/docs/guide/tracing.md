@@ -220,6 +220,41 @@ inbox, or trying their luck with a challenge at a time:
 // name = 'janus.signInCode.sent', grouped by user.id, more than 10 in an hour
 ```
 
+## A step-up
+
+A step-up — a signed-in user proving again who they are before a
+sensitive action — is two calls, each writing one event:
+
+```
+POST /step-up                            server
+└─ janus.stepUp.request                  janus.user.type=user  user.id=0199…
+     log  janus.stepUp.asked             user.id=0199…  janus.stepUp.via=email
+
+POST /step-up/code                       server
+└─ janus.stepUp.confirm                  janus.user.type=user  user.id=0199…
+     log  janus.stepUp.confirmed         user.id=0199…
+```
+
+`janus.stepUp.via` is `secondFactor` for a user whose app confirms it: no
+code was sent. The `confirm` span names the user of the session it
+stamped — never the session's id. It opens no session, so no
+`janus.signIn` is written.
+
+A refusal is a `janus.stepUp.refused` warning, apart from sign-ins so an
+alert on refused sign-ins does not count it — with the same
+`janus.secondFactor.attemptsLeft` for a wrong code:
+
+```
+janus.stepUp.refused   janus.refusal=CODE_INVALID  janus.secondFactor.attemptsLeft=4  user.id=0199…
+```
+
+A user asking for step-up after step-up, or whose codes keep failing, is a
+session worth looking at — it may not be theirs:
+
+```ts
+// name = 'janus.stepUp.refused', grouped by user.id, more than 5 in an hour
+```
+
 ## What is never written
 
 A login, an e-mail, a password, a session token, a one-time token, a

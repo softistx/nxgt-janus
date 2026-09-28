@@ -6,19 +6,24 @@ import {
 	recoveryCodesLeft,
 	refusalFields,
 	secondFactorFields,
+	sessionUserFields,
 	statusOf,
 	userFields,
+	viaOf,
 } from './fields';
 
 const log = createLogger('@nxgt/janus');
 
-/** The events a security review reads: who signed in, out, up, and what changed. */
+/** The events a security review reads: who signed in, out, up, stepped up, and what changed. */
 const events = {
 	signedUp: event('janus.signUp'),
 	signedIn: event('janus.signIn'),
 	signInRefused: event('janus.signIn.refused'),
 	secondFactorAsked: event('janus.signIn.secondFactor'),
 	signInCodeSent: event('janus.signInCode.sent'),
+	stepUpAsked: event('janus.stepUp.asked'),
+	stepUpConfirmed: event('janus.stepUp.confirmed'),
+	stepUpRefused: event('janus.stepUp.refused'),
 	secondFactorEnrolled: event('janus.secondFactor.enrolled'),
 	secondFactorActivated: event('janus.secondFactor.activated'),
 	secondFactorDisabled: event('janus.secondFactor.disabled'),
@@ -84,6 +89,24 @@ export const WRITTEN: Readonly<
 					'janus.signIn.code': true,
 				}),
 			);
+		}
+	},
+	'stepUp.request': (call, outcome) => {
+		// Which code confirms it — e-mailed, or from the app — never the code.
+		if (outcome.ok) {
+			log.info(
+				events.stepUpAsked({
+					...userFields(call, outcome.value),
+					'janus.stepUp.via': viaOf(outcome.value),
+				}),
+			);
+		}
+	},
+	'stepUp.confirm': (call, outcome) => {
+		if (outcome.ok) {
+			log.info(events.stepUpConfirmed(sessionUserFields(call, outcome.value)));
+		} else {
+			log.warn(events.stepUpRefused(refusalFields(call, outcome.refusal)));
 		}
 	},
 	'secondFactor.confirm': (call, outcome) => {
