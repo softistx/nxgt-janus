@@ -1,4 +1,5 @@
-import { createHmac, hkdfSync, randomInt, timingSafeEqual } from 'node:crypto';
+import { randomInt, timingSafeEqual } from 'node:crypto';
+import { derivedKey, keyedHash } from '../derived-keys';
 import type { Sealer } from '../sealing';
 
 /**
@@ -50,27 +51,12 @@ export function readRecoveryCode(typed: string): string | null {
 	return SHAPE.test(code) ? code : null;
 }
 
-const derived = new WeakMap<Sealer, Map<string, Buffer>>();
-
 /** The key a sealing key lends the codes, derived once per key. */
-function macKey(sealer: Sealer, keyId: string): Buffer | undefined {
-	let keys = derived.get(sealer);
-	if (keys === undefined) {
-		keys = new Map();
-		derived.set(sealer, keys);
-	}
-	let key = keys.get(keyId);
-	if (key === undefined) {
-		const secret = sealer.keys.get(keyId);
-		if (secret === undefined) return undefined;
-		key = Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), PURPOSE, 32));
-		keys.set(keyId, key);
-	}
-	return key;
-}
+const macKey = (sealer: Sealer, keyId: string): Buffer | undefined =>
+	derivedKey(sealer, PURPOSE, keyId);
 
 const mac = (key: Buffer, userId: string, code: string): Buffer =>
-	createHmac('sha256', key).update(`${userId}\u0000${code}`).digest();
+	keyedHash(key, [userId, code]);
 
 /** A code's keyed hash, under the first key, bound to the user's id. */
 export function hashRecoveryCode(

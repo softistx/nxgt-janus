@@ -21,12 +21,11 @@
  * never a sign-in let through uncounted.
  */
 
-import { createHmac, hkdfSync } from 'node:crypto';
 import { CredentialError, StoreFailure } from '../../errors/janus-error';
 import type { ResolvedType } from '../config';
 import type { Context } from '../context';
+import { derivedKey, keyedHash } from '../derived-keys';
 import { countInWindow } from '../one-time';
-import type { Sealer } from '../sealing';
 import { hashSecret } from '../secrets';
 
 /** What the key is derived for. Renamed, every count in progress would start over. */
@@ -35,25 +34,16 @@ const PURPOSE = 'janus/sign-in/attempts/v1';
 /** The key without sealing keys: fixed, so every process counts alike. */
 const UNSEALED = Buffer.from(PURPOSE);
 
-const derived = new WeakMap<Sealer, Buffer>();
-
 function counterKey(context: Context): Buffer {
 	const sealer = context.config.secondFactor?.sealer;
-	if (sealer === undefined) return UNSEALED;
-	let key = derived.get(sealer);
-	if (key === undefined) {
-		const secret = sealer.keys.get(sealer.sealWith) as Buffer;
-		key = Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), PURPOSE, 32));
-		derived.set(sealer, key);
-	}
-	return key;
+	// The first key is always held: resolveSealer names it from the keys.
+	return sealer === undefined
+		? UNSEALED
+		: (derivedKey(sealer, PURPOSE) as Buffer);
 }
 
-function keyed(key: Buffer, parts: readonly string[]): string {
-	return createHmac('sha256', key)
-		.update(parts.join('\u0000'))
-		.digest('base64url');
-}
+const keyed = (key: Buffer, parts: readonly string[]): string =>
+	keyedHash(key, parts).toString('base64url');
 
 /** What a sign-in that succeeded calls: the login's count starts again. */
 export type RestartCount = () => Promise<void>;

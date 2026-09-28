@@ -1,6 +1,6 @@
-import { createHmac, hkdfSync } from 'node:crypto';
 import { StoreConflict, TokenError } from '../../errors/janus-error';
 import type { Context } from '../context';
+import { derivedKey, keyedHash } from '../derived-keys';
 import { CODE_ATTEMPTS, countInWindow } from '../one-time';
 import type { UserRecord } from '../port/types';
 import type { Sealer } from '../sealing';
@@ -40,18 +40,6 @@ const WINDOW_MINUTES = APP_CODE_WINDOW_MS / 60_000;
  */
 const PURPOSE = 'janus/second-factor/regenerate-attempts/v1';
 
-const derived = new WeakMap<Sealer, Buffer>();
-
-function counterKey(sealer: Sealer): Buffer {
-	let key = derived.get(sealer);
-	if (key === undefined) {
-		const secret = sealer.keys.get(sealer.sealWith) as Buffer;
-		key = Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), PURPOSE, 32));
-		derived.set(sealer, key);
-	}
-	return key;
-}
-
 /** A link's token hash: its secret is never given out, nor stored. */
 function linkHash(
 	sealer: Sealer,
@@ -65,11 +53,9 @@ function linkHash(
 		String(record.secondFactor?.lastStep ?? ''),
 		String(link),
 	];
-	return hashSecret(
-		createHmac('sha256', counterKey(sealer))
-			.update(parts.join('\u0000'))
-			.digest('base64url'),
-	);
+	// The first key is always held: resolveSealer names it from the keys.
+	const key = derivedKey(sealer, PURPOSE) as Buffer;
+	return hashSecret(keyedHash(key, parts).toString('base64url'));
 }
 
 /**
