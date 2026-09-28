@@ -20,6 +20,7 @@ const links = {
 	verifyEmail: (token: string) => `https://acme.example/verify?token=${token}`,
 	resetPassword: (token: string) => `https://acme.example/reset?token=${token}`,
 	secureAccount: () => 'https://acme.example/account/security',
+	getStarted: () => 'https://acme.example/start',
 };
 const mail = janusMail({
 	mailer,
@@ -30,13 +31,17 @@ const mail = janusMail({
 
 // ── The refusals ────────────────────────────────────────────────────────────
 
-// 9. links without secureAccount, which the two notices link to.
+// 9. links without secureAccount, which the notices link to.
 janusMail({
 	mailer,
 	from: 'noreply@acme.example',
 	brand: 'Acme',
 	// @ts-expect-error
-	links: { verifyEmail: links.verifyEmail, resetPassword: links.resetPassword },
+	links: {
+		verifyEmail: links.verifyEmail,
+		resetPassword: links.resetPassword,
+		getStarted: links.getStarted,
+	},
 });
 
 // 10. A link given as a URL rather than a function of the token.
@@ -84,7 +89,7 @@ janusMail({
 	brand: 'Acme',
 	links,
 	// @ts-expect-error
-	templates: { welcome: () => rendered },
+	templates: { magicLink: () => rendered },
 });
 
 // 15. A fallbackLocale outside locales.
@@ -120,11 +125,12 @@ const wide: JanusMailTemplates<'en' | 'fr' | 'de'> = {
 	emailChanged: () => rendered,
 	twoFactorEnabled: () => rendered,
 	twoFactorDisabled: () => rendered,
+	welcome: () => rendered,
 };
 
 // 18. A template that does not exist, read from what janusMail answered.
 // @ts-expect-error
-void mail.templates.welcome;
+void mail.templates.magicLink;
 
 // 19. A link computed asynchronously: the e-mail needs the string now.
 janusMail({

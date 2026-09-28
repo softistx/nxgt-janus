@@ -8,6 +8,7 @@ describe('links', () => {
 		verifyEmail: () => undefined,
 		resetPassword: async () => 'https://acme.example/reset',
 		secureAccount: () => 42,
+		getStarted: () => new URL('https://acme.example/start'),
 	} as never;
 
 	/** Each method, over links that answer no string. */
@@ -31,6 +32,10 @@ describe('links', () => {
 		[
 			'janusMail.twoFactorDisabled: links.secureAccount() must answer a string',
 			(m) => m.twoFactorDisabled({ name: 'Ada', email: 'ada@example.com' }),
+		],
+		[
+			'janusMail.welcome: links.getStarted() must answer a string',
+			(m) => m.welcome({ name: 'Ada', email: 'ada@example.com' }),
 		],
 		[
 			'janusMail.emailChanged: links.secureAccount() must answer a string',
@@ -105,6 +110,9 @@ describe('links', () => {
 			}
 			secureAccount() {
 				return `${this.base}/account/security`;
+			}
+			getStarted() {
+				return `${this.base}/start`;
 			}
 		}
 		const options = baseOptions();

@@ -22,9 +22,15 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'emailChanged',
 	'twoFactorEnabled',
 	'twoFactorDisabled',
+	'welcome',
 ];
 
-const LINK_NAMES = ['verifyEmail', 'resetPassword', 'secureAccount'] as const;
+const LINK_NAMES = [
+	'verifyEmail',
+	'resetPassword',
+	'secureAccount',
+	'getStarted',
+] as const;
 
 /** The options once checked, with `string` for the locales: the degenericised mirror. */
 export interface ResolvedOptions {
@@ -81,7 +87,7 @@ function checkSending(options: Record<string, unknown>): void {
 	}
 	if (!isObject(links)) {
 		refuse(
-			'links must be an object, as { verifyEmail, resetPassword, secureAccount }',
+			'links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }',
 		);
 	}
 	for (const name of LINK_NAMES) {
@@ -205,6 +211,7 @@ function frozenLinks(links: JanusMailLinks): JanusMailLinks {
 		verifyEmail: links.verifyEmail.bind(links),
 		resetPassword: links.resetPassword.bind(links),
 		secureAccount: links.secureAccount.bind(links),
+		getStarted: links.getStarted.bind(links),
 	});
 }
 

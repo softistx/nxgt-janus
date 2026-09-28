@@ -10,6 +10,7 @@ export const links: JanusMailLinks = {
 	verifyEmail: (token) => `https://acme.example/verify?token=${token}`,
 	resetPassword: (token) => `https://acme.example/reset?token=${token}`,
 	secureAccount: () => 'https://acme.example/account/security',
+	getStarted: () => 'https://acme.example/start',
 };
 
 /** The options every spec starts from, with a fresh memory mailer. */
