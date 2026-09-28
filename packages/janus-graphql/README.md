@@ -192,8 +192,9 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 - **A request remembers its checks.** The same object, permission and user
   asked twice in one request is one check — so a mutation that grants or
   revokes, then asks again in the same request, reads the answer from
-  before the change. Call `access.can` directly there. A subscription asks
-  afresh on every event.
+  before the change. Call `access.can` directly there. In a subscription,
+  `@permission` asks afresh on every event; `can(ctx, …)` in its resolver
+  reads the memo — call `ctx.janus.access.can` there.
 - **`@permission` is not a filter.** A list of ids requires the permission
   on every one, and one denial denies the field; to answer only the items a
   user may see, ask `access.list()` for their ids.

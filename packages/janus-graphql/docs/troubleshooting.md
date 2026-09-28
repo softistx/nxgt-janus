@@ -290,8 +290,8 @@ answered.
 **Why:** the path read nothing it could check: an optional argument the
 client left out (`record(id: ID)`), a `null` in the parent
 (`parent.wardId` on a visit with no ward), an empty list in the parent, a
-list holding a `null`, or a value that is neither a string nor an integer. There is no object to ask about, so
-there is nothing to allow.
+list holding a `null`, or a value that is neither a string nor an integer.
+There is no object to ask about, so there is nothing to allow.
 
 **Fix:** make the argument required — `record(id: ID!)` — or point `id:` at a
 field that always holds an id. When a `null` is a valid answer, move the

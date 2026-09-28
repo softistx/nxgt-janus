@@ -145,7 +145,8 @@ store call. A store that cannot answer is `SERVICE_UNAVAILABLE`, never
 **It shares the request's checks with `@permission`.** A question a directive
 already asked in this request — the same object, permission and user — is
 answered from that check, and two asked at once share one; a check with
-`{ ctx }` is always asked. See
+`{ ctx }` is always asked. In a subscription, whose one request lasts the
+whole stream, call `ctx.janus.access.can` instead, so a `revoke()` is seen. See
 [one check per question](directives.md#one-check-per-question-per-request).
 
 It needs `useJanus({ access })`: without it, `can(ctx, …)` does not compile,

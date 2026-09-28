@@ -172,8 +172,9 @@ type Team {
 field. The checks of a list are asked together. An empty list in `args` asks
 nothing, and the resolver runs: the client asked for nothing. An empty list
 in the parent is answered `NOT_FOUND`: the object's data names nothing to
-check, and its fields are not open to every user for it. This is not a filter: to answer only the items a user
-may see, ask `access.list()` for their ids and load those.
+check, and its fields are not open to every user for it. This is not a
+filter: to answer only the items a user may see, ask `access.list()` for
+their ids and load those.
 
 ### Conditions
 
@@ -256,9 +257,11 @@ Not remembered: a check with a condition's `ctx`, which the question does
 not hold; an anonymous one, which costs no store call; and a failure — the
 next question asks again.
 
-**A subscription skips the memo.** It is one request whose fields resolve
-again on every event, so each event asks afresh and a `revoke()` made since
-the subscription started stops the next event. **A mutation does not**: a
+**A subscription's directives skip the memo.** It is one request whose
+fields resolve again on every event, so each event's `@permission` asks
+afresh and a `revoke()` made since the subscription started stops the next
+event. `can(ctx, …)` called in a subscription's resolver still reads the
+memo: call `ctx.janus.access.can` there. **A mutation does not**: a
 mutation that grants or revokes and then asks the same question in the same
 request reads the answer remembered before the change. Ask
 `access.can` directly after such a change, or answer from the mutation's own
