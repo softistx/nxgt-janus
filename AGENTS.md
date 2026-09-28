@@ -639,7 +639,7 @@ parsing, the tarball's integrity check and the floor's own ranges against the
 peers staged beside it; `scripts/run-on-peer-floor.spec.ts` runs it on a
 scratch store laid out as Bun's isolated install, and holds that the links and
 the temporary directory are put back after a success, a failed stage, a failed
-download and a SIGINT, and that a stale link is refused.
+download and a SIGTERM, and that a stale link is refused.
 
 ---
 

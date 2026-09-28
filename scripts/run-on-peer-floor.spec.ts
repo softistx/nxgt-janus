@@ -106,9 +106,12 @@ describe('runOnFloor', () => {
 		await expectUntouched();
 	});
 
-	test('forwards SIGINT to the command, returns 130, and puts everything back', async () => {
+	// SIGTERM, not SIGINT: the SIGINT version timed out on GitHub Actions,
+	// where `sleep` outlived the forwarded signal — a job started with SIGINT
+	// ignored passes that on to every child. The two share one path here.
+	test('forwards SIGTERM to the command, returns 143, and puts everything back', async () => {
 		const bytes = await tarball('^1');
-		const run = runOnFloor(root, plan('sleep 5'), {
+		const run = runOnFloor(root, plan('exec sleep 5'), {
 			download: async () => bytes,
 			tmp,
 		});
@@ -119,8 +122,8 @@ describe('runOnFloor', () => {
 				.catch(() => ({}))) as { version?: string };
 		while ((await floored()).version !== '1.0.0') await Bun.sleep(10);
 		await Bun.sleep(50);
-		process.emit('SIGINT');
-		expect(await run).toBe(130);
+		process.emit('SIGTERM');
+		expect(await run).toBe(143);
 		await expectUntouched();
 	});
 
