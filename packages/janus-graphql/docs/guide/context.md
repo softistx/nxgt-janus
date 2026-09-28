@@ -81,8 +81,33 @@ with `STORE_FAILED` rather than answering `null`, and the client receives
 
 `authenticate` reads the request as it does anywhere: `Authorization:
 Bearer`, then `X-Session-Token`, then the cookie. It renews a sliding session
-in passing, and **nothing here sends the renewed cookie back**: a GraphQL
-response carries no `Set-Cookie` from this package.
+in passing, and **`useJanus()` sends the renewed cookie back**, as
+`@nxgt/janus-hono`'s `session()` does:
+
+| The request | The response |
+| --- | --- |
+| Presented the session cookie, and `authenticate` renewed it | `Set-Cookie` with the session's new `Expires` — once, for a batch of operations too |
+| Presented the cookie, not yet due for renewal | No `Set-Cookie` |
+| `Authorization: Bearer` or `X-Session-Token` | No `Set-Cookie`, renewed or not: the client never asked for a cookie, and reads the new expiry from `session().expiresAt` |
+| Anonymous, or no field asked `user()` or `session()` | No `Set-Cookie`, and no store call |
+| The store failed | No `Set-Cookie`: the response is the 503 |
+| A mutation of yours already set the session cookie — a sign-in, a sign-out | Yours: the renewal never overwrites it |
+
+The cookie is `auth.cookie.serialize(token, session)`, under the attributes
+`janus({ cookie })` resolved. It is set in Yoga's `onResponse` hook:
+
+- **A server on envelop alone** never calls it, and sends no renewed cookie.
+- **An operation over graphql-ws** has no response per operation, so none is
+  sent: the store holds the renewed session, but the browser keeps its
+  cookie's old expiry. That renewal is spent — an HTTP query right after
+  finds the session not yet due, and sends nothing — so the cookie is sent
+  again by the next renewal over HTTP, a `renewAfter` later. A client whose
+  only traffic is the WebSocket for longer than the lifespan minus
+  `renewAfter` should renew through an HTTP route of yours. See
+  [subscriptions](subscriptions.md).
+- **An `auth` of your own** — a wrapper that counts or caches — must pass on
+  `cookie: auth.cookie` beside `authenticate` and `types`; without it, no
+  renewed cookie is sent.
 
 `JanusContext<typeof auth, typeof access, Type>` takes the third argument
 when `useJanus({ type })` narrows the server:

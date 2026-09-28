@@ -59,6 +59,8 @@ for what causes each.
 - [`Unexpected error.`, 500, on a field `@permission` guards](#unexpected-error-500-on-a-field-permission-guards)
 - [`TypeError: @permission on …: ctx.janus.access is not set`](#typeerror-permission-on--ctxjanusaccess-is-not-set)
 - [`TypeError: @permission on …: loaders.… answered …`](#typeerror-permission-on--loaders-answered-)
+- [The session cookie expires while the user is active](#the-session-cookie-expires-while-the-user-is-active)
+- [`Warning: janusMaskError: report failed on …`](#warning-janusmaskerror-report-failed-on-)
 - [A 401 whose `data` still holds the other fields](#a-401-whose-data-still-holds-the-other-fields)
 
 **Types**
@@ -410,8 +412,16 @@ for `can()` and `@permission` — and a loader of yours that threw
 `StoreFailure`. It is never answered `UNAUTHENTICATED`, `FORBIDDEN` or `STEP_UP_REQUIRED`.
 
 **Fix:** the store: its connection, its credentials, its availability. The
-message carries nothing of the store's; log the error where you call
-`auth` — `@nxgt/janus`'s `slot` and `operation` name the call that failed.
+message carries nothing of the store's, and a directive or a helper answers
+the outage before any resolver of yours could catch it: pass `report` to
+the mask, which is given `@nxgt/janus`'s error — its `slot` and `operation`
+name the call that failed, its `cause` the driver's error:
+
+```ts
+maskedErrors: {
+	maskError: janusMaskError({ report: (error) => logger.error(error), fallback: maskError }),
+},
+```
 
 ### `Unexpected error.`, 500, where a `JanusError` was thrown
 
@@ -579,6 +589,34 @@ from the same options.
 `undefined`, and that is refused rather than read as "not found".
 
 **Fix:** answer the object, or `null` when there is none.
+
+### The session cookie expires while the user is active
+
+**Why:** `authenticate` renewed the session in the store, and no
+`Set-Cookie` carried the new expiry back, so the browser drops the cookie at
+the expiry it was given at sign-in. `useJanus()` sends it only on Yoga's
+HTTP response (`onResponse`), and not when:
+
+- the server runs on envelop without Yoga, which never calls `onResponse`;
+- the `auth` given to `useJanus()` is a wrapper of yours without `cookie`;
+- the only traffic is over graphql-ws, which has no response to carry it;
+- the client sent `Authorization: Bearer` or `X-Session-Token`, which is
+  never answered with a cookie.
+
+**Fix:** under Yoga, pass `janus()`'s own instance, or a wrapper with
+`cookie: auth.cookie`. Elsewhere — and for a browser that talks only over
+the WebSocket — renew through an HTTP route of yours that sends
+`auth.cookie.serialize(token, session)`, as `@nxgt/janus-hono`'s
+`session()` does.
+
+### `Warning: janusMaskError: report failed on …`
+
+**Why:** the `report` given to `janusMaskError()` threw, or rejected — a
+logger that is down, a serializer that meets a circular `cause`. The name
+after the code is the class of what it threw.
+
+**Fix:** your `report`. The response was sent all the same: a `report`
+never changes the answer, so an outage is still a 503 and never a 500.
 
 ### A 401 whose `data` still holds the other fields
 

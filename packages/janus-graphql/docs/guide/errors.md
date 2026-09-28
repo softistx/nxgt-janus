@@ -64,7 +64,7 @@ would not.
 | `requireUser(ctx)`, `can(ctx, …)` | `SERVICE_UNAVAILABLE`, 503 — with or without `janusMaskError()` |
 | `ctx.janus.user()` read in a resolver, any `auth.*` or `access.*` call | `SERVICE_UNAVAILABLE`, 503 with `janusMaskError()`; Yoga's masked 500 without it |
 
-## `janusMaskError(fallback?)`
+## `janusMaskError({ report?, fallback? })`
 
 Yoga masks every error that is not a `GraphQLError` into `Unexpected error.`
 with a 500. That is right for a bug and wrong for a `JanusError`: a wrong
@@ -77,7 +77,7 @@ import { createYoga, maskError } from 'graphql-yoga';
 createYoga({
 	schema,
 	plugins: [useJanus({ auth })],
-	maskedErrors: { maskError: janusMaskError(maskError) },
+	maskedErrors: { maskError: janusMaskError({ fallback: maskError }) },
 });
 ```
 
@@ -88,8 +88,51 @@ else goes to `fallback`.
 Without a `fallback`, a `GraphQLError` of your own is kept as it is, and
 anything else becomes the mask's message with the code
 `INTERNAL_SERVER_ERROR` and no detail. Pass Yoga's own `maskError`, as above,
-to keep what it shows in development. The signature is envelop's too, so the
-same function fits `useMaskedErrors({ maskError })`.
+to keep what it shows in development — as `{ fallback }`, or alone:
+`janusMaskError(maskError)`, the form from before `report`, still works. The
+signature is envelop's too, so the same function fits
+`useMaskedErrors({ maskError })`.
+
+## Every outage in your logs: `report`
+
+The client reads a fixed message, and nothing of the store's: which store
+failed, and why, is for your logs. A directive — `@authenticated`, `@fresh`,
+`@permission` — and `requireUser()`, `requireFresh()` and `can()` answer an
+outage 503 themselves, before any resolver of yours runs, so there is no
+`try` of yours to log it in. `report` is where it goes:
+
+```ts
+createYoga({
+	schema,
+	plugins: [useJanus({ auth, access })],
+	maskedErrors: {
+		maskError: janusMaskError({
+			report: (error) => logger.error({ code: error.code, cause: error.cause }, error.message),
+			fallback: maskError,
+		}),
+	},
+});
+```
+
+- **Every 5xx, whichever path it took**: `STORE_FAILED`, `UNSUPPORTED`,
+  `PERMISSION_DEPTH` — from a directive, a helper, a loader, or a resolver
+  that let it through. `report` is given `@nxgt/janus`'s own error: a
+  `StoreFailure` carries the `slot` and `operation` of the call that failed,
+  its message and its `cause`.
+- **Once per failure.** The user is authenticated once per request, so an
+  outage that fails three guarded fields is one error, reported once — and
+  answered three times.
+- **Never a 4xx**: a denial, `CREDENTIALS_INVALID`, `STEP_UP_REQUIRED` are the
+  client's to fix, not yours.
+- **It cannot change the answer.** A `report` that throws, or rejects, is a
+  `process.emitWarning` naming the code, and the 503 is sent all the same.
+  What it answers is ignored.
+
+Yoga's own logger does not cover this: it logs an error only when the mask
+replaced it, and a directive's refusal reaches the mask already a
+`GraphQLError`, kept as it is — so it is never logged. The same `report` is
+`janusErrors({ report })` in `@nxgt/janus-hono`, for the HTTP routes beside
+the GraphQL server.
 
 `janusGraphQLError(error)` is the conversion alone, for a resolver that
 catches a `JanusError` to answer it itself:

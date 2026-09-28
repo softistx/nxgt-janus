@@ -9,10 +9,7 @@ Nothing between releases.
 
 ## Next
 
-- **The renewed session cookie on GraphQL responses** — `authenticate`
-  renews a sliding session in passing; the response would then carry its
-  `Set-Cookie`, so a browser keeps the new expiry without an HTTP route of
-  its own.
+Nothing yet.
 
 ## Later
 
@@ -42,6 +39,16 @@ Nothing between releases.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The renewed session cookie, and `report` for every outage, v0.4.0.**
+  Under Yoga, `useJanus()` sends a session `authenticate` renewed back as
+  `Set-Cookie`, so a browser keeps the new expiry without an HTTP route of
+  its own — only to a request that presented the session cookie, never to a
+  bearer token or `X-Session-Token`, and never when nothing authenticated.
+  `janusMaskError({ report, fallback })` hands every `JanusError` answered
+  5xx to your logger, once, including the outages a directive or a helper
+  answers 503 on its own; a `report` that throws never changes the answer.
+  `janusMaskError(fallback)` still works.
 
 - **Subscriptions over graphql-ws, `janusConnection()`, v0.3.0.** The same
   `@authenticated`, `@fresh` and `@permission` on subscriptions served over
