@@ -7,6 +7,7 @@ import type { Clock } from '@nxgt/janus';
 import type { Address, Mailer } from '@nxgt/mail';
 import { LOCALES } from './generated/locales';
 import { checkLinks, frozenLinks } from './links';
+import { refuse } from './refuse';
 import { janusTemplates } from './templates';
 import type {
 	JanusMailLinks,
@@ -55,10 +56,6 @@ function isAddress(value: unknown): value is Address {
 		typeof value.address === 'string' &&
 		value.address.trim() !== ''
 	);
-}
-
-function refuse(message: string): never {
-	throw new TypeError(`janusMail: ${message}`);
 }
 
 /** `mailer`, `from`, `replyTo`, `brand` and `links` (`./links`). */

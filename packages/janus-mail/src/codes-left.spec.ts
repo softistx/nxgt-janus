@@ -38,4 +38,9 @@ describe('codesLeftText', () => {
 	test('is undefined for a locale the default e-mails are not built in', () => {
 		expect(codesLeftText('de', 3)).toBeUndefined();
 	});
+
+	test("is undefined for a name every object inherits, as 'toString'", () => {
+		expect(codesLeftText('toString', 3)).toBeUndefined();
+		expect(codesLeftText('constructor', 3)).toBeUndefined();
+	});
 });

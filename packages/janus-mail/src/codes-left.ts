@@ -20,8 +20,8 @@ export function codesLeftText(
 	locale: string,
 	count: number,
 ): string | undefined {
-	const branches = CODES_LEFT[locale];
-	if (branches === undefined) return undefined;
+	if (!Object.hasOwn(CODES_LEFT, locale)) return undefined;
+	const branches = CODES_LEFT[locale] as (typeof CODES_LEFT)[string];
 	const branch =
 		branches[`=${count}`] ??
 		branches[new Intl.PluralRules(locale).select(count)] ??

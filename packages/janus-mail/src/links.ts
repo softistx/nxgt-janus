@@ -3,6 +3,7 @@
  * the guarantee made there holds at every send. A mistake is a wiring
  * mistake: a bare `TypeError` naming the link, never its value.
  */
+import { refuse } from './refuse';
 import type { JanusMailLinks } from './types';
 
 /** The links every `janusMail()` needs: checked, then copied, by these names. */
@@ -15,10 +16,6 @@ const REQUIRED_LINKS = [
 
 /** The links a `janusMail()` may leave out, each with a fallback. */
 const OPTIONAL_LINKS = ['recoveryCodes'] as const;
-
-function refuse(message: string): never {
-	throw new TypeError(`janusMail: ${message}`);
-}
 
 /** `links`: an object of functions, every required one there. */
 export function checkLinks(

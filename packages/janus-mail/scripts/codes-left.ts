@@ -34,7 +34,7 @@ export type Branches = Readonly<Record<string, Branch>>;
 const LOCALES_DIR = fileURLToPath(new URL('../mail/locales/', import.meta.url));
 
 /** A catalogue's `recovery-code-used.codes-left`, or `undefined`. */
-function lookup(catalogue: unknown): string | undefined {
+export function lookup(catalogue: unknown): string | undefined {
 	const group =
 		typeof catalogue === 'object' && catalogue !== null
 			? (catalogue as Record<string, unknown>)['recovery-code-used']
@@ -48,12 +48,20 @@ function lookup(catalogue: unknown): string | undefined {
 
 /** The message the build reads for `locale`: its override, else the preset's. */
 export function codesLeftMessage(locale: string): string {
-	const override = lookup(
+	return messageOf(
+		locale,
 		JSON.parse(readFileSync(`${LOCALES_DIR}${locale}.json`, 'utf8')),
+		(presetCatalogues as Readonly<Record<string, unknown>>)[locale],
 	);
-	const message =
-		override ??
-		lookup((presetCatalogues as Readonly<Record<string, unknown>>)[locale]);
+}
+
+/** `override`'s message, else `preset`'s, else an error naming `locale`. */
+export function messageOf(
+	locale: string,
+	override: unknown,
+	preset: unknown,
+): string {
+	const message = lookup(override) ?? lookup(preset);
 	if (message === undefined) {
 		throw new Error(
 			`build-mail: ${locale} has no recovery-code-used.codes-left — add it to mail/locales/${locale}.json`,
