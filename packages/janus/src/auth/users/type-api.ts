@@ -2,6 +2,7 @@ import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import type { Context } from '../context';
 import { emailFlows } from '../email-flows';
+import { magicLinkFlows } from '../magic-link';
 import { secondFactorFlows } from '../second-factor/flows';
 import { signInCodeFlows } from '../sign-in-code';
 import { stepUpFlows } from '../step-up/flows';
@@ -11,7 +12,8 @@ import { recordFlows } from './record-flows';
 
 /**
  * Everything one user type answers, gathered from its flows: its records,
- * its password, its second factor, its sign-in code, its step-up and its e-mails.
+ * its password, its second factor, its sign-in code and link, its step-up
+ * and its e-mails.
  */
 export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 	const at: At = (operation) =>
@@ -25,6 +27,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 
 		secondFactor: secondFactor.api,
 		signInCode,
+		magicLink: magicLinkFlows(context, type, at, secondFactor.finish),
 		stepUp: stepUpFlows(context, type, at),
 
 		...emailFlows(context, type, at),

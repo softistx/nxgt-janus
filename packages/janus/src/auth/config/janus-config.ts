@@ -51,6 +51,8 @@ interface SharedConfig {
 		readonly resetPassword?: Duration;
 		/** How long an e-mailed sign-in code waits. `'10m'` when absent. */
 		readonly signInCode?: Duration;
+		/** How long an e-mailed sign-in link waits. `'15m'` when absent. */
+		readonly magicLink?: Duration;
 		/** How long a step-up's challenge waits, e-mailed or not. `'10m'` when absent. */
 		readonly stepUp?: Duration;
 	};

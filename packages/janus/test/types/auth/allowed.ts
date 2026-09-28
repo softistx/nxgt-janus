@@ -64,6 +64,14 @@ async function allowed() {
 	const guestToken: string = (
 		await twoFactor.guest.signInCode.confirm('challenge', '123456')
 	).token;
+	// And so does a link — a patient's, once narrowed on `status`.
+	const guestByLink: string = (await twoFactor.guest.magicLink.confirm('token'))
+		.token;
+	const linked = await twoFactor.patient.magicLink.confirm('token');
+	const patientByLink: string | null =
+		linked.status === 'signedIn' ? linked.token : null;
+	const link = await clinic.patient.magicLink.request('a@b.test');
+	const sent: string | undefined = link?.token;
 
 	return [
 		name,
@@ -79,6 +87,9 @@ async function allowed() {
 		active,
 		guestToken,
 		patientByCode,
+		guestByLink,
+		patientByLink,
+		sent,
 	];
 }
 
