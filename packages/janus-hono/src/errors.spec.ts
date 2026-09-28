@@ -189,6 +189,28 @@ describe('statusOf()', () => {
 			expect(statusOf(code)).toBeGreaterThanOrEqual(400);
 	});
 
+	it('answers a throttled sign-in 401 with retryAfter and the Retry-After header', async () => {
+		const response = await throwing(
+			new CredentialError('CREDENTIALS_INVALID', 'too many', {
+				reason: 'throttled',
+				retryAfter: 840,
+			}),
+		);
+		expect(response.status).toBe(401);
+		expect(response.headers.get('retry-after')).toBe('840');
+		expect(await response.json()).toEqual({
+			code: 'CREDENTIALS_INVALID',
+			retryAfter: 840,
+		});
+
+		const wrong = await throwing(
+			new CredentialError('CREDENTIALS_INVALID', 'no match', {
+				reason: 'wrongPassword',
+			}),
+		);
+		expect(wrong.headers.get('retry-after')).toBeNull();
+	});
+
 	it('keeps a body to its code for every other refusal', () => {
 		expect(bodyOf(new NotFoundError('gone'))).toEqual({ code: 'NOT_FOUND' });
 	});
