@@ -34,7 +34,7 @@ Yoga reads `extensions.http.status` to answer the HTTP response, and strips
 | `FORBIDDEN` | 403 | `Forbidden` | A user of a type the directive or `requireUser({ type })` does not name |
 | `NOT_FOUND` | 404 | `Not found` | `denial('NOT_FOUND')` — and, once it lands, `@permission`'s default denial |
 | `SERVICE_UNAVAILABLE` | 503 | `The service is unavailable, retry later` | A store could not answer: `STORE_FAILED` |
-| any other `JanusErrorCode` | its `statusOf(code)` | the error's own | A `JanusError` a resolver let through — `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, `TOKEN_EXPIRED` 400, … |
+| any other `JanusErrorCode` | its `statusOf(code)` | fixed per status: `Invalid request` 400, `Not signed in` 401, `Forbidden` 403, `Not found` 404, `Conflict` 409, `Internal server error` 500 and 501 | A `JanusError` a resolver let through — `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, `TOKEN_EXPIRED` 400, … |
 
 The status of every `JanusErrorCode` is `@nxgt/janus`'s
 [`statusOf`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md),
@@ -43,8 +43,10 @@ the table `@nxgt/janus-hono` answers with too.
 What a refusal carries beyond `code` is only what the client can act on:
 `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT`,
 `attemptsLeft` for `CODE_INVALID`. **Never** `reason`, `login`, `slot`,
-`operation` or a cause — those are for your logs. A 5xx carries a fixed
-message, never the store's.
+`operation`, a hash prefix or a cause — those are for your logs. **The
+message is never the core's**: `@nxgt/janus`'s messages name a hash prefix or
+a record's versions, so every `JanusError` gets the fixed message of its
+status, and a client tells refusals apart by `code`.
 
 ## An outage is never a denial
 

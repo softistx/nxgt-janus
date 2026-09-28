@@ -81,7 +81,7 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `janusTypeDefs` | The SDL: `@authenticated`, `@permission` and the `PermissionDenial` enum. The same text as `graphql/janus.graphqls` |
 | `@authenticated(type: [String!])` | On a field, a type or an interface. A signed-in user, of one of the `type`s when it names some. Anonymous: `UNAUTHENTICATED`. Another type: `FORBIDDEN`. Every one that applies — the field's, its type's, its interfaces' — must hold |
 | `@permission(name, type, id, onDeny)` | **Coming.** Declared, and refused by `applyJanusDirectives` until it is enforced — see the [roadmap](docs/roadmap.md) |
-| `applyJanusDirectives(schema, { auth, type? })` | The schema transform alone — what `useJanus()` runs. For a test, or a server not built on envelop. Throws a `TypeError` naming the field for a directive no request could pass |
+| `applyJanusDirectives(schema, { auth, type? })` | The schema transform alone — what `useJanus()` runs — to check a schema in a test or a build script. Throws a `TypeError` naming the field for a directive no request could pass. Its guards read `ctx.janus`, which only `useJanus()` builds |
 | `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
 | `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false` |
 | `janusMaskError(fallback?)` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback` |
@@ -110,7 +110,8 @@ every one carries a `code` and the HTTP status Yoga answers with:
 The status sits in `extensions.http.status`, which Yoga reads to answer the
 HTTP response and strips from the body. `USER_INVALID` adds `issues`,
 `PASSWORD_TOO_SHORT` `minLength` and `CODE_INVALID` `attemptsLeft`; nothing
-else — never `reason`, `login` or a cause. Detail, and the status of a
+else — never `reason`, `login`, a hash prefix or a cause. The message is a
+fixed one per status, never the core's: read `code`. Detail, and the status of a
 response with several errors: [the errors guide](docs/guide/errors.md).
 
 ## Traps
@@ -155,7 +156,7 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 
 ## Type safety, counted
 
-Seventeen plausible mistakes are refused by the compiler, each with a
+Eighteen plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
@@ -167,9 +168,10 @@ Seventeen plausible mistakes are refused by the compiler, each with a
   permission the object's type does not declare, an object type the model
   does not, an object without a field a `fromField` reads, a condition reached
   with no `ctx`, a `ctx` of the wrong shape, and a context with no `access`;
-- four in `plugin.ts`: `useJanus()` given a user type the instance does not
+- five in `plugin.ts`: `useJanus()` given a user type the instance does not
   know, something that is not what `janus()` answered, the `permissions()`
-  instance as `auth`, and `applyJanusDirectives()` without `auth`.
+  instance as `auth`, and `applyJanusDirectives()` without `auth` or narrowed
+  to a user type the instance does not know.
 
 `plugin.ts` also holds this README's quick start, which must keep compiling.
 

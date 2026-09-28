@@ -66,6 +66,18 @@ describe('useJanus() on a schema change', () => {
 		);
 	});
 
+	it('refuses a type auth does not know, before reading a directive', () => {
+		const schema = schemaOf('type Query { open: String }');
+		const auth = { types: ['patient', 'staff'] } as { types: string[] };
+		expect(() =>
+			applyJanusDirectives(schema, { auth, type: 'doctor' }),
+		).toThrow(
+			new TypeError(
+				"applyJanusDirectives(): type 'doctor' is not a user type of auth — it knows 'patient', 'staff'",
+			),
+		);
+	});
+
 	it('leaves a schema with no directive answering as it did', () => {
 		const schema = schemaOf('type Query { open: String }');
 		const applied = applyJanusDirectives(schema, {

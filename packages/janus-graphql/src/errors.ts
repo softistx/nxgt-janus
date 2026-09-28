@@ -5,7 +5,7 @@
  * `@nxgt/janus` throws stays its own until `janusMaskError()` reads it.
  */
 
-import { JanusError, statusOf } from '@nxgt/janus';
+import { JanusError, type JanusErrorStatus, statusOf } from '@nxgt/janus';
 import { GraphQLError } from 'graphql';
 
 /** What a guard answers without asking `@nxgt/janus`: no user, or not this one. */
@@ -36,22 +36,40 @@ function denialOf(code: DenialCode): readonly [number, string] {
  * `reason`, `login`, `slot` or a cause: those are for your logs.
  *
  * `STORE_FAILED` is `SERVICE_UNAVAILABLE` 503 — **an outage is never a
- * denial** — and a 5xx carries no message of the store's.
+ * denial** — and no message of the core's reaches the client.
  */
 export function janusGraphQLError(error: JanusError): GraphQLError {
 	const status = statusOf(error.code);
 	const code =
 		error.code === 'STORE_FAILED' ? 'SERVICE_UNAVAILABLE' : error.code;
-	const message =
-		status === 503
-			? 'The service is unavailable, retry later'
-			: status >= 500
-				? 'Internal server error'
-				: error.message;
-	return new GraphQLError(message, {
+	return new GraphQLError(messageOf(status), {
 		originalError: error,
 		extensions: { code, http: { status }, ...actionable(error) },
 	});
+}
+
+/**
+ * A fixed message per status: the core's own message names a hash prefix or
+ * a version, which are for your logs. The client reads `extensions.code`.
+ */
+function messageOf(status: JanusErrorStatus): string {
+	switch (status) {
+		case 400:
+			return 'Invalid request';
+		case 401:
+			return 'Not signed in';
+		case 403:
+			return 'Forbidden';
+		case 404:
+			return 'Not found';
+		case 409:
+			return 'Conflict';
+		case 503:
+			return 'The service is unavailable, retry later';
+		case 500:
+		case 501:
+			return 'Internal server error';
+	}
 }
 
 /** The fields of a refusal a client can act on, as `@nxgt/janus-hono`'s `bodyOf`. */

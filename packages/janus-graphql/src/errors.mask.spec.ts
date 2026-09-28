@@ -62,6 +62,21 @@ describe('janusGraphQLError()', () => {
 		});
 	});
 
+	it("never sends the core's message: a hash prefix is for your logs", () => {
+		const error = janusGraphQLError(
+			new CredentialError(
+				'HASH_UNSUPPORTED',
+				'patient.signIn: no wired verifier claims the prefix "$2b$"',
+				{ hashPrefix: '$2b$' },
+			),
+		);
+		expect(error.message).toBe('Invalid request');
+		expect(error.extensions).toEqual({
+			code: 'HASH_UNSUPPORTED',
+			http: { status: 400 },
+		});
+	});
+
 	it('keeps a 500 message generic', () => {
 		const error = janusGraphQLError(
 			new PermissionDepthError('view walked past 25', {

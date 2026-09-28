@@ -94,6 +94,18 @@ describe('can()', () => {
 		expect(await can(contextOf(setup()), 'view', record)).toBe(false);
 	});
 
+	it('asks access.can on a context built by hand', async () => {
+		const context = setup();
+		const { ada } = await users(context);
+		await context.access.grant(record, 'owners', ada.user);
+		const janus = {
+			user: async () => ada.user,
+			session: async () => ada.session,
+			access: context.access,
+		};
+		expect(await can({ janus }, 'view', record)).toBe(true);
+	});
+
 	it('refuses with a TypeError a context with no access', async () => {
 		const context = setup();
 		const janus = createJanusContext(new Request('http://yoga.test/'), {

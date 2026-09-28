@@ -84,3 +84,7 @@ useJanus({ auth: access });
 // 17. The transform without the instance whose user types it checks.
 // @ts-expect-error — `auth` is required.
 applyJanusDirectives(yoga.getEnveloped().schema, {});
+
+// 18. The transform narrowed to a user type the instance does not know.
+// @ts-expect-error — 'doctor' is neither 'patient' nor 'staff'.
+applyJanusDirectives(yoga.getEnveloped().schema, { auth, type: 'doctor' });
