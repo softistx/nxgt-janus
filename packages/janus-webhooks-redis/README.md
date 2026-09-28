@@ -74,9 +74,11 @@ the prefix, and what Redis must be configured with.
 
 ## What Redis holds
 
-Each delivery's event and endpoint id — **never a URL or a secret**, one Lua
-script per method. [Wiring](docs/guide/wiring.md#what-redis-holds-and-for-how-long)
-has each key and how long it stays.
+Each delivery's event and endpoint id — **never a URL or a secret** — with
+[one Lua script per method](docs/guide/wiring.md#one-lua-script-per-method),
+so no two claims answer one delivery.
+[Wiring](docs/guide/wiring.md#what-redis-holds-and-for-how-long) has each key
+and how long it stays.
 
 ## Traps
 

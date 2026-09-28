@@ -71,7 +71,7 @@ describeWebhookQueues({
 			const db = await openEmptyDatabase();
 			return {
 				queue: createMyWebhookQueue(db),
-				faults: { fail: async (method) => db.failEvery(method) }, // leave out, and the outage cases are reported skipped
+				faults: { fail: async (method) => db.failEvery(method) }, // leave out, and the outage cases pass with a JANUS_CONFORMANCE_SKIPPED warning
 				close: () => db.drop(),
 			};
 		},
