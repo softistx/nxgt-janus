@@ -73,13 +73,15 @@ the kit's mongo specs on @nxgt/mongo 0.17.0* of the `floors` job: the
 `janus-mongo` suite and the kit's mongo specs, each with its typecheck, on the
 floor's tarball from npm, outside the lock (`scripts/run-on-peer-floor.ts`).
 `@nxgt/mail`, from
-nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.8.0 from
+nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.9.0 from
 the lock, with `@nxgt/mail-config` 0.2.1, `@nxgt/mail-i18n` 0.6.0,
-`@nxgt/mail-ui` 0.6.0 and `@nxgt/mail-presets` 0.4.2 building `mails/` — whose
+`@nxgt/mail-ui` 0.7.0 and `@nxgt/mail-presets` 0.4.3 building `mails/` — whose
 HTML follows dark mode since `@nxgt/mail-ui` 0.4.0, with a dark primary of its
-own (`color-primary-dark`) since 0.5.0 and a dark muted (`color-muted-dark`,
-the sign-in code's box) since 0.6.0 (the manifest is still format 1), and
-whose
+own (`color-primary-dark`) since 0.5.0, a dark muted (`color-muted-dark`,
+the sign-in code's box) since 0.6.0, and since 0.7.0 a dark muted text
+(`color-muted-foreground-dark`) that the code and every muted text on a
+flipping ground follow, so the two are set as a pair (the manifest is still
+format 1), and whose
 text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, and keep
 each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it),
 so `mail/maizzle.config.ts` sets no `plaintext` of its own. Since

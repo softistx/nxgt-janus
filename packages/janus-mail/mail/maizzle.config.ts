@@ -15,15 +15,19 @@
  *   tints follow it, so the defaults carry no one's colours. Under dark mode
  *   the button inverts to near-white with near-black text: `#27272a` on the
  *   dark card (`#0f172b`) is 1.2:1 and all but vanishes; `#fafafa` is 17.1:1
- *   against it, and `#18181b` on `#fafafa` 17.0:1. The sign-in code's box
- *   (`NxCode`, on muted) turns a mid slate, `#94a3b8`, rather than staying a
- *   light slab: its text is pinned to the light foreground (`#020918`) in both
- *   modes, 7.76:1 on it, and the box is 6.95:1 against the dark card. A dark
- *   muted such as `#1e293b` would leave that text at 1.36:1.
- *   `color-muted-foreground-dark` stays unset: muted text sits both on the
- *   dark page and on the notices' warning box, which keeps its light ground,
- *   and the light value (`#62748e`, 4.15:1 and 4.46:1) is already near the
- *   best one colour can do on both.
+ *   against it, and `#18181b` on `#fafafa` 17.0:1. Muted is a pair, since
+ *   `@nxgt/mail-ui` 0.7.0 flips muted text in dark mode wherever its ground
+ *   flips: the sign-in code (`NxCode`) and the muted text, on the muted box,
+ *   the dark card or the dark page, follow `color-muted-foreground-dark`,
+ *   while a notice's alert keeps its light ground and its light text. The box
+ *   turns a step above the dark card, `#1e293b`, with the code in `#cbd5e1` on
+ *   it at 9.85:1; the muted text reads that slate at 12.01:1 on the card and
+ *   13.31:1 on the page. A mid-slate box would need dark text there, and the
+ *   card and page light text, which no one `color-muted-foreground-dark` gives
+ *   all three. The light
+ *   muted text is `#5f718a`, a shade under `@nxgt/mail-ui`'s `#62748e`, which
+ *   read at 4.33:1 on the page and 4.36:1 on the error alert: 4.53:1 and
+ *   4.56:1 now, so every muted text is at 4.5:1 or more in both modes.
  * - **The locales are the catalogues.** Each `locales/<locale>.json` is a
  *   locale built; the presets are written in `en` and `fr`, and a locale
  *   without their messages fails the build.
@@ -67,7 +71,9 @@ const config: MaizzleConfig = productionConfig(
 					'color-primary': '#27272a',
 					'color-primary-dark': '#fafafa',
 					'color-primary-foreground-dark': '#18181b',
-					'color-muted-dark': '#94a3b8',
+					'color-muted-foreground': '#5f718a',
+					'color-muted-dark': '#1e293b',
+					'color-muted-foreground-dark': '#cbd5e1',
 				},
 			}),
 			i18n({

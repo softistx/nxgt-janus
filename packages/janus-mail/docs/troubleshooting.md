@@ -54,6 +54,7 @@ How the messages are shaped:
 - [An e-mail stays light in dark mode](#an-e-mail-stays-light-in-dark-mode)
 - [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
 - [The sign-in code's box stays a light slab in dark mode](#the-sign-in-codes-box-stays-a-light-slab-in-dark-mode)
+- [The sign-in code turns unreadable in dark mode after upgrading `@nxgt/mail-ui` to 0.7](#the-sign-in-code-turns-unreadable-in-dark-mode-after-upgrading-nxgtmail-ui-to-07)
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
@@ -436,21 +437,32 @@ ui({
 
 A `signInCode` template of your own, built with `@nxgt/mail-ui`'s `NxCode`,
 keeps its light box (`#f1f5f9`) on the dark card for a reader in dark mode;
-the defaults turn theirs a mid slate there since 0.3.2. The box is muted,
-which keeps its light value under dark mode unless the build gives it a dark
-one. Build the override with `@nxgt/mail-ui` 0.6.0 or later and set
-`color-muted-dark`. The code's text stays the light foreground (`#020918`) in
-both modes, so a dark muted such as `#1e293b` leaves it at 1.36:1: pick one
-light enough for that text, as the defaults do:
+the defaults turn theirs dark there since 0.3.2. The box is muted, which
+keeps its light value under dark mode unless the build gives it a dark one.
+Build the override with `@nxgt/mail-ui` 0.7.0 or later and set the muted
+pair, as the defaults do since 0.4.1:
 
 ```ts
 ui({
 	brand: { name: 'Acme' },
 	theme: {
-		'color-muted-dark': '#94a3b8', // the code at 7.76:1 on it, 6.95:1 against the dark card
+		'color-muted-dark': '#1e293b', // the box, a step above the dark card
+		'color-muted-foreground-dark': '#cbd5e1', // the code, 9.85:1 on it; muted text, 12.01:1 on the card
 	},
 });
 ```
+
+### The sign-in code turns unreadable in dark mode after upgrading `@nxgt/mail-ui` to 0.7
+
+A template of your own built as the defaults were before 0.4.1 — a mid-slate
+`color-muted-dark: '#94a3b8'` and no `color-muted-foreground-dark` — shows
+the code at 1.86:1 once rebuilt with `@nxgt/mail-ui` 0.7.0. Until 0.6.0,
+`NxCode`'s text stayed the light foreground (`#020918`) in both modes; since
+0.7.0 it turns `color-muted-foreground-dark` wherever its box turns
+`color-muted-dark`, and that token falls back to the light muted text,
+`#62748e`. The same token colours muted text on the dark card and page, so
+no one value suits a mid-slate box: set a dark `color-muted-dark` and a
+light `color-muted-foreground-dark`, as in the entry above.
 
 ## Compile errors
 

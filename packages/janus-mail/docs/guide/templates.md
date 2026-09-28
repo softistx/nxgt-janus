@@ -157,7 +157,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-0.4.2, built with a neutral grey theme and no logo:
+0.4.3, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -191,11 +191,18 @@ is near-black (`#27272a`) with light text in light mode, and near-white
 dark card, where the light primary would be 1.2:1. The page behind the card
 is 5% of the light primary over the dark background, a shade darker than the
 card, which its border outlines. The sign-in code's box is a light grey
-(`#f1f5f9`) in light mode and a mid slate (`#94a3b8`) in dark mode, 6.95:1
-against the dark card; the code on it stays near-black (`#020918`) in both,
-7.76:1 over the dark box. The footer's muted text keeps its grey (`#62748e`)
-in both modes. Nothing is passed for any of it, the text part has no
-colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
+(`#f1f5f9`) with near-black code (`#020918`) in light mode, and a slate a
+step above the dark card (`#1e293b`) with light code (`#cbd5e1`) in dark
+mode, 9.85:1. The muted text — the footer, and the closing *if you did not
+ask for this* — is a slate grey (`#5f718a`) in light mode, 4.53:1 on the
+page, and turns `#cbd5e1` in dark mode, 12.01:1 on the dark card and
+13.31:1 on the page. The notices' warning keeps
+its light ground and its grey text in both modes, 4.56:1 at the least. Every
+text of the defaults reads at 4.5:1 or more in both modes, but the link
+under the button, which `@nxgt/mail-ui` colours with its info blue in
+both: 6.78:1 on the dark card, 2.63:1 on the light one, and no theme token
+moves it without breaking the other mode. Nothing is passed for any of it,
+the text part has no colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
 [Dark mode](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-ui/docs/guide/dark-mode.md)
 guide has the technique, client by client.
 
