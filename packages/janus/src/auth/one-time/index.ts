@@ -2,7 +2,8 @@
  * What every one-time token shares — an e-mail link, a sign-in code, a
  * second-factor challenge — kept in one place so they cannot drift apart:
  * issuing it (`issue.ts`), spending it (`spend.ts`), refusing it
- * (`refusals.ts`) and the code it may carry (`codes.ts`).
+ * (`refusals.ts`), the code it may carry (`codes.ts`) and the attempts a
+ * window counts in tokens of its own (`window.ts`).
  *
  * Gathered here from the files beside this one.
  */
@@ -23,3 +24,9 @@ export {
 	unknownOneTime,
 } from './refusals';
 export { burnOneTime, spendOneTime } from './spend';
+export {
+	type AttemptWindow,
+	type CountedAttempt,
+	countInWindow,
+	MAX_LINKS,
+} from './window';
