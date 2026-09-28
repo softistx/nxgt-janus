@@ -182,8 +182,9 @@ jobs:
   # 7.0 as well, since it promises the same floor. Each server floor is the
   # newest patch of its line. And, at the end of the job, the library peers'
   # floors, `@nxgt/mail` 0.1.0, `@nxgt/mongo` 0.17.0, and @nxgt/janus-graphql's
-  # graphql 16.9.0, `@envelop/core` 5.0.0 and `@graphql-tools/utils` 10.0.0 —
-  # each the exact lower bound of its peer range, not the newest patch.
+  # graphql 16.9.0, `@envelop/core` 5.0.0, `@graphql-tools/utils` 10.0.0 and
+  # graphql-ws 6.0.0 — each the exact lower bound of its peer range, not the
+  # newest patch.
   #
   # A floor that fails here is not fixed by testing a newer version: the
   # README is then wrong, and that is a decision, not a CI change.
@@ -303,7 +304,8 @@ jobs:
           bash -c 'set -e;
           cd packages/janus-mongo; bun test src; bun run typecheck;
           cd ../janus-kit; bun test src/mongo src/entries.spec.ts; bun run typecheck'
-      # @nxgt/janus-graphql's three peer floors, together. They cannot be
+      # @nxgt/janus-graphql's four peer floors, together — graphql-ws an
+      # optional one, which its WebSocket specs run on. They cannot be
       # linked over as the two above are: graphql-yoga and the
       # `@graphql-tools/*` packages in the workspace resolve graphql 17, so
       # one package's link at 16.9.0 would give the specs two copies of
@@ -317,8 +319,8 @@ jobs:
       # `@envelop/core` and `@graphql-tools/utils` nested; the package's
       # sources and its packed build must resolve the floors, which the
       # script also asserts.
-      - name: Run janus-graphql on graphql 16.9.0, @envelop/core 5.0.0 and @graphql-tools/utils 10.0.0
+      - name: Run janus-graphql on graphql 16.9.0, @envelop/core 5.0.0, @graphql-tools/utils 10.0.0 and graphql-ws 6.0.0
         run: >-
           bun scripts/run-in-floor-project.ts janus-graphql
-          graphql@16.9.0 @envelop/core@5.0.0 @graphql-tools/utils@10.0.0 --single graphql --
+          graphql@16.9.0 @envelop/core@5.0.0 @graphql-tools/utils@10.0.0 graphql-ws@6.0.0 --single graphql --
           bash -c 'set -e; bun test src; bun run typecheck'

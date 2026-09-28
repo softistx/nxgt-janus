@@ -582,14 +582,16 @@ The table that exists so a duplication is a decision rather than an accident.
   every floor, imports the packed package, and runs the command in a copy of
   the package's directory — all but its `node_modules` and `dist/`, with
   the root's `tsconfig.base.json` beside it — then removes the project. It
-  runs `@nxgt/janus-graphql` on `graphql` 16.9.0, `@envelop/core` 5.0.0 and
-  `@graphql-tools/utils` 10.0.0, one copy of graphql; graphql-yoga keeps
+  runs `@nxgt/janus-graphql` on `graphql` 16.9.0, `@envelop/core` 5.0.0,
+  `@graphql-tools/utils` 10.0.0 and `graphql-ws` 6.0.0 — an optional peer,
+  whose WebSocket specs run there too — one copy of graphql; graphql-yoga keeps
   its own newer `@envelop/core` and `@graphql-tools/utils`, nested. A floor
   outside the package's peer range, or not a peer of it, is refused before
   anything is made. Locally, after `bun run build`, with the scratch space
   under `TMPDIR`: `bun scripts/run-in-floor-project.ts janus-graphql
-  graphql@16.9.0 @envelop/core@5.0.0 @graphql-tools/utils@10.0.0 --single
-  graphql -- bash -c 'bun test src && bun run typecheck'`.
+  graphql@16.9.0 @envelop/core@5.0.0 @graphql-tools/utils@10.0.0
+  graphql-ws@6.0.0 --single graphql -- bash -c 'bun test src && bun run
+  typecheck'`.
   A README that states a new floor adds it to that job; a
   floor that fails there means the README is wrong, and the owner decides what
   it promises instead; it is never made green by testing a newer version.
