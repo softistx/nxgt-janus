@@ -20,7 +20,7 @@ import { hashSecret } from '../secrets';
  * without the sealing keys can name it — nor redeem it as a challenge.
  *
  * What it is for decides when it starts again: the **window**, a fixed
- * {@link REGENERATE_WINDOW_MS} slice of the clock, and the factor's
+ * {@link APP_CODE_WINDOW_MS} slice of the clock, and the factor's
  * `lastStep`, which **any code accepted** moves — a regenerate that
  * succeeded starts the count again, and so does a sign-in finished with the
  * app.
@@ -32,9 +32,9 @@ import { hashSecret } from '../secrets';
  */
 
 /** How long the attempts of one window last: fifteen minutes. */
-export const REGENERATE_WINDOW_MS = 15 * 60_000;
+export const APP_CODE_WINDOW_MS = 15 * 60_000;
 
-const WINDOW_MINUTES = REGENERATE_WINDOW_MS / 60_000;
+const WINDOW_MINUTES = APP_CODE_WINDOW_MS / 60_000;
 
 /**
  * What the key is derived for: never the key that seals a secret itself.
@@ -80,8 +80,9 @@ function linkHash(
 
 /**
  * Counts one attempt at the app's code — to regenerate the user's recovery
- * codes, or to confirm a step-up — before the code is compared, and answers how many are left. Past the last one, it
- * refuses — the right code included — until the window ends.
+ * codes, or to confirm a step-up — before the code is compared, and
+ * answers how many are left. Past the last one, it refuses — the right
+ * code included — until the window ends.
  */
 export async function countAppCodeAttempt(
 	context: Context,
@@ -90,11 +91,11 @@ export async function countAppCodeAttempt(
 	where: string,
 ): Promise<number> {
 	const now = context.clock.now().getTime();
-	const window = Math.floor(now / REGENERATE_WINDOW_MS);
+	const window = Math.floor(now / APP_CODE_WINDOW_MS);
 	// A window of slack: a store whose clock runs ahead of this one must not
 	// drop a link before its window ends. The window is in the hash, so a
 	// link never counts for the next one.
-	const times = { now, expiresAt: (window + 2) * REGENERATE_WINDOW_MS };
+	const times = { now, expiresAt: (window + 2) * APP_CODE_WINDOW_MS };
 	let spent = 0;
 	for (let link = 0; link < MAX_LINKS; link += 1) {
 		const hash = linkHash(sealer, record, window, link);

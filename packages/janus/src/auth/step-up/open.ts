@@ -9,8 +9,7 @@ import type { ResolvedType } from '../config';
 import { type Context, findRecord } from '../context';
 import { spendOneTime, unknownChallenge } from '../one-time';
 import type { SessionRecord, TokenRecord, UserRecord } from '../port/types';
-import { hashSecret } from '../secrets';
-import { presentedToken } from '../sessions/presented-token';
+import { standingSession } from '../sessions/standing';
 import type { RequestLike } from '../types';
 
 /** The session a step-up confirms, and its user. */
@@ -34,7 +33,7 @@ export async function openStepUp(
 	secret: string,
 	where: string,
 ): Promise<OpenedStepUp> {
-	const session = await standingSession(context, request);
+	const session = (await standingSession(context, request))?.session ?? null;
 	if (session === null || session.userId !== token.userId) {
 		throw await unknownChallenge(context, token, secret, where);
 	}
@@ -51,23 +50,4 @@ export async function openStepUp(
 		});
 	}
 	return { session, user };
-}
-
-/** The session the request presents, or `null` when none stands: absent, revoked or lapsed. */
-async function standingSession(
-	context: Context,
-	request: RequestLike,
-): Promise<SessionRecord | null> {
-	const presented = presentedToken(request, context.config.cookie.name);
-	if (presented === null) return null;
-
-	const session = await context.store.sessions.findSessionByTokenHash(
-		hashSecret(presented),
-	);
-	const now = context.clock.now().getTime();
-	return session === null ||
-		session.revokedAt !== null ||
-		session.expiresAt.getTime() <= now
-		? null
-		: session;
 }

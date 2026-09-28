@@ -140,6 +140,14 @@ counted **per user**, five per 15-minute window, in the same count as
 challenge still gets five guesses per window, not five per challenge. The
 app's code accepted is spent, as at a sign-in: it confirms nothing else.
 
+**Rate-limit `request` per user.** An e-mailed code has no such window:
+five guesses per challenge, and a new challenge takes only a new `request`.
+A stolen session could ask again and again — each request also sends an
+e-mail and cancels the code before it. Limit `stepUp.request` per user —
+a few an hour is plenty for a person — as you limit `signInCode.request`
+per address; the `janus.stepUp.asked` event of `@nxgt/janus-telemetry` is
+the signal to alert on.
+
 A step-up and a sign-in code are **two kinds of token**: a sign-in code's
 challenge confirms no action, and a step-up's code signs nobody in.
 

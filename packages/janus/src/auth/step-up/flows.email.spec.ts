@@ -160,4 +160,23 @@ describe('stepUp by e-mail', () => {
 			(await auth.stepUp.confirm(request, issued.challenge, issued.code)).id,
 		).toBe(signed.session.id);
 	});
+
+	it('refuses a user whose e-mail is gone from the record with NOT_FOUND', async () => {
+		const context = setup();
+		const { user } = await signedIn(context);
+		const record = await context.store.users.findUser(user.id);
+		if (record === null) throw new Error('expected the user');
+		await context.store.users.updateUser(
+			user.id,
+			{ fields: { name: ada.name }, updatedAt: context.clock.now() },
+			record.version,
+		);
+
+		expect(await rejection(context.auth.stepUp.request(user.id))).toMatchObject(
+			{
+				code: 'NOT_FOUND',
+				message: 'stepUp.request: the user has no e-mail',
+			},
+		);
+	});
 });

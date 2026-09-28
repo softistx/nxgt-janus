@@ -6,10 +6,9 @@
 import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, toUser } from '../context';
 import type { SessionRecord } from '../port/types';
-import { hashSecret } from '../secrets';
 import type { Authenticated, RequestLike } from '../types';
 import { toSession } from './open-session';
-import { presentedToken } from './presented-token';
+import { standingSession } from './standing';
 
 /** Answers the user and the session `request` presents, or `null` for anonymous. */
 export async function authenticate(
@@ -18,22 +17,11 @@ export async function authenticate(
 	options?: { readonly type?: string },
 ): Promise<Authenticated<AnyUser> | null> {
 	const { store, clock, config } = context;
-	const token = presentedToken(request, config.cookie.name);
-	if (token === null) return null;
-
-	const session = await store.sessions.findSessionByTokenHash(
-		hashSecret(token),
-	);
-	// Lapsed, revoked, or gone: anonymous. Expiry is decided here, against
-	// this clock — a store may still hold a session past its term.
+	// Lapsed, revoked, or gone: anonymous.
+	const presented = await standingSession(context, request);
+	if (presented === null) return null;
+	const { token, session } = presented;
 	const now = clock.now().getTime();
-	if (
-		session === null ||
-		session.revokedAt !== null ||
-		session.expiresAt.getTime() <= now
-	) {
-		return null;
-	}
 
 	// A user gone, inactive, or of another type than asked for is
 	// anonymous: the session stands, and proves nothing here.

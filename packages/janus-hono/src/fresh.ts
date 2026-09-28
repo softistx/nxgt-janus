@@ -1,9 +1,10 @@
 import {
-	assertFresh,
 	type Clock,
 	type Duration,
 	parseDuration,
 	type Session,
+	StepUpRequiredError,
+	systemClock,
 } from '@nxgt/janus';
 import type { MiddlewareHandler } from 'hono';
 
@@ -49,7 +50,14 @@ export function fresh(
 			);
 		}
 		if (current === null) return c.body(null, 401);
-		assertFresh(current, maxAgeMs, options.clock);
+		// `assertFresh`'s rule, with a message naming the call written here.
+		const now = (options.clock ?? systemClock).now().getTime();
+		if (now - current.authenticatedAt.getTime() >= maxAgeMs) {
+			throw new StepUpRequiredError(
+				'fresh(): the session proved who it is longer ago than maxAge — confirm with a step-up',
+				{ userId: current.userId },
+			);
+		}
 		await next();
 	};
 }

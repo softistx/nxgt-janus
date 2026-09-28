@@ -105,4 +105,18 @@ describe('stepUp.confirm and the session it confirms', () => {
 		});
 		expect(await context.auth.authenticate(request)).toBeNull();
 	});
+
+	it('refuses a challenge whose user is gone, while the session stands, as unknown', async () => {
+		const context = setup();
+		const { user, request } = await signedIn(context);
+		const issued = await context.auth.stepUp.request(user);
+		// Removed from the store alone: the session is still there.
+		await context.store.users.deleteUser(user.id);
+
+		expect(
+			await rejection(
+				context.auth.stepUp.confirm(request, issued.challenge, issued.code),
+			),
+		).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+	});
 });

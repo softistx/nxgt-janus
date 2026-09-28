@@ -933,6 +933,11 @@ after a sign-out, is `TOKEN_UNKNOWN`. Its challenge is a secret like
 `signInCode`'s — and check freshness on the server with `assertFresh`, never
 from a flag the client keeps.
 
+**Rate-limit `stepUp.request` per user.** An app's codes are counted per
+user and window, but an e-mailed code gets five guesses per challenge and a
+new challenge takes only a new `request`: without a limit, a stolen session
+can keep asking — and fill the user's inbox while it does.
+
 **Answer `signInCode.request` the same whether it issued a code or not** —
 the same status, body and cookie: set a random challenge when it answered
 `null`. The code route then still tells a decoy (`TOKEN_UNKNOWN`) from a

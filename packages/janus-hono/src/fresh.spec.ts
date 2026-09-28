@@ -26,8 +26,13 @@ function app() {
 			);
 			return c.json({ authenticatedAt: confirmed.authenticatedAt });
 		});
-	routes.onError(janusErrors());
-	return { ...context, routes };
+	const seen: { error?: Error } = {};
+	const answer = janusErrors();
+	routes.onError((error, c) => {
+		seen.error = error;
+		return answer(error, c);
+	});
+	return { ...context, routes, seen };
 }
 
 async function signedIn(context: ReturnType<typeof app>) {
@@ -55,7 +60,7 @@ describe('fresh()', () => {
 
 	it('answers an older one 403 STEP_UP_REQUIRED, and lets it through once a step-up confirmed it', async () => {
 		const context = app();
-		const { routes, clock } = context;
+		const { routes, clock, seen } = context;
 		const headers = await signedIn(context);
 		clock.advance(60 * 60_000);
 
@@ -65,6 +70,9 @@ describe('fresh()', () => {
 		});
 		expect(refused.status).toBe(403);
 		expect(await refused.json()).toEqual({ code: 'STEP_UP_REQUIRED' });
+		expect(seen.error?.message).toBe(
+			'fresh(): the session proved who it is longer ago than maxAge — confirm with a step-up',
+		);
 
 		const issued = await (
 			await routes.request('/step-up', { method: 'POST', headers })

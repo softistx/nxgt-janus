@@ -113,4 +113,24 @@ describe('stepUp with an active second factor', () => {
 			),
 		).toMatchObject({ code: 'SECOND_FACTOR_NOT_ENROLLED' });
 	});
+
+	it('accepts one of two confirmations sent at once with the same code', async () => {
+		const context = setup();
+		const { auth, codeOf } = context;
+		const { user, secret, request } = await signedInWithApp(context);
+		const issued = await auth.stepUp.request(user);
+		const code = codeOf(secret);
+
+		const outcomes = await Promise.allSettled([
+			auth.stepUp.confirm(request, issued.challenge, code),
+			auth.stepUp.confirm(request, issued.challenge, code),
+		]);
+		expect(outcomes.filter((one) => one.status === 'fulfilled')).toHaveLength(
+			1,
+		);
+		const refused = outcomes.find((one) => one.status === 'rejected');
+		expect(refused?.status === 'rejected' && refused.reason).toMatchObject({
+			code: 'VERSION_CONFLICT',
+		});
+	});
 });
