@@ -53,7 +53,7 @@ current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 | Span | Attributes |
 | --- | --- |
-| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm` and `janus.signInCode.confirm` included | `janus.user.type`; `user.id` once the answer names a user; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn` and `signInCode.confirm` — `signedIn`, or `secondFactor` when it answered a challenge |
+| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm` and `janus.signInCode.confirm` included | `janus.user.type`; `user.id` once the answer names a user; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn` and `signInCode.confirm` — `signedIn`, or `secondFactor` when it answered a challenge; for `stepUp.confirm`, the `user.id` of the session it stamped, never the session's id |
 | `janus.can` | `janus.subject.type`, `janus.subject.id`, `janus.permission`, `janus.object.type`, `janus.object.id`, and the answer, `janus.allowed` |
 | `janus.list` | the subject, `janus.permission`, `janus.object.type`, and `janus.page.items`, how many it found |
 | `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set, read as `permissions()` reads it: a user with a field named `relation` is that user, and a set on a user type is one only when `setOf()` made it |
@@ -79,6 +79,9 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm` or `signInCode.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft` — the same attribute for both — a `TOKEN_*` code (`TOKEN_STALE` with `user.id`), `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for a write that raced. Every refusal of `signInCode.confirm` adds `janus.signIn.code: true`, and every refusal of `secondFactor.recover` adds `janus.signIn.recoveryCode: true` |
 | `janus.secondFactor.enrolled`, `janus.secondFactor.activated`, `janus.secondFactor.disabled` | info | `enroll`, `activate` and `disable`, with the `user.id` they were called for |
 | `janus.secondFactor.recoveryCodesRegenerated` | info | `regenerateRecoveryCodes`, with the `user.id` it was called for — never a code |
+| `janus.stepUp.asked` | info | `stepUp.request` issued a challenge, with the `user.id` and `janus.stepUp.via` — `email` when a code is to be sent, `secondFactor` when the user's app confirms it |
+| `janus.stepUp.confirmed` | info | `stepUp.confirm` stamped the session as freshly confirmed, with the session's `user.id` |
+| `janus.stepUp.refused` | **warn** | a step-up was refused, with `janus.refusal` — `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft`, a `TOKEN_*` code, `USER_INACTIVE`, `SECOND_FACTOR_ACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for an app's code sent twice at once — never the code nor the challenge |
 | `janus.signOut` | info | a session was signed out |
 | `janus.signOutEverywhere` | info | every session of a user was revoked |
 | `janus.user.deleted` | info | a user was deleted |

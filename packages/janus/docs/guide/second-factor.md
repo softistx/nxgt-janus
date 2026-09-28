@@ -488,21 +488,16 @@ its first ten.
 | `VERSION_CONFLICT` | `{ ifVersion }` no longer matches, or another call changed the user meanwhile — the same code tried twice at once regenerates once |
 
 Like `enroll` and `disable`, `regenerateRecoveryCodes` does not know who is
-calling: pass the user from `auth.authenticate(request)`, and apply your
-[recent sign-in rule](#asking-before-enroll-and-disable-is-your-policy)
-first. The app's code is the one check `janus` makes itself.
+calling: pass the user from `auth.authenticate(request)`, and ask for a
+[recent proof](#asking-before-enroll-and-disable-is-your-policy) first. The app's code is the one check `janus` makes itself.
 
 ```ts
-import { TokenError } from '@nxgt/janus';
-
-const RECENT = 5 * 60_000;
+import { TokenError, assertFresh } from '@nxgt/janus';
 
 export async function regenerateRecoveryCodes(request: Request): Promise<Response> {
 	const current = await auth.authenticate(request);
 	if (current === null) return new Response(null, { status: 401 });
-	if (Date.now() - current.session.authenticatedAt.getTime() > RECENT) {
-		return Response.json({ error: 'signInAgain' }, { status: 403 });
-	}
+	assertFresh(current.session, '5m'); // STEP_UP_REQUIRED: your error handler answers 403, and the client steps up
 	const { code } = (await request.json()) as { code: string };
 	try {
 		const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(current.user, code);
@@ -570,24 +565,35 @@ again first is the application's decision** — a support tool may disable a
 factor for a user who lost their phone, while a user's own settings page
 should not let a stolen session switch it off.
 
-A common rule is a **recent sign-in**: the session was opened a few minutes
-ago, so its holder just gave the password — and the code, when the factor is
-active. `session.authenticatedAt` is when the session was opened, and renewal
-does not move it:
+A common rule is a **recent proof**: the session signed in, or was
+confirmed by a [step-up](step-up.md), a few minutes ago — so its holder just
+gave the password, the code, or both. `assertFresh` reads
+`session.authenticatedAt`, which renewal never moves, and throws
+`STEP_UP_REQUIRED` (403) for an older session:
 
 ```ts
-const RECENT = 5 * 60_000;
+import { JanusError, assertFresh, statusOf } from '@nxgt/janus';
 
 export async function disableSecondFactor(request: Request): Promise<Response> {
 	const current = await auth.authenticate(request);
 	if (current === null) return new Response(null, { status: 401 });
-	if (Date.now() - current.session.authenticatedAt.getTime() > RECENT) {
-		return Response.json({ error: 'signInAgain' }, { status: 403 });
+	try {
+		assertFresh(current.session, '5m');
+	} catch (error) {
+		// STEP_UP_REQUIRED: the client asks for auth.stepUp, then sends this again
+		if (error instanceof JanusError) {
+			return Response.json({ code: error.code }, { status: statusOf(error.code) });
+		}
+		throw error;
 	}
 	await auth.secondFactor.disable(current.user);
 	return new Response(null, { status: 204 });
 }
 ```
+
+For a user whose factor is active, `stepUp.request` asks for their app's
+code, never an e-mailed one: a stolen session and a read inbox together still
+cannot switch the factor off.
 
 Use the same check before `enroll`, before `regenerateRecoveryCodes` — which
 asks for the app's code besides — before `changePassword`, and before

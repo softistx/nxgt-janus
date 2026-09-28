@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { challenged, enrolled, setup } from './flows.fixtures';
-import { REGENERATE_WINDOW_MS } from './regenerate-attempts';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
+import { APP_CODE_WINDOW_MS } from './app-code-attempts';
 
 const TOO_MANY =
 	'secondFactor.regenerateRecoveryCodes: too many codes tried — wait for the next 15-minute window';
@@ -55,7 +55,7 @@ describe('secondFactor.regenerateRecoveryCodes, attempts', () => {
 		const { secret, user } = await enrolled(context);
 		await guess(context, user, secret, 5);
 
-		clock.advance(REGENERATE_WINDOW_MS);
+		clock.advance(APP_CODE_WINDOW_MS);
 		const fresh = await auth.secondFactor.regenerateRecoveryCodes(
 			user,
 			codeOf(secret),

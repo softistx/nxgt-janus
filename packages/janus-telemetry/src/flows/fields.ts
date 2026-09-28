@@ -67,3 +67,28 @@ export function recoveryCodesLeft(value: unknown): number | undefined {
 		? value.recoveryCodesLeft
 		: undefined;
 }
+
+/**
+ * The user a session names — what `stepUp.confirm` answers — by its
+ * `userId`: the session's own id is not the user's.
+ */
+export function sessionUserFields(call: Call, value: unknown): Fields {
+	const userId =
+		typeof value === 'object' && value !== null && 'userId' in value
+			? value.userId
+			: undefined;
+	return fieldsOf({
+		'janus.user.type': call.userType,
+		'user.id': typeof userId === 'string' ? userId : undefined,
+	});
+}
+
+/** How a step-up is confirmed — `email` or `secondFactor` — when the answer says. */
+export function viaOf(value: unknown): string | undefined {
+	return typeof value === 'object' &&
+		value !== null &&
+		'via' in value &&
+		typeof value.via === 'string'
+		? value.via
+		: undefined;
+}

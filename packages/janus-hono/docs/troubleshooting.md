@@ -25,6 +25,9 @@ for what causes each.
 - [`500 Internal Server Error` for every refusal](#500-internal-server-error-for-every-refusal)
 - [`TypeError: permission(): c.var.object is already set`](#typeerror-permission-cvarobject-is-already-set)
 - [`TypeError: permission(): c.var.user is not set`](#typeerror-permission-cvaruser-is-not-set)
+- [`TypeError: fresh(): c.var.session is not set — put session(auth) before it`](#typeerror-fresh-cvarsession-is-not-set--put-sessionauth-before-it)
+- [`TypeError: fresh: maxAge: "<value>" is not a duration …`](#typeerror-fresh-maxage-value-is-not-a-duration-)
+- [`403 {"code":"STEP_UP_REQUIRED"}` for a signed-in user](#403-codestep_up_required-for-a-signed-in-user)
 - [`403` where the user should be allowed](#403-where-the-user-should-be-allowed)
 - [`401` with an empty body, for a signed-in user](#401-with-an-empty-body-for-a-signed-in-user)
 - [`503 {"code":"STORE_FAILED"}` on every route](#503-codestore_failed-on-every-route)
@@ -211,6 +214,51 @@ say who the subject is.
 ```ts
 app.get('/records/:id', session(auth), permission(access, 'view', 'record', load), handler);
 ```
+
+### `TypeError: fresh(): c.var.session is not set — put session(auth) before it`
+
+**When:** the first request to a route guarded by `fresh()`.
+
+**Why:** nothing set `c.var.session`: no `session()` before `fresh()` in
+that route's chain. It is a wiring error, so it is thrown rather than
+answered 401.
+
+**Fix:** put `session(auth)` before it — on the route or with `app.use`:
+
+```ts
+app.delete('/account', session(auth, { required: true }), fresh('10m'), handler);
+```
+
+### `TypeError: fresh: maxAge: "<value>" is not a duration …`
+
+**When:** when the app is wired: the line that calls `fresh('10 m')`, or
+`fresh()` with a `maxAge` computed as a string, throws before any request.
+
+**Why:** a `maxAge` is a number of milliseconds, or a number followed by
+one unit — `ms`, `s`, `m`, `h` or `d`. The type refuses most mistakes;
+a computed string or a space (`'10 m'`) reaches here.
+
+**Fix:**
+
+```ts
+fresh('10m'); // or fresh(600_000)
+```
+
+### `403 {"code":"STEP_UP_REQUIRED"}` for a signed-in user
+
+**When:** a route guarded by `fresh(maxAge)`, for a session that signed in
+— or was last confirmed by a step-up — `maxAge` ago or more.
+
+**Why:** the route asks for a recent proof of who the user is. A session
+renewed yesterday is still as old as its sign-in: renewal never moves
+`authenticatedAt`. In a spec, a `fresh()` without `janus()`'s clock reads
+the system time, not `clock.advance()`'s.
+
+**Fix:** it is not a denial. Have the client run a step-up —
+`auth.stepUp.request`, then `auth.stepUp.confirm(c.req.raw, challenge,
+code)` — and send the same request again; see
+[the routes guide](guide/routes.md#a-step-up). In a spec, pass the clock:
+`fresh('10m', { clock })`.
 
 ### `403` where the user should be allowed
 

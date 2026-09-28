@@ -43,6 +43,7 @@ export function statusOf(code: JanusErrorCode): JanusErrorStatus {
 		case 'CODE_INVALID':
 			return 401;
 		case 'USER_INACTIVE':
+		case 'STEP_UP_REQUIRED':
 			return 403;
 		case 'UNSUPPORTED':
 			return 501;

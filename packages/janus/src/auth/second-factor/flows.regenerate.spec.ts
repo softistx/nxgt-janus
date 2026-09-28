@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { challenged, enrolled, setup } from './flows.fixtures';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
 
 describe('secondFactor.regenerateRecoveryCodes', () => {
 	it('answers ten new codes on a fresh code from the app, and the old ones stop working', async () => {

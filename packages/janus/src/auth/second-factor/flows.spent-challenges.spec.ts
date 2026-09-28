@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, hasher, password, person } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
+import { challenged, enrolled, key, setup } from '../../../test/second-factor';
 import { fixedClock } from '../../time/clock';
 import { janus } from '../janus';
 import { createMemoryStores } from '../port/memory';
 import type { JanusStores } from '../port/types';
 import { codeAt, fromBase32, stepAt } from '../totp';
-import { challenged, enrolled, key, setup } from './flows.fixtures';
 
 describe('the challenge, raced and crossed', () => {
 	it('refuses every code past the fifth, the right one included, when they arrive at once', async () => {

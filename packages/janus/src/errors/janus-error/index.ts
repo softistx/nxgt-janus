@@ -17,6 +17,7 @@ export {
 	InvalidCursorError,
 	PermissionDepthError,
 	SecondFactorError,
+	StepUpRequiredError,
 	TokenError,
 	UnsupportedError,
 	UserInactiveError,

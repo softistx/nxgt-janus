@@ -95,6 +95,7 @@ that cuts an emoji in half, say.
 | `tokens.verifyEmail` | `Duration` | `'24h'` | How long a verification token lives |
 | `tokens.resetPassword` | `Duration` | `'1h'` | How long a reset token lives |
 | `tokens.signInCode` | `Duration` | `'10m'` | How long an e-mailed sign-in code and its challenge live. See [sign-in codes](sign-in-code.md) |
+| `tokens.stepUp` | `Duration` | `'10m'` | How long a step-up's challenge — and its e-mailed code — lives. See [step-up](step-up.md) |
 | `secondFactor` | `{ issuer, keys, challenge? }` | none | A TOTP second factor for every type with a password. Changes what `signIn` answers — see [the second factor](second-factor.md#configuration) |
 | `events` | `UserEventListener` | none | Called with every user event — `user.created`, `user.deleted`, … — after the write, awaited. See [user events](events.md) |
 

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
 import type { UserEvent } from '../events';
 import { createMemoryStores } from '../port/memory';
-import { challenged, enrolled, setup } from './flows.fixtures';
 
 /** An instance whose listener records what it hears. */
 function listening() {

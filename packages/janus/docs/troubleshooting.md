@@ -88,6 +88,17 @@ How the messages are shaped:
 - [`TS2339: Property 'signInCode' does not exist on type 'TypeApi<…>'.`](#ts2339-property-signincode-does-not-exist-on-type-typeapi)
 - `CODE_INVALID`, `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `USER_INACTIVE` and `VERSION_CONFLICT` from `signInCode.confirm`, and `TS2339` on its `token`: in their entries above.
 
+**Step-up**
+- [`STEP_UP_REQUIRED` — `assertFresh: the session proved who it is longer ago than maxAge …`](#step_up_required--assertfresh-the-session-proved-who-it-is-longer-ago-than-maxage--confirm-with-a-step-up)
+- [`TOKEN_UNKNOWN` — `stepUp.confirm: no such challenge`, with a challenge just issued](#token_unknown--stepupconfirm-no-such-challenge-with-a-challenge-just-issued)
+- [`TOKEN_UNKNOWN` — `stepUp.confirm: the session was signed out while the code was checked`](#token_unknown--stepupconfirm-the-session-was-signed-out-while-the-code-was-checked)
+- [`SECOND_FACTOR_ACTIVE` — `stepUp.confirm: the user's second factor became active since the code was sent …`](#second_factor_active--stepupconfirm-the-users-second-factor-became-active-since-the-code-was-sent--request-a-step-up-again)
+- [`SECOND_FACTOR_NOT_ENROLLED` — `stepUp.confirm: the user no longer has a second factor …`](#second_factor_not_enrolled--stepupconfirm-the-user-no-longer-has-a-second-factor--request-a-step-up-again)
+- [`CODE_INVALID` — `stepUp.confirm: too many codes tried …`](#code_invalid--stepupconfirm-too-many-codes-tried--wait-for-the-next-15-minute-window)
+- [`NOT_FOUND` — `stepUp.request: the user has no e-mail`](#not_found--stepuprequest-the-user-has-no-e-mail)
+- [`TS2339: Property 'code' does not exist on type 'StepUpByEmail<…> | StepUpByApp<…>'.`](#ts2339-property-code-does-not-exist-on-type-stepupbyemail--stepupbyapp)
+- [`TS2339: Property 'stepUp' does not exist on type 'TypeApi<…>'.`](#ts2339-property-stepup-does-not-exist-on-type-typeapi)
+
 **User events**
 - [`[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`](#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-name)
 - [An event you expected never arrived](#an-event-you-expected-never-arrived)
@@ -317,7 +328,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode` and `secondFactor.challenge`. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.stepUp` and `secondFactor.challenge` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.
@@ -1074,6 +1085,140 @@ janus({
   ...
 });
 ```
+
+---
+
+## Step-up
+
+The messages start with `stepUp.request` or `stepUp.confirm` — prefixed by
+the type with several user types: `patient.stepUp.confirm: …`.
+`stepUp.confirm` also rejects with
+[`CODE_INVALID`](#code_invalid--call-the-code-does-not-match-or-was-already-used),
+[`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
+[`TOKEN_STALE`](#token_stale--call-the-code-was-sent-to-an-e-mail-the-user-no-longer-has),
+[`USER_INACTIVE`](#user_inactive--call-the-user-is-inactive) and
+[`VERSION_CONFLICT`](#version_conflict--call-expected-version-n-found-m),
+as `signInCode.confirm` does. [The step-up guide](guide/step-up.md) has the
+whole flow.
+
+### `STEP_UP_REQUIRED` — `assertFresh: the session proved who it is longer ago than maxAge — confirm with a step-up`
+
+`StepUpRequiredError`, carrying the `userId`; `statusOf` answers 403, and
+so does `@nxgt/janus-hono`'s `janusErrors()`.
+
+**When:** `assertFresh(session, maxAge)` — or `fresh(maxAge)` in a Hono
+app, whose message starts `fresh():` instead — on a session that signed
+in, or was last confirmed by a step-up, `maxAge` ago or more.
+**Why:** the route asks for a recent proof of who the user is; renewal
+keeps a session alive but proves nothing, so it never moves
+`authenticatedAt`.
+**Fix:** this is not a denial. Answer 403 with the code, and have the
+client run a step-up, then send the request again:
+
+```ts
+const issued = await auth.stepUp.request(current.user);
+// … the user types the code …
+await auth.stepUp.confirm(request, challenge, code); // authenticatedAt: now
+```
+
+### `TOKEN_UNKNOWN` — `stepUp.confirm: no such challenge`, with a challenge just issued
+
+**When:** `stepUp.confirm(request, challenge, code)`, with the challenge
+`stepUp.request` answered a moment ago.
+**Why**, in the order to check:
+
+1. **The request presents no standing session.** `confirm` stamps the
+   session the request carries: pass the request itself — the cookie or the
+   `Authorization: Bearer` header — not a new one built without it.
+2. **The session is another user's.** A challenge is confirmed on its
+   user's own session only; one carried to another browser, signed in as
+   someone else, is unknown there.
+3. **The session was signed out, revoked or lapsed** since the challenge
+   was issued — a password reset revokes every session.
+4. **It is a sign-in code's challenge.** A step-up is a kind of its own: a
+   `signInCode` challenge never confirms one.
+
+**Fix:** confirm on the same request that asked; after a sign-out, sign in
+again — which is fresh on its own.
+
+### `TOKEN_UNKNOWN` — `stepUp.confirm: the session was signed out while the code was checked`
+
+**When:** `stepUp.confirm`, when the session was revoked — a sign-out in
+another tab, a password reset — between the check of the code and the
+write that stamps the session.
+**Why:** a confirmation never brings a revoked session back: the store
+writes `authenticatedAt` only while `revokedAt` is empty. The challenge was
+spent.
+**Fix:** answer 401 and sign in again.
+
+### `SECOND_FACTOR_ACTIVE` — `stepUp.confirm: the user's second factor became active since the code was sent — request a step-up again`
+
+`SecondFactorError`, carrying the `userId`.
+
+**When:** `stepUp.confirm` with an e-mailed code, for a user who activated
+their second factor after `stepUp.request`.
+**Why:** a step-up is never weaker than the sign-in the account asks for —
+once the factor is active, only the app's code confirms. The challenge is
+spent.
+**Fix:** call `stepUp.request` again: it answers `via: 'secondFactor'`, and
+the user types the code from their app.
+
+### `SECOND_FACTOR_NOT_ENROLLED` — `stepUp.confirm: the user no longer has a second factor — request a step-up again`
+
+`SecondFactorError`, carrying the `userId`.
+
+**When:** `stepUp.confirm` on a challenge issued `via: 'secondFactor'`, for
+a user whose factor was disabled since.
+**Why:** there is no secret left to check the app's code against. The
+challenge is spent.
+**Fix:** call `stepUp.request` again: it answers `via: 'email'`, with a code
+to send.
+
+### `CODE_INVALID` — `stepUp.confirm: too many codes tried — wait for the next 15-minute window`
+
+`TokenError`, `attemptsLeft: 0`.
+
+**When:** `stepUp.confirm` with an app's code, after five app codes for
+the same user in the current 15-minute window — across step-ups and
+`secondFactor.regenerateRecoveryCodes`, which share the count.
+**Why:** a challenge takes five attempts, but a stolen session could ask
+for challenge after challenge; the window caps its guesses per user.
+**Fix:** answer with `attemptsLeft: 0`, and let the user try again in the
+next window. It is the
+[same count as `regenerateRecoveryCodes`](#code_invalid--secondfactorregeneraterecoverycodes-too-many-codes-tried--wait-for-the-next-15-minute-window).
+
+### `NOT_FOUND` — `stepUp.request: the user has no e-mail`
+
+`NotFoundError`, carrying the `userId`.
+
+**When:** `stepUp.request(user)` for a user whose e-mail field is empty —
+an optional field left unset — and whose second factor is not active.
+**Why:** the code has nowhere to be sent.
+**Fix:** ask for the e-mail first. A user with an active second factor
+never meets this: the step-up asks for their app's code.
+
+### `TS2339: Property 'code' does not exist on type 'StepUpByEmail<…> | StepUpByApp<…>'.`
+
+Followed by `Property 'code' does not exist on type 'StepUpByApp<…>'.`
+
+**When:** `tsc`, on `issued.code` after `stepUp.request`, with
+`secondFactor` configured on a type with a password.
+**Why:** a user whose factor is active is sent no code — the answer is
+`via: 'secondFactor'`, with a challenge only.
+**Fix:** narrow on `via` first:
+
+```ts
+const issued = await auth.stepUp.request(user);
+if (issued.via === 'email') await sendMail(issued.email, issued.code);
+```
+
+### `TS2339: Property 'stepUp' does not exist on type 'TypeApi<…>'.`
+
+**When:** `tsc`, on `clinic.<type>.stepUp` or `auth.stepUp`.
+**Why:** the user type has no e-mail, as for
+[`signInCode`](#ts2339-property-signincode-does-not-exist-on-type-typeapi):
+a code has nowhere to be sent.
+**Fix:** name the field that holds the e-mail with the `email` option.
 
 ---
 

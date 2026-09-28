@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { rejection } from '../../../test/rejection';
+import { enrolled, setup } from '../../../test/second-factor';
 import { StoreFailure } from '../../errors/janus-error';
 import { createMemoryStores } from '../port/memory';
 import type { JanusStores } from '../port/types';
-import { enrolled, setup } from './flows.fixtures';
 
 /** The reference stores, whose token method fails while `failing` is set. */
 function outage(method: 'countAttempt' | 'insertToken') {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
 import type { UserEvent } from '../events';
-import { challenged, enrolled, setup } from './flows.fixtures';
 
 describe('secondFactor.recoveryCodesLeft', () => {
 	it('answers ten after activation, and one fewer for each code spent', async () => {

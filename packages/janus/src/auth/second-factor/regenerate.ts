@@ -3,10 +3,10 @@ import { type AnyUser, type Context, toUser, writeUser } from '../context';
 import { emit } from '../events';
 import { codeInvalid } from '../one-time';
 import type { RecoveryCodesIssued, UserRef, WriteOptions } from '../types';
+import { countAppCodeAttempt } from './app-code-attempts';
 import { acceptCode, isActive, requireSettings } from './factor';
 import { hashRecoveryCode, mintRecoveryCodes } from './recovery-codes';
 import { refusal } from './refusal';
-import { countRegenerateAttempt } from './regenerate-attempts';
 
 /**
  * Replaces a user's recovery codes with new ones, and answers them once: the
@@ -47,7 +47,7 @@ export async function regenerateRecoveryCodes(
 					record,
 				);
 			}
-			const left = await countRegenerateAttempt(
+			const left = await countAppCodeAttempt(
 				context,
 				configured.sealer,
 				record,

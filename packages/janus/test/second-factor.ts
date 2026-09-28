@@ -1,16 +1,17 @@
 /**
- * The second factor's shared setup: an instance with keys and a fixed
+ * The second factor's shared setup, for the specs of `src/auth/second-factor/`
+ * and `src/auth/step-up/`: an instance with keys and a fixed
  * clock, a user whose factor is active, and a sign-in stopped at its
- * challenge. Specs only — no case lives here.
+ * challenge. No case lives here.
  */
 
-import { ada, hasher, password, person } from '../../../test/auth';
-import { fixedClock } from '../../time/clock';
-import type { UserEventListener } from '../events';
-import { janus } from '../janus';
-import { createMemoryStores } from '../port/memory';
-import type { JanusStores } from '../port/types';
-import { codeAt, fromBase32, stepAt } from '../totp';
+import type { UserEventListener } from '../src/auth/events';
+import { janus } from '../src/auth/janus';
+import { createMemoryStores } from '../src/auth/port/memory';
+import type { JanusStores } from '../src/auth/port/types';
+import { codeAt, fromBase32, stepAt } from '../src/auth/totp';
+import { fixedClock } from '../src/time/clock';
+import { ada, hasher, password, person } from './auth';
 
 export const key = (fill: number) => Buffer.alloc(32, fill).toString('base64');
 

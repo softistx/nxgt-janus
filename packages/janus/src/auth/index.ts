@@ -40,6 +40,7 @@ export type {
 	UserStore,
 } from './port/types';
 export type { SealingKey } from './sealing';
+export { assertFresh } from './sessions/fresh';
 export type { StandardSchemaV1 } from './standard-schema';
 export type {
 	Authenticated,
@@ -64,6 +65,9 @@ export type {
 	SignedIn,
 	SignInCodeApi,
 	SignInResult,
+	StepUpApi,
+	StepUpByApp,
+	StepUpByEmail,
 	TypeApi,
 	TypesOf,
 	User,

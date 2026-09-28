@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
 import { createMemoryStores } from '../port/memory';
 import type { JanusStores } from '../port/types';
-import { challenged, enrolled, setup } from './flows.fixtures';
 
 describe('secondFactor.recover, twice at once', () => {
 	it('opens one session for a code used twice at once: the other write is VERSION_CONFLICT', async () => {

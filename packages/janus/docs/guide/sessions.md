@@ -98,6 +98,12 @@ With several user types, each type has its own `session`.
 Expiry is decided by the core on every read, not by the store: a store may
 still hold a lapsed session, and `authenticate` answers it as anonymous.
 
+**Renewal is not freshness.** `session.authenticatedAt` is when the session
+last proved who it is — at the sign-in, or since by a
+[step-up](step-up.md) — and renewal never moves it. A sensitive route checks
+it with `assertFresh(session, '10m')`, which throws `STEP_UP_REQUIRED` for
+an older one.
+
 ## The cookie
 
 ```ts
@@ -227,5 +233,6 @@ cannot be replayed. `Session` is the stored record without that hash: `id`,
 
 - [Users](users.md) — `signUp`, `signIn`, the configuration
 - [The second factor](second-factor.md) — the challenge `signIn` answers instead of a session
+- [Step-up](step-up.md) — proving again who you are, and `assertFresh`
 - [E-mail flows](email-flows.md) — verification and password reset
 - [Errors](errors.md) — `STORE_FAILED`, `UNSUPPORTED` and the rest

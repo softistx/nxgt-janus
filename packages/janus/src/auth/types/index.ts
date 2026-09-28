@@ -42,5 +42,6 @@ export type {
 	SignedIn,
 	SignInResult,
 } from './sign-in';
+export type { StepUpApi, StepUpByApp, StepUpByEmail } from './step-up';
 export type { User, UserBase, UserRef, WriteOptions } from './user';
 export type { UserTypeApi } from './user-type';

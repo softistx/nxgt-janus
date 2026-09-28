@@ -165,7 +165,7 @@ async function signIn(email: string, password: string): Promise<Response> {
 ```
 
 `JanusError` is the base of everything thrown at call time. It extends `Error`,
-so no consumer has to order their `catch` blocks. `code` is a union of nineteen
+so no consumer has to order their `catch` blocks. `code` is a union of twenty
 string literals, so a `switch` over it is exhaustive and adding a code breaks the
 compilation of callers that exhaust it. `statusOf(code)` answers the status
 below, as `JanusErrorStatus` — a union of the eight literals, which a
@@ -190,6 +190,7 @@ if (error instanceof JanusError) {
 | `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
 | `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` | 409 — the factor is not in the state the call needs |
 | `USER_INACTIVE` | 403 |
+| `STEP_UP_REQUIRED` | 403 — the session proved who it is too long ago for this action: ask for a step-up, then send the request again |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
 | `UNSUPPORTED` | 501 — a wiring mistake, and the message names the store to change |
@@ -197,7 +198,7 @@ if (error instanceof JanusError) {
 
 Each code has its class, all exported: `StoreFailure`, `StoreConflict` (`on:
 'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `CredentialError`,
-`UserInactiveError`, `TokenError` (the `TOKEN_*` codes and `CODE_INVALID`),
+`UserInactiveError`, `StepUpRequiredError`, `TokenError` (the `TOKEN_*` codes and `CODE_INVALID`),
 `SecondFactorError`, `InvalidCursorError`, `UnsupportedError` and
 `PermissionDepthError`. `StoreFailure` and `StoreConflict` are exported
 **because an adapter throws them**. An adapter defines no error class of its own, so `instanceof` holds
@@ -323,6 +324,8 @@ await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
 await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user, session, token }
+await auth.stepUp.request(user);                   // { via: 'email', code, challenge, email, expiresAt, user }
+await auth.stepUp.confirm(request, challenge, code); // the request's session, authenticatedAt: now
 
 // Several user types
 const clinic = janus({
@@ -617,6 +620,46 @@ A six-digit code sent to the user's e-mail signs them in, with no password.
 [The sign-in code guide](docs/guide/sign-in-code.md) has the request that
 tells nobody who exists, the challenge in a cookie, every error, and a test.
 
+### Step-up — `stepUp` and `assertFresh`
+
+```ts
+import { assertFresh } from '@nxgt/janus';
+
+// A sensitive route asks for a recent proof: signed in, or confirmed since.
+const current = await auth.authenticate(request);
+if (current === null) return new Response(null, { status: 401 });
+assertFresh(current.session, '10m'); // StepUpRequiredError, STEP_UP_REQUIRED (403), past ten minutes
+
+// The client, told STEP_UP_REQUIRED, asks for a step-up:
+const issued = await auth.stepUp.request(current.user);
+if (issued.via === 'email') await sendMail(issued.email, `Confirm it is you: ${issued.code}`);
+// …keeps issued.challenge, and sends it back with the code:
+const session = await auth.stepUp.confirm(request, challenge, code); // authenticatedAt: now
+```
+
+A signed-in user proves again who they are before something a stolen
+session should not do alone.
+
+- **On every user type with an e-mail**, as `signInCode`. A type with no
+  e-mail has no `stepUp`.
+- **`request(user)` answers `via: 'email'`** — a six-digit `code` to send to
+  `email` — or, for a user whose second factor is active, **`via:
+  'secondFactor'`**: nothing to send, ask for their app's code. A step-up is
+  never weaker than the sign-in the account asks for. One step-up is live
+  per user; a challenge lives `'10m'` (`tokens.stepUp`).
+- **`confirm(request, challenge, code)` stamps the session the request
+  presents**: its `authenticatedAt` moves to now, and it is answered. It
+  opens no session and hands out no token. Five attempts per challenge; an
+  app's codes are also counted per user, five per 15-minute window, with
+  `regenerateRecoveryCodes`. A request whose session is not a standing one
+  of the challenge's user is `TOKEN_UNKNOWN`.
+- **`assertFresh(session, maxAge, clock?)`** reads `authenticatedAt` and
+  nothing else: `STEP_UP_REQUIRED` (403) when it is `maxAge` old or more. A
+  fresh sign-in is fresh too.
+
+[The step-up guide](docs/guide/step-up.md) has the two requests, every
+error, and the codes an app confirms.
+
 ### User events — `events`
 
 ```ts
@@ -883,6 +926,18 @@ the body of the code form — never in the e-mail, never in a URL, where logs,
 proxies and the `Referer` header see it, and never in a log. The e-mail holds
 the code and nothing else.
 
+**Confirm a step-up on the request that asked for it.** `stepUp.confirm`
+stamps the session the request presents, and only a standing session of
+the challenge's user: a challenge carried to another browser, or confirmed
+after a sign-out, is `TOKEN_UNKNOWN`. Its challenge is a secret like
+`signInCode`'s — and check freshness on the server with `assertFresh`, never
+from a flag the client keeps.
+
+**Rate-limit `stepUp.request` per user.** An app's codes are counted per
+user and window, but an e-mailed code gets five guesses per challenge and a
+new challenge takes only a new `request`: without a limit, a stolen session
+can keep asking — and fill the user's inbox while it does.
+
 **Answer `signInCode.request` the same whether it issued a code or not** —
 the same status, body and cookie: set a random challenge when it answered
 `null`. The code route then still tells a decoy (`TOKEN_UNKNOWN`) from a
@@ -1047,7 +1102,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and twenty-five plausible mistakes, one hundred and twenty-five refused at compile time — and
+**One hundred and twenty-nine plausible mistakes, one hundred and twenty-nine refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1055,9 +1110,9 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-four, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (thirty-eight, on `janus()`, from the point of view of
+it), `test/types/auth/` (forty-two, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
-three on user events) and `test/types/permissions/` (forty-eight, on the
+three on user events, four on step-ups) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

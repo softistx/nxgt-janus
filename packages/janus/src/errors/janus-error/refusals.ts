@@ -75,6 +75,15 @@ export class SecondFactorError extends JanusError {
 	}
 }
 
+/**
+ * The session proved who it is longer ago than the action asks: confirm it
+ * with a step-up, then send the request again.
+ */
+export class StepUpRequiredError extends JanusError {
+	override name = 'StepUpRequiredError';
+	override readonly code = 'STEP_UP_REQUIRED' as const;
+}
+
 /** A cursor this store did not mint, or one for another ordering. */
 export class InvalidCursorError extends JanusError {
 	override name = 'InvalidCursorError';

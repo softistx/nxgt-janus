@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { enrolled, setup } from './flows.fixtures';
+import { enrolled, setup } from '../../../test/second-factor';
 
 describe('secondFactor.enroll and activate', () => {
 	it('answers the secret and its URI, and stores the secret sealed', async () => {

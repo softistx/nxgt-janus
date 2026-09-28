@@ -7,13 +7,13 @@
  * at run time: a user who can never sign in, a field read off the wrong kind
  * of user, a password hash handed to a request handler.
  *
- * **Thirty-eight plausible mistakes, thirty-eight refused**, numbered across the
+ * **Forty-two plausible mistakes, forty-two refused**, numbered across the
  * folder, one file per behaviour: `wiring.ts`, `sign-up-and-in.ts`,
- * `users.ts`, `second-factor.ts`, `sign-in-codes.ts` and `events.ts`, with
- * the shapes that must keep compiling in `allowed.ts` — the event
- * listener's beside its refusals, in `events.ts`. Add a case whenever
- * the surface gains something it should refuse; never delete one to make a
- * change pass.
+ * `users.ts`, `second-factor.ts`, `sign-in-codes.ts`, `events.ts` and
+ * `step-up.ts`, with the shapes that must keep compiling in `allowed.ts`
+ * — the event listener's and the step-up's beside their refusals. Add a
+ * case whenever the surface gains something it should refuse; never delete
+ * one to make a change pass.
  *
  * This file holds no case: only the instances the others are written against.
  */

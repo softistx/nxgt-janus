@@ -2,12 +2,16 @@ import type { SpanScope } from '@nxgt/telemetry';
 import { fieldsOf, type Outcome, traced } from '../traced';
 import type { Call } from './call';
 import { WRITTEN } from './events';
-import { statusOf, userFields } from './fields';
+import { sessionUserFields, statusOf, userFields } from './fields';
 
 /** What a span learns from an answer: whose it is, never what it holds. */
 function answered(scope: SpanScope, call: Call, outcome: Outcome): void {
 	if (outcome.ok) {
-		const fields = userFields(call, outcome.value);
+		// A session is answered by `stepUp.confirm`: its user is its `userId`.
+		const fields =
+			call.flow === 'stepUp.confirm'
+				? sessionUserFields(call, outcome.value)
+				: userFields(call, outcome.value);
 		for (const [key, value] of Object.entries(fields))
 			scope.attribute(key, value);
 		const value = outcome.value;

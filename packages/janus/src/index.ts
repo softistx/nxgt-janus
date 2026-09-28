@@ -34,6 +34,7 @@ export {
 	NotFoundError,
 	PermissionDepthError,
 	SecondFactorError,
+	StepUpRequiredError,
 	StoreConflict,
 	StoreFailure,
 	statusOf,

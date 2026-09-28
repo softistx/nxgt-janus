@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, hasher, password, person } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
+import { challenged, enrolled, key, setup } from '../../../test/second-factor';
 import { janus } from '../janus';
 import { createMemoryStores } from '../port/memory';
-import { challenged, enrolled, key, setup } from './flows.fixtures';
 
 describe('the keys', () => {
 	it('opens a secret sealed with an older key, and seals it again with the first', async () => {
