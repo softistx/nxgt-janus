@@ -61,6 +61,10 @@ Every peer is required:
 | `@envelop/core` | `^5.0.0` | Types only — the `Plugin` `useJanus()` answers. Yoga already brings it |
 | `typescript` | `^6.0.3` | As for `@nxgt/janus` |
 
+The floors are tested, not claimed: the package's specs and its typecheck run
+on `graphql` 16.9.0, `@graphql-tools/utils` 10.0.0 and `@envelop/core` 5.0.0
+together, with a single copy of `graphql`, in the Floors job, on every CI run.
+
 Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`: the
 declarations import without extensions, so `nodenext` is not supported.
 
