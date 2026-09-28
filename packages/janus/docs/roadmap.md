@@ -5,17 +5,24 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing is in progress between releases; the next item is below.
-
-## Next
-
 - **Confirm an action with an e-mailed code (step-up)** — a signed-in user
   proves they still read their inbox before something a stolen session should
   not do alone: changing the e-mail, disabling the second factor, deleting
   the account. The same six digits, challenge and five attempts as a sign-in
   code, bound to the session that asked rather than opening one — which
   takes a token kind of its own, so a sign-in code can never confirm an
-  action nor an action's code sign anyone in.
+  action nor an action's code sign anyone in. A user with an active second
+  factor confirms with a code from their app instead. The confirmation
+  moves the session's `authenticatedAt`, so "signed in less than ten
+  minutes ago" is one field of the session `authenticate` already answers.
+  The port comes first — the token kind `stepUp` and
+  `SessionStore.reauthenticateSession`, in the three adapters and the
+  conformance suite — and the flows follow.
+
+## Next
+
+Nothing yet.
+
 ## Later
 
 - **More official adapters** — the ports are cut where atomicity is not

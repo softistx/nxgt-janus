@@ -128,8 +128,9 @@ The validators are `additionalProperties: false`, `strict`, `error`. When a
 version adds a field, the validator the previous sync wrote refuses it: from
 0.2 to 0.3, `secondFactor` on every new user and `codeHash` and `attempts` on
 every new token; from 0.4 to 0.5, `recoveryCodes` on every second factor
-written. Run the sync with the new version **before** the code that
-writes them:
+written. The same holds for a new value: from 0.5 to 0.6, the token kind
+`stepUp`, which the previous validator's `kind` enum refuses. Run the sync
+with the new version **before** the code that writes them:
 
 ```ts
 import { syncMongoStores } from '@nxgt/janus-mongo';
@@ -142,7 +143,8 @@ await syncMongoStores(db); // then write the validators
 The new fields are optional in the validator, so the previous version keeps
 working against it while the deployment rolls. Deployed before the sync,
 every sign-up and every one-time token fails with `STORE_FAILED`, caused by
-`Document failed validation` (code 121). No document is rewritten either way.
+`Document failed validation` (code 121) — from 0.5 to 0.6, every step-up
+request only. No document is rewritten either way.
 
 **From 0.4 to 0.5, finish the rollout before users hold recovery codes.** An
 instance still on 0.4 reads a second factor without its `recoveryCodes`, and

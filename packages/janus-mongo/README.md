@@ -120,6 +120,11 @@ spend the same one.
   `Document failed validation`. And finish the rollout before users hold
   recovery codes: an instance still on 0.4 writes a factor back without
   them when it accepts a code.
+- **Upgrading to 0.6: run the sync before deploying, once more.** The
+  token kind `stepUp` is new, and the `kind` enum the previous sync wrote
+  refuses it: until `syncMongoAdapter(db)` has run, every step-up request
+  fails with `STORE_FAILED`, caused by `Document failed validation`. No
+  document is rewritten.
 - **The TTL indexes are storage hygiene, not the expiry.** MongoDB's TTL monitor
   runs every sixty seconds, so a lapsed session can stay readable for up to a
   minute. The core compares `expiresAt` on every read, and that is what expires

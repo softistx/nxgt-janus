@@ -34,6 +34,7 @@ How PostgreSQL's errors become the port's:
 - [`STORE_FAILED` caused by `relation "users" does not exist`](#store_failed-caused-by-relation-users-does-not-exist)
 - [`STORE_FAILED` caused by `column "second_factor_method" does not exist`](#store_failed-caused-by-column-second_factor_method-does-not-exist)
 - [`STORE_FAILED` caused by `column "second_factor_recovery_codes" does not exist`](#store_failed-caused-by-column-second_factor_recovery_codes-does-not-exist)
+- [`STORE_FAILED` caused by `new row for relation "tokens" violates check constraint "tokens_kind"`](#store_failed-caused-by-new-row-for-relation-tokens-violates-check-constraint-tokens_kind)
 - [`STORE_FAILED` caused by `column "type" does not exist`](#store_failed-caused-by-column-type-does-not-exist)
 - [`schema "janus" does not exist` while migrating](#schema-janus-does-not-exist-while-migrating)
 - [`syntax error at or near "NULLS"` while migrating](#syntax-error-at-or-near-nulls-while-migrating)
@@ -219,6 +220,24 @@ or not applied.
 **Fix:** generate and apply it before the new version serves requests. It adds
 one nullable column and re-creates the `users_second_factor_whole` check; see
 [To 0.4](guide/migrations.md#to-04-recovery-codes).
+
+```sh
+bunx drizzle-kit generate --config drizzle.janus.config.ts
+bunx drizzle-kit migrate --config drizzle.janus.config.ts
+```
+
+### `STORE_FAILED` caused by `new row for relation "tokens" violates check constraint "tokens_kind"`
+
+The code is `23514`.
+
+**When:** after upgrading to 0.5, on a step-up request — the first write of
+a token of kind `stepUp`. Every other flow still works.
+
+**Why:** the `tokens_kind` check lists the kinds a token may have, and the
+migration that adds `stepUp` to it was not generated, or not applied.
+
+**Fix:** generate and apply it. It re-creates the one check, and rewrites no
+row; see [To 0.5](guide/migrations.md#to-05-the-step-up-kind).
 
 ```sh
 bunx drizzle-kit generate --config drizzle.janus.config.ts

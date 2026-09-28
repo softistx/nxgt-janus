@@ -249,7 +249,8 @@ An adapter written for an earlier `@nxgt/janus` reports the method a later
 release added to the port: `store.tokens has no method countAttempt` for one
 written against 0.3 (the method came in 0.4), and
 `store.tokens has no method spendUserTokens` for one written against 0.6 (the
-method came in 0.7).
+method came in 0.7), and `store.sessions has no method reauthenticateSession`
+for one written against 0.11 (the method came in 0.12).
 
 **Fix:** pass the three stores, whole:
 
@@ -259,16 +260,17 @@ import { createMemoryStores, janus } from '@nxgt/janus';
 janus({ ..., store: createMemoryStores() });
 ```
 
-Upgrade the published adapter to the release that implements both —
-`@nxgt/janus-drizzle` 0.3, `@nxgt/janus-mongo` 0.4, `@nxgt/janus-redis` 0.3:
+Upgrade the published adapter to the release that implements all three —
+`@nxgt/janus-drizzle` 0.5, `@nxgt/janus-mongo` 0.6, `@nxgt/janus-redis` 0.4:
 
 ```bash
-bun add @nxgt/janus@^0.7 @nxgt/janus-drizzle@^0.3 # or @nxgt/janus-mongo@^0.4, @nxgt/janus-redis@^0.3
+bun add @nxgt/janus@^0.12 @nxgt/janus-drizzle@^0.5 # or @nxgt/janus-mongo@^0.6, @nxgt/janus-redis@^0.4
 ```
 
 Your own adapter implements them as
-[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt) and
-[`TokenStore.spendUserTokens`](guide/adapters.md#tokenstorespendusertokens)
+[`TokenStore.countAttempt`](guide/adapters.md#tokenstorecountattempt),
+[`TokenStore.spendUserTokens`](guide/adapters.md#tokenstorespendusertokens) and
+[`SessionStore.reauthenticateSession`](guide/adapters.md#sessionstorereauthenticatesession)
 set out, then runs the conformance suite.
 
 ### `janus: relations must be a relation store — relations.deleteEntity is missing`

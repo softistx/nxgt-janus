@@ -135,6 +135,7 @@ interface SessionStore {
 	insertSession(record: SessionRecord): Promise<void>;
 	findSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
 	extendSession(id: SessionId, expiresAt: Date): Promise<SessionRecord | null>; // null once revoked
+	reauthenticateSession(id: SessionId, at: Date): Promise<SessionRecord | null>; // authenticatedAt only; null once revoked
 	revokeSession(id: SessionId, at: Date): Promise<boolean>;
 	revokeUserSessions(userId: Id, at: Date, except?: SessionId): Promise<number>;
 	deleteUserSessions(userId: Id): Promise<number>;
@@ -159,14 +160,14 @@ update. A read followed by a write lets two requests redeem one reset token.
 A token is its hash, never its secret, and what it is for:
 
 ```ts
-type TokenKind = 'verifyEmail' | 'resetPassword' | 'secondFactor' | 'signInCode';
+type TokenKind = 'verifyEmail' | 'resetPassword' | 'secondFactor' | 'signInCode' | 'stepUp';
 
 interface TokenRecord {
 	readonly tokenHash: string;
 	readonly kind: TokenKind;
 	readonly userId: Id;
 	readonly address: string; // '' for a secondFactor challenge: nothing was sent
-	readonly codeHash: string | null; // a signInCode's code, hashed; null for every other kind
+	readonly codeHash: string | null; // an e-mailed code, hashed — signInCode, or stepUp by e-mail; else null
 	readonly attempts: number; // 0 at insertion
 	readonly expiresAt: Date;
 	readonly spentAt: Date | null;
@@ -175,7 +176,11 @@ interface TokenRecord {
 ```
 
 A token redeemed for another kind is unknown: every method that takes a
-`kind` matches on it. A `secondFactor` token is the challenge `signIn`
+`kind` matches on it. A `stepUp` token is a signed-in user's confirmation of
+a sensitive action; kept apart from `signInCode`, a sign-in code never
+confirms an action, nor an action's code signs anyone in. A store that lists
+the kinds — a `CHECK`, an enum in a validator — lists `stepUp` too, which
+`tokens.everyKind` proves. A `secondFactor` token is the challenge `signIn`
 answers — or the count of a user's attempts at `regenerateRecoveryCodes`,
 a token of the same kind whose secret nobody is given, never redeemed and
 only counted — and its `address` is `''`: a column or a validator that refuses an
@@ -189,6 +194,35 @@ lapsed or revoked, and never a record it has changed. A store with its own
 expiry — a TTL index, a Redis key TTL — may drop a lapsed session or token
 before anyone asks: reads then answer `null`, and `deleteUserSessions` does
 not count it. The conformance suite accepts both.
+
+### `SessionStore.reauthenticateSession`
+
+Moves `authenticatedAt` to `at` — **only while the session is not revoked**
+— and answers the record as written, every other field as it was. It is
+what a step-up calls once a signed-in user proved again who they are, so
+that "signed in less than ten minutes ago" is one field of the session
+`authenticate` already read. `null` for no session, or a revoked one: a
+confirmation racing a revocation must never bring the session back, so the
+condition is in the write — the same one `extendSession` has:
+
+```ts
+import type { SessionStore } from '@nxgt/janus';
+
+export const reauthenticateSession: SessionStore['reauthenticateSession'] = async (id, at) => {
+	const written = await sessions.findOneAndUpdate(
+		{ _id: id, revokedAt: null },
+		{ $set: { authenticatedAt: at } },
+		{ returnDocument: 'after' },
+	);
+	return written === null ? null : toSession(written);
+};
+```
+
+In SQL, `update … set authenticated_at = $2 where id = $1 and revoked_at is
+null returning *`; in Redis, one Lua script that checks `revokedAt` is empty
+before its `HSET`. The expiry does not move, so neither does a TTL. It has
+its own outage case, and `sessions.reauthenticateRace` races it against
+`revokeSession`.
 
 ### `TokenStore.countAttempt`
 
@@ -368,7 +402,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 49: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — thirteen of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 54: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fourteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 16: the relation store, ids of edge characters, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty

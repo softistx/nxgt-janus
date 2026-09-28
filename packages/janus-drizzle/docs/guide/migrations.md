@@ -95,7 +95,7 @@ CREATE TABLE "tokens" (
 	"expires_at" timestamp(3) with time zone NOT NULL,
 	"spent_at" timestamp(3) with time zone,
 	"created_at" timestamp(3) with time zone NOT NULL,
-	CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode')),
+	CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'stepUp')),
 	CONSTRAINT "tokens_attempts" CHECK ("attempts" >= 0)
 );
 -- sessions, relations, the indexes, and the foreign key from
@@ -212,6 +212,27 @@ them beside a factor removed, and the check refuses the write with
 `STORE_FAILED`. Nothing is lost — the call fails, and succeeds on an instance
 of 0.4 — but run 0.3 and 0.4 side by side only while no user has been given
 codes, which `@nxgt/janus` does from `secondFactor.activate` on.
+
+### To 0.5: the step-up kind
+
+**A migration is required.** The check on `tokens.kind` admits `stepUp`, the
+challenge of a signed-in user's confirmation — one statement, and no row
+rewritten:
+
+```sql
+ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'stepUp'));
+```
+
+That is the statement drizzle-kit writes from the 0.4 tables to the 0.5
+ones. Re-adding the check validates every row of `tokens`, under a lock for
+the length of one scan; the rows already satisfy it, since the kind is new.
+Deployed before the migration, only a step-up request fails: with
+`STORE_FAILED`, caused by `new row for relation "tokens" violates check
+constraint "tokens_kind"`. An instance still on 0.4 writes no `stepUp`
+token, so the two run side by side.
+
+`sessions` gains no column: a step-up moves `authenticated_at`, which is
+already there.
 
 ## Collecting lapsed sessions
 

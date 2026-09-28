@@ -465,12 +465,38 @@ await tokens.spendUserTokens(userId, 'signInCode', now); // 1: `kept`, now
 await tokens.spendUserTokens(userId, 'signInCode', now); // 0: none left unspent
 ```
 
+`reauthenticateSession(id, at)` moves a standing session's `authenticatedAt`
+— what a step-up writes once a signed-in user proved again who they are —
+and answers `null` for a revoked one, which it never brings back:
+
+```ts
+const { sessions } = createMemoryStores();
+const session = {
+	id: mintId(),
+	tokenHash: 'f'.repeat(64),
+	userId: mintId(),
+	authenticatedAt: new Date('2026-01-01T00:00:00.000Z'),
+	expiresAt: new Date(Date.now() + 86_400_000),
+	revokedAt: null,
+	createdAt: new Date('2026-01-01T00:00:00.000Z'),
+};
+await sessions.insertSession(session);
+await sessions.reauthenticateSession(session.id, new Date()); // { …, authenticatedAt: now }
+```
+
+A token of kind `stepUp` is that confirmation's challenge: kept apart from
+`signInCode`, so neither is ever redeemed as the other.
+
 An adapter written against `@nxgt/janus` 0.3 does not compile against this
 port until it implements `countAttempt`, nor one written against 0.6 until it
-implements `spendUserTokens`, and `janus()` refuses either at wiring —
+implements `spendUserTokens`, nor one written against 0.11 until it
+implements `reauthenticateSession`, and `janus()` refuses each at wiring —
 [Writing an adapter](docs/guide/adapters.md) has the contracts:
-[`countAttempt`](docs/guide/adapters.md#tokenstorecountattempt) and
-[`spendUserTokens`](docs/guide/adapters.md#tokenstorespendusertokens).
+[`countAttempt`](docs/guide/adapters.md#tokenstorecountattempt),
+[`spendUserTokens`](docs/guide/adapters.md#tokenstorespendusertokens) and
+[`reauthenticateSession`](docs/guide/adapters.md#sessionstorereauthenticatesession).
+A store that lists the token kinds — a `CHECK`, a validator's enum — adds
+`stepUp`.
 
 ### Second factor — `secondFactor`
 
@@ -784,7 +810,7 @@ describeJanusStores({
 });
 ```
 
-There are 49 cases. They cover:
+There are 54 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -793,10 +819,15 @@ There are 49 cases. They cover:
 - versions: a refused update writes nothing;
 - **omission**, named after the Kratos `PUT` trap;
 - pagination;
-- sessions;
-- one-time tokens: of twenty concurrent redemptions, exactly one succeeds;
-  of twenty concurrent `countAttempt` calls, each answers a distinct count,
-  and none is counted once a racing redemption spent the token;
+- sessions: `reauthenticateSession` moves `authenticatedAt` and nothing else,
+  and never brings back a revoked session, even one revoked at the same
+  moment;
+- one-time tokens: a token of every kind the port names is stored, counted
+  and spent — a `CHECK` or an enum that forgot `stepUp` fails here — and a
+  step-up is never counted, spent nor answered as a sign-in code; of twenty
+  concurrent redemptions, exactly one succeeds; of twenty concurrent
+  `countAttempt` calls, each answers a distinct count, and none is counted
+  once a racing redemption spent the token;
 - spending a user's tokens of one kind — `spendUserTokens` — spends only the
   unspent ones of that user and kind, spares the one named by `except`, and
   never spends the same token as a racing redemption;
@@ -805,7 +836,7 @@ There are 49 cases. They cover:
   removed by one that names `null`;
 - deletion: a user's logins are freed, and every session and token of theirs
   goes, with a replay answering `false` or `0` rather than failing;
-- **outages**, one case for each of the thirteen methods whose honest answer can
+- **outages**, one case for each of the fourteen methods whose honest answer can
   be "nothing".
 
 The suite imports no test framework and no assertion library. It runs under

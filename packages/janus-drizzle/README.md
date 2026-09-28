@@ -139,6 +139,12 @@ a code, in the order written; no codes are `null`, read as `[]`.
   caused by `column "second_factor_recovery_codes" does not exist`.
   [To 0.4](docs/guide/migrations.md#to-04-recovery-codes) shows the two
   statements drizzle-kit writes.
+- **Upgrading to 0.5 needs a migration as well.** The check on
+  `tokens.kind` admits the new kind `stepUp`. Deployed without it, every
+  step-up request fails with `STORE_FAILED`, caused by `new row for relation
+  "tokens" violates check constraint "tokens_kind"`.
+  [To 0.5](docs/guide/migrations.md#to-05-the-step-up-kind) shows the one
+  statement drizzle-kit writes.
 - **Your migrations create the tables, not this package.** The core never
   manages a schema, and the stores create nothing per request. Without the
   exports in your schema file, the first sign-up fails with `STORE_FAILED`,
