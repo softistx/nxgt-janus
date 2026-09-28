@@ -311,7 +311,7 @@ jobs:
       # script packs the package and @nxgt/janus, installs them in a scratch
       # project with the floors, graphql overridden to a single copy — which
       # it asserts — and everything else the package lists (graphql-yoga,
-      # zod, typescript) at the version bun.lock holds, then runs the command
+      # zod, @types/bun, typescript) at the version bun.lock holds, then runs the command
       # in a copy of its directory. The install comes from npm, uncached like
       # the floors above: a few seconds. graphql-yoga keeps its own newer
       # `@envelop/core` and `@graphql-tools/utils` nested; the package's
