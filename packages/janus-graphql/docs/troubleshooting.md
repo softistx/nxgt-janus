@@ -51,6 +51,7 @@ for what causes each.
 - [`Expected 4 arguments, but got 3`, on `can()`](#expected-4-arguments-but-got-3-on-can)
 - [`'…' does not exist in type 'Loaders<…>'`, or `'Conditions<…>'`](#-does-not-exist-in-type-loaders-or-conditions)
 - [`Type '{ …: … }' is not assignable to type 'never'`, on `loaders`](#type-----is-not-assignable-to-type-never-on-loaders)
+- [`Source has 0 element(s) but target requires 1`, on `requireUser()`](#source-has-0-elements-but-target-requires-1-on-requireuser)
 
 ## At start-up
 
@@ -99,8 +100,10 @@ admits the users it is for.
 **When:** at start-up, for a schema that uses `@permission`.
 
 **Why:** `useJanus()` — or `applyJanusDirectives()` — was given no `access`,
-or something other than what `permissions()` answered: the directive reads
-the object types and permissions from `access.model`.
+or, through `applyJanusDirectives()`, an object with no `model`: the
+directive reads the object types and permissions from `access.model`.
+(`useJanus()` refuses an `access` without `can` earlier — see
+[`access is not what permissions() answered`](#typeerror-usejanus-access-is-not-what-permissions-answered).)
 
 **Fix:** `useJanus({ auth, access })`. An instance wrapped by
 `instrumentPermissions()` keeps its `model`, and works as the plain one.
@@ -452,3 +455,15 @@ without the permissions instance, `@permission` cannot be used, and has
 nothing to load for.
 
 **Fix:** `useJanus({ auth, access, loaders })`.
+
+### `Source has 0 element(s) but target requires 1`, on `requireUser()`
+
+The full message reads `Type '[]' is not assignable to type '"patient" |
+"staff" | readonly ["patient" | "staff", ...("patient" | "staff")[]] |
+undefined'`.
+
+**Why:** `requireUser(ctx, { type: [] })` — an empty list admits no user,
+so every call would answer `FORBIDDEN`.
+
+**Fix:** name at least one user type, `{ type: ['staff'] }`, or leave `type`
+out to admit any signed-in user.
