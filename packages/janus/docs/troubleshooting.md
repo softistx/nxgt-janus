@@ -843,7 +843,8 @@ const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(curren
 ```ts
 const { secret, uri } = await auth.secondFactor.enroll(user);
 // …the user scans uri, or types secret…
-await auth.secondFactor.activate(user, code);
+const { user: active, recoveryCodes } = await auth.secondFactor.activate(user, code);
+// show recoveryCodes once, on this response
 ```
 
 ### `SECOND_FACTOR_ACTIVE` — `secondFactor.enroll: the user's second factor is active — disable it first`

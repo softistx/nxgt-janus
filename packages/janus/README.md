@@ -511,12 +511,14 @@ every user type with a password.
   (`secondFactor.challenge`) and takes five attempts: a wrong code is
   `CODE_INVALID` with `attemptsLeft`, and the fifth spends the challenge. A
   code is accepted once, so a replay is `CODE_INVALID` too.
-- **Recovery codes, for a lost phone.** `activate` answers
-  `{ user, recoveryCodes }` — ten single-use codes, shown once, stored only as
-  keyed hashes. `recover(challenge, code)` redeems a sign-in's challenge with
-  one instead of the app's code, sharing its five attempts, and answers the
-  session with `recoveryCodesLeft`. `regenerateRecoveryCodes(user, code)`
-  replaces them all, on a fresh code from the app; `disable` removes them.
+- **Recovery codes, for a lost phone.** `activate` answers a
+  `RecoveryCodesIssued` — `{ user, recoveryCodes }`, ten single-use codes,
+  shown once, stored only as keyed hashes. `recover(challenge, code)` redeems a
+  sign-in's challenge with one instead of the app's code, sharing its five
+  attempts, and answers a `RecoveredSignIn`: the session with
+  `recoveryCodesLeft`. `regenerateRecoveryCodes(user, code)` replaces them all,
+  on a fresh code from the app, and answers a `RecoveryCodesIssued` too;
+  `disable` removes them.
 - **`keys` seal every TOTP secret** with AES-256-GCM before a store sees it,
   and key the recovery codes' hashes. The first seals and every key opens, so
   keys rotate: put the new one first, keep the old one until no secret is
@@ -834,7 +836,10 @@ the configuration once and import it everywhere.
 **Never remove a sealing key while a secret is sealed or a recovery code
 hashed with it, nor change a key under the same id.** That user's next
 sign-in is a `TypeError`, not a refusal — or, for a key changed, recovery
-codes that silently match nothing. Put the new key first and keep the old one
+codes that silently match nothing. For a recovery code, only
+`secondFactor.recover` throws; `regenerateRecoveryCodes` still works while
+the key sealing the secret is held, and is the way out: it hashes the new
+codes with the first key. Put the new key first and keep the old one
 until your database holds no secret and no recovery code starting
 `v1.<old id>.`: recovery codes are never hashed again, so a user who does not
 regenerate them keeps the old key in use.
@@ -849,9 +854,16 @@ calling.** Whether the user proves their password or a code first is yours
 to decide; without a check, a stolen session can switch the factor off.
 `regenerateRecoveryCodes` asks for the app's code, and nothing else.
 
+**Rate-limit `regenerateRecoveryCodes` per user.** Its code counts no
+attempts — there is no challenge to spend — so a stolen session alone can
+guess it, one call at a time. Limit the route on the user's id, as you would
+`signIn` on the address.
+
 **Two sign-ins with the same recovery code at once open one session.** The
 other rejects with `VERSION_CONFLICT`, not `CODE_INVALID`: answer it as "sign
-in again".
+in again". Two *different* codes typed on one challenge at once are another
+matter: the later one can still be removed from the user before it finds the
+challenge spent, so two codes go for the one session the challenge opens.
 
 **On a user type, only `setOf` makes a set.** A user passed as it is — or
 `{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
@@ -966,7 +978,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and twenty-one plausible mistakes, one hundred and twenty-one refused at compile time — and
+**One hundred and twenty-two plausible mistakes, one hundred and twenty-two refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -974,8 +986,8 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fourteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-three, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (thirty-six, on `janus()`, from the point of view of
-the application — ten of them on the second factor, three on sign-in codes,
+it), `test/types/auth/` (thirty-seven, on `janus()`, from the point of view of
+the application — eleven of them on the second factor, three on sign-in codes,
 three on user events) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:

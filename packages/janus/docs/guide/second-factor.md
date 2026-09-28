@@ -703,7 +703,7 @@ export async function confirmSecondFactor(request: Request): Promise<Response> {
 ```
 
 The recovery code route is the same, calling `recover`, and answers what is
-left besides — a form that offers both kinds may post to either:
+left besides — a form that offers both kinds posts each kind to its own route:
 
 ```ts
 export async function recoverSignIn(request: Request): Promise<Response> {
