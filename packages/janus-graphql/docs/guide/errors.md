@@ -34,7 +34,7 @@ Yoga reads `extensions.http.status` to answer the HTTP response, and strips
 | `FORBIDDEN` | 403 | `Forbidden` | A user of a type the directive or `requireUser({ type })` does not name |
 | `NOT_FOUND` | 404 | `Not found` | `denial('NOT_FOUND')` — and, once it lands, `@permission`'s default denial |
 | `SERVICE_UNAVAILABLE` | 503 | `The service is unavailable, retry later` | A store could not answer: `STORE_FAILED` |
-| any other `JanusErrorCode` | its `statusOf(code)` | fixed per status: `Invalid request` 400, `Not signed in` 401, `Forbidden` 403, `Not found` 404, `Conflict` 409, `Internal server error` 500 and 501 | A `JanusError` a resolver let through — `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, `TOKEN_EXPIRED` 400, … |
+| any other `JanusErrorCode` | its `statusOf(code)` | fixed per status: `Invalid request` 400, `Invalid credentials` 401 (`CREDENTIALS_INVALID`, `CODE_INVALID`), `Forbidden` 403, `Not found` 404, `Conflict` 409, `Internal server error` 500 and 501 | A `JanusError` a resolver let through — `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, `TOKEN_EXPIRED` 400, … |
 
 The status of every `JanusErrorCode` is `@nxgt/janus`'s
 [`statusOf`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md),

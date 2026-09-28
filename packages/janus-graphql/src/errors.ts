@@ -57,7 +57,7 @@ function messageOf(status: JanusErrorStatus): string {
 		case 400:
 			return 'Invalid request';
 		case 401:
-			return 'Not signed in';
+			return 'Invalid credentials';
 		case 403:
 			return 'Forbidden';
 		case 404:
