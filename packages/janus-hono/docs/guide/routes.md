@@ -291,6 +291,11 @@ app.delete('/account/second-factor', session(auth, { required: true }), async (c
 | `SECOND_FACTOR_NOT_ENROLLED` | 409 `{ code }` — `activate` before `enroll`, or `regenerateRecoveryCodes` without an active factor |
 | `CODE_INVALID` | 401 `{ code }` — `activate` and `regenerateRecoveryCodes` count no attempts, so there is no `attemptsLeft` |
 
+**Rate-limit the regenerate route per user.** `regenerateRecoveryCodes`
+counts no attempts, so a stolen session could guess the app's code there one
+request at a time. Put a limiter keyed on `c.var.user.id` in front of it, as
+you would key the sign-in route on the address.
+
 The key rotation, the attempts and the replay rules are
 [`@nxgt/janus`'s second factor guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md).
 
