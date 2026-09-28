@@ -30,10 +30,9 @@ Every peer is required:
   so this runs on **Bun**;
 - `typescript` 6.
 
-It needs **Redis 7.0 or later**, or Valkey, and is tested on Redis 7.0, 7.4
-and Valkey 7.2: the scripts use no command newer than Redis 4, but 7.0 is what
-`@nxgt/janus-redis` needs, and one Redis usually serves both. Like
-`@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
+It needs **Redis 7.0 or later**, or Valkey —
+[what Redis must be configured with](docs/guide/wiring.md#what-redis-must-be-configured-with).
+Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 ## Usage
 
@@ -75,13 +74,9 @@ the prefix, and what Redis must be configured with.
 
 ## What Redis holds
 
-Three kinds of key under the prefix — a hash per delivery, a sorted set of
-due deliveries per endpoint, and the set of endpoints — and **never a URL
-or a secret**. Every method is one Lua script, so no two claims answer one
-delivery, and an insert refused half-way is undone.
-[Wiring](docs/guide/wiring.md#what-redis-holds-and-for-how-long) has each
-key, how long it stays, and what a script leaves when Redis refuses it
-half-way.
+Each delivery's event and endpoint id — **never a URL or a secret**, one Lua
+script per method. [Wiring](docs/guide/wiring.md#what-redis-holds-and-for-how-long)
+has each key and how long it stays.
 
 ## Traps
 
