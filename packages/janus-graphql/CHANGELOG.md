@@ -1,5 +1,17 @@
 # @nxgt/janus-graphql
 
+## 0.4.0
+
+### Minor Changes
+
+- [#165](https://github.com/softistx/nxgt-janus/pull/165) [`1615f7c`](https://github.com/softistx/nxgt-janus/commit/1615f7c221472fb7be3b3d4dabf4b65d65f70fdf) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The renewed session cookie, and `report` for every outage. Under GraphQL Yoga, `useJanus()` now sends a session `authenticate` renewed in passing back as `Set-Cookie` on the response (Yoga's `onResponse`), so a browser keeps the new expiry and a GraphQL-only application no longer signs out an active user at the expiry written at sign-in. As `@nxgt/janus-hono`'s `session()` does, it is sent only to a request that presented the token as the session cookie — never to `Authorization: Bearer` or `X-Session-Token` — only when a field asked `user()` or `session()`, and never over a session cookie the response already sets; an operation over graphql-ws has no response to carry it. `Auth` takes `cookie` as optional: a wrapper of your own passes `cookie: auth.cookie` on. `janusMaskError({ report, fallback })` calls `report` once with every `JanusError` answered 5xx — `STORE_FAILED`, `UNSUPPORTED`, `PERMISSION_DEPTH` — including the outages `@authenticated`, `@fresh`, `@permission`, `requireUser()`, `requireFresh()` and `can()` answer 503 themselves, which Yoga's logger never sees; a `report` that throws or rejects is a `process.emitWarning` and never changes the answer. `janusMaskError(fallback)`, the fallback alone, still works.
+
+### Patch Changes
+
+- [#164](https://github.com/softistx/nxgt-janus/pull/164) [`1007c85`](https://github.com/softistx/nxgt-janus/commit/1007c857fd445620dedb05a59001a7161b0a833c) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the sign-in route (the routes guide of `@nxgt/janus-hono`) and a sign-in mutation (the errors guide of `@nxgt/janus-graphql`) say to rate-limit password guesses per login and per client, with an example — `@nxgt/janus` counts no failed password.
+- Updated dependencies [[`fac44ba`](https://github.com/softistx/nxgt-janus/commit/fac44baa935d90c451d05b942c8158606da2f1b2)]:
+  - @nxgt/janus@0.13.0
+
 ## 0.3.0
 
 ### Minor Changes
