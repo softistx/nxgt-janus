@@ -85,6 +85,8 @@ const templates: JanusMailTemplates<Locale> = {
 	emailChanged: ({ name, link, newEmail, locale }) => render('email-changed', locale, { name, link, newEmail }),
 	twoFactorEnabled: ({ name, link, locale }) => render('two-factor-enabled', locale, { name, link }),
 	twoFactorDisabled: ({ name, link, locale }) => render('two-factor-disabled', locale, { name, link }),
+	recoveryCodeUsed: ({ name, when, recoveryCodesLeft, link, locale }) =>
+		render('recovery-code-used', locale, { name, when, recoveryCodesLeft, link }),
 	welcome: ({ name, link, locale }) => render('welcome', locale, { name, link }),
 };
 
@@ -93,20 +95,27 @@ mail.locales; // readonly ('en' | 'fr' | 'de')[]
 ```
 
 `render` here is yours; `expiresIn` is the expiry, already formatted in
-`locale` — "1 Stunde" for `de`, where the runtime's `Intl` has German. A
+`locale` — "1 Stunde" for `de`, where the runtime's `Intl` has German.
+`recoveryCodesLeft` is the sentence the caller passed: the build holds the
+plural of the codes left in `en` and `fr` only, so a German recipient's
+`mail.recoveryCodeUsed` takes the sentence as text — "Sie haben noch 3
+Wiederherstellungscodes." — and a count is a `TypeError` there.
+`recoveryCodeUsed` is the ninth template, since 0.5.0: a `templates` of
+eight, written for 0.4, no longer compiles with a locale beyond `en` and
+`fr`. A
 renderer over a Maizzle build of your own, with
 `@nxgt/mail-presets` and a `locales/de.json`, is the closest to the defaults.
 With only some templates, the call does not compile — the error lands on
 `templates`:
 
 ```text
-TS2739: Type '{ verifyEmail: () => Rendered; }' is missing the following properties from type 'JanusMailTemplates<"en" | "fr" | "de">': resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, welcome
+TS2740: Type '{ verifyEmail: () => Rendered; }' is missing the following properties from type 'JanusMailTemplates<"en" | "fr" | "de">': welcome, resetPassword, signInCode, passwordChanged, and 4 more.
 ```
 
 and in JavaScript it throws when `janusMail()` is called:
 
 ```text
-TypeError: janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, welcome missing
+TypeError: janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome missing
 ```
 
 A default template is typed for `'en' | 'fr'`, so reusing one in a wider set
@@ -119,4 +128,4 @@ Built-in locales for more languages are on the [roadmap](../roadmap.md).
 
 - `@nxgt/mail`'s [locales guide](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail/docs/guide/locales.md)
   — `pickLocale` and `parseAcceptLanguage` in full.
-- [Templates](templates.md) — writing the eight for a new locale.
+- [Templates](templates.md) — writing the nine for a new locale.

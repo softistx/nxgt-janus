@@ -73,15 +73,25 @@ the kit's mongo specs on @nxgt/mongo 0.17.0* of the `floors` job: the
 `janus-mongo` suite and the kit's mongo specs, each with its typecheck, on the
 floor's tarball from npm, outside the lock (`scripts/run-on-peer-floor.ts`).
 `@nxgt/mail`, from
-nxgt-mail, peers `janus-mail` at `>=0.1.0 <1`, and the specs run on 0.9.0 from
-the lock, with `@nxgt/mail-config` 0.2.1, `@nxgt/mail-i18n` 0.6.0,
-`@nxgt/mail-ui` 0.7.0 and `@nxgt/mail-presets` 0.4.3 building `mails/` — whose
+nxgt-mail, peers `janus-mail` at `>=0.1.0 <2` — widened from `<1` when
+nxgt-mail reached 1.0.0 (1.0 removed `withTelemetry`, `withRendererTelemetry`
+and `RetryOptions`, none of which `janus-mail` imports) — and the specs run
+on 1.0.1 from the lock, with `@nxgt/mail-config`, `@nxgt/mail-i18n`,
+`@nxgt/mail-ui` and `@nxgt/mail-presets`, all 1.0.1, building `mails/` — whose
 HTML follows dark mode since `@nxgt/mail-ui` 0.4.0, with a dark primary of its
 own (`color-primary-dark`) since 0.5.0, a dark muted (`color-muted-dark`,
 the sign-in code's box) since 0.6.0, and since 0.7.0 a dark muted text
 (`color-muted-foreground-dark`) that the code and every muted text on a
-flipping ground follow, so the two are set as a pair (the manifest is still
-format 1), and whose
+flipping ground follow, so the two are set as a pair, and since 1.0.0 a dark
+info (`color-info-dark`), the link under the button, set as a pair with a
+darker light `color-info` since no one blue reads 4.5:1 on both cards (the
+manifest is still format 1). `@nxgt/mail-presets` 1.0.0 added
+`recovery-code-used`, whose count the build cannot pluralise: its sentence
+is a message no template reads, `recovery-code-used.codes-left`, which
+`janus-mail/scripts/codes-left.ts` parses at the build into
+`src/generated/codes-left.ts`, and `src/codes-left.ts` formats at send
+time — held equal to `@nxgt/mail-i18n`'s `createTranslator` by a spec, since
+`createTranslator` is build-only here. The `mails/`
 text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, and keep
 each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it),
 so `mail/maizzle.config.ts` sets no `plaintext` of its own. Since
@@ -367,8 +377,8 @@ second resolution mode to keep working is a promise nobody measures.
 
 **Generated code goes in a `generated/` folder**, never behind a suffix such as
 `.generated.ts` or `.gen.ts`. `@nxgt/janus-mail` is the first package that
-generates code: `src/generated/mail.ts` and `src/generated/locales.ts`, written
-by its build, and `biome.json`'s `files.includes` has `!**/generated` beside
+generates code: `src/generated/mail.ts`, `src/generated/locales.ts` and
+`src/generated/codes-left.ts`, written by its build, and `biome.json`'s `files.includes` has `!**/generated` beside
 `!**/dist`. The output is **committed**, so a package type-checks without
 running its generator; CI rebuilds it and diffs `packages/*/src/generated`
 against the commit right after the build, so a stale committed copy fails
@@ -386,13 +396,15 @@ import reads `./generated/mail` like any other module.
 `@nxgt/janus-mail` ships e-mails built with Maizzle, and the consumer installs
 no Maizzle, no Vue and no Tailwind: they are **devDependencies**, with the
 build-only `@nxgt/mail-config`, `@nxgt/mail-i18n`, `@nxgt/mail-ui` and
-`@nxgt/mail-presets`. `@maizzle/framework` and `@maizzle/tailwindcss` are
+`@nxgt/mail-presets` — and `@formatjs/icu-messageformat-parser`, pinned to
+the version `@nxgt/mail-i18n` depends on, which parses the codes-left
+plural. `@maizzle/framework` and `@maizzle/tailwindcss` are
 pinned exact and **direct** — under Bun's isolated install, a Tailwind that is
 only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
 `build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
 `@nxgt/mail` 0.1.0 reads and that exactly the
-eight e-mails were built) before `../../build.ts`. No `postinstall`: nothing
+nine e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer.
 

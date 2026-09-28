@@ -27,12 +27,13 @@ How the messages are shaped:
 - [`janusMail: brand must be the name the e-mails show, as 'Acme'`](#janusmail-brand-must-be-the-name-the-e-mails-show-as-acme)
 - [`janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }`](#janusmail-links-must-be-an-object-as--verifyemail-resetpassword-secureaccount-getstarted-)
 - [`janusMail: links.<name> must be a function`](#janusmail-linksname-must-be-a-function)
+- [`janusMail: links.recoveryCodes must be a function, or left out`](#janusmail-linksrecoverycodes-must-be-a-function-or-left-out)
 - [`janusMail: locales must list at least one locale, as ['en', 'fr']`](#janusmail-locales-must-list-at-least-one-locale-as-en-fr)
 - [`janusMail: locales must be BCP 47 language tags, as 'fr-CA'`](#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca)
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
 - [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
-- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-welcome)
+- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-welcome)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
@@ -41,6 +42,8 @@ How the messages are shaped:
 **Sending**
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`janusMail.<method>: expiresAt must be a Date`](#janusmailmethod-expiresat-must-be-a-date)
+- [`janusMail.recoveryCodeUsed: recoveryCodesLeft must be a count — a whole number, 0 or more — or the sentence to show`](#janusmailrecoverycodeused-recoverycodesleft-must-be-a-count--a-whole-number-0-or-more--or-the-sentence-to-show)
+- [`janusMail.recoveryCodeUsed: recoveryCodesLeft must be the sentence to show in a locale the default e-mails are not built in`](#janusmailrecoverycodeused-recoverycodesleft-must-be-the-sentence-to-show-in-a-locale-the-default-e-mails-are-not-built-in)
 - [`janusMail.<method>: clock.now() must answer a Date`](#janusmailmethod-clocknow-must-answer-a-date)
 - [`janusMail.<method>: expiresAt is past — the link or code would not work`](#janusmailmethod-expiresat-is-past--the-link-or-code-would-not-work)
 - [`This link expires in 1 hour.` — in the wrong language, or shorter than the `tokens` TTL](#this-link-expires-in-1-hour--in-the-wrong-language-or-shorter-than-the-tokens-ttl)
@@ -55,14 +58,17 @@ How the messages are shaped:
 - [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
 - [The sign-in code's box stays a light slab in dark mode](#the-sign-in-codes-box-stays-a-light-slab-in-dark-mode)
 - [The sign-in code turns unreadable in dark mode after upgrading `@nxgt/mail-ui` to 0.7](#the-sign-in-code-turns-unreadable-in-dark-mode-after-upgrading-nxgtmail-ui-to-07)
-- [The link under the button is faint in light mode](#the-link-under-the-button-is-faint-in-light-mode)
+- [The link under the button is faint in light mode, or in dark mode](#the-link-under-the-button-is-faint-in-light-mode-or-in-dark-mode)
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
 - [`TS2345: … Types of property 'expiresAt' are incompatible. Type 'string' is not assignable to type 'Date'.`](#ts2345--types-of-property-expiresat-are-incompatible-type-string-is-not-assignable-to-type-date)
 - [`TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`](#ts2739-type----is-missing-the-following-properties-from-type-janusmailtemplates)
+- [`TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-recoverycodeused-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
 - [`TS2741: Property 'getStarted' is missing in type '{ … }' but required in type 'JanusMailLinks'.`](#ts2741-property-getstarted-is-missing-in-type----but-required-in-type-janusmaillinks)
+- [`TS2322: Type 'number | null' is not assignable to type 'string | number'.`](#ts2322-type-number--null-is-not-assignable-to-type-string--number)
+- [`TS2322: Type 'Date' is not assignable to type 'string'.`](#ts2322-type-date-is-not-assignable-to-type-string)
 
 ---
 
@@ -107,8 +113,8 @@ janusMail({ mailer, from, brand: 'Acme', links });
 
 ### `janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }`
 
-No `links`. All four are required: the notices link to `secureAccount`, and
-the welcome to `getStarted`.
+No `links`. Four are required: the notices link to `secureAccount`, and
+the welcome to `getStarted`. A fifth, `recoveryCodes`, is optional.
 
 ### `janusMail: links.<name> must be a function`
 
@@ -130,6 +136,17 @@ link the welcome e-mail added in 0.4.0: `links` written for 0.3 has no
 `getStarted`. Add it — where a new user starts, your home page or your
 sign-in page — even if you never send the welcome. In TypeScript the same
 `links` is a compile error on `links`, `Property 'getStarted' is missing`.
+
+### `janusMail: links.recoveryCodes must be a function, or left out`
+
+`links.recoveryCodes` given as a URL, or as anything but a function. It is
+optional — the recovery code notice links to `secureAccount` without it —
+but when given it takes nothing and answers the page where the user
+regenerates their codes:
+
+```ts
+links: { …, recoveryCodes: () => 'https://acme.example/account/recovery-codes' },
+```
 
 ### `janusMail: locales must list at least one locale, as ['en', 'fr']`
 
@@ -163,9 +180,9 @@ A `fallbackLocale` the list does not hold — `'de'` with the default
 
 `templates` given as a list or a function. Key each template by its name.
 
-### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, welcome`
+### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`
 
-A key that is not one of the eight — `magicLink`, or the e-mail's file name
+A key that is not one of the nine — `magicLink`, or the e-mail's file name
 `'verify-email'` rather than the template's, `verifyEmail`. Other e-mails are
 on the [roadmap](roadmap.md); send them with `@nxgt/mail` directly meanwhile.
 
@@ -199,7 +216,7 @@ as it is: fields are own properties.
 ### `janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` leaves some
-out: the defaults could not render them in that locale. Pass all eight — see
+out: the defaults could not render them in that locale. Pass all nine — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
 
@@ -238,13 +255,18 @@ number of seconds: pass the text to show, `{ expiresIn: '1 hour' }`, or
 leave it out.
 
 `janusMail.twoFactorEnabled: email must be a string` (or `twoFactorDisabled`,
-or `welcome`) is the user event itself given to the e-mail: an event names the user by id
-alone. Read the user first:
+`recoveryCodeUsed` or `welcome`) is the user event itself given to the
+e-mail: an event names the user by id alone. Read the user first:
 
 ```ts
 const user = await auth.get(event.userId);
 await mail.twoFactorDisabled({ name: user.name, locale: user.locale, email: user.email });
 ```
+
+`janusMail.recoveryCodeUsed: when must be a string` is the second argument
+missing, or its `when` given as the event's `Date`: pass the text to show,
+formatted in the recipient's locale and time zone —
+`new Intl.DateTimeFormat(user.locale, { dateStyle: 'long', timeStyle: 'short', timeZone }).format(event.occurredAt)`.
 
 ### `janusMail.<method>: expiresAt must be a Date`
 
@@ -259,6 +281,32 @@ const issued = { ...job.issued, expiresAt: new Date(job.issued.expiresAt) };
 await mail.verifyEmail(issued, { name: job.name });
 // or
 await mail.verifyEmail(job.issued, { name: job.name }, { expiresIn: '1 day' });
+```
+
+### `janusMail.recoveryCodeUsed: recoveryCodesLeft must be a count — a whole number, 0 or more — or the sentence to show`
+
+A `TypeError`, before anything is rendered or sent. `recoveryCodesLeft` was
+`null`, negative, a fraction, `NaN`, or missing. The usual cause is
+`auth.secondFactor.recoveryCodesLeft(user)`'s answer passed unchecked: it is
+`null` for a user with no active factor — turned off since the code was
+spent — who has no codes to count. Check it, and send nothing then:
+
+```ts
+const recoveryCodesLeft = await auth.secondFactor.recoveryCodesLeft(user);
+if (recoveryCodesLeft !== null) {
+	await mail.recoveryCodeUsed(to, { when, recoveryCodesLeft });
+}
+```
+
+### `janusMail.recoveryCodeUsed: recoveryCodesLeft must be the sentence to show in a locale the default e-mails are not built in`
+
+A `TypeError`, before anything is sent: the recipient's locale is one of
+yours beyond `en` and `fr`, and `recoveryCodesLeft` is a count. The plural
+of the codes left is in the build's catalogue, in `en` and `fr` only, so the
+count cannot be written for that locale. Pass the sentence as text:
+
+```ts
+await mail.recoveryCodeUsed(to, { when, recoveryCodesLeft: `Sie haben noch ${left} Wiederherstellungscodes.` });
 ```
 
 ### `janusMail.<method>: clock.now() must answer a Date`
@@ -320,6 +368,7 @@ A `TypeError` from a call, before anything is rendered or sent
 (`mailer.attempts` stays 0) — `janusMail.verifyEmail: links.verifyEmail(token)
 must answer a string`, `janusMail.emailChanged: links.secureAccount() must
 answer a string`, `janusMail.welcome: links.getStarted() must answer a
+string`, `janusMail.recoveryCodeUsed: links.recoveryCodes() must answer a
 string`. The `links` function answered something other than a
 string: a `URL` object, `undefined`, or a promise — an `async` function.
 Answer `url.href`, and compute the link synchronously:
@@ -379,7 +428,7 @@ try {
 ```
 
 This package retries nothing: a retry is your decision. To retry in
-process, pass a mailer wrapped in `@nxgt/mail` 0.8's `withRetry`; once its
+process, pass a mailer wrapped in `@nxgt/mail`'s `withRetry` (0.8 or later); once its
 attempts run out it rejects with the last `MailFailure`, `attempts` on it —
 see [Retrying and tracing the mailer](guide/sending.md#retrying-and-tracing-the-mailer).
 
@@ -396,7 +445,7 @@ avoids the read altogether. (In this repository: run `bun run build`.)
 
 The default templates read `mails/` with `node:fs`, through
 `@nxgt/mail/renderer`: Node, Bun or Deno only. On an edge runtime, pass all
-eight templates yourself; an inlined build is on the [roadmap](roadmap.md).
+nine templates yourself; an inlined build is on the [roadmap](roadmap.md).
 
 ### An e-mail stays light in dark mode
 
@@ -466,17 +515,33 @@ the code at 1.86:1 once rebuilt with `@nxgt/mail-ui` 0.7.0. Through 0.6.0,
 no one value suits a mid-slate box: set a dark `color-muted-dark` and a
 light `color-muted-foreground-dark`, as in the entry above.
 
-### The link under the button is faint in light mode
+### The link under the button is faint in light mode, or in dark mode
 
 The link repeated in text under the button, for a client that shows no
-button, is `@nxgt/mail-ui`'s `NxLink`, coloured with its info blue
-(`#54a2ff`) in both modes: 2.63:1 on the light card, 6.78:1 on the dark
-one. It is the one text of the defaults under 4.5:1. `color-info` has no
-dark twin, and no single value reaches 4.5:1 on both the white card and the
-dark card, so the defaults leave it as it is rather than trade the dark
-mode for the light one; it is `@nxgt/mail-ui`'s to fix. A template of your
-own can colour its link with the primary instead, which has a dark twin:
-`NxLink` merges a `class` over its own `text-info`, and
+button, is `@nxgt/mail-ui`'s `NxLink`, coloured with its info blue. Through
+0.4, the defaults kept `@nxgt/mail-ui`'s `#54a2ff` in both modes: 2.63:1 on
+the light card, 6.78:1 on the dark one. Since 0.5.0 they are built with
+`@nxgt/mail-ui` 1.0, whose info blue has a dark twin, and set one blue per
+mode: `#1d4ed8` on the light card, 6.70:1, and `#93c5fd` on the dark card,
+9.89:1. Upgrade to read it.
+
+A template of your own built with `@nxgt/mail-ui` 1.0.0 or later sets the
+same pair in its `theme` — a light `color-info` dark enough for the white
+card, and a `color-info-dark` light enough for the dark one; no single
+value reaches 4.5:1 on both:
+
+```ts
+ui({
+	brand: { name: 'Acme' },
+	theme: {
+		'color-info': '#1d4ed8', // the link on the light card, 6.70:1
+		'color-info-dark': '#93c5fd', // the link on the dark card, 9.89:1
+	},
+});
+```
+
+Before 1.0, colour the link with the primary instead, which has a dark
+twin: `NxLink` merges a `class` over its own `text-info`, and
 `nx-dark-text-primary` follows `color-primary-dark` in dark mode:
 
 ```vue
@@ -511,7 +576,18 @@ whole.
 ### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` does not give
-all eight. See [Adding a locale](guide/locales.md#adding-a-locale).
+all nine. With five or more missing, the code is `TS2740` and the list ends
+`…, and 4 more.` See [Adding a locale](guide/locales.md#adding-a-locale).
+
+### `TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
+
+`templates` written for 0.4, with a locale beyond `en` and `fr`: since
+0.5.0 there are nine templates, and with such a locale every one is yours.
+Add `recoveryCodeUsed` — it is given `brand`, `name`, `when`,
+`recoveryCodesLeft` (a sentence) and `link` — even if you never send it; in
+JavaScript the same `templates` is
+[`janusMail: the default templates are built in en and fr only — …; recoveryCodeUsed missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
+See [Templates](guide/templates.md#what-each-template-is-given).
 
 ### `TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`
 
@@ -532,4 +608,21 @@ links: {
 	secureAccount: () => 'https://acme.example/account/security',
 	getStarted: () => 'https://acme.example/',
 },
+```
+
+### `TS2322: Type 'number | null' is not assignable to type 'string | number'.`
+
+On `recoveryCodesLeft`: `auth.secondFactor.recoveryCodesLeft(user)`'s
+answer, passed without checking it for `null`. A user with no active factor
+has no codes to count; check it first, as in
+[`recoveryCodesLeft must be a count`](#janusmailrecoverycodeused-recoverycodesleft-must-be-a-count--a-whole-number-0-or-more--or-the-sentence-to-show).
+
+### `TS2322: Type 'Date' is not assignable to type 'string'.`
+
+On `when`: the event's `occurredAt` passed as it is. `when` is the text the
+e-mail shows — format it in the recipient's locale and time zone first:
+
+```ts
+const when = new Intl.DateTimeFormat(user.locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' })
+	.format(event.occurredAt);
 ```

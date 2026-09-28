@@ -10,6 +10,15 @@ bun run build        # build:mail, then the TypeScript build
 bun run build:mail   # the e-mails alone
 ```
 
+**The build needs Node `^22.22.3`, `^24.15.0` or `>=26` on the `PATH`.**
+`bun run` starts `maizzle` by its `#!/usr/bin/env node` line, so Maizzle
+runs on the Node installed — Bun stands in only where there is none — and
+Maizzle 6.1.7 depends on `postcss-merge-longhand` 9, whose
+`Set.prototype.difference` Node 20 lacks: under Node 20 the build fails
+inside `postcss-merge-longhand`. CI's `ubuntu-24.04` runners
+carry Node 24. Sending needs none of this: `@nxgt/mail` and its transports
+run on Node 20 or later.
+
 ## Maizzle runs at our build, never at the consumer's
 
 The e-mails are compiled once, when this package is built: Maizzle, Vue,
@@ -21,7 +30,7 @@ installs `@nxgt/mail` and nothing that builds.
 ```text
 packages/janus-mail/
   mail/                    the Maizzle project — not shipped
-    maizzle.config.ts      presets({ only: the 5 }), ui(), i18n()
+    maizzle.config.ts      presets({ only: the 9 }), ui(), i18n()
     locales/en.json        {} — the presets' messages, unchanged
     locales/fr.json
   mails/                   what the build wrote — shipped, never committed
@@ -29,9 +38,11 @@ packages/janus-mail/
     en/verify-email.html   en/verify-email.txt   …
     fr/verify-email.html   fr/verify-email.txt   …
   scripts/build-mail.ts    runs maizzle build, checks the manifest, writes locales.ts
+  scripts/codes-left.ts    parses the codes-left plural, writes codes-left.ts
   src/generated/           written by the build — committed
     mail.ts                MailEmails: each e-mail and its variables
     locales.ts             LOCALES and JanusMailLocale
+    codes-left.ts          CODES_LEFT: the plural of the recovery codes left
 ```
 
 ## What `build:mail` does
@@ -43,23 +54,52 @@ packages/janus-mail/
    `src/generated/mail.ts` (`rendererTypes`), from the build.
 3. `scripts/build-mail.ts` reads the manifest and **fails unless its
    format is one every `@nxgt/mail` the peer admits reads** — see below —
-   and **unless exactly the eight e-mails were built**: a ninth from a new
+   and **unless exactly the nine e-mails were built**: a tenth from a new
    `@nxgt/mail-presets`, or one missing, stops the build.
-4. It writes `src/generated/locales.ts` from the manifest's locales, only
-   when its content changed.
+4. It writes `src/generated/locales.ts` from the manifest's locales, and
+   `src/generated/codes-left.ts` — below — each only when its content
+   changed.
 
 Then `../../build.ts` builds `dist/`, as for every package.
 
+## The plural of the codes left
+
+The `recovery-code-used` e-mail says how many recovery codes are left, and
+the count is only known at send time: the build cannot pick a plural branch
+for it. `@nxgt/mail-presets` 1.0 ships the sentence as a message the
+template does not read, `recovery-code-used.codes-left` — an ICU plural on
+`recoveryCodesLeft`, `=0`, `one` and `other` — for the sender to format.
+
+`@nxgt/mail-i18n`'s `createTranslator` formats it, but it is a
+devDependency here, like the presets: nothing Maizzle reaches a consumer.
+So `scripts/codes-left.ts` parses the message at this build, with
+`@formatjs/icu-messageformat-parser` (the parser `@nxgt/mail-i18n` uses,
+pinned to its version), and writes its branches as data to
+`src/generated/codes-left.ts`: each branch's text, with `null` where the
+count goes. At send time, `src/codes-left.ts` picks the branch — an exact
+one first, then `Intl.PluralRules`' category in the recipient's locale,
+then `other` — and writes the count with `Intl.NumberFormat`.
+
+- **The message is the build's**: `mail/locales/<locale>.json`'s
+  `recovery-code-used.codes-left` when it overrides it, else the preset's.
+- **Its shape is checked**: one cardinal plural on `recoveryCodesLeft`, with
+  an `other` branch and no offset, holding only text and `#`. Anything else
+  fails the build, naming the locale — the send could not format it.
+- **It equals `createTranslator`**: `src/codes-left.spec.ts` formats every
+  count from 0 to 1,100 in every built locale both ways, and
+  `scripts/codes-left.spec.ts` holds the committed file equal to what the
+  build writes.
+
 ## The manifest's format keeps the peer honest
 
-The package peers `@nxgt/mail` at `>=0.1.0 <1`, so the build it ships must
+The package peers `@nxgt/mail` at `>=0.1.0 <2`, so the build it ships must
 be readable by `@nxgt/mail` 0.1.0 — the peer's floor, which the package's
 specs and its typecheck run on in the Floors job, on every CI run. The
 manifest says which format it is in — `formatVersion`, its first key,
-`MANIFEST_FORMAT` of the `@nxgt/mail-i18n` that built it — and within 0.x a
-renderer reads every format up to its own.
-`@nxgt/mail` 0.1.0 through 0.9.0 read format 1, and a manifest without the
-field is format 1.
+`MANIFEST_FORMAT` of the `@nxgt/mail-i18n` that built it — and a renderer
+reads every format up to its own.
+`@nxgt/mail` 0.1.0 through 1.0.0 read format 1, `@nxgt/mail-i18n` 1.0.0
+still writes it, and a manifest without the field is format 1.
 
 `formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build
 when:

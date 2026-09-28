@@ -1,7 +1,7 @@
 # Templates
 
 This page is for changing what an e-mail says or looks like: what a template
-is given and answers, replacing some of the eight, using the defaults on their
+is given and answers, replacing some of the nine, using the defaults on their
 own, and what the defaults say.
 
 ```ts
@@ -22,7 +22,7 @@ const mail = janusMail({
 });
 ```
 
-The sign-in code e-mail is now yours; the seven others stay the defaults.
+The sign-in code e-mail is now yours; the eight others stay the defaults.
 
 ## What a template is
 
@@ -66,14 +66,33 @@ e-mail.
 | `emailChanged` | `brand`, `name`, `link`, `newEmail` | `mail.emailChanged(to)` |
 | `twoFactorEnabled` | `brand`, `name`, `link` | `mail.twoFactorEnabled(to)` |
 | `twoFactorDisabled` | `brand`, `name`, `link` | `mail.twoFactorDisabled(to)` |
+| `recoveryCodeUsed` | `brand`, `name`, `when`, `recoveryCodesLeft`, `link` | `mail.recoveryCodeUsed(to, { when, recoveryCodesLeft })` |
 | `welcome` | `brand`, `name`, `link` | `mail.welcome(to)` |
 
 Every one also gets `locale`, one of `locales`. Every value is a string:
 `brand` from the options, `name` from the recipient, `link` from `links` —
-`links.secureAccount()` for the four notices, `links.getStarted()` for
-`welcome` — `code` and `newEmail` from the
+`links.secureAccount()` for the four notices, `links.recoveryCodes()` (else
+`links.secureAccount()`) for `recoveryCodeUsed`, `links.getStarted()` for
+`welcome` — `code`, `newEmail` and `when` from the
 call, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
 the send's own `expiresIn` ([Sending](sending.md#the-expiry)).
+
+`recoveryCodesLeft` is a **sentence**, not the count: "You have 9 recovery
+codes left." The method writes it from the count with the preset's plural in
+the recipient's locale, or passes the send's own text — so an override for
+a locale of its own is given what the caller wrote:
+
+```ts
+// `escape` is your HTML escaper: a template of yours escapes what it writes.
+templates: {
+	recoveryCodeUsed: ({ name, when, recoveryCodesLeft, link }) => ({
+		subject: 'Ein Wiederherstellungscode wurde verwendet',
+		html: `<p>Hallo ${escape(name)}, am ${escape(when)}.</p><p>${escape(recoveryCodesLeft)}</p><p><a href="${link}">Konto sichern</a></p>`,
+		text: `Hallo ${name}, am ${when}.\n\n${recoveryCodesLeft}\n\n${link}`,
+	}),
+},
+// await mail.recoveryCodeUsed(to, { when, recoveryCodesLeft: `Sie haben noch ${left} Wiederherstellungscodes.` });
+```
 
 `signInCode` is **never given the challenge**: it is not in its variables,
 and the method never reads it. An override states the expiry from
@@ -105,11 +124,11 @@ methods live on its prototype and are refused — see
 [troubleshooting](../troubleshooting.md#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-).
 
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
-any of the eight, and the defaults render the rest. Once `locales` holds
-another locale, it takes **all eight** — see
+any of the nine, and the defaults render the rest. Once `locales` holds
+another locale, it takes **all nine** — see
 [Adding a locale](locales.md#adding-a-locale).
 
-`mail.templates` answers the eight in use — yours, and the defaults for the
+`mail.templates` answers the nine in use — yours, and the defaults for the
 rest — frozen:
 
 ```ts
@@ -131,7 +150,7 @@ const { subject, html, text } = await defaults.resetPassword({
 });
 ```
 
-It answers the eight defaults, typed for `'en' | 'fr'`, without a mailer:
+It answers the nine defaults, typed for `'en' | 'fr'`, without a mailer:
 to preview an e-mail, to wrap one — add a line to the default text, say — or
 to send one through something other than `janusMail()`. A default reused for
 a wider set of locales is a compile error: it could not render the one it
@@ -157,7 +176,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-0.4.3, built with a neutral grey theme and no logo:
+1.0.1, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -168,12 +187,16 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 | `emailChanged` | `email-changed` | Your e-mail address was changed | Votre adresse e-mail a été modifiée |
 | `twoFactorEnabled` | `two-factor-enabled` | Two-factor authentication was turned on | L'authentification à deux facteurs a été activée |
 | `twoFactorDisabled` | `two-factor-disabled` | Two-factor authentication was turned off | L'authentification à deux facteurs a été désactivée |
+| `recoveryCodeUsed` | `recovery-code-used` | A recovery code was used on your account | Un code de récupération a été utilisé sur votre compte |
 | `welcome` | `welcome` | Welcome, `Ada` | Bienvenue, `Ada` |
 
 Each has a header and a footer with the brand, a heading, a greeting by name
 (but `signInCode`), a button with its link and the link again in text for a
 client that shows no button, and a text part. The four notices add a warning:
-*if this was not you, secure your account now*. `welcome` has the brand in
+*if this was not you, secure your account now*. `recoveryCodeUsed` says it
+too, after a warning banner — *a recovery code was used on your account at
+`when`* — the codes left, and a line on generating new ones; its button says
+**Secure my account**. `welcome` has the brand in
 its heading — "Welcome to Acme" — and the recipient's name in its subject,
 filled at send time like the body; its button says **Get started**.
 
@@ -197,11 +220,13 @@ mode, 9.85:1. The muted text — the footer, and the closing *if you did not
 ask for this* — is a slate grey (`#5f718a`) in light mode, 4.53:1 on the
 page, and turns `#cbd5e1` in dark mode, 12.01:1 on the dark card and
 13.31:1 on the page. The notices' alerts keep their light ground and grey
-text in both modes, 4.56:1 at the least. Every
-text of the defaults reads at 4.5:1 or more in both modes, but the link
-under the button, which `@nxgt/mail-ui` colours with its info blue in
-both: 6.78:1 on the dark card, 2.63:1 on the light one, and no theme token
-moves it without breaking the other mode. Nothing is passed for any of it,
+text in both modes, 4.56:1 at the least; the recovery code banner keeps
+its light ground and near-black text, 17.57:1. The link under the button is
+a blue of each mode's own: `#1d4ed8` on the light card, 6.70:1, and
+`#93c5fd` on the dark one, 9.89:1 — `@nxgt/mail-ui` 1.0 gives the info
+blue a dark value (`color-info-dark`), where one blue served both modes and
+read 2.63:1 on the light card. Every text of the defaults reads at 4.5:1 or
+more in both modes. Nothing is passed for any of it,
 the text part has no colours, and a template of your own gets none of it. `@nxgt/mail-ui`'s
 [Dark mode](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-ui/docs/guide/dark-mode.md)
 guide has the technique, client by client.

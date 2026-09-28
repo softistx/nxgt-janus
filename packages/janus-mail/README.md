@@ -3,7 +3,8 @@
 The e-mails of [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus)'s
 flows, ready to send: **e-mail verification, password reset, sign-in code,
 password changed, e-mail changed, two-factor authentication turned on or
-off, and a welcome to a new user**, in English and French, with your brand
+off, a recovery code used, and a welcome to a new user**, in English and
+French, with your brand
 in them. `@nxgt/janus` sends no e-mail — its flows answer what to send — and
 this package turns that answer into an e-mail and hands it to any
 [`@nxgt/mail`](https://www.npmjs.com/package/@nxgt/mail) transport.
@@ -21,6 +22,7 @@ const mail = janusMail({
 		resetPassword: (token) => `https://acme.example/reset?token=${token}`,
 		secureAccount: () => 'https://acme.example/account/security',
 		getStarted: () => 'https://acme.example/',
+		recoveryCodes: () => 'https://acme.example/account/recovery-codes', // optional
 	},
 });
 
@@ -43,9 +45,9 @@ bun add @nxgt/janus-mail @nxgt/mail @nxgt/janus
 bun add -d typescript
 ```
 
-Three peers, all required: `@nxgt/mail` (0.1 or later, below 1 — the
-transports of 0.4 included), which defines the `Mailer` port and the errors;
-`@nxgt/janus` (0.9), whose flows' answers the methods take — types only,
+Three peers, all required: `@nxgt/mail` (0.1 or later, below 2 — 1.0 and
+its transports included), which defines the `Mailer` port and the errors;
+`@nxgt/janus` (0.11), whose flows' answers the methods take — types only,
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
@@ -53,18 +55,20 @@ The `@nxgt/mail` floor is tested, not claimed: the package's specs and its
 typecheck run on `@nxgt/mail` 0.1.0 as well, in the Floors job, on every CI
 run.
 
-It reads its prebuilt e-mails with `node:fs`: **Node, Bun or Deno**, not an edge
-runtime. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
+It reads its prebuilt e-mails with `node:fs`: **Node (20 or later), Bun or
+Deno**, not an edge runtime. Rebuilding the e-mails from this repository
+needs Node 22.22.3 or later, for Maizzle — see
+[Building](docs/guide/building.md); installing the package needs no build. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 ## API
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The eight default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The nine default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the eight of them, and their names |
-| `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn` or `newEmail` as its e-mail needs |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the nine of them, and their names |
+| `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn`, `newEmail`, `when` or `recoveryCodesLeft` as its e-mail needs |
 | `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword` and `signInCode`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
 | `JanusMailLinks`, `Recipient` | The `links` option; who an e-mail is for — `{ name, locale? }` |
@@ -73,8 +77,8 @@ Each method answers the mailer's `SentMail` and **rejects with the mailer's
 `MailFailure` or `MailRefused`, untouched**: this package defines no error
 class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 `withMailTelemetry(withRetry(mailer), { transport })` — `withRetry` from
-`@nxgt/mail` 0.8, `withMailTelemetry` from `@nxgt/mail/telemetry` 0.9 (0.8
-names it `withTelemetry`, a deprecated alias until 1.0); see
+`@nxgt/mail` 0.8 or later, `withMailTelemetry` from `@nxgt/mail/telemetry`
+0.9 or later (0.8 names it `withTelemetry`, which 1.0 removed); see
 [Sending](docs/guide/sending.md#retrying-and-tracing-the-mailer).
 
 | Method | Sends | To |
@@ -86,6 +90,7 @@ names it `withTelemetry`, a deprecated alias until 1.0); see
 | `emailChanged(to)` | A notice naming `to.newEmail`, with `links.secureAccount()` | `to.formerEmail` |
 | `twoFactorEnabled(to)` | A notice: two-factor authentication was turned on, with `links.secureAccount()` | `to.email` |
 | `twoFactorDisabled(to)` | A notice: two-factor authentication was turned off, with `links.secureAccount()` | `to.email` |
+| `recoveryCodeUsed(to, { when, recoveryCodesLeft })` | A notice: a recovery code was used, `when`, and how many are left — "You have 9 recovery codes left." — with `links.recoveryCodes()`, else `links.secureAccount()` | `to.email` |
 | `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
 
 The three e-mails of a link or a code say how long it lasts — "This link
@@ -200,6 +205,36 @@ out before the address is verified; to welcome proven addresses only, send
 it on `user.emailVerified` instead — see
 [Sending](docs/guide/sending.md#welcometo).
 
+### Telling a user a recovery code was used
+
+`@nxgt/janus` sends `user.recoveryCodeUsed` once `secondFactor.recover`
+spent a code: a sign-in without the user's phone. The event names the user
+by id only, so read the user, and the codes left with
+`secondFactor.recoveryCodesLeft` (`@nxgt/janus` 0.11):
+
+```ts
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.recoveryCodeUsed') {
+			const user = await auth.get(event.userId);
+			const recoveryCodesLeft = await auth.secondFactor.recoveryCodesLeft(user);
+			if (recoveryCodesLeft === null) return; // the factor was turned off since
+			const when = new Intl.DateTimeFormat(user.locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' })
+				.format(event.occurredAt);
+			await mail.recoveryCodeUsed({ name: user.name, locale: user.locale, email: user.email }, { when, recoveryCodesLeft });
+		}
+	},
+});
+```
+
+`when` is text: format it in the recipient's locale and time zone.
+`recoveryCodesLeft` is the count, written as a sentence in the recipient's
+locale — "You have 1 recovery code left.", "Il ne vous reste aucun code de
+récupération." — or the sentence itself, as text. The button links to
+`links.recoveryCodes()`, where the user regenerates their codes, and to
+`links.secureAccount()` when you give no `recoveryCodes`.
+
 ### Replacing a template
 
 Any template can be your own function — React Email, a string, another
@@ -245,10 +280,19 @@ writes that name in its subject — "Welcome, <anything>" — so on
 `user.created` anyone can make your brand send it to any address. Once the
 address is proven, only its owner receives it.
 
-**Every link is required, `getStarted` included.** `links` written for 0.3
-has no `getStarted`: a compile error on `links`, and in JavaScript
-`janusMail: links.getStarted must be a function`. Add it even if you never
-send the welcome.
+**Every link is required, `getStarted` included — but `recoveryCodes`.**
+`links` written for 0.3 has no `getStarted`: a compile error on `links`, and
+in JavaScript `janusMail: links.getStarted must be a function`. Add it even
+if you never send the welcome. `recoveryCodes` is optional: without it,
+`recoveryCodeUsed` links to `secureAccount`.
+
+**The recovery code event carries no count.** `user.recoveryCodeUsed` names
+the user only; pass `recoveryCodesLeft` as
+`auth.secondFactor.recoveryCodesLeft(user)` answers it, once checked for
+`null` — a user whose factor was turned off since has no codes to count, and
+`null` is a compile error here. With a locale the defaults are not built in,
+pass the sentence rather than the count: the build has no plural for it, and
+a count is a `TypeError` at send.
 
 **`node:fs` means no edge runtime.** The default e-mails are read from the
 package's `mails/` folder, on the first one sent. On an edge runtime, pass
@@ -277,8 +321,9 @@ and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all eight
-templates is a compile error, and a `TypeError` in JavaScript.
+built in those two only, so `locales: ['en', 'fr', 'de']` without all nine
+templates — `recoveryCodeUsed` included, since 0.5 — is a compile error, and
+a `TypeError` in JavaScript.
 
 **The brand is text only.** `brand: 'Acme'` is written in the header, the
 body and the footer, escaped: no logo, no link, no markup. For those, replace
@@ -335,8 +380,8 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Twenty-nine plausible mistakes, twenty-nine refused at compile time.**
-Four files hold one `@ts-expect-error` per mistake, beside the calls that
+**Thirty-four plausible mistakes, thirty-four refused at compile time.**
+Five files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
@@ -344,9 +389,11 @@ send, 1 to 8;
 of `janusMail()`'s options, 9 to 20, beside adding a language with every
 template;
 [`test/types/expiry-refusals.ts`](test/types/expiry-refusals.ts) the five of
-the expiry and the clock, 21 to 25; and
+the expiry and the clock, 21 to 25;
 [`test/types/notice-refusals.ts`](test/types/notice-refusals.ts) the four of
-the two-factor notices and the welcome, 26 to 29:
+the two-factor notices and the welcome, 26 to 29; and
+[`test/types/recovery-refusals.ts`](test/types/recovery-refusals.ts) the
+five of the recovery code notice, 30 to 34:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -377,9 +424,15 @@ the two-factor notices and the welcome, 26 to 29:
 27. `twoFactorEnabled` given `emailChanged`'s `formerEmail` rather than `email`.
 28. The `user.created` event itself given to `welcome`: it has neither a name nor an address.
 29. `links` written before the welcome, without `getStarted`.
+30. The `user.recoveryCodeUsed` event itself given to `recoveryCodeUsed`: it has neither a name nor an address.
+31. `recoveryCodeUsed` without `when` and the count.
+32. The count as `recoveryCodesLeft()` answered it, not checked for `null` first.
+33. `when` given as the event's `Date` rather than the text in the recipient's locale and time zone.
+34. `links.recoveryCodes` given as a URL rather than a function.
 
-In JavaScript, 19 to 23 and 26 to 28 are a `TypeError` at send time instead, naming the
-call or the field, and 25 and 29 one from `janusMail()`.
+In JavaScript, 19 to 23, 26 to 28 and 30 to 33 are a `TypeError` at send
+time instead, naming the call or the field, and 25, 29 and 34 one from
+`janusMail()`.
 
 [`test/types/variables.ts`](test/types/variables.ts) also holds
 `JanusMailVariables` equal to the variables of the build: an e-mail that

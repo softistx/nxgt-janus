@@ -27,6 +27,7 @@ export const mail = janusMail({
 		resetPassword: (token) => `https://acme.example/reset?token=${encodeURIComponent(token)}`,
 		secureAccount: () => 'https://acme.example/account/security',
 		getStarted: () => 'https://acme.example/',
+		recoveryCodes: () => 'https://acme.example/account/recovery-codes', // optional
 	},
 });
 ```
@@ -47,6 +48,7 @@ time one is sent, and kept.
 | `links.resetPassword` | `(token) => string` | required | The page that sets a new password, given the one-time token |
 | `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it |
 | `links.getStarted` | `() => string` | required | Where a new user starts — your home page, or your sign-in page for an account someone else created: the welcome's **Get started** button links to it |
+| `links.recoveryCodes` | `() => string` | `links.secureAccount` | Where a user regenerates their recovery codes: the recovery code notice links to it, from its **Secure my account** button |
 | `locales` | `readonly L[]` | `['en', 'fr']` | The locales sent in — see [Locales](locales.md) |
 | `fallbackLocale` | one of `locales` | `'en'`, else the first of `locales` | The locale when the recipient wants none of `locales` |
 | `templates` | `Partial<JanusMailTemplates<L>>` | none | Your own templates, over the defaults — see [Templates](templates.md) |
@@ -198,6 +200,54 @@ and the address from the user. With several user types, check
   and `signUp` answers as it would have. For a welcome that must arrive, put
   the event in a queue that retries a `MAIL_FAILED`, and send from there.
 
+### `recoveryCodeUsed(to, { when, recoveryCodesLeft })`
+
+```ts
+// On the user event @nxgt/janus sends once a recovery code is spent:
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type !== 'user.recoveryCodeUsed') return;
+		const user = await auth.get(event.userId);
+		const recoveryCodesLeft = await auth.secondFactor.recoveryCodesLeft(user); // @nxgt/janus 0.11
+		if (recoveryCodesLeft === null) return; // the factor was turned off since
+		const when = new Intl.DateTimeFormat(user.locale, {
+			dateStyle: 'long',
+			timeStyle: 'short',
+			timeZone: user.timeZone, // a field of yours, when you keep one
+		}).format(event.occurredAt);
+		await mail.recoveryCodeUsed(
+			{ name: user.name, locale: user.locale, email: user.email },
+			{ when, recoveryCodesLeft },
+		);
+	},
+});
+```
+
+A notice for the account at `to.email`: a recovery code was used — a
+sign-in without the user's phone — at `when`, and how many codes are left,
+with a **Secure my account** button. Send it on the `user.recoveryCodeUsed`
+event, which `auth.secondFactor.recover` sends once the code is spent, even
+when opening the session then fails.
+
+- **`when` is text you write**, in the recipient's locale and time zone:
+  "28 septembre 2026 à 14:05". The event's `occurredAt` is when the code
+  was spent.
+- **`recoveryCodesLeft` is the count, or the sentence.** The event does not
+  carry it: `auth.secondFactor.recoveryCodesLeft(user)` reads it after the
+  write, the code just spent already out, and answers `null` for a user
+  with no active factor — check it, the compiler asks you to. A count is
+  written as `@nxgt/mail-presets`' plural in the recipient's locale: "You
+  have no recovery codes left.", "You have 1 recovery code left.", "Il vous
+  reste 9 codes de récupération." — the build's own catalogue, parsed when
+  this package is built, and formatted at send time with the locale's
+  plural rules. Text is sent as it is: pass the sentence yourself for
+  another wording, or a locale the defaults are not built in, where a count
+  is a `TypeError`.
+- **The link is `links.recoveryCodes()`**, where the user regenerates their
+  codes; without it, `links.secureAccount()`. `recoveryCodes` is optional,
+  so a `links` written for 0.4 still compiles.
+
 ## The expiry
 
 `verifyEmail`, `resetPassword` and `signInCode` say how long the link or the
@@ -252,6 +302,7 @@ a `TypeError`, and nothing reaches the mailer: revive the date with
 | `passwordChanged` | `to.email` | — |
 | `emailChanged` | `to.formerEmail` | `to.newEmail` |
 | `twoFactorEnabled`, `twoFactorDisabled` | `to.email` | — |
+| `recoveryCodeUsed` | `to.email` | — |
 | `welcome` | `to.email` | — |
 
 `issued.email` is the address the user's record holds, as they registered
@@ -307,10 +358,12 @@ retries a `MAIL_FAILED`, rather than to a promise nobody awaits.
 ### Retrying and tracing the mailer
 
 Wrap the mailer before you hand it to `janusMail()`: `withRetry`, from
-`@nxgt/mail` 0.8, retries a `MailFailure` with backoff, reusing one
-idempotency key for every attempt, and never retries a `MailRefused`;
-`withMailTelemetry`, from `@nxgt/mail/telemetry` 0.9 (`withTelemetry` on
-0.8), opens a `mail.send` span per send. That entry
+`@nxgt/mail` 0.8 or later, retries a `MailFailure` with backoff, reusing one
+idempotency key for every attempt, and never retries a `MailRefused` — its
+options are `MailRetryOptions` since 1.0, which removed the older name
+`RetryOptions`; `withMailTelemetry`, from `@nxgt/mail/telemetry` 0.9 or
+later (`withTelemetry` on 0.8, removed in 1.0), opens a `mail.send` span
+per send. That entry
 needs `@opentelemetry/api` installed (an optional peer, loaded by it alone);
 with no OpenTelemetry SDK registered, its spans are no-ops. Put telemetry on the outside, so one
 send is one span:
@@ -334,9 +387,10 @@ export const mail = janusMail({
 which scopes a telemetry to a block. `mail.send` is recorded through
 OpenTelemetry, not `@nxgt/telemetry`, so it does not nest under
 `@nxgt/janus-telemetry`'s spans. `@nxgt/mail` 0.9 renamed its decorator
-`withMailTelemetry` so the two no longer share a name; on 0.8 it is
-`withTelemetry`, still exported by 0.9 as a deprecated alias until 1.0 —
-import it under another name there when a module uses both.
+`withMailTelemetry` so the two no longer share a name, and 1.0 removed the
+old `withTelemetry` — with `withRendererTelemetry`, which
+`@nxgt/mail/telemetry` 1.0 names `withMailRendererTelemetry`. On 0.8, import
+its `withTelemetry` under another name when a module uses both.
 
 **SMTP ignores the idempotency key**, so a retry after an ambiguous SMTP
 timeout can deliver an e-mail twice. If a duplicate sign-in code or reset
