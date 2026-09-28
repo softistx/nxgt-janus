@@ -3,9 +3,9 @@
 [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus) in a GraphQL
 server: the signed-in user on the context, authenticated only when a field
 asks, fields and types guarded by `@authenticated`, `@fresh` and
-`@permission`, and
-every error answered with the status it deserves — an outage as 503, never
-as 401, 403 or 404.
+`@permission`, the
+same guards on subscriptions over graphql-ws, and every error answered with
+the status it deserves — an outage as 503, never as 401, 403 or 404.
 
 An [envelop](https://the-guild.dev/graphql/envelop) plugin, so it runs in
 [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server) and any server built
@@ -52,7 +52,7 @@ bun add @nxgt/janus-graphql @nxgt/janus graphql @graphql-tools/utils @envelop/co
 bun add -d typescript        # 6
 ```
 
-Every peer is required:
+Every peer is required but `graphql-ws`:
 
 | Peer | Range | Why |
 | --- | --- | --- |
@@ -61,11 +61,12 @@ Every peer is required:
 | `@graphql-tools/utils` | `>=10.0.0 <13` | `mapSchema` and `getDirective`, which apply the directives |
 | `@envelop/core` | `^5.0.0` | Types only — the `Plugin` `useJanus()` answers. Yoga already brings it |
 | `typescript` | `^6.0.3` | As for `@nxgt/janus` |
+| `graphql-ws` | `^6.0.0`, **optional** | Only for subscriptions over a WebSocket, with `janusConnection()`. Nothing here imports it. For `graphql` 17, a `graphql-ws` whose peer range includes it — 6.3.0 does |
 
 The floors are tested, not claimed: the package's specs and its typecheck run
-on `graphql` 16.9.0, `@graphql-tools/utils` 10.0.0 and `@envelop/core` 5.0.0
-as well, together, with a single copy of `graphql`, in the Floors job, on
-every CI run.
+on `graphql` 16.9.0, `@graphql-tools/utils` 10.0.0, `@envelop/core` 5.0.0
+and `graphql-ws` 6.0.0 as well, together, with a single copy of `graphql`,
+in the Floors job, on every CI run.
 
 Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`: the
 declarations import without extensions, so `nodenext` is not supported.
@@ -91,11 +92,12 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `requireUser(ctx, { type? })` | The signed-in user, narrowed to `type` — one or a non-empty list — or a denial: `UNAUTHENTICATED`, `FORBIDDEN` |
 | `requireFresh(ctx, maxAge)` | The request's session, once it proved who it is less than `maxAge` ago — a duration with its unit, `'10m'`, never a bare number — or a denial: `UNAUTHENTICATED`, `STEP_UP_REQUIRED` |
 | `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false`. Shares the request's checks with `@permission`: one question, one check per request |
+| `janusConnection({ auth, access?, type?, clock?, upgrade? })` | Subscriptions over graphql-ws: `onConnect` for its `useServer()`, which accepts a connection whose `connectionParams.authorization` — else whose upgrade request's headers or cookie — authenticates, as a user of `type` when given, and refuses any other `4403`; an outage rejects, closed `4500`. Each operation's `ctx.janus` then authenticates from that credential, so the directives hold unchanged. `context` builds `{ janus }` for a server without Yoga; `upgrade` reads the upgrade request where the transport's `extra` does not carry it — Bun |
 | `janusMaskError(fallback?)` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback` |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
 | `denial(code, message?)` | A denial of your own: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404. For a stale session, call `requireFresh()`, whose `STEP_UP_REQUIRED` is `@nxgt/janus`'s |
 | `JanusContext<typeof auth, typeof access?, Type?>` | What `useJanus()` adds to the context, for your resolvers' `ctx` |
-| `JanusOptions`, `JanusOnContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError` | The types of the arguments and answers above |
+| `JanusOptions`, `JanusOnContext`, `JanusConnectionOptions`, `JanusConnection`, `ConnectionContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError` | The types of the arguments and answers above |
 
 ## Directives
 
@@ -144,6 +146,46 @@ check. What no request could pass — an object type or a permission the
 model does not declare, a malformed `id:`, an argument the field does not
 take, a missing loader or condition, a `maxAge` not above zero — is a
 `TypeError` at start-up naming the field. Detail: [the directives guide](docs/guide/directives.md).
+
+## Subscriptions over graphql-ws
+
+Yoga's recommended graphql-ws setup, with `onConnect` added:
+
+```ts
+import { janusConnection } from '@nxgt/janus-graphql';
+import { useServer } from 'graphql-ws/use/ws';
+
+useServer(
+	{
+		onConnect: janusConnection({ auth }).onConnect, // no valid session: closed 4403
+		execute: (args: any) => args.rootValue.execute(args),
+		subscribe: (args: any) => args.rootValue.subscribe(args),
+		onSubscribe: async (ctx, _id, params) => {
+			const { schema, execute, subscribe, contextFactory, parse, validate } =
+				yoga.getEnveloped({ ...ctx, req: ctx.extra.request, socket: ctx.extra.socket, params });
+			const args = {
+				schema,
+				operationName: params.operationName,
+				document: parse(params.query),
+				variableValues: params.variables,
+				contextValue: await contextFactory(), // useJanus() finds the connection by ctx.extra
+				rootValue: { execute, subscribe },
+			};
+			const errors = validate(args.schema, args.document);
+			return errors.length ? errors : args;
+		},
+	},
+	wsServer,
+);
+```
+
+A browser's session cookie travels on the upgrade request; any other client
+sends `connectionParams: { authorization: 'Bearer <token>' }`, which is
+read first. Each operation is authenticated again from that credential
+when it subscribes: `@authenticated` and `@fresh` are checked then, and
+`@permission` on every event. A session revoked mid-stream is refused at
+the next subscribe, not at the next event. Detail, Bun, and a server
+without Yoga: [the subscriptions guide](docs/guide/subscriptions.md).
 
 ## Errors
 
@@ -218,8 +260,19 @@ response with several errors: [the errors guide](docs/guide/errors.md).
   on every one, and one denial denies the field; to answer only the items a
   user may see, ask `access.list()` for their ids.
 - **A context built without a request cannot authenticate.** `ctx.janus.user()`
-  rejects with a `TypeError` — a transport that is not HTTP, such as a
-  WebSocket, needs its own wiring, which is on the [roadmap](docs/roadmap.md).
+  rejects with a `TypeError` — a transport that is not HTTP, or a graphql-ws
+  operation whose connection no `janusConnection().onConnect` accepted, or
+  whose context was built without Yoga's `...ctx` spread, which carries
+  `ctx.extra`.
+- **A session revoked while a socket is open keeps its running streams.**
+  An operation authenticates once, when it subscribes, and each event's
+  `@authenticated` reads that answer; the next subscribe, and a
+  reconnection, are refused. Close the
+  socket yourself to cut it at once. `@permission` sees a `revoke()` at the
+  next event.
+- **Bun's graphql-ws `extra` holds no request.** Without
+  `janusConnection({ upgrade })`, a browser's cookie is never read there,
+  and only `connectionParams` authenticates.
 - **`@fresh` reads seconds; `requireFresh()` a duration.** `@fresh(maxAge:
   10)` is ten seconds, not ten minutes — write `600`. `requireFresh(ctx,
   '10m')` takes the unit, and refuses a bare number, which `@nxgt/janus`
@@ -238,13 +291,13 @@ response with several errors: [the errors guide](docs/guide/errors.md).
 
 ## Documentation
 
-- [Guides](docs/README.md) — the directives, the step-up over GraphQL, the context and the lazy user, errors as statuses, telemetry, and federation
+- [Guides](docs/README.md) — the directives, the step-up over GraphQL, subscriptions over graphql-ws, the context and the lazy user, errors as statuses, telemetry, and federation
 - [Troubleshooting](docs/troubleshooting.md) — by the message or status you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
-Twenty-nine plausible mistakes are refused by the compiler, each with a
+Thirty-five plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
@@ -268,9 +321,16 @@ Twenty-nine plausible mistakes are refused by the compiler, each with a
   `access`;
 - five in `fresh.ts`: `requireFresh()` given a bare number, a duration
   written as prose, no `maxAge` at all, or the request instead of the
-  context, and `useJanus()` given a timestamp as its `clock`.
+  context, and `useJanus()` given a timestamp as its `clock`;
+- six in `connection.ts`: `janusConnection()` given a user type the
+  instance does not know, the `permissions()` instance as `auth`, or a
+  timestamp as its `clock`; `ctx.janus.access` from a connection given no
+  `access`, a field of another user type once narrowed, and an `upgrade`
+  answering a token rather than a request.
 
-`plugin.ts` also holds this README's quick start, which must keep compiling.
+`plugin.ts` also holds this README's quick start, and `connection.ts` the
+graphql-ws wiring — Yoga's recipe, without Yoga, and Bun's `upgrade` —
+against graphql-ws's own types; both must keep compiling.
 
 ## Licence
 

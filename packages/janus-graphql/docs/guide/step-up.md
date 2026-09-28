@@ -145,6 +145,9 @@ and `@permission` on the field are asked again on every event; its
 `@fresh` is not. To end a stream when the session is no longer fresh, close
 it from the server.
 
+Over a WebSocket, the same holds once `janusConnection()` authenticates
+the connection: [subscriptions over graphql-ws](subscriptions.md).
+
 **A `@fresh` on the payload's type, or on one of its fields, is checked on
 every event**, as any field is: those fields resolve anew for each event,
 and once the session is past `maxAge` they answer `STEP_UP_REQUIRED` while
