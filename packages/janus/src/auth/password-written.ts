@@ -14,13 +14,15 @@ import type { SignInResult } from './types';
  * What writing a password ends besides. A reset, a change and a set each call
  * it **after** the write, and a failure here throws — it is never ignored:
  *
- * 1. The user's reset links still unspent. A link answers a request to
- *    replace the password; once it is replaced, an older link would replace
- *    it again, without knowing the new one. Spent first, as the more harmful
- *    to leave: a waiting sign-in still needs its second factor.
- * 2. Every second-factor challenge still open, so a sign-in started with the
- *    old password cannot be finished — the other half of
- *    {@link heldByPassword}, which reads **after** it issued.
+ * - The user's reset links still unspent. A link answers a request to
+ *   replace the password; once it is replaced, an older link would replace
+ *   it again, without knowing the new one.
+ * - Every second-factor challenge still open, so a sign-in started with the
+ *   old password cannot be finished — the other half of
+ *   {@link heldByPassword}, which reads **after** it issued.
+ *
+ * Both spends are attempted even when one fails, so a store failing one kind
+ * still spends the other; the first failure is then thrown.
  *
  * After the write, not before: a link issued while the password is written
  * is spent too, where one issued between an earlier spend and the write
@@ -34,13 +36,16 @@ export async function endWhatThePasswordOpened(
 	context: Context,
 	userId: Id,
 ): Promise<void> {
-	for (const kind of ['resetPassword', 'secondFactor'] as const) {
-		await context.store.tokens.spendUserTokens(
-			userId,
-			kind,
-			context.clock.now(),
-		);
-	}
+	const now = context.clock.now();
+	const spent = await Promise.allSettled(
+		(['resetPassword', 'secondFactor'] as const).map((kind) =>
+			context.store.tokens.spendUserTokens(userId, kind, now),
+		),
+	);
+	const failed = spent.find(
+		(result): result is PromiseRejectedResult => result.status === 'rejected',
+	);
+	if (failed !== undefined) throw failed.reason;
 }
 
 /**

@@ -73,6 +73,20 @@ describe('resetPassword: an older link', () => {
 
 		expect(await confirming(auth, theirs?.token ?? '')).toBe('reset');
 	});
+
+	it('is the only kind a password write adds: a sign-in code survives it', async () => {
+		const { auth } = setup();
+		const { user } = await auth.signUp({ ...ada, password });
+		const sent = await auth.signInCode.request(ada.email);
+
+		await auth.changePassword(user, { current: password, next });
+
+		const result = await auth.signInCode.confirm(
+			sent?.challenge ?? '',
+			sent?.code ?? '',
+		);
+		expect(result.status).toBe('signedIn');
+	});
 });
 
 /**
@@ -82,16 +96,20 @@ describe('resetPassword: an older link', () => {
 function failingResetSpend(): {
 	store: JanusStores;
 	broken: { now: boolean };
+	spent: string[];
 } {
 	const store = createMemoryStores();
 	const broken = { now: false };
+	const spent: string[] = [];
 	return {
 		broken,
+		spent,
 		store: {
 			...store,
 			tokens: {
 				...store.tokens,
 				async spendUserTokens(userId, kind, at, except) {
+					spent.push(kind);
 					if (broken.now && kind === 'resetPassword') {
 						throw new Error('connection reset');
 					}
@@ -119,17 +137,20 @@ describe('resetPassword: an outage spending the older links', () => {
 	});
 
 	it('fails changePassword with STORE_FAILED after the write — and the next request spends the link', async () => {
-		const { store, broken } = failingResetSpend();
+		const { store, broken, spent } = failingResetSpend();
 		const { auth } = setup({ store });
 		const { user } = await auth.signUp({ ...ada, password });
 		const requested = await auth.resetPassword.request(ada.email);
 		broken.now = true;
+		spent.length = 0;
 
 		const error = await rejection(
 			auth.changePassword(user, { current: password, next }),
 		);
 
 		expect(error).toMatchObject({ code: 'STORE_FAILED' });
+		// The second-factor challenges are spent all the same.
+		expect(spent).toEqual(['resetPassword', 'secondFactor']);
 		// The password was written before the spend failed: the caller is
 		// told, never answered as if all went well.
 		await auth.signIn({ email: ada.email, password: next });
