@@ -65,6 +65,7 @@ describe('giving up, under a lease', () => {
 				closed = true;
 			});
 			for (let ms = 0; !closed && ms < 5_000; ms += 1) await tick();
+			if (!closed) throw new Error('close() never resolved');
 			await closing;
 
 			expect([sent, reports]).toEqual([1, 1]);
