@@ -106,7 +106,8 @@ when the flow knows them — `janus.signOut` carries neither:
   `janus.signInCode.sent` name the address: a request for nobody writes
   nothing at all.
 - **A wrong code is a warning, not a failure.** `CODE_INVALID` leaves the
-  `janus.secondFactor.confirm` or `janus.signInCode.confirm` span `ok`, and
+  `janus.secondFactor.confirm`, `janus.secondFactor.recover` or
+  `janus.signInCode.confirm` span `ok`, and
   writes `janus.signIn.refused` with `janus.secondFactor.attemptsLeft` — named
   so for an e-mailed code too: alert on a user whose count reaches `0` again
   and again, not on the span. **Every** refusal of `signInCode.confirm`

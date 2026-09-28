@@ -10,7 +10,8 @@ export interface JanusLike {
  * The same `janus()` instance, with every flow traced — a span per call,
  * named `janus.signIn` or `janus.patient.signIn` — and the events a security
  * review reads written as logs: sign-ups, sign-ins and the reason one was
- * refused, a second factor asked for, enrolled, activated or disabled,
+ * refused, a second factor asked for, enrolled, activated or disabled, a
+ * sign-in by recovery code and the codes left, recovery codes regenerated,
  * sign-outs, deleted and deactivated users, changed passwords.
  *
  * ```ts
