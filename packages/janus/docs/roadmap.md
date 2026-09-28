@@ -80,7 +80,7 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `signIn: { throttle: false }` turns it off. A tokens store that cannot
   count fails the sign-in with `STORE_FAILED`. No change for adapters: the
   counts are `secondFactor` tokens, counted by `TokenStore.countAttempt`.
-- **A password or an e-mail changed, in the user events, v0.13.0** —
+- **A password or an e-mail changed, in the user events, v0.14.0** —
   `user.passwordChanged`, sent by `changePassword` and `setPassword` once the
   older reset links are spent (a reset stays `user.passwordReset` alone), and
   `user.emailChanged`, sent by an `update` that changed the e-mail, carrying

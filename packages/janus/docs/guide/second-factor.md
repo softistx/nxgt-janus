@@ -306,8 +306,10 @@ try {
 ```
 
 Five attempts at a million values is a one-in-200,000 chance per password
-guessed right. A new challenge takes a new sign-in, with the password, so the
-attempts are bounded by your sign-in rate limit too.
+guessed right. A new challenge takes a new sign-in, with the password, and
+`signIn`'s throttle allows ten per login per 15-minute window — so the
+password alone buys at most ten challenges a window; a limit per client is
+yours to add.
 
 A call made through **another user type's** API — `auth.staff.secondFactor.confirm`
 for a patient's challenge — answers `TOKEN_UNKNOWN` and compares nothing, but

@@ -44,7 +44,7 @@ bun add zod # the schema of the examples; any Standard Schema library will do
 bun add -d typescript
 ```
 
-Both peers are required: `@nxgt/janus` 0.13 — the exact range is in
+Both peers are required: `@nxgt/janus` 0.14 — the exact range is in
 `peerDependencies` — and `typescript` (6). `@nxgt/janus` is a **peer**, so one copy of it defines
 `UserEvent`. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 It uses `node:crypto`, the global `fetch` and `process.emitWarning`: Bun or

@@ -117,7 +117,7 @@ name — and only its `locale` is read.
 ### `passwordChanged(to)`
 
 ```ts
-// On the user event @nxgt/janus 0.13 sends once the password is written:
+// On the user event @nxgt/janus 0.14 sends once the password is written:
 const auth = janus({
 	...config,
 	async events(event) {
@@ -142,7 +142,7 @@ account, which is worth knowing all the same.
 ### `emailChanged(to)`
 
 ```ts
-// On the user event @nxgt/janus 0.13 sends when an update changed the e-mail:
+// On the user event @nxgt/janus 0.14 sends when an update changed the e-mail:
 const auth = janus({
 	...config,
 	async events(event) {

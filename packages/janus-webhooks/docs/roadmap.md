@@ -32,7 +32,7 @@ Nothing queued.
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
 - **The change events, v0.6.0** — `user.passwordChanged` and
-  `user.emailChanged`, from `@nxgt/janus` 0.13, are signed, posted and
+  `user.emailChanged`, from `@nxgt/janus` 0.14, are signed, posted and
   verified like the other eight, and an endpoint's `types` may name them.
   `user.emailChanged` is posted without its `formerEmail`: no address reaches
   an endpoint, a queue or an `onGivingUp` report.

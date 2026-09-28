@@ -48,7 +48,7 @@ Nothing between releases.
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
 - **The change notices on their events, v0.6.0.** `passwordChanged` and
-  `emailChanged` are sent from `@nxgt/janus` 0.13's `user.passwordChanged`
+  `emailChanged` are sent from `@nxgt/janus` 0.14's `user.passwordChanged`
   and `user.emailChanged` events, as the two-factor notices are, rather than
   after the call: whoever changed the password or the e-mail, the user is
   told. `emailChanged` goes to the event's `formerEmail`, the inbox the

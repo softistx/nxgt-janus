@@ -60,7 +60,7 @@ does — one event per write, rather than two a listener would have to tell
 apart. Switch on `type`: the ten are a closed set, and TypeScript refuses an
 eleventh. A new type is a compile error in a `switch` that exhausts them — the
 two recovery-code types, added in 0.10, and the two change types, added in
-0.13, each broke such a `switch` until it handled them.
+0.14, each broke such a `switch` until it handled them.
 
 ```ts
 function onUserEvent(event: UserEvent): void {

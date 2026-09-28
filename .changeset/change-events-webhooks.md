@@ -3,7 +3,7 @@
 '@nxgt/janus-webhooks-redis': minor
 ---
 
-The change events, from `@nxgt/janus` 0.13: `user.passwordChanged` and `user.emailChanged` are signed, posted and verified like the other eight. An endpoint's `types` may name them, and the Redis queue stores and reads them back. The messages that list the event types — `webhooks: an endpoint's types are user event types — …` and `webhooks: the listener takes a user event — …` — now list ten.
+The change events, from `@nxgt/janus` 0.14: `user.passwordChanged` and `user.emailChanged` are signed, posted and verified like the other eight. An endpoint's `types` may name them, and the Redis queue stores and reads them back. The messages that list the event types — `webhooks: an endpoint's types are user event types — …` and `webhooks: the listener takes a user event — …` — now list ten.
 
 **`user.emailChanged` is posted without its `formerEmail`.** `webhooks()` drops the address `@nxgt/janus` hands its listener before the queue, so no endpoint, queue — yours or the Redis one — or `onGivingUp` report ever holds it. Send the notice to the former address from the `janus({ events })` listener, beside `webhooks()`.
 

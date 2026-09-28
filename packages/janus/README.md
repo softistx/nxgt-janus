@@ -722,7 +722,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
   union of the ten types, so a `switch` on `event.type` is exhaustive — and
   a new type, like the two recovery-code ones in 0.10 or the two change ones
-  in 0.13, breaks it until handled.
+  in 0.14, breaks it until handled.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.

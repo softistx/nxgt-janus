@@ -34,7 +34,7 @@ Nothing yet.
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
 - **The change events, v0.4.0** — a delivery of `user.passwordChanged` or
-  `user.emailChanged`, from `@nxgt/janus` 0.13, is written and read back like
+  `user.emailChanged`, from `@nxgt/janus` 0.14, is written and read back like
   the other eight. No address is stored: `@nxgt/janus-webhooks` drops an
   e-mail change's `formerEmail` before the queue.
 
