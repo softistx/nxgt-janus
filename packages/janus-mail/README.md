@@ -235,6 +235,12 @@ warning: the user exists, `signUp` answers, and a `MailFailure` is not
 thrown to anyone. For a welcome that must arrive, put the event in a queue
 that retries, and send from there.
 
+**With open sign-up, welcome on `user.emailVerified`, not `user.created`.**
+Whoever signs up picks both the address and the name, and the welcome
+writes that name in its subject — "Welcome, <anything>" — so on
+`user.created` anyone can make your brand send it to any address. Once the
+address is proven, only its owner receives it.
+
 **Every link is required, `getStarted` included.** `links` written for 0.3
 has no `getStarted`: a compile error on `links`, and in JavaScript
 `janusMail: links.getStarted must be a function`. Add it even if you never

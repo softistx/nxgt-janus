@@ -188,7 +188,8 @@ and the address from the user. With several user types, check
 `event.userType` first: a type with no e-mail has nobody to welcome.
 
 - **It goes out before the address is verified.** A sign-up with a mistyped
-  address welcomes whoever holds it. To welcome proven addresses only, send
+  address welcomes whoever holds it, and with open sign-up anyone can make
+  your brand send "Welcome, <any name>" to any address. To welcome proven addresses only, send
   it on `user.emailVerified` instead, sent once the address is proven —
   and again after an address changed and was proven anew, so welcome only
   a user you have not welcomed before.
