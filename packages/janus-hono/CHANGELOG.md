@@ -1,5 +1,16 @@
 # @nxgt/janus-hono
 
+## 0.4.0
+
+### Minor Changes
+
+- [#158](https://github.com/softistx/nxgt-janus/pull/158) [`f8d73c6`](https://github.com/softistx/nxgt-janus/commit/f8d73c6c631eeaf2b4910771f73e43c0ad95e690) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `fresh(maxAge, { clock? })`: a middleware, behind `session(auth)`, that lets a route run only for a session that proved who it is less than `maxAge` ago — signed in, or confirmed since by `auth.stepUp.confirm`. An older one throws `STEP_UP_REQUIRED`, which `janusErrors()` answers 403 with `{ code: 'STEP_UP_REQUIRED' }`; an anonymous request is answered 401. A `maxAge` that is not a duration is a `TypeError` when the app is wired. Needs `@nxgt/janus` 0.12.
+
+### Patch Changes
+
+- Updated dependencies [[`87852d5`](https://github.com/softistx/nxgt-janus/commit/87852d5652adcc9a980d9a5f700d27defadffcd7), [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199)]:
+  - @nxgt/janus@0.12.0
+
 ## 0.3.6
 
 ### Patch Changes

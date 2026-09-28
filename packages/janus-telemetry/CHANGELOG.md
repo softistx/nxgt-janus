@@ -1,5 +1,16 @@
 # @nxgt/janus-telemetry
 
+## 0.5.0
+
+### Minor Changes
+
+- [#158](https://github.com/softistx/nxgt-janus/pull/158) [`628385f`](https://github.com/softistx/nxgt-janus/commit/628385f476826095b9fc7fb8483f466c99b22fdc) Thanks [@SteveGT96](https://github.com/SteveGT96)! - A step-up is written: `janus.stepUp.asked` (info, with `janus.stepUp.via` — `email` or `secondFactor`), `janus.stepUp.confirmed` (info) and `janus.stepUp.refused` (**warn**, with `janus.refusal` and, for `CODE_INVALID`, `janus.secondFactor.attemptsLeft`), each with the `user.id` — never the code nor the challenge. The `stepUp.confirm` span names the session's user, not the session's id. `STEP_UP_REQUIRED`, from `assertFresh`, is a refusal: the span stays `ok`.
+
+### Patch Changes
+
+- Updated dependencies [[`87852d5`](https://github.com/softistx/nxgt-janus/commit/87852d5652adcc9a980d9a5f700d27defadffcd7), [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199)]:
+  - @nxgt/janus@0.12.0
+
 ## 0.4.1
 
 ### Patch Changes

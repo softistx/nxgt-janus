@@ -1,5 +1,24 @@
 # @nxgt/janus
 
+## 0.12.0
+
+### Minor Changes
+
+- [#158](https://github.com/softistx/nxgt-janus/pull/158) [`87852d5`](https://github.com/softistx/nxgt-janus/commit/87852d5652adcc9a980d9a5f700d27defadffcd7) Thanks [@SteveGT96](https://github.com/SteveGT96)! - A step-up: a signed-in user proves again who they are before a sensitive action — changing the e-mail, disabling the second factor, deleting the account.
+  
+  - `stepUp.request(user)`, on every user type with an e-mail, issues a challenge: with a six-digit code to e-mail (`via: 'email'`), or — for a user whose second factor is active — to confirm with a code from their app (`via: 'secondFactor'`), so a step-up is never weaker than the sign-in the account asks for. One step-up is live per user; a challenge lives `'10m'`, `tokens.stepUp` in `janus()`'s configuration.
+  - `stepUp.confirm(request, challenge, code)` checks the code and moves `authenticatedAt` of the session the request presents to now, answering that session. It opens no session. Five attempts per challenge; an app's codes are also counted per user, five per 15-minute window, in the count `regenerateRecoveryCodes` keeps.
+  - `assertFresh(session, maxAge, clock?)` refuses a session that proved who it is `maxAge` ago or more with `StepUpRequiredError`, a new exported class.
+  - **Breaking for an exhaustive `switch`: `JanusErrorCode` gains `'STEP_UP_REQUIRED'`**, which `statusOf` answers 403.
+  - `session.authenticatedAt` is when the session last proved who it is — at the sign-in, or since by a step-up — no longer only when it was opened.
+  - A step-up whose session is signed out while the code is checked is `TOKEN_UNKNOWN`, `stepUp.confirm: the session was signed out while the code was checked` — the session is never brought back.
+
+- [#157](https://github.com/softistx/nxgt-janus/pull/157) [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The store port gains what a step-up needs — a signed-in user confirming a sensitive action. No flow uses it yet: `stepUp.request` and `stepUp.confirm` come next.
+  
+  - **Breaking for an adapter: `SessionStore.reauthenticateSession(id, at)` is a new required method.** It moves a standing session's `authenticatedAt` to `at`, in one conditional write, and answers the record as written; `null` for no session or a revoked one, which it never brings back. `janus()` refuses a store without it at wiring: `store.sessions has no method reauthenticateSession`.
+  - **Breaking for an exhaustive `switch`: `TokenKind` gains `'stepUp'`**, the challenge of a step-up — a kind of its own, so a sign-in code never confirms an action nor an action's code signs anyone in. A store that lists the kinds — a `CHECK`, a validator's enum — adds it.
+  - The conformance suite has 54 cases, five of them new: `sessions.reauthenticate`, `sessions.reauthenticateRace` (a confirmation racing a revocation never brings the session back), `tokens.everyKind` (a token of every kind stored, counted and spent), `tokens.stepUpKind`, and `outage.reauthenticateSession`.
+
 ## 0.11.0
 
 ### Minor Changes

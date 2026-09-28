@@ -1,5 +1,16 @@
 # @nxgt/janus-redis
 
+## 0.4.0
+
+### Minor Changes
+
+- [#157](https://github.com/softistx/nxgt-janus/pull/157) [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Implements `SessionStore.reauthenticateSession`: one Lua script that moves `authenticatedAt` only while `revokedAt` is empty, and leaves the expiry and every key's TTL as they were. The token kind `stepUp` needs nothing: the scripts match on whatever kind they are given. No migration.
+
+### Patch Changes
+
+- Updated dependencies [[`87852d5`](https://github.com/softistx/nxgt-janus/commit/87852d5652adcc9a980d9a5f700d27defadffcd7), [`1c7d59e`](https://github.com/softistx/nxgt-janus/commit/1c7d59eb7e74ee6e10c662af90fbd097a4132199)]:
+  - @nxgt/janus@0.12.0
+
 ## 0.3.5
 
 ### Patch Changes
