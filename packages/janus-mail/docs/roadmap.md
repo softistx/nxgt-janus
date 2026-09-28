@@ -47,6 +47,15 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **Muted text at 4.5:1 or more in both modes, v0.4.1.** Under dark mode the
+  sign-in code's box is a slate a step above the dark card with light code on
+  it, 9.85:1, and the muted text turns light, 13.31:1 on the page and
+  12.01:1 on the card; in light mode
+  the muted grey is a shade darker, 4.53:1 on the page and 4.56:1 on the
+  notices' alerts at the least. Built from `@nxgt/mail-ui` 0.7.0 and
+  `@nxgt/mail-presets` 0.4.3; the text parts, subjects and variables are
+  unchanged, the manifest is still format 1, and the `@nxgt/mail` peer stays
+  `>=0.1.0 <1`.
 - **The welcome e-mail, v0.4.0.** `welcome(to)`, built from
   `@nxgt/mail-presets` 0.4.2's `welcome` in English and French — "Welcome,
   Ada" — with a **Get started** button linking to the new
