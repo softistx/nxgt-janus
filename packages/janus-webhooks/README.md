@@ -267,6 +267,13 @@ webhooks({
 });
 ```
 
+That list is for a receiver before 0.3.0. For one on 0.3.x, which knows the
+second factor's events but not the recovery codes', add those two:
+
+```ts
+types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.deleted'],
+```
+
 **The warnings name the URL's origin, never the URL.** `JANUS_WEBHOOK_GAVE_UP`
 writes `https://crm.example.com` because a path or query may hold a token of
 the receiver's; `onGivingUp` receives the full `delivery.url`, so do not log

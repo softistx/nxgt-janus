@@ -60,6 +60,8 @@ interface UserEvent {
 		| 'user.passwordReset'
 		| 'user.secondFactorEnabled'
 		| 'user.secondFactorDisabled'
+		| 'user.recoveryCodesRegenerated'
+		| 'user.recoveryCodeUsed'
 		| 'user.deleted';
 	readonly occurredAt: Date; // the body's timestamp: when the write landed
 	readonly userId: string;

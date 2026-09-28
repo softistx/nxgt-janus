@@ -101,6 +101,13 @@ and how long it stays.
   });
   ```
 
+  That list is for 0.1.x processes. When the oldest run 0.2.x, which read the
+  second factor's events but not the recovery codes', add those two:
+
+  ```ts
+  types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.deleted'],
+  ```
+
 - **Eviction is data loss.** A Redis whose `maxmemory-policy` evicts keys
   drops deliveries without a word — no retry, no `onGivingUp`. Run this on a
   Redis with `noeviction`; a full one then refuses the insert with `OOM`,
