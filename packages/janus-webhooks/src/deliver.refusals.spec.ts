@@ -62,6 +62,15 @@ describe('webhooks({ … }) refuses, as wiring', () => {
 			'webhooks: a secret is written whsec_<base64>',
 		],
 		[
+			'a secret longer than 64 bytes',
+			{
+				endpoints: [
+					{ url, secrets: [`whsec_${Buffer.alloc(65).toString('base64')}`] },
+				],
+			},
+			'webhooks: a secret holds at most 64 bytes of base64 after whsec_',
+		],
+		[
 			'a type that is not a user event type',
 			{ endpoints: [{ url, secrets: [secret], types: ['invoice.paid'] }] },
 			"webhooks: an endpoint's types are user event types",

@@ -11,17 +11,6 @@ describe('mintWebhookSecret', () => {
 	});
 });
 
-describe('keyOf', () => {
-	it.each([
-		['no prefix', Buffer.alloc(32).toString('base64')],
-		['not a string', 42],
-		['fewer than 24 bytes', `whsec_${Buffer.alloc(16).toString('base64')}`],
-		['not base64', `whsec_${'!'.repeat(40)}`],
-	])('refuses a secret with %s', (_, secret) => {
-		expect(() => keyOf(secret, 'webhooks')).toThrow(TypeError);
-	});
-});
-
 describe('sign', () => {
 	// The example of the Standard Webhooks specification, verbatim: a
 	// signature any other implementation computes the same.

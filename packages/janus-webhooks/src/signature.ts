@@ -11,8 +11,9 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const PREFIX = 'whsec_';
 
-/** At least 24 bytes: what the specification asks of a secret. */
+/** 24 to 64 bytes: what the specification asks of a secret. */
 const MIN_BYTES = 24;
+const MAX_BYTES = 64;
 
 /** A new secret for an endpoint: 32 random bytes, `whsec_`-prefixed. */
 export function mintWebhookSecret(): string {
@@ -37,6 +38,11 @@ export function keyOf(secret: unknown, where: string): Buffer {
 	) {
 		throw new TypeError(
 			`${where}: a secret holds at least ${MIN_BYTES} bytes of base64 after whsec_ — make one with mintWebhookSecret()`,
+		);
+	}
+	if (key.length > MAX_BYTES) {
+		throw new TypeError(
+			`${where}: a secret holds at most ${MAX_BYTES} bytes of base64 after whsec_ — make one with mintWebhookSecret()`,
 		);
 	}
 	return key;

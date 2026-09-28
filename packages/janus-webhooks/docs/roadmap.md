@@ -5,7 +5,10 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **Secrets held to the specification's range** — a `whsec_` secret of more
+  than 64 bytes is refused as wiring, as one of fewer than 24 already is, so
+  a secret is accepted exactly when the Standard Webhooks specification
+  allows it. In the next release.
 
 ## Next
 
