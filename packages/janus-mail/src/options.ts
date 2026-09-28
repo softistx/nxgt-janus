@@ -25,6 +25,7 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'welcome',
 ];
 
+/** Every link of `JanusMailLinks`: checked, then copied, by these names. */
 const LINK_NAMES = [
 	'verifyEmail',
 	'resetPassword',
@@ -207,12 +208,12 @@ function frozenAddress(address: Address): Address {
  * `janusMail()` cannot undo the check.
  */
 function frozenLinks(links: JanusMailLinks): JanusMailLinks {
-	return Object.freeze({
-		verifyEmail: links.verifyEmail.bind(links),
-		resetPassword: links.resetPassword.bind(links),
-		secureAccount: links.secureAccount.bind(links),
-		getStarted: links.getStarted.bind(links),
-	});
+	// LINK_NAMES is every key of JanusMailLinks, each checked a function.
+	return Object.freeze(
+		Object.fromEntries(
+			LINK_NAMES.map((name) => [name, links[name].bind(links)]),
+		),
+	) as unknown as JanusMailLinks;
 }
 
 /**
