@@ -40,6 +40,7 @@ How the messages are shaped:
 - [`janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 …`](#janus-secondfactorkeys-the-key-id-is-not-32-bytes-in-base64--make-one-with-openssl-rand--base64-32)
 - [`"hasSecondFactor" is a field janus sets itself; rename it`](#hassecondfactor-is-a-field-janus-sets-itself-rename-it)
 - [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
+- [`janus: signIn.throttle …` wiring messages](#janus-signinthrottle-wiring-messages)
 - [Other `janus:` wiring messages](#other-janus-wiring-messages)
 
 **Users, sessions and tokens**
@@ -51,6 +52,8 @@ How the messages are shaped:
 - [`USER_INVALID` — `<call>: the fields do not match the <type> schema …`](#user_invalid--call-the-fields-do-not-match-the-type-schema-n-issues-at-paths)
 - [`PASSWORD_TOO_SHORT` — `<call>: the password is shorter than the policy's <n> characters`](#password_too_short--call-the-password-is-shorter-than-the-policys-n-characters)
 - [`CREDENTIALS_INVALID` — `<call>: the login and the password do not match`](#credentials_invalid--call-the-login-and-the-password-do-not-match)
+- [`CREDENTIALS_INVALID` — `<call>: too many passwords tried at this login …`](#credentials_invalid--call-too-many-passwords-tried-at-this-login--wait-for-the-next-window)
+- [`STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`](#store_failed--call-the-store-dropped-the-attempts-it-had-just-stored)
 - [`HASH_UNSUPPORTED` — `<call>: no wired verifier claims the prefix "<prefix>"`](#hash_unsupported--call-no-wired-verifier-claims-the-prefix-prefix)
 - [`scryptHasher: the stored hash has the $scrypt$ prefix and not its format`](#scrypthasher-the-stored-hash-has-the-scrypt-prefix-and-not-its-format)
 - [`USER_INACTIVE` — `<call>: the user is inactive`](#user_inactive--call-the-user-is-inactive)
@@ -403,6 +406,15 @@ janus({
 });
 ```
 
+### `janus: signIn.throttle` wiring messages
+
+`TypeError`, at `janus()`: `janus: signIn must be an object — { throttle }`,
+`janus: signIn.throttle must be { attempts, window }, or false to count
+nothing`, `janus: signIn.throttle.attempts must be a whole number above
+zero`, and a `janus: signIn.throttle.window` that is not a duration.
+**Fix:** `signIn: { throttle: { attempts: 10, window: '15m' } }` — the
+defaults — or `signIn: { throttle: false }` to count nothing.
+
 ### Other `janus:` wiring messages
 
 | Message | Fix |
@@ -532,13 +544,54 @@ if (error instanceof UserInvalidError) {
 Also `changePassword: the current password does not match`.
 
 **When:** `signIn`, `changePassword`.
-**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one.
+**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter; a login past its attempts has its own message, below. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one.
 **Fix:** answer 401 with the same body whatever the reason:
 
 ```ts
 // Never: { reason: error.reason } — `unknownLogin` tells an attacker which users exist.
 return new Response('Wrong e-mail or password', { status: 401 });
 ```
+
+### `CREDENTIALS_INVALID` — `<call>: too many passwords tried at this login — wait for the next window`
+
+`CredentialError`, with `reason: 'throttled'` and `retryAfter`.
+
+**When:** `signIn`, after ten passwords were tried at this login in the
+current 15-minute window — whatever this password is, **the right one
+included**, and whether or not anybody holds the login. Nothing is compared.
+**Why:** `signIn` throttles password guessing per login, on by default:
+counted by the store, in fixed windows of the clock, shared by every process
+over the same store. Nothing locks: the next window signs in, and a sign-in
+that succeeds starts the count again. In tests with `fixedClock`, the window
+never ends: advance the clock past `retryAfter`, or wire
+`signIn: { throttle: false }`.
+**Fix:** tell the visitor to wait `retryAfter` seconds — not that the
+password is wrong — and answer 401, as `@nxgt/janus-hono`'s `janusErrors()`
+does, with a `Retry-After` header. If nobody you know tried ten passwords,
+somebody is guessing: look for `janus.signIn.throttled` in your logs. To
+change the limit or turn it off:
+
+```ts
+if (error instanceof JanusError && error.retryAfter !== undefined) {
+	const headers = { 'retry-after': String(error.retryAfter) };
+	return Response.json({ code: error.code, retryAfter: error.retryAfter }, { status: 401, headers });
+}
+
+janus({ ..., signIn: { throttle: { attempts: 20, window: '15m' } } });
+```
+
+### `STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`
+
+`StoreFailure`, with `slot: 'tokens'` and `operation: 'countAttempt'`.
+
+**When:** `signIn`, when the tokens store answers `countAttempt` with `null`
+for the count it stored an instant before.
+**Why:** the store lost it — a Redis evicting keys under memory pressure, a
+flush between the two calls, or an adapter whose `countAttempt` does not
+find what `insertToken` wrote. The throttle cannot count, so the sign-in
+fails rather than pass uncounted.
+**Fix:** answer 503. Run the conformance suite against the adapter, and give
+a Redis tokens store `maxmemory-policy noeviction`.
 
 ### `HASH_UNSUPPORTED` — `<call>: no wired verifier claims the prefix "<prefix>"`
 

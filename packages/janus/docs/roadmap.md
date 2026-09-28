@@ -46,6 +46,9 @@ Nothing yet.
   Valibot, ArkType); none is imposed as a peer.
 - **A silent hasher fallback** — a user type with a password and no `hasher`
   is refused at wiring, rather than hashed with something you did not choose.
+- **An account lockout** — a login past its attempts waits for the next
+  window, and no number of wrong passwords blocks an account for longer:
+  a lockout would let anyone lock anyone out.
 - **Answering `null` or `false` on an outage** — a store that cannot answer
   throws `STORE_FAILED`, and a permission walk past `maxDepth` throws
   `PERMISSION_DEPTH`. Neither will become a denial: that turns an outage into
@@ -61,6 +64,15 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Password guessing throttled per login, v0.13.0** — past ten passwords
+  tried at one login in a 15-minute window, `signIn` answers
+  `CREDENTIALS_INVALID` with `reason: 'throttled'` and `retryAfter`, the right
+  password included, until the window ends. Nothing locks; a login nobody
+  holds is counted alike; a sign-in that succeeds starts the count again.
+  On by default: `signIn: { throttle: { attempts, window } }` changes it,
+  `signIn: { throttle: false }` turns it off. A tokens store that cannot
+  count fails the sign-in with `STORE_FAILED`. No change for adapters: the
+  counts are `secondFactor` tokens, counted by `TokenStore.countAttempt`.
 - **An old reset link stops working, v0.13.0** — `resetPassword.request`
   spends the links sent before, so only the last e-mail's works, and writing
   a password — a link's `confirm`, `changePassword`, `setPassword` — spends
@@ -133,15 +145,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   An event names the user by id alone, with a UUIDv7 of its own to deliver
   it once; a listener that throws fails no flow and is a
   `JANUS_EVENT_FAILED` warning.
-- **At most one sign-in code live per user, and challenges that end when
-  they should, v0.7.0** — `signInCode.request` spends the codes sent before,
-  even when requests race, so only the last e-mail's works; writing a
-  password spends the second-factor challenges left waiting, and a sign-in
-  still running when it lands is refused; another user type's `confirm` spends a challenge
-  at its fifth attempt; `verifyEmail.confirm` and `resetPassword.confirm`
-  check the e-mail again on the record they write. `SecondFactorRequired`
-  carries `userId`, for logs and rate limits. For adapters:
-  `TokenStore.spendUserTokens(userId, kind, at, except?)`, with four new conformance
-  cases, implemented in `@nxgt/janus-drizzle`, `@nxgt/janus-mongo` and
-  `@nxgt/janus-redis` — and the port now says a read sees every write that
-  completed before it: never a secondary or a read replica.

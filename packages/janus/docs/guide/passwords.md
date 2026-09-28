@@ -1,7 +1,8 @@
 # Password hashing
 
-This page is for choosing a password hasher, moving from one to another, and
-importing hashes written by another system. The login and the length policy
+This page is for choosing a password hasher, moving from one to another,
+importing hashes written by another system, and how `signIn` throttles
+password guessing. The login and the length policy
 are on the [users](users.md#options) page.
 
 ```ts
@@ -122,27 +123,98 @@ Write each imported user's hash as their `PasswordRecord` with your store's
 scrypt the first time they sign in. Wire one verifier
 per prefix the old system wrote (`$2a$`, `$2b$`, `$2y$` for bcrypt).
 
-## Rate-limit password guessing
+## Password guessing is throttled
 
-**Rate-limit `signIn` per login and per client: `janus` counts no failed
-password**, so without a limit anyone can guess one user's password — or try
-one password against every login — as fast as your server hashes. A sign-in
-code, a second factor and a step-up each count their guesses; a password
-does not. Put the limit in front of the call, with the limiter you already
-run:
+**`signIn` counts the passwords tried at each login, and past ten in a
+15-minute window it refuses every one — the right password included — until
+the window ends.** On by default. The refusal is the same `CREDENTIALS_INVALID`
+as a wrong password, with `reason: 'throttled'` for your logs and
+`retryAfter`, the seconds until the next window, for the client:
 
 ```ts
-const key = `sign-in:${email.trim().toLowerCase()}`;
-if (!(await limiter.consume(key))) {
+import { JanusError } from '@nxgt/janus';
+
+try {
+	return await auth.signIn({ email, password });
+} catch (error) {
+	if (error instanceof JanusError && error.code === 'CREDENTIALS_INVALID') {
+		const headers = error.retryAfter === undefined
+			? undefined
+			: { 'retry-after': String(error.retryAfter) };
+		return Response.json({ code: error.code, retryAfter: error.retryAfter }, { status: 401, headers });
+	}
+	throw error;
+}
+```
+
+[`janusErrors()`](../../../janus-hono/docs/guide/routes.md#sign-up-and-sign-in) in
+`@nxgt/janus-hono` and `janusGraphQLError()` in `@nxgt/janus-graphql` do this
+for you, `Retry-After` header included.
+
+What it does, precisely:
+
+- **Nothing locks.** The next window signs in: nobody can block an account
+  for longer than one window, however many passwords they try at it.
+- **Per login, known or not.** A login nobody holds is counted as a
+  registered one is — `unknownLogin` ten times, then `throttled` — so the
+  throttle does not say which logins exist; an unknown login is still
+  compared against a dummy hash, as before. The login is counted as
+  [`password.normalize`](users.md#passwordnormalize) writes it, within its
+  user type: `ADA@example.test` and `ada@example.test` share one count.
+- **Counted before anything is compared**, by the store, in one write per
+  attempt: of twenty passwords tried at once, exactly ten are compared. A
+  throttled attempt compares nothing, so it costs no hashing either.
+- **A sign-in that succeeds starts the count again** for that login. Only
+  the right password of an active user does that, so it buys an attacker
+  nothing.
+- **The windows are fixed slices of the clock**, not sliding: ten attempts
+  at the end of one window and ten at the start of the next are allowed.
+
+Change the limit or the window, or turn it off:
+
+```ts
+janus({ ..., signIn: { throttle: { attempts: 5, window: '1h' } } });
+janus({ ..., signIn: { throttle: false } }); // counts nothing: limit signIn yourself
+```
+
+### Where the counts live
+
+In the tokens store, as `secondFactor` tokens that belong to no user: the
+store needs no new method, and an adapter that passes the conformance suite
+counts correctly. Each is named by a keyed hash of the login, never the login
+— keyed by your `secondFactor` keys when you wire them, and by a fixed key
+otherwise, which only keeps the login out of plain sight. They expire with
+their window. **A Redis tokens store that is flushed, or evicts keys under
+memory pressure, forgets them** and every count starts again: give Redis
+`maxmemory-policy noeviction` (see `@nxgt/janus-redis`).
+
+### When the store cannot count
+
+`signIn` throws `STORE_FAILED` — answer 503. It never answers a refusal the
+visitor could not have caused, and never lets a password through uncounted:
+**the throttle fails closed**, so a tokens-store outage stops password
+sign-ins as a users-store outage would. A sign-in whose password was right and
+whose count could not start again also throws `STORE_FAILED`, before any
+session is opened.
+
+### What you still limit yourself
+
+The throttle counts per login. It does not see:
+
+- **One password tried against many logins** (password spraying), nor many
+  logins from one client: limit `signIn` **per client address** in front of
+  the call, with the limiter you already run.
+- `changePassword`, which compares the current password too: limit it per
+  user.
+- `resetPassword.request` and `signInCode.request`, which send e-mail: limit
+  them per address.
+
+```ts
+if (!(await limiter.consume(`sign-in:${clientAddress}`))) {
 	return new Response(null, { status: 429, headers: { 'retry-after': '900' } });
 }
 const signedIn = await auth.signIn({ email, password });
 ```
-
-Key it on the login normalised as
-[`password.normalize`](users.md#passwordnormalize) does — `lowercaseTrim` by
-default, as above — and add a second limit per client address; a few
-attempts per quarter hour per login is plenty for a person. `changePassword` compares the current password too: limit it per user.
 
 ## What never happens
 
@@ -155,4 +227,4 @@ attempts per quarter hour per login is plenty for a person. `changePassword` com
 ## See also
 
 - [Users](users.md) — `signIn`, `setPassword`, `changePassword`
-- [Errors](errors.md) — `CREDENTIALS_INVALID` and its `reason`
+- [Errors](errors.md) — `CREDENTIALS_INVALID`, its `reason` and `retryAfter`

@@ -15,6 +15,8 @@ export type {
 	JanusConfig,
 	MultiTypeConfig,
 	SecondFactorConfig,
+	SignInConfig,
+	SignInThrottleConfig,
 	SingleTypeConfig,
 } from './janus-config';
 export { type Normalize, normalizeEmail } from './normalize';

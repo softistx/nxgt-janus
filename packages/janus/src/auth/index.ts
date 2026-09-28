@@ -8,6 +8,8 @@ export type {
 	PasswordHasher,
 	SecondFactorConfig,
 	SessionConfig,
+	SignInConfig,
+	SignInThrottleConfig,
 	SingleTypeConfig,
 	UserSchema,
 	UserTypeConfig,

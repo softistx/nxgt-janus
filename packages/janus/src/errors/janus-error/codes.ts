@@ -63,7 +63,9 @@ export type JanusErrorCode =
 	 * The login and the password do not match: no such login, no password set,
 	 * or the wrong one — **one code for the three**, so a response cannot tell
 	 * which accounts exist. `reason` tells them apart for your logs and your
-	 * rate limiter, and never belongs in a response body.
+	 * rate limiter, and never belongs in a response body. Past the passwords
+	 * one login may try in a window, the right one too, with `reason:
+	 * 'throttled'` and `retryAfter`, the seconds until the next window.
 	 */
 	| 'CREDENTIALS_INVALID'
 	/**

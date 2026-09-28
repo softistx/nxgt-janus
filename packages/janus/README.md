@@ -186,7 +186,7 @@ if (error instanceof JanusError) {
 | `LOGIN_TAKEN`, `VERSION_CONFLICT` | 409 |
 | `USER_INVALID` | 400, field by field from `issues` |
 | `PASSWORD_TOO_SHORT`, `HASH_UNSUPPORTED` | 400 |
-| `CREDENTIALS_INVALID` | 401 — one code for an unknown login, no password and a wrong one |
+| `CREDENTIALS_INVALID` | 401 — one code for an unknown login, no password, a wrong one and a login throttled for too many; `retryAfter`, when set, belongs in the body and a `Retry-After` header |
 | `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
 | `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` | 409 — the factor is not in the state the call needs |
 | `USER_INACTIVE` | 403 |
@@ -384,6 +384,19 @@ else reaches the store and is asynchronous.
   `findUser` and `getUser` across types, `cookie.serialize(token, session)` and
   `cookie.clear()` — `HttpOnly; SameSite=Lax; Secure` unless you say otherwise
   — and `collectExpired`.
+- **Password guessing is throttled**, on by default: past ten passwords
+  tried at one login in a 15-minute window, `signIn` refuses every one — the
+  right password included — with `CREDENTIALS_INVALID`, `reason:
+  'throttled'` and `retryAfter`, the seconds until the next window. Nothing
+  locks, a login nobody holds is counted alike, and a sign-in that succeeds
+  starts the count again. `signIn: { throttle: { attempts, window } }`
+  changes it, `signIn: { throttle: false }` turns it off; a store that
+  cannot count throws `STORE_FAILED`
+  ([passwords](docs/guide/passwords.md#password-guessing-is-throttled)).
+
+  ```ts
+  janus({ user, password: { login: 'email' }, store, hasher, signIn: { throttle: { attempts: 5, window: '1h' } } });
+  ```
 - **Sessions** last `'7d'` and slide: `authenticate` renews one once `renewAfter`
   (`'1d'`) has passed, writing at most once per period, and says so with
   `renewed`. The token is handed back once; the store only holds its `sha256`.
@@ -1030,8 +1043,17 @@ your policy. A password refused for its length does not spend the token.
 written — by a link, `changePassword` or `setPassword` — spends every link
 still live, so an older e-mail's link answers `TOKEN_SPENT`. Tell the visitor
 to use the latest e-mail, and rate-limit `resetPassword.request` per address:
-each request cancels the link before it. **Nothing limits password guesses**: rate-limit
-`signIn` per login and per client ([passwords](docs/guide/passwords.md#rate-limit-password-guessing)).
+each request cancels the link before it.
+
+**`signIn` throttles each login, not each client.** Ten passwords per login
+per 15 minutes, then `CREDENTIALS_INVALID` with `retryAfter` until the window
+ends — the right password too, so tell the visitor to wait `retryAfter`
+seconds rather than that the password is wrong. One password tried against
+many logins is not counted: rate-limit `signIn` per client address yourself
+([passwords](docs/guide/passwords.md#what-you-still-limit-yourself)). The
+counts live in the tokens store: a flushed or evicting Redis forgets them,
+and a tokens store that cannot answer fails every password sign-in with
+`STORE_FAILED`.
 
 **A sign-in can move a user's `version`.** Rewriting a stale hash is a write. A
 user object read before that sign-in, and then passed as `ifVersion`, gets
@@ -1110,7 +1132,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and twenty-nine plausible mistakes, one hundred and twenty-nine refused at compile time — and
+**One hundred and thirty-five plausible mistakes, one hundred and thirty-five refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1118,9 +1140,9 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-four, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (forty-two, on `janus()`, from the point of view of
+it), `test/types/auth/` (forty-eight, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
-three on user events, four on step-ups) and `test/types/permissions/` (forty-eight, on the
+three on user events, four on step-ups, six on the sign-in throttle) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

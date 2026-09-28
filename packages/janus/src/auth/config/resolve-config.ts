@@ -13,6 +13,7 @@ import { NAME } from './names';
 import { RESERVED_TYPES, SINGLE_TYPE } from './reserved';
 import { resolveCookie } from './resolve-cookie';
 import { resolveSecondFactor } from './resolve-second-factor';
+import { resolveSignInThrottle } from './resolve-sign-in';
 import { resolveType } from './resolve-type';
 import type { ResolvedConfig, ResolvedType } from './resolved-config';
 import type { UserSchema, UserTypeConfig } from './user-type';
@@ -42,6 +43,7 @@ export function resolveConfig(
 		types,
 		tokenTtlMs: resolveTokenTtls(config, where),
 		cookie: resolveCookie(config.cookie ?? {}, where),
+		signInThrottle: resolveSignInThrottle(config.signIn, where),
 		secondFactor: resolveSecondFactor(config.secondFactor, where),
 	};
 }
