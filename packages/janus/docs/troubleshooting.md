@@ -423,6 +423,8 @@ janus({
 **Why:** a store that cannot answer throws; it never answers `null`. The driver's own error is on `error.cause` — not in the message, because a driver message can hold a connection string, and a connection string holds a password.
 **Fix:** answer **503**, and log `cause`. Never map it to 401, 404, `null` or `false`: that turns an outage into a silent lockout, where every user is told they do not exist.
 
+**After a password write** — `resetPassword.confirm`, `changePassword`, `setPassword` — the failure may come from spending the user's reset links and second-factor challenges, which runs after the password is written: the new password is then in place. A retried `changePassword` with the old `current` answers `CREDENTIALS_INVALID`; the next `resetPassword.request` spends any link left live.
+
 ```ts
 import { JanusError } from '@nxgt/janus';
 

@@ -123,9 +123,9 @@ if (!(await limiter.consume(`sign-in:${input.email.trim().toLowerCase()}`))) {
 return await auth.patient.signIn(input);
 ```
 
-Yoga answers the `http.status` of the extensions. Add a second
-limit per client address, and limit a `changePassword` mutation per user: it
-compares the current password too.
+Yoga answers the `http.status` of the extensions. Add a second limit per
+client address, and limit a `changePassword` mutation per user: it compares
+the current password too.
 
 ## The status of a response
 

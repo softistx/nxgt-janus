@@ -152,8 +152,10 @@ codes](sign-in-code.md):
 ```ts
 const first = await auth.resetPassword.request(email);
 const second = await auth.resetPassword.request(email); // the visitor asked again
-await auth.resetPassword.confirm(first.token, newPassword);  // TOKEN_SPENT
-await auth.resetPassword.confirm(second.token, newPassword); // reset
+if (first !== null && second !== null) {
+	await auth.resetPassword.confirm(first.token, newPassword);  // TOKEN_SPENT
+	await auth.resetPassword.confirm(second.token, newPassword); // reset
+}
 ```
 
 Requests that arrive at once cannot each keep a link: each spends the
@@ -169,7 +171,9 @@ password changed cannot replace it again:
 ```ts
 const issued = await auth.resetPassword.request(email);
 await auth.changePassword(user, { current, next });
-await auth.resetPassword.confirm(issued.token, other); // TOKEN_SPENT
+if (issued !== null) {
+	await auth.resetPassword.confirm(issued.token, other); // TOKEN_SPENT
+}
 ```
 
 The links are spent **after** the password is written, so a link issued

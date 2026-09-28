@@ -141,8 +141,8 @@ const signedIn = await auth.signIn({ email, password });
 
 Key it on the login normalised as
 [`password.normalize`](users.md#passwordnormalize) does — `lowercaseTrim` by
-default, as above — and add a second limit per client address; a few attempts per quarter hour per login is plenty for a
-person. `changePassword` compares the current password too: limit it per user.
+default, as above — and add a second limit per client address; a few
+attempts per quarter hour per login is plenty for a person. `changePassword` compares the current password too: limit it per user.
 
 ## What never happens
 
