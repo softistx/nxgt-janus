@@ -1025,6 +1025,14 @@ waiting on its second factor is spent with them — as it is by `setPassword`
 and `changePassword`; what the visitor does next is
 your policy. A password refused for its length does not spend the token.
 
+**Only the last reset link works, and only until the password changes.** A
+`resetPassword.request` spends the user's earlier links, and any password
+written — by a link, `changePassword` or `setPassword` — spends every link
+still live, so an older e-mail's link answers `TOKEN_SPENT`. Tell the visitor
+to use the latest e-mail, and rate-limit `resetPassword.request` per address:
+each request cancels the link before it. **Nothing limits password guesses**: rate-limit
+`signIn` per login and per client ([passwords](docs/guide/passwords.md#rate-limit-password-guessing)).
+
 **A sign-in can move a user's `version`.** Rewriting a stale hash is a write. A
 user object read before that sign-in, and then passed as `ifVersion`, gets
 `VERSION_CONFLICT`. That is the conflict doing its job: read the user again.

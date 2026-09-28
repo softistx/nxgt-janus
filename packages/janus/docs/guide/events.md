@@ -151,7 +151,7 @@ Where the listener runs within a flow, and what an outage does to it:
 | `signInCode.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
 | `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |
 | `secondFactor.recover` | after the recovery code is spent and the session opened — or failed to open | fails the call; the recovery code is spent and the event sent all the same, from a `finally` |
-| `resetPassword.confirm` | **after** the sessions opened with the old password are revoked and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
+| `resetPassword.confirm` | **after** the sessions opened with the old password are revoked, and the other reset links and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
 | `delete` | **after** the user's sessions and one-time tokens are removed, and the relation tuples naming them when `relations` is wired | fails the call; the event is sent all the same, from a `finally` |
 
 So a listener that takes its time never leaves an old session alive after a

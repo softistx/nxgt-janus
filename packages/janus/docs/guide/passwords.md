@@ -122,6 +122,28 @@ Write each imported user's hash as their `PasswordRecord` with your store's
 scrypt the first time they sign in. Wire one verifier
 per prefix the old system wrote (`$2a$`, `$2b$`, `$2y$` for bcrypt).
 
+## Rate-limit password guessing
+
+**Rate-limit `signIn` per login and per client: `janus` counts no failed
+password**, so without a limit anyone can guess one user's password — or try
+one password against every login — as fast as your server hashes. A sign-in
+code, a second factor and a step-up each count their guesses; a password
+does not. Put the limit in front of the call, with the limiter you already
+run:
+
+```ts
+const key = `sign-in:${email.trim().toLowerCase()}`;
+if (!(await limiter.consume(key))) {
+	return new Response(null, { status: 429, headers: { 'retry-after': '900' } });
+}
+const signedIn = await auth.signIn({ email, password });
+```
+
+Key it on the login normalised as
+[`password.normalize`](users.md#passwordnormalize) does — `lowercaseTrim` by
+default, as above — and add a second limit per client address; a few
+attempts per quarter hour per login is plenty for a person. `changePassword` compares the current password too: limit it per user.
+
 ## What never happens
 
 - The plain password is never stored, and never appears in an error message.

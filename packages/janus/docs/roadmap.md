@@ -61,6 +61,13 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **An old reset link stops working, v0.13.0** — `resetPassword.request`
+  spends the links sent before, so only the last e-mail's works, and writing
+  a password — a link's `confirm`, `changePassword`, `setPassword` — spends
+  every reset link still live, so a link sent before the change cannot
+  replace the new password. Both answer `TOKEN_SPENT`; an outage spending
+  them fails the call with `STORE_FAILED`. No change for adapters: the
+  existing `TokenStore.spendUserTokens` does it.
 - **Confirm an action with a code (step-up), v0.12.0** —
   `auth.stepUp.request(user)` and `stepUp.confirm(request, challenge, code)`:
   a signed-in user proves again who they are before a sensitive action, with
@@ -138,11 +145,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   cases, implemented in `@nxgt/janus-drizzle`, `@nxgt/janus-mongo` and
   `@nxgt/janus-redis` — and the port now says a read sees every write that
   completed before it: never a secondary or a read replica.
-- **Sign in with a code sent by e-mail, v0.6.0** —
-  `auth.<type>.signInCode.request(email)` answers a six-digit code to send
-  and a challenge to keep with the visitor, or `null` for nobody — never
-  saying which; `signInCode.confirm(challenge, code)` marks the e-mail
-  verified and opens the session. On every user type with an e-mail, one
-  without a password included; an active second factor is still asked for.
-  A challenge lives ten minutes (`tokens.signInCode`) and takes five
-  attempts, and only the code's hash is stored, keyed by the challenge.

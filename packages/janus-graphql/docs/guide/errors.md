@@ -149,6 +149,27 @@ try {
 }
 ```
 
+**Rate-limit a sign-in mutation per login and per client: `@nxgt/janus`
+counts no failed password**, so without a limit anyone can guess as fast as
+the server hashes. A sign-in code, a second factor and a step-up count their
+guesses; a password does not. Check the limit in the resolver, before
+`signIn`, with the limiter you already run:
+
+```ts
+import { GraphQLError } from 'graphql';
+
+if (!(await limiter.consume(`sign-in:${input.email.trim().toLowerCase()}`))) {
+	throw new GraphQLError('Too many attempts', {
+		extensions: { code: 'TOO_MANY_REQUESTS', http: { status: 429 } },
+	});
+}
+return await auth.patient.signIn(input);
+```
+
+Yoga answers the `http.status` of the extensions. Add a second limit per
+client address, and limit a `changePassword` mutation per user: it compares
+the current password too.
+
 ## The status of a response
 
 Yoga answers **the highest status among the errors**. A query whose fields

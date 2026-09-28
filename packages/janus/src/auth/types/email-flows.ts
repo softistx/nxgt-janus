@@ -86,15 +86,18 @@ export interface ResetPasswordApi<U> {
 		/**
 		 * Issues a reset token for the user of this type holding this e-mail, or
 		 * answers `null` when there is none. **Never tell the visitor which**:
-		 * answer the same page either way.
+		 * answer the same page either way. The user's earlier reset tokens are
+		 * spent: only the last one sent works.
 		 */
 		request(
 			email: string,
 		): Promise<(IssuedToken & { readonly user: U }) | null>;
 		/**
 		 * Redeems the token, sets the password, marks the e-mail verified — the
-		 * link proved it — and **signs the user out everywhere**. Opens no
-		 * session: call `signIn` next if that is your policy.
+		 * link proved it — and **signs the user out everywhere**. Every other
+		 * reset token of the user is spent, as by `changePassword` and
+		 * `setPassword`. Opens no session: call `signIn` next if that is your
+		 * policy.
 		 */
 		confirm(token: string, password: string): Promise<U>;
 	};
