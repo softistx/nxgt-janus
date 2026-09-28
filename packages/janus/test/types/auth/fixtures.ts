@@ -7,7 +7,7 @@
  * at run time: a user who can never sign in, a field read off the wrong kind
  * of user, a password hash handed to a request handler.
  *
- * **Thirty-four plausible mistakes, thirty-four refused**, numbered across the
+ * **Thirty-six plausible mistakes, thirty-six refused**, numbered across the
  * folder, one file per behaviour: `wiring.ts`, `sign-up-and-in.ts`,
  * `users.ts`, `second-factor.ts`, `sign-in-codes.ts` and `events.ts`, with
  * the shapes that must keep compiling in `allowed.ts` — the event

@@ -1,7 +1,7 @@
 /**
  * Reading and writing users: a field off the wrong type, the password hash, a
  * type that does not exist, a write that bypasses `update`. Cases 16–20 of
- * the thirty-four — see `fixtures.ts`.
+ * the thirty-six — see `fixtures.ts`.
  */
 
 import { clinic, request } from './fixtures';

@@ -1,9 +1,10 @@
 /**
  * The second factor: a schema declaring its field, flows without keys, a
  * session read before narrowing, a factor on a type with no password, a
- * confirmation without its code. Cases
- * 21–28 of the thirty-four — see `fixtures.ts`; case 30, a code that may
- * still ask for the factor, is in `sign-in-codes.ts`.
+ * confirmation without its code, an activation read as the user, a recovery
+ * without its code. Cases 21–28, 35 and 36 of the thirty-six — see
+ * `fixtures.ts`; case 30, a code that may still ask for the factor, is in
+ * `sign-in-codes.ts`.
  */
 
 import { z } from 'zod';
@@ -76,6 +77,42 @@ async function secondFactor() {
 	const perhaps = await maybe.signIn({ email: 'a@b.test', password: 'p' });
 	// @ts-expect-error it may be on at run time: narrow on status first
 	void perhaps.token;
+
+	// ── 35. An activation read as the user it answered before 0.10 ────────
+	// Its recovery codes are shown once: an answer read as the user would
+	// drop them unseen.
+	const activated = await twoFactor.patient.secondFactor.activate(
+		'0190e3b4-0000-7000-8000-000000000000',
+		'123456',
+	);
+	// @ts-expect-error the user is activated.user, beside its recoveryCodes
+	void activated.hasSecondFactor;
+
+	// ── 36. Recovering a sign-in without the recovery code ────────────────
+	// @ts-expect-error the recovery code is what the challenge waits for
+	await twoFactor.patient.secondFactor.recover('challenge');
 }
 
-export const checked = { secondFactor };
+// ── And the shapes that MUST keep compiling ─────────────────────────────────
+async function recoveryCodes() {
+	const { user, recoveryCodes: shown } =
+		await twoFactor.patient.secondFactor.activate(
+			'0190e3b4-0000-7000-8000-000000000000',
+			'123456',
+		);
+	const again = await twoFactor.patient.secondFactor.regenerateRecoveryCodes(
+		user,
+		'654321',
+		{ ifVersion: user.version },
+	);
+	const signedIn = await twoFactor.patient.secondFactor.recover(
+		'challenge',
+		again.recoveryCodes[0] ?? '',
+	);
+	const left: number = signedIn.recoveryCodesLeft;
+	const birthDate: string = signedIn.user.birthDate;
+	const codes: readonly string[] = shown;
+	void [left, birthDate, codes, signedIn.token];
+}
+
+export const checked = { secondFactor, allowed: [recoveryCodes] };

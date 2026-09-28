@@ -18,6 +18,23 @@ export interface SecondFactorEnrolment {
 }
 
 /**
+ * What `secondFactor.activate` and `regenerateRecoveryCodes` answer: the user,
+ * and **ten recovery codes, shown once**. Only their hashes are stored, so no
+ * call answers them again.
+ */
+export interface RecoveryCodesIssued<U> {
+	readonly user: U;
+	/** `xxxxx-xxxxx`, each accepted once by `secondFactor.recover`. */
+	readonly recoveryCodes: readonly string[];
+}
+
+/** What `secondFactor.recover` answers: the session, and how many codes are left. */
+export type RecoveredSignIn<U> = SignedIn<U> & {
+	/** The user's recovery codes still unused, this one spent. `0`: regenerate them. */
+	readonly recoveryCodesLeft: number;
+};
+
+/**
  * What a user type with a password answers besides, once `janus()` is given a
  * `secondFactor`: a TOTP second factor, from the first QR code to the code
  * `signIn` asks for.
@@ -38,11 +55,27 @@ export interface SecondFactorApi<U> {
 		): Promise<SecondFactorEnrolment>;
 		/**
 		 * Checks a first code from the app, and makes the factor active: from
-		 * then on `signIn` asks for a code. `CODE_INVALID` when it does not match,
+		 * then on `signIn` asks for a code. Answers the user and ten recovery
+		 * codes, **shown once**. `CODE_INVALID` when the code does not match,
 		 * `SECOND_FACTOR_NOT_ENROLLED` before `enroll`.
 		 */
-		activate(user: UserRef, code: string, options?: WriteOptions): Promise<U>;
-		/** Removes the factor, active or waiting. A user without one is answered as is. */
+		activate(
+			user: UserRef,
+			code: string,
+			options?: WriteOptions,
+		): Promise<RecoveryCodesIssued<U>>;
+		/**
+		 * Replaces the user's recovery codes with ten new ones, answered once,
+		 * on a fresh code from the app: the old ones stop working.
+		 * `CODE_INVALID` when the code does not match or was already used,
+		 * `SECOND_FACTOR_NOT_ENROLLED` without an active factor.
+		 */
+		regenerateRecoveryCodes(
+			user: UserRef,
+			code: string,
+			options?: WriteOptions,
+		): Promise<RecoveryCodesIssued<U>>;
+		/** Removes the factor, active or waiting, and its recovery codes. A user without one is answered as is. */
 		disable(user: UserRef, options?: WriteOptions): Promise<U>;
 		/**
 		 * Redeems `signIn`'s challenge with a code, and opens the session.
@@ -54,5 +87,17 @@ export interface SecondFactorApi<U> {
 		 * `TOKEN_EXPIRED`: sign in again.
 		 */
 		confirm(challenge: string, code: string): Promise<SignedIn<U>>;
+		/**
+		 * Redeems `signIn`'s challenge with a **recovery code** instead of the
+		 * app's, for a user whose phone is gone, and opens the session. The
+		 * code is spent; `recoveryCodesLeft` says how many remain.
+		 *
+		 * The challenge's attempts are the ones `confirm` counts, and it is
+		 * refused the same ways. A code that does not match, or was already
+		 * used, is `CODE_INVALID` with `attemptsLeft`; the same code used by
+		 * two sign-ins at once opens one session, and the other call is
+		 * `VERSION_CONFLICT`.
+		 */
+		recover(challenge: string, code: string): Promise<RecoveredSignIn<U>>;
 	};
 }

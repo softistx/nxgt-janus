@@ -44,15 +44,21 @@ export function setup(
 	return { auth, store, clock, codeOf };
 }
 
-/** A user whose second factor is active, and the secret their app holds. */
+/**
+ * A user whose second factor is active, the secret their app holds, and the
+ * recovery codes the activation answered.
+ */
 export async function enrolled(context: ReturnType<typeof setup>) {
 	const { auth, clock, codeOf } = context;
 	const { user } = await auth.signUp({ ...ada, password });
 	const { secret } = await auth.secondFactor.enroll(user);
-	await auth.secondFactor.activate(user, codeOf(secret));
+	const { recoveryCodes } = await auth.secondFactor.activate(
+		user,
+		codeOf(secret),
+	);
 	// The activation used this step's code: the next one is a new step.
 	clock.advance(30_000);
-	return { user, secret };
+	return { user, secret, recoveryCodes };
 }
 
 /** Signs in, and answers the challenge `signIn` must have asked for. */
