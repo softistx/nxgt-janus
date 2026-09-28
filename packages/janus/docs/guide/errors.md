@@ -54,7 +54,7 @@ that wired the library, so no handler needs to tell it apart.
 | `VERSION_CONFLICT` | `StoreConflict` (`on: 'version'`) | 409 | `ifVersion` no longer matches; nothing was written. From `secondFactor.confirm` or `recover`, the same code used by two sign-ins at once: the other opened the session | `expectedVersion`, `actualVersion` |
 | `USER_INVALID` | `UserInvalidError` | 400 | The fields failed the schema | `issues`, field by field |
 | `PASSWORD_TOO_SHORT` | `CredentialError` | 400 | Below `password.minLength` | `minLength` — never the password |
-| `CREDENTIALS_INVALID` | `CredentialError` | 401 | Unknown login, no password, or the wrong one — **one code for the three** | `reason`, for your logs only |
+| `CREDENTIALS_INVALID` | `CredentialError` | 401 | Unknown login, no password, or the wrong one — **one code for the three** — and any password, the right one included, at a login past its attempts in the window — see [throttling](passwords.md#password-guessing-is-throttled) | `reason`, for your logs only; `retryAfter`, the seconds until the next window, when throttled |
 | `HASH_UNSUPPORTED` | `CredentialError` | 400 | A stored hash no wired hasher reads | `hashPrefix` — never the hash |
 | `USER_INACTIVE` | `UserInactiveError` | 403 | Deactivated; told only to someone who gave the right password, or the right code | `userId` |
 | `STEP_UP_REQUIRED` | `StepUpRequiredError` | 403 | `assertFresh`: the session proved who it is `maxAge` ago or more. Not a denial of the action — ask for a [step-up](step-up.md), then send the request again | `userId` |
@@ -81,7 +81,11 @@ async function signIn(email: string, password: string): Promise<Response> {
 		return Response.json({ token });
 	} catch (error) {
 		if (error instanceof CredentialError && error.code === 'CREDENTIALS_INVALID') {
-			console.warn('sign-in refused', error.reason); // 'unknownLogin' | 'noPassword' | 'wrongPassword'
+			console.warn('sign-in refused', error.reason); // 'unknownLogin' | 'noPassword' | 'wrongPassword' | 'throttled'
+			if (error.retryAfter !== undefined) {
+				const headers = { 'retry-after': String(error.retryAfter) };
+				return Response.json({ error: 'invalid', retryAfter: error.retryAfter }, { status: 401, headers });
+			}
 			return Response.json({ error: 'invalid' }, { status: 401 });
 		}
 		if (error instanceof StoreFailure) return new Response(null, { status: 503 });
@@ -96,6 +100,10 @@ async function signIn(email: string, password: string): Promise<Response> {
   would read as "no".
 - **`VERSION_CONFLICT` is a retry**: read the user again, reapply, write with
   the new `version`.
+- **`CREDENTIALS_INVALID`'s `retryAfter`** belongs in the body and a
+  `Retry-After` header: the login is throttled, and the right password is
+  refused too until then. It says nothing of whether the login exists — an
+  unknown one is throttled alike.
 - **`CODE_INVALID`'s `attemptsLeft`** belongs in the body — the form can say
   how many attempts are left. `0` means the challenge is spent: send the visitor
   back to the password.

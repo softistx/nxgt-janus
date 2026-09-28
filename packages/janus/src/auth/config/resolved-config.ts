@@ -30,6 +30,11 @@ export interface ResolvedConfig {
 		readonly signInCode: number;
 		readonly stepUp: number;
 	};
+	/** `null` when `signIn.throttle` is `false`. */
+	readonly signInThrottle: {
+		readonly attempts: number;
+		readonly windowMs: number;
+	} | null;
 	readonly secondFactor: {
 		readonly issuer: string;
 		readonly sealer: Sealer;

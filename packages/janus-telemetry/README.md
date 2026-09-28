@@ -77,6 +77,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.signIn` | info | a user signed in — by `signIn`; by `signInCode.confirm`, which adds `janus.signIn.code: true`; by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true`; or by `secondFactor.recover`, which adds `janus.signIn.recoveryCode: true` and `janus.secondFactor.recoveryCodesLeft` — a count, never a code |
 | `janus.signIn.secondFactor` | info | the password, or an e-mailed code, was right and a second factor's code was asked for: `signIn` or `signInCode.confirm` answered a challenge. `janus.user.type` and the `user.id` the challenge answer carries — never the login typed |
 | `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm` or `signInCode.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft` — the same attribute for both — a `TOKEN_*` code (`TOKEN_STALE` with `user.id`), `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for a write that raced. Every refusal of `signInCode.confirm` adds `janus.signIn.code: true`, and every refusal of `secondFactor.recover` adds `janus.signIn.recoveryCode: true` |
+| `janus.signIn.throttled` | **warn** | `signIn` refused a login past its attempts in the window — `@nxgt/janus`'s throttle, the right password included — with `janus.refusal: CREDENTIALS_INVALID`, `janus.refusal.reason: throttled`, `janus.user.type` and `janus.signIn.retryAfter`, the seconds until the next window. Never the login, never a `user.id`: an unknown login is throttled alike. Written instead of `janus.signIn.refused`, since no password was compared |
 | `janus.secondFactor.enrolled`, `janus.secondFactor.activated`, `janus.secondFactor.disabled` | info | `enroll`, `activate` and `disable`, with the `user.id` they were called for |
 | `janus.secondFactor.recoveryCodesRegenerated` | info | `regenerateRecoveryCodes`, with the `user.id` it was called for — never a code |
 | `janus.stepUp.asked` | info | `stepUp.request` issued a challenge, with the `user.id` and `janus.stepUp.via` — `email` when a code is to be sent, `secondFactor` when the user's app confirms it |
@@ -102,8 +103,9 @@ when the flow knows them — `janus.signOut` carries neither:
   answer.
 - **A refused sign-in for bad credentials names no user.** `janus.signIn.refused`
   with `CREDENTIALS_INVALID` carries the reason and the user type, never the
-  login that was tried: rate limiting per login is the application's, from the
-  request. Only a refusal after the password was right, or against a
+  login that was tried: `@nxgt/janus` throttles per login itself, and writes
+  `janus.signIn.throttled` when it does; limiting per client is the
+  application's, from the request. Only a refusal after the password was right, or against a
   challenge, carries `user.id`: `USER_INACTIVE`, a `CODE_INVALID`,
   `TOKEN_STALE` or `SECOND_FACTOR_NOT_ENROLLED`. Nor does
   `janus.signInCode.sent` name the address: a request for nobody writes

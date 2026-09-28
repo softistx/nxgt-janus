@@ -78,6 +78,21 @@ query away. Refused sign-ins are **warnings**; everything else is info:
 // name = 'janus.signIn.refused' AND at > now() - 1h, grouped by janus.refusal.reason
 ```
 
+A login past its attempts — `@nxgt/janus` throttles password guessing per
+login — is a `janus.signIn.throttled` warning rather than a
+`janus.signIn.refused`: no password was compared. It carries the seconds
+until the login's window ends, and names neither the login nor a user:
+
+```
+janus.patient.signIn   ok   janus.refusal=CREDENTIALS_INVALID
+     log  janus.signIn.throttled   janus.refusal.reason=throttled  janus.signIn.retryAfter=840  janus.user.type=patient
+```
+
+```ts
+// Somebody guessing passwords: throttled sign-ins of the last hour, in a collector that stores logs.
+// name = 'janus.signIn.throttled' AND at > now() - 1h
+```
+
 `janus.tuple.granted` and `janus.tuple.revoked` are the record of who was
 given what:
 

@@ -96,6 +96,7 @@ that cuts an emoji in half, say.
 | `tokens.resetPassword` | `Duration` | `'1h'` | How long a reset token lives |
 | `tokens.signInCode` | `Duration` | `'10m'` | How long an e-mailed sign-in code and its challenge live. See [sign-in codes](sign-in-code.md) |
 | `tokens.stepUp` | `Duration` | `'10m'` | How long a step-up's challenge — and its e-mailed code — lives. See [step-up](step-up.md) |
+| `signIn.throttle` | `{ attempts?, window? }` or `false` | `{ attempts: 10, window: '15m' }` | Passwords one login may try per window, the right one included, before `signIn` answers `CREDENTIALS_INVALID` with `retryAfter` until the window ends. `false` counts nothing. See [passwords](passwords.md#password-guessing-is-throttled) |
 | `secondFactor` | `{ issuer, keys, challenge? }` | none | A TOTP second factor for every type with a password. Changes what `signIn` answers — see [the second factor](second-factor.md#configuration) |
 | `events` | `UserEventListener` | none | Called with every user event — `user.created`, `user.deleted`, … — after the write, awaited. See [user events](events.md) |
 
@@ -187,7 +188,7 @@ With a `password`, besides:
 | Method | Answers | Rejects with |
 | --- | --- | --- |
 | `signUp(fields & { password })` | `{ status: 'signedIn', user, session, token }` | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN` |
-| `signIn({ [login]: string, password })` | `{ status: 'signedIn', user, session, token }` — or, with `secondFactor` configured and the user's factor active, `{ status: 'secondFactor', challenge, expiresAt, userId }`: switch on `status` | `CREDENTIALS_INVALID`, `USER_INACTIVE`, `HASH_UNSUPPORTED` |
+| `signIn({ [login]: string, password })` | `{ status: 'signedIn', user, session, token }` — or, with `secondFactor` configured and the user's factor active, `{ status: 'secondFactor', challenge, expiresAt, userId }`: switch on `status` | `CREDENTIALS_INVALID` — with `retryAfter` once the login is throttled — `USER_INACTIVE`, `HASH_UNSUPPORTED` |
 | `findByLogin(login)` | the user, or `null`; the login is normalised first, and one holding a NUL or a lone surrogate is nobody's | |
 | `setPassword(user, password, { ifVersion? })` | the user — an admin's call; spends the user's reset links and second-factor challenges still waiting, and signs nobody out; sends `user.passwordChanged` | `PASSWORD_TOO_SHORT` |
 | `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call; spends the user's reset links and second-factor challenges still waiting; sends `user.passwordChanged` | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |

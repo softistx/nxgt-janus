@@ -169,25 +169,31 @@ app.post('/sign-in', async (c) => {
 holds the session token: it is in the `Set-Cookie`, and the body cannot leak
 it.
 
-**Rate-limit the sign-in route per login and per client: `@nxgt/janus`
-counts no failed password**, so without a limit anyone can guess as fast as
-the server hashes. A sign-in code, a second factor and a step-up count their
-guesses; a password does not. Check the limit before `signIn`, with the
-limiter you already run:
+**Password guessing is throttled per login by `@nxgt/janus`**: past ten
+passwords tried at one login in a 15-minute window, `signIn` refuses every
+one, the right password included, until the window ends — nothing locks.
+`janusErrors()` answers that refusal `401 { code: 'CREDENTIALS_INVALID',
+retryAfter }` with a `Retry-After` header, the seconds until the next
+window; the route needs no code of its own. `janus({ signIn: { throttle } })`
+changes the limit ([passwords](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/passwords.md#password-guessing-is-throttled)).
+
+What the throttle does not see is one password tried against many logins:
+limit the route **per client address** as well, with the limiter you already
+run, and a `changePassword` route per user — it compares the current
+password too:
 
 ```ts
 app.post('/sign-in', async (c) => {
-	const { email, password } = await c.req.json();
-	if (!(await limiter.consume(`sign-in:${email.trim().toLowerCase()}`))) {
+	// The client address your trusted proxy sets — not a raw, spoofable X-Forwarded-For list.
+	const client = clientAddress(c);
+	if (!(await limiter.consume(`sign-in:${client}`))) {
 		return c.body(null, 429, { 'retry-after': '900' });
 	}
+	const { email, password } = await c.req.json();
 	const user = sendSession(c, auth, await auth.signIn({ email, password }));
 	return c.json({ id: user.id });
 });
 ```
-
-Add a second limit per client address, and limit a `changePassword` route
-per user: it compares the current password too.
 
 With `secondFactor` configured, `signIn` may answer a challenge instead of a
 session: narrow on `status` before `sendSession` — see
@@ -203,7 +209,7 @@ The refusals need no `try`: `janusErrors()` answers them.
 | `USER_INVALID` | 400 `{ code, issues }`, the fields that failed |
 | `PASSWORD_TOO_SHORT` | 400 `{ code, minLength }` |
 | `LOGIN_TAKEN` | 409 `{ code }` |
-| `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password |
+| `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password; `{ code, retryAfter }` and a `Retry-After` header once the login is throttled |
 | `USER_INACTIVE` | 403 `{ code }` — only told to somebody who gave the right password |
 
 A bearer client — a mobile app — keeps its session token itself and sends it

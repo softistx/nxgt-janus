@@ -126,6 +126,8 @@ a restart, a failover or a `SCRIPT FLUSH`.
   drop a standing session, which signs its user out, or a set, which hides
   sessions from "sign out everywhere". `volatile-*` policies are no safer:
   every key this adapter writes has an expiry, so every one is a candidate.
+  An evicted or flushed token store also forgets `signIn`'s password
+  counts, and every login may try its ten passwords again.
   Run this on a Redis with `noeviction`, or on one of its own.
 - **Redis Cluster is not supported.** A script reads keys it finds on the way,
   a session's token key or a user's sessions, which may live in different

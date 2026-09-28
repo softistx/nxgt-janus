@@ -34,6 +34,7 @@ for what causes each.
 - [`Warning: janusErrors: report failed on …`](#warning-januserrors-report-failed-on-)
 - [`400 {"code":"HASH_UNSUPPORTED"}` on sign-in](#400-codehash_unsupported-on-sign-in)
 - [`401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form](#401-codecode_invalidattemptsleftn-on-the-code-form) — a second factor's, or the code sent by e-mail
+- [`401 {"code":"CREDENTIALS_INVALID","retryAfter":<n>}` with the right password](#401-codecredentials_invalidretryaftern-with-the-right-password)
 - [`409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`](#409-codesecond_factor_active-or-409-codesecond_factor_not_enrolled)
 - [The browser never sends the cookie back](#the-browser-never-sends-the-cookie-back)
 - [A bearer client holds an expiry earlier than the session's](#a-bearer-client-holds-an-expiry-earlier-than-the-sessions)
@@ -422,6 +423,34 @@ if (response.status === 401) {
 	else showCodeForm(`Wrong code — ${attemptsLeft} attempts left`);
 }
 ```
+
+### `401 {"code":"CREDENTIALS_INVALID","retryAfter":<n>}` with the right password
+
+With a `Retry-After: <n>` header.
+
+**When:** the sign-in route, after ten passwords were tried at the login in
+the current 15-minute window — the right one is refused too until the window
+ends.
+
+**Why:** `@nxgt/janus` throttles password guessing per login, on by default;
+`retryAfter` is the seconds until the next window. Nothing locks: the next
+window signs in. An end-to-end test that signs one login in with more than
+ten wrong passwords over a `fixedClock` meets it at once.
+
+**Fix:** show the visitor the wait, not "wrong password":
+
+```ts
+const response = await fetch('/sign-in', { method: 'POST', body });
+if (response.status === 401) {
+	const { retryAfter } = await response.json();
+	if (retryAfter !== undefined) showWait(`Too many attempts — try again in ${Math.ceil(retryAfter / 60)} min`);
+	else showError('Wrong e-mail or password');
+}
+```
+
+To change the limit, `janus({ signIn: { throttle: { attempts, window } } })`;
+in a test, advance the clock past `retryAfter`, or wire
+`signIn: { throttle: false }`.
 
 ### `409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`
 

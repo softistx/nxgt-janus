@@ -6,12 +6,17 @@ export interface Issue {
 }
 
 /**
- * Why a sign-in was refused, for your logs and rate limiter.
+ * Why a sign-in was refused, for your logs and rate limiter. `throttled`:
+ * too many passwords tried at the login in this window, and none compared.
  *
  * **Never put it in a response body.** `unknownLogin` is an account
  * enumeration oracle.
  */
-export type CredentialRefusal = 'unknownLogin' | 'noPassword' | 'wrongPassword';
+export type CredentialRefusal =
+	| 'unknownLogin'
+	| 'noPassword'
+	| 'wrongPassword'
+	| 'throttled';
 
 /**
  * What an error may carry beside its code.
@@ -48,5 +53,11 @@ export interface JanusErrorOptions {
 	 * — or of the user's window, for `regenerateRecoveryCodes`.
 	 */
 	readonly attemptsLeft?: number;
+	/**
+	 * Seconds until a throttled sign-in may be tried again: the end of the
+	 * login's window, rounded up. A client may read it; the `Retry-After`
+	 * header takes it as it is.
+	 */
+	readonly retryAfter?: number;
 	readonly cause?: unknown;
 }

@@ -3,6 +3,7 @@ import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
 import { emit } from '../events';
 import { openSession } from '../sessions';
+import { restartSignInCount } from '../sign-in-attempts';
 import type { RecoveredSignIn } from '../types';
 import { findRecoveryCode } from './recovery-codes';
 import { openChallenge, refuseCode, spendChallenge } from './redeem';
@@ -53,6 +54,7 @@ export async function recoverWithCode(
 	// even when spending the challenge or opening the session fails.
 	try {
 		await spendChallenge(context, opened.secret, where);
+		await restartSignInCount(context, type, written, where);
 		const signedIn = await openSession(context, type, written);
 		return { ...signedIn, recoveryCodesLeft: recoveryCodes.length };
 	} finally {

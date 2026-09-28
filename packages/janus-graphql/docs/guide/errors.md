@@ -43,7 +43,8 @@ the table `@nxgt/janus-hono` answers with too.
 
 What a refusal carries beyond `code` is only what the client can act on:
 `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT`,
-`attemptsLeft` for `CODE_INVALID`. **Never** `reason`, `login`, `slot`,
+`attemptsLeft` for `CODE_INVALID`, `retryAfter` for a throttled
+`CREDENTIALS_INVALID` — with its `Retry-After` header. **Never** `reason`, `login`, `slot`,
 `operation`, a hash prefix or a cause — those are for your logs. **The
 message is never the core's**: `@nxgt/janus`'s messages name a hash prefix or
 a record's versions, so every `JanusError` gets the fixed message of its
@@ -149,16 +150,32 @@ try {
 }
 ```
 
-**Rate-limit a sign-in mutation per login and per client: `@nxgt/janus`
-counts no failed password**, so without a limit anyone can guess as fast as
-the server hashes. A sign-in code, a second factor and a step-up count their
-guesses; a password does not. Check the limit in the resolver, before
-`signIn`, with the limiter you already run:
+**Password guessing is throttled per login by `@nxgt/janus`**: past ten
+passwords tried at one login in a 15-minute window, `signIn` refuses every
+one, the right password included, until the window ends — nothing locks. A
+sign-in mutation that lets the refusal through answers it with no code of
+its own:
+
+```json
+{
+	"errors": [{ "message": "Invalid credentials", "path": ["signIn"], "extensions": { "code": "CREDENTIALS_INVALID", "retryAfter": 840 } }]
+}
+```
+
+with a 401 and a `Retry-After: 840` header — `janusGraphQLError()` puts it
+in `extensions.http.headers`, which Yoga answers with and strips from the
+body. `retryAfter` is the seconds until the login's next window.
+`janus({ signIn: { throttle } })` changes the limit
+([passwords](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/passwords.md#password-guessing-is-throttled)).
+
+What the throttle does not see is one password tried against many logins:
+limit a sign-in mutation **per client address** as well, in the resolver,
+with the limiter you already run:
 
 ```ts
 import { GraphQLError } from 'graphql';
 
-if (!(await limiter.consume(`sign-in:${input.email.trim().toLowerCase()}`))) {
+if (!(await limiter.consume(`sign-in:${clientAddress}`))) {
 	throw new GraphQLError('Too many attempts', {
 		extensions: { code: 'TOO_MANY_REQUESTS', http: { status: 429 } },
 	});
@@ -166,9 +183,8 @@ if (!(await limiter.consume(`sign-in:${input.email.trim().toLowerCase()}`))) {
 return await auth.patient.signIn(input);
 ```
 
-Yoga answers the `http.status` of the extensions. Add a second limit per
-client address, and limit a `changePassword` mutation per user: it compares
-the current password too.
+Yoga answers the `http.status` of the extensions. Limit a `changePassword`
+mutation per user too: it compares the current password.
 
 ## The status of a response
 

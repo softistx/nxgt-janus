@@ -34,6 +34,7 @@ export class JanusError extends Error {
 	readonly permission: string | undefined;
 	readonly maxDepth: number | undefined;
 	readonly attemptsLeft: number | undefined;
+	readonly retryAfter: number | undefined;
 
 	constructor(message: string, options?: JanusErrorOptions) {
 		super(message, { cause: options?.cause });
@@ -51,5 +52,6 @@ export class JanusError extends Error {
 		this.permission = options?.permission;
 		this.maxDepth = options?.maxDepth;
 		this.attemptsLeft = options?.attemptsLeft;
+		this.retryAfter = options?.retryAfter;
 	}
 }

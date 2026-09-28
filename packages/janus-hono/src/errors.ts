@@ -22,14 +22,15 @@ export function statusOf(code: JanusErrorCode): ContentfulStatusCode {
 /**
  * The body a refusal is answered with: its `code`, and only what the client
  * can act on — the fields that failed the schema, the policy's minimum, the
- * attempts a challenge has left. Never `reason`, `login`, a hash prefix or a
- * cause: those are for your logs.
+ * attempts a challenge has left, the seconds a throttled sign-in waits.
+ * Never `reason`, `login`, a hash prefix or a cause: those are for your logs.
  */
 export function bodyOf(error: JanusError): {
 	readonly code: JanusErrorCode;
 	readonly issues?: JanusError['issues'];
 	readonly minLength?: number;
 	readonly attemptsLeft?: number;
+	readonly retryAfter?: number;
 } {
 	switch (error.code) {
 		case 'USER_INVALID':
@@ -42,6 +43,10 @@ export function bodyOf(error: JanusError): {
 			return error.attemptsLeft === undefined
 				? { code: error.code }
 				: { code: error.code, attemptsLeft: error.attemptsLeft };
+		case 'CREDENTIALS_INVALID':
+			return error.retryAfter === undefined
+				? { code: error.code }
+				: { code: error.code, retryAfter: error.retryAfter };
 		default:
 			return { code: error.code };
 	}
@@ -79,8 +84,9 @@ export interface JanusErrorsOptions {
 
 /**
  * An `app.onError` handler: every `JanusError` answered with its status and
- * `bodyOf(error)`; anything else handed to `fallback` — Hono's own behaviour
- * when absent.
+ * `bodyOf(error)` — and a throttled sign-in with a `Retry-After` header, its
+ * `retryAfter` in seconds; anything else handed to `fallback` — Hono's own
+ * behaviour when absent.
  *
  * Works for either side of `@nxgt/janus`: `can()`'s `STORE_FAILED` is a 503
  * here too, never a 403.
@@ -95,7 +101,11 @@ export function janusErrors(options: JanusErrorsOptions = {}): ErrorHandler {
 		if (!(error instanceof JanusError)) return fallback(error, c);
 		const status = statusOf(error.code);
 		if (status >= 500 && report !== undefined) reportSafely(report, error, c);
-		return c.json(bodyOf(error), status);
+		const headers =
+			error.retryAfter === undefined
+				? undefined
+				: { 'retry-after': String(error.retryAfter) };
+		return c.json(bodyOf(error), status, headers);
 	};
 }
 

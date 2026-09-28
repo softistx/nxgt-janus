@@ -39,6 +39,14 @@ export interface PasswordApi<
 	 * documented rather than denied. An inactive user who gave the right
 	 * password is `USER_INACTIVE`.
 	 *
+	 * **Throttled per login**, on by default: past ten passwords tried at one
+	 * login in a 15-minute window — known or not — every one is
+	 * `CREDENTIALS_INVALID` with `reason: 'throttled'` and `retryAfter`, the
+	 * seconds until the next window, the right password included. Nothing
+	 * locks; a sign-in that succeeds starts the count again. See
+	 * `janus({ signIn: { throttle } })`. A tokens store that cannot count is
+	 * `STORE_FAILED`.
+	 *
 	 * With a `secondFactor` configured, a user whose factor is active gets no
 	 * session yet: `{ status: 'secondFactor', challenge }`, for
 	 * `secondFactor.confirm`. Switch on `status`.

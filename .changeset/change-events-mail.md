@@ -2,7 +2,7 @@
 '@nxgt/janus-mail': minor
 ---
 
-The change notices on their events. `passwordChanged` and `emailChanged` are shown sent from `@nxgt/janus` 0.13's `user.passwordChanged` and `user.emailChanged` events, as the two-factor notices are, rather than right after the call — so the user is told whoever made the change. `emailChanged` goes to the event's `formerEmail`, the inbox the account just left (`@nxgt/mail-presets`' `email-changed` is written for the former address), naming the new one read from the user:
+The change notices on their events. `passwordChanged` and `emailChanged` are shown sent from `@nxgt/janus` 0.14's `user.passwordChanged` and `user.emailChanged` events, as the two-factor notices are, rather than right after the call — so the user is told whoever made the change. `emailChanged` goes to the event's `formerEmail`, the inbox the account just left (`@nxgt/mail-presets`' `email-changed` is written for the former address), naming the new one read from the user:
 
 ```ts
 if (event.type === 'user.emailChanged' && event.formerEmail != null) {

@@ -47,7 +47,7 @@ bun add -d typescript
 
 Three peers, all required: `@nxgt/mail` (0.1 or later, below 2 — 1.0 and
 its transports included), which defines the `Mailer` port and the errors;
-`@nxgt/janus` (0.13), whose flows' answers the methods take — types only,
+`@nxgt/janus` (0.14), whose flows' answers the methods take — types only,
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
@@ -146,7 +146,7 @@ await mail.verifyEmail(issued, { name: user.name, locale: 'fr' }, { expiresIn: '
 
 ### Telling a user their password or e-mail changed
 
-`@nxgt/janus` 0.13 sends `user.passwordChanged` once `changePassword` or
+`@nxgt/janus` 0.14 sends `user.passwordChanged` once `changePassword` or
 `setPassword` wrote the password, and `user.emailChanged` once `update`
 changed the e-mail. The e-mail change is told to the **former** address — the
 new one belongs to whoever changed it — which the event carries as

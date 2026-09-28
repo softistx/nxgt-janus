@@ -55,6 +55,13 @@ interface SharedConfig {
 		readonly stepUp?: Duration;
 	};
 	/**
+	 * How `signIn` answers password guessing. **On by default**: past ten
+	 * passwords tried at one login in a 15-minute window, `signIn` answers
+	 * `CREDENTIALS_INVALID` with `retryAfter` — the right password included —
+	 * until the next window. Nothing locks: the next window signs in.
+	 */
+	readonly signIn?: SignInConfig;
+	/**
 	 * A TOTP second factor, for every user type with a password. Absent, no
 	 * `secondFactor` flows exist and `signIn` answers a session directly.
 	 */
@@ -68,6 +75,24 @@ interface SharedConfig {
 	 * `webhooks({ … })` from `@nxgt/janus-webhooks` signs and delivers them.
 	 */
 	readonly events?: UserEventListener;
+}
+
+/** What `signIn` does with password guessing. */
+export interface SignInConfig {
+	/**
+	 * The passwords one login may try per window. `{ attempts: 10, window:
+	 * '15m' }` when absent; `false` counts nothing — rate-limit `signIn`
+	 * yourself then.
+	 */
+	readonly throttle?: SignInThrottleConfig | false;
+}
+
+/** How many passwords one login may try, and per how long. */
+export interface SignInThrottleConfig {
+	/** Passwords tried per login and per window, the right one included. `10` when absent. */
+	readonly attempts?: number;
+	/** How long one window lasts. `'15m'` when absent. */
+	readonly window?: Duration;
 }
 
 /** What a TOTP second factor needs: a name for the app, and the keys that seal. */
