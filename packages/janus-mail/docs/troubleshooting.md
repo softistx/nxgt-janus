@@ -52,6 +52,7 @@ How the messages are shaped:
 - [`createMailRenderer: …/mails/mail-manifest.json cannot be read — run maizzle build, and deploy its output folder`](#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder)
 - [`Could not resolve "node:fs"` on an edge runtime](#could-not-resolve-nodefs-on-an-edge-runtime)
 - [An e-mail stays light in dark mode](#an-e-mail-stays-light-in-dark-mode)
+- [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
 
 **Compile errors**
 - [`TS2345: Argument of type '(IssuedToken & { user: … }) | null' is not assignable to parameter of type 'IssuedToken'.`](#ts2345-argument-of-type-issuedtoken---user----null-is-not-assignable-to-parameter-of-type-issuedtoken)
@@ -364,7 +365,10 @@ try {
 }
 ```
 
-This package retries nothing: a retry is your decision.
+This package retries nothing: a retry is your decision. To retry in
+process, pass a mailer wrapped in `@nxgt/mail` 0.8's `withRetry`; once its
+attempts run out it rejects with the last `MailFailure`, `attempts` on it —
+see [Retrying and tracing the mailer](guide/sending.md#retrying-and-tracing-the-mailer).
 
 ### `createMailRenderer: …/mails/mail-manifest.json cannot be read — run maizzle build, and deploy its output folder`
 
@@ -390,14 +394,31 @@ Two causes, neither an error:
   `prefers-color-scheme`, or Outlook's `[data-ogsc]`, shows the dark one.
 - **A template of your own.** The dark rules are in the default HTML, built
   by `@nxgt/mail-ui`. An override that returns its own `html` has none of
-  them; build it with `@nxgt/mail-ui` 0.4.0 or later to follow dark mode,
-  and 0.5.0 with `color-primary-dark` set in its `theme` for a dark-primary
-  button, as the defaults have — without it a dark primary keeps its colour
-  on the dark card:
+  them; build it with `@nxgt/mail-ui` 0.4.0 or later to follow dark mode:
 
 ```ts
 janusMail({ mailer, from, brand, links, templates: { verifyEmail: myVerifyEmail } });
 // myVerifyEmail's html needs its own color-scheme and dark rules
+```
+
+### The button all but vanishes in dark mode
+
+A template of your own, built with a near-black primary, shows a button
+that melts into the dark card for a reader in dark mode; the defaults turn
+theirs near-white there since 0.3.1. `@nxgt/mail-ui`'s primary keeps its
+light value under dark mode unless the build gives it a dark one — `#27272a`
+on the dark card is 1.2:1. Build the override with `@nxgt/mail-ui` 0.5.0 or
+later and set the dark pair in its `theme`, as the defaults do:
+
+```ts
+ui({
+	brand: { name: 'Acme' },
+	theme: {
+		'color-primary': '#27272a',
+		'color-primary-dark': '#fafafa', // 17:1 on the dark card
+		'color-primary-foreground-dark': '#18181b', // the button's text, in dark mode
+	},
+});
 ```
 
 ## Compile errors

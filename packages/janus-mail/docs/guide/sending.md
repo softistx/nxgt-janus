@@ -277,6 +277,7 @@ with no OpenTelemetry SDK registered, its spans are no-ops. Put telemetry on the
 send is one span:
 
 ```ts
+import { janusMail } from '@nxgt/janus-mail';
 import { withRetry } from '@nxgt/mail';
 import { withTelemetry as withMailTelemetry } from '@nxgt/mail/telemetry';
 import { createSmtpMailer } from '@nxgt/mail-smtp';
@@ -285,7 +286,7 @@ export const mail = janusMail({
 	mailer: withMailTelemetry(withRetry(createSmtpMailer({ transporter })), { transport: 'smtp' }),
 	from: 'noreply@acme.example',
 	brand: 'Acme',
-	links,
+	links, // transporter and links: as in the example at the top
 });
 ```
 
