@@ -81,4 +81,26 @@ describe('janusConnection() over a real WebSocket', () => {
 		const streamed = await stream(client, 'subscription { rounds }');
 		expect(codesOf(streamed)).toEqual(['FORBIDDEN']);
 	});
+
+	it('does not count an authorization of another scheme: the cookie is read', async () => {
+		const s = await serving();
+		const { client } = s.client({
+			connectionParams: { authorization: 'Basic dXNlcjpwYXNz' },
+			headers: { cookie: s.cookie(s.ada.token) },
+		});
+		const streamed = await stream(client, 'subscription { ticks }');
+		expect(streamed.events).toHaveLength(2);
+	});
+});
+
+describe('janusConnection({ type })', () => {
+	it('refuses a user of another type 4403, and accepts one of the type', async () => {
+		const s = await serving(undefined, { type: 'staff' });
+		const ada = s.client({ headers: { cookie: s.cookie(s.ada.token) } });
+		await stream(ada.client, 'subscription { ticks }');
+		expect(ada.closed.code).toBe(4403);
+		const grace = s.client({ headers: { cookie: s.cookie(s.grace.token) } });
+		const streamed = await stream(grace.client, 'subscription { rounds }');
+		expect(streamed.events).toHaveLength(2);
+	});
 });

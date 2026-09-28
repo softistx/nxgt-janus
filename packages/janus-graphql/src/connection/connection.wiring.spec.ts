@@ -1,51 +1,41 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { setup } from '../../test/harness';
-import { codesOf, connect, listen, stream } from '../../test/socket';
+import { setup, users } from '../../test/harness';
+import { codesOf, stream } from '../../test/socket';
 import { janusConnection } from './connection';
-import { resolvers, serving, stopAll, typeDefs } from './connection.fixtures';
+import { serving, stopAll } from './connection.fixtures';
 
 afterEach(stopAll);
 
 describe('janusConnection() without Yoga', () => {
 	it('builds ctx.janus with context, and the directives hold', async () => {
-		const s = await serving();
-		const plain = await listen(s, typeDefs, resolvers, { plain: true });
-		const signedIn = connect(plain.url, {
-			headers: { cookie: s.cookie(s.grace.token) },
-		});
-		const ada = connect(plain.url, {
-			headers: { cookie: s.cookie(s.ada.token) },
-		});
-		try {
-			const rounds = await stream(signedIn.client, 'subscription { rounds }');
-			expect(rounds.events).toHaveLength(2);
-			const refused = await stream(ada.client, 'subscription { rounds }');
-			expect(codesOf(refused)).toEqual(['FORBIDDEN']);
-		} finally {
-			await signedIn.client.dispose();
-			await ada.client.dispose();
-			await plain.close();
-		}
+		const s = await serving(setup(), { plain: true });
+		const grace = s.client({ headers: { cookie: s.cookie(s.grace.token) } });
+		const ada = s.client({ headers: { cookie: s.cookie(s.ada.token) } });
+		const rounds = await stream(grace.client, 'subscription { rounds }');
+		expect(rounds.events).toHaveLength(2);
+		const refused = await stream(ada.client, 'subscription { rounds }');
+		expect(codesOf(refused)).toEqual(['FORBIDDEN']);
 	});
 });
 
 describe('janusConnection({ upgrade })', () => {
 	it('reads the upgrade request upgrade answers, and not extra.request', async () => {
-		const context = setup();
-		const s = await serving(context);
-		const none = await listen(context, typeDefs, resolvers, {
-			upgrade: () => undefined,
-		});
-		const { client, closed } = connect(none.url, {
+		const s = await serving(setup(), { upgrade: () => undefined });
+		const { client, closed } = s.client({
 			headers: { cookie: s.cookie(s.ada.token) },
 		});
-		try {
-			await stream(client, 'subscription { ticks }');
-			expect(closed.code).toBe(4403); // the cookie was never read
-		} finally {
-			await client.dispose();
-			await none.close();
-		}
+		await stream(client, 'subscription { ticks }');
+		expect(closed.code).toBe(4403); // the cookie was never read
+	});
+
+	it('accepts the connection when the request it answers authenticates', async () => {
+		// As on Bun: the request kept elsewhere than extra.request.
+		const kept: { request?: Headers } = {};
+		const s = await serving(setup(), { upgrade: () => kept.request });
+		kept.request = new Headers({ authorization: `Bearer ${s.grace.token}` });
+		const { client } = s.client();
+		const streamed = await stream(client, 'subscription { rounds }');
+		expect(streamed.events).toHaveLength(2);
 	});
 });
 
@@ -77,7 +67,30 @@ describe('janusConnection() refuses its wiring', () => {
 			() => null,
 			(error: unknown) => error,
 		);
-		expect(failure).toBeInstanceOf(TypeError);
-		expect((failure as Error).message).toContain('janusConnection().onConnect');
+		expect(failure).toEqual(
+			new TypeError(
+				'janusConnection().context: the GraphQL context has no request to authenticate — build the context from an HTTP request, or accept a graphql-ws connection with janusConnection().onConnect',
+			),
+		);
+	});
+
+	it('an onConnect called with an extra that is not an object, once it accepts', async () => {
+		const context = setup();
+		const { ada } = await users(context);
+		const connection = janusConnection({ auth: context.auth });
+		const failure = await connection
+			.onConnect({
+				connectionParams: { authorization: `Bearer ${ada.token}` },
+				extra: 'socket',
+			})
+			.then(
+				() => null,
+				(error: unknown) => error,
+			);
+		expect(failure).toEqual(
+			new TypeError(
+				"janusConnection(): the connection's extra is not an object — pass the context graphql-ws gave onConnect",
+			),
+		);
 	});
 });

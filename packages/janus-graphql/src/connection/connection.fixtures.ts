@@ -6,7 +6,12 @@
  */
 
 import { type Setup, setup, users } from '../../test/harness';
-import { type Connecting, connect, listen } from '../../test/socket';
+import {
+	type Connecting,
+	connect,
+	type Listening,
+	listen,
+} from '../../test/socket';
 
 /** What `stopAll` stops, clients first. */
 const running: (() => Promise<void> | void)[] = [];
@@ -52,10 +57,13 @@ export const resolvers = {
 };
 
 /** A server over the schema, two users, and the cookie each would send. */
-export async function serving(context: Setup = setup()) {
+export async function serving(
+	context: Setup = setup(),
+	wiring: Listening = {},
+) {
 	delete between.run;
 	const signedUp = await users(context);
-	const listening = await listen(context, typeDefs, resolvers);
+	const listening = await listen(context, typeDefs, resolvers, wiring);
 	running.push(listening.close);
 	const cookie = (token: string) => `${context.auth.cookie.name}=${token}`;
 	/** A client of this server, disposed of by `stopAll`. */

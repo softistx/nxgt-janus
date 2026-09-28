@@ -10,19 +10,24 @@ import type { ConnectionContext } from './types';
 /** Where the upgrade request is, when the transport does not say `extra.request`. */
 export type Upgrade = (ctx: ConnectionContext) => RequestLike | undefined;
 
+/** The scheme `@nxgt/janus` reads a session token from — any case, as it does. */
+const BEARER = /^\s*bearer(?:\s|$)/i;
+
 /**
  * The connection's credential, as `auth.authenticate` reads one:
  *
- * 1. `connectionParams.authorization`, when the client sent one — a
+ * 1. `connectionParams.authorization`, when it is a `Bearer` token — a
  *    non-browser client's `'Bearer <token>'`;
  * 2. otherwise the upgrade request itself, read as any request is —
  *    `Authorization`, then `X-Session-Token`, then the session cookie a
  *    browser sends with it.
  *
  * **The first present wins, not the first valid one**, as in `@nxgt/janus`:
- * a lapsed token in `connectionParams` beside a live cookie is refused.
- * `null` when there is nothing to read, or an `authorization` that is not a
- * string — refused, as a client's mistake.
+ * a lapsed token in `connectionParams` beside a live cookie is refused. An
+ * `authorization` of another scheme (`Basic`) is not a session credential,
+ * as in `@nxgt/janus`, and does not count. `null` when there is nothing to
+ * read, or an `authorization` that is not a string — refused, as a
+ * client's mistake.
  */
 export function credentialOf(
 	ctx: ConnectionContext,
@@ -34,7 +39,7 @@ export function credentialOf(
 		if (typeof authorization !== 'string') return null;
 		// A record, not `Headers`, which would throw on a value no header may
 		// hold: a client's mistake is a refusal, never a 4500.
-		return { authorization };
+		if (BEARER.test(authorization)) return { authorization };
 	}
 	const request =
 		upgrade === undefined

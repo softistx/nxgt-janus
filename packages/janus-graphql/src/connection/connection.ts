@@ -4,7 +4,7 @@
 
 import { createJanusContext } from '../context';
 import { checkWiring } from '../options';
-import type { Auth, UserOfAuth } from '../types';
+import type { Auth, JanusContext, UserOfAuth } from '../types';
 import { accept, acceptedOf, credentialOf } from './credential';
 import type { JanusConnection, JanusConnectionOptions } from './types';
 
@@ -52,6 +52,7 @@ export function janusConnection<
 		access: access as { readonly can: unknown } | undefined,
 		type,
 		clock,
+		caller: 'janusConnection().context',
 	};
 
 	return {
@@ -68,7 +69,10 @@ export function janusConnection<
 			accept(ctx, credential);
 			return true;
 		},
+		// The one cast at the boundary: the context is built loose, typed here.
 		context: (ctx) =>
-			({ janus: createJanusContext(acceptedOf(ctx), wiring) }) as never,
+			({
+				janus: createJanusContext(acceptedOf(ctx), wiring),
+			}) as unknown as JanusContext<A, P, T>,
 	};
 }

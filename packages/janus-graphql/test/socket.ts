@@ -4,6 +4,10 @@
  * free port, `useServer` with `janusConnection().onConnect` — and a
  * graphql-ws client that collects one subscription's events, its error, or
  * the code its socket was closed with.
+ *
+ * In `test/` beside `harness.ts`, which it extends: it serves any schema
+ * the spec writes, as `server()` does over HTTP, so a directive's own spec
+ * can run over a WebSocket too — not only `src/connection/`'s.
  */
 
 import { createServer } from 'node:http';
@@ -28,6 +32,8 @@ export interface Listening {
 	/** graphql-ws alone, with `janusConnection().context`, and no Yoga. */
 	readonly plain?: boolean;
 	readonly upgrade?: JanusConnectionOptions<never, never, never>['upgrade'];
+	/** `janusConnection({ type })`: the one user type that may connect. */
+	readonly type?: 'patient' | 'staff';
 }
 
 /** Yoga's recipe: each operation enveloped, its context built by Yoga. */
@@ -62,7 +68,7 @@ export async function listen(
 	context: Setup,
 	typeDefs: string,
 	resolvers: object,
-	{ plain = false, upgrade }: Listening = {},
+	{ plain = false, upgrade, type }: Listening = {},
 ) {
 	const yoga = server(context, typeDefs, resolvers);
 	const http = createServer(yoga);
@@ -76,6 +82,7 @@ export async function listen(
 		access,
 		clock,
 		...(upgrade === undefined ? {} : { upgrade }),
+		...(type === undefined ? {} : { type }),
 	});
 	const wiring: Options = plain
 		? {

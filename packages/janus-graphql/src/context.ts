@@ -50,6 +50,8 @@ export interface ContextOptions {
 	readonly access?: { readonly can: unknown } | undefined;
 	readonly type?: string | undefined;
 	readonly clock?: Clock | undefined;
+	/** The call the consumer wrote, named by the no-request `TypeError`. */
+	readonly caller?: string;
 }
 
 /**
@@ -66,7 +68,7 @@ export function createJanusContext(
 	request: RequestLike | undefined,
 	options: ContextOptions,
 ): Built {
-	const { auth, access, type, clock } = options;
+	const { auth, access, type, clock, caller = 'useJanus()' } = options;
 	let answer: Promise<Authenticated<AnyUser> | null>;
 	let asked = false;
 	const authenticated = () => {
@@ -76,7 +78,7 @@ export function createJanusContext(
 				request === undefined
 					? Promise.reject(
 							new TypeError(
-								'useJanus(): the GraphQL context has no request to authenticate — build the context from an HTTP request, or accept a graphql-ws connection with janusConnection().onConnect',
+								`${caller}: the GraphQL context has no request to authenticate — build the context from an HTTP request, or accept a graphql-ws connection with janusConnection().onConnect`,
 							),
 						)
 					: auth.authenticate(
