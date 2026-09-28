@@ -1,5 +1,11 @@
 # @nxgt/janus-webhooks
 
+## 0.3.1
+
+### Patch Changes
+
+- [#131](https://github.com/softistx/nxgt-janus/pull/131) [`ec98477`](https://github.com/softistx/nxgt-janus/commit/ec98477546ca7f65f394e9167df434b071104abf) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The README's Subpaths section now shows how a queue adapter runs the `@nxgt/janus-webhooks/conformance` suite, in one copy-paste spec, with a link to the queues guide's list of cases. Documentation only: no code changed.
+
 ## 0.3.0
 
 ### Minor Changes

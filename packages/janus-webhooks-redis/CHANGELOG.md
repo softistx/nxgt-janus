@@ -1,5 +1,13 @@
 # @nxgt/janus-webhooks-redis
 
+## 0.2.1
+
+### Patch Changes
+
+- [#131](https://github.com/softistx/nxgt-janus/pull/131) [`ec98477`](https://github.com/softistx/nxgt-janus/commit/ec98477546ca7f65f394e9167df434b071104abf) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The README no longer repeats the wiring guide: the Redis version it needs and what Redis holds are now one line each, with a link to the guide's table of what Redis must be configured with and its list of keys. Documentation only: no code changed.
+- Updated dependencies [[`ec98477`](https://github.com/softistx/nxgt-janus/commit/ec98477546ca7f65f394e9167df434b071104abf)]:
+  - @nxgt/janus-webhooks@0.3.1
+
 ## 0.2.0
 
 ### Minor Changes
