@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, password } from '../../../test/auth';
-import { rejection } from '../../../test/rejection';
-import { StoreFailure } from '../../errors/janus-error';
-import { createMemoryStores } from '../port/memory';
-import type { JanusStores } from '../port/types';
+import { ada, password } from '../../test/auth';
+import { rejection } from '../../test/rejection';
+import { StoreFailure } from '../errors/janus-error';
+import { createMemoryStores } from './port/memory';
+import type { JanusStores } from './port/types';
 import { signedUp, throttled } from './sign-in-attempts.fixtures';
 
 /** The reference stores, with one token method that fails once `failing.on` is set. */

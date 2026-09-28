@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, password } from '../../../test/auth';
-import { rejection } from '../../../test/rejection';
-import { createMemoryStores } from '../port/memory';
+import { ada, password } from '../../test/auth';
+import { rejection } from '../../test/rejection';
+import { createMemoryStores } from './port/memory';
 import {
 	guess,
 	signedUp,

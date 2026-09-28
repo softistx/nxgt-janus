@@ -4,6 +4,7 @@ import type { AnyUser, Context } from '../context';
 import { issueOneTime } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { openSession } from '../sessions';
+import { restartSignInCount } from '../sign-in-attempts';
 import type { SecondFactorRequired, SignedIn } from '../types';
 import { acceptCode, requireSettings } from './factor';
 import { openChallenge, refuseCode, spendChallenge } from './redeem';
@@ -80,5 +81,7 @@ async function confirmChallenge(
 		record.version,
 	);
 	await spendChallenge(context, opened.secret, where);
+	// The sign-in is complete: the password's count starts again.
+	await restartSignInCount(context, type, written, where);
 	return openSession(context, type, written);
 }

@@ -1,7 +1,7 @@
 /**
  * Attempts counted by the store in fixed windows of the clock — what bounds
  * the codes tried at an app outside a sign-in (`second-factor/app-code-attempts.ts`)
- * and the passwords tried at one login (`users/sign-in-attempts.ts`).
+ * and the passwords tried at one login (`../sign-in-attempts.ts`).
  *
  * **No port of its own.** The count is a one-time token of kind
  * `secondFactor`, counted by `countAttempt` like a challenge's: one
@@ -27,6 +27,12 @@ import type { TokenRecord } from '../port/types';
  */
 export const MAX_LINKS = 32;
 
+/**
+ * Probes enough for 2^30 sign-ins in one window, for `restart`: past them, the
+ * store answers links nobody stored, and the count fails closed.
+ */
+const MAX_PROBES = 64;
+
 /** What {@link countInWindow} counts, and how. */
 export interface AttemptWindow {
 	/** How long one window lasts, in milliseconds. */
@@ -37,7 +43,7 @@ export interface AttemptWindow {
 	readonly userId: string;
 	/** A link's token hash in one window: never given out, and never a secret. */
 	readonly linkHash: (window: number, link: number) => string;
-	/** What to throw when a link is gone right after it was stored. */
+	/** What to throw when a link is gone right after it was stored, or the links never end. */
 	readonly vanished: () => Error;
 }
 
@@ -107,7 +113,7 @@ async function countRestarting(
 	const tokens = links.context.store.tokens;
 	let spent = -1;
 	let absent = Number.POSITIVE_INFINITY;
-	for (;;) {
+	for (let probes = 0; probes < MAX_PROBES; probes += 1) {
 		const next = absent === spent + 1;
 		const link = next
 			? absent
@@ -127,6 +133,8 @@ async function countRestarting(
 			if (absent <= spent) absent = Number.POSITIVE_INFINITY;
 		}
 	}
+	// A store whose links never end: it cannot be counting what it stores.
+	throw links.counting.vanished();
 }
 
 /** One attempt on one link: inserted on the first, and counted. */

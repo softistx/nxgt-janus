@@ -4,13 +4,13 @@
  */
 
 import { expect } from 'bun:test';
-import { ada, hasher, password, person } from '../../../test/auth';
-import { rejection } from '../../../test/rejection';
-import { fixedClock } from '../../time/clock';
-import type { SignInConfig } from '../config';
-import { janus } from '../janus';
-import { createMemoryStores } from '../port/memory';
-import type { JanusStores } from '../port/types';
+import { ada, hasher, password, person } from '../../test/auth';
+import { rejection } from '../../test/rejection';
+import { fixedClock } from '../time/clock';
+import type { SignInConfig } from './config';
+import { janus } from './janus';
+import { createMemoryStores } from './port/memory';
+import type { JanusStores } from './port/types';
 
 /** Fifteen minutes: the default window. */
 export const WINDOW_MS = 15 * 60_000;
