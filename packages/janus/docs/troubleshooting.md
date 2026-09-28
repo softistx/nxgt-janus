@@ -540,7 +540,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm`, for a user set inactive after `signIn` asked for a code, and `signInCode.confirm`, for a user set inactive after the code was sent.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, and `signInCode.confirm`, for a user set inactive after the code was sent.
 **Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
@@ -556,12 +556,14 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 janus({ ..., tokens: { verifyEmail: '72h', resetPassword: '2h' } });
 ```
 
-**On `secondFactor.confirm`**, the messages name the challenge `signIn`
-answered: `secondFactor.confirm: no such challenge`,
+**On `secondFactor.confirm` and `secondFactor.recover`**, the messages name
+the challenge `signIn` answered: `secondFactor.confirm: no such challenge`,
 `secondFactor.confirm: the challenge was already used`,
-`secondFactor.confirm: the challenge has expired`.
+`secondFactor.confirm: the challenge has expired` — and the same three from
+`secondFactor.recover`, such as `secondFactor.recover: no such challenge`.
 
-**When:** `secondFactor.confirm(challenge, code)`.
+**When:** `secondFactor.confirm(challenge, code)` or
+`secondFactor.recover(challenge, code)`.
 **Why:** a challenge lives five minutes and takes five codes. It is spent by
 the code that opens the session, by the fifth wrong code, by a refusal
 that ends it (`USER_INACTIVE`, `SECOND_FACTOR_NOT_ENROLLED`), and by a
@@ -901,7 +903,7 @@ nor any recovery code — see
 
 A `TypeError`.
 
-**When:** `activate` or `confirm`.
+**When:** `activate`, `confirm` or `regenerateRecoveryCodes`.
 **Why:** the key held under that id is not the one that sealed the secret: its value was changed and its id kept, or two environments sharing one database hold different keys under one id. It is also the message for a sealed secret copied onto another user — a seal is bound to the user's id — for example a user record duplicated by hand.
 **Fix:** restore the original key under that id. A new key always takes a new id. For a copied record, disable the factor and have the user enroll again: `await auth.secondFactor.disable(user)`.
 
@@ -909,7 +911,7 @@ A `TypeError`.
 
 A `TypeError`.
 
-**When:** `activate` or `confirm`.
+**When:** `activate`, `confirm` or `regenerateRecoveryCodes`.
 **Why:** the stored secret is not `v1.<key id>.<iv>.<sealed>`: it was written into the store directly — a plain base32 secret imported from another system — or cut short.
 **Fix:** never write the second factor into the store yourself. Disable it and have the user enroll again:
 
