@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, bearer, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { challenged, enrolled, setup } from './flows.fixtures';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
 
 describe('signIn with a second factor', () => {
 	it('answers a challenge instead of a session', async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { bearer } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { challenged, enrolled, setup } from './flows.fixtures';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
 
 describe('secondFactor.recover', () => {
 	it('answers ten codes at activation, and stores only their keyed hashes', async () => {

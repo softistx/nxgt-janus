@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { challenged, enrolled, setup } from './flows.fixtures';
-import { REGENERATE_WINDOW_MS } from './regenerate-attempts';
+import { challenged, enrolled, setup } from '../../../test/second-factor';
+import { REGENERATE_WINDOW_MS } from './app-code-attempts';
 
 const TOO_MANY =
 	'secondFactor.regenerateRecoveryCodes: too many codes tried — wait for the next 15-minute window';

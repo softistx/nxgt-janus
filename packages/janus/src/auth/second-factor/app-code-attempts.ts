@@ -7,9 +7,11 @@ import type { Sealer } from '../sealing';
 import { hashSecret } from '../secrets';
 
 /**
- * The attempts at `regenerateRecoveryCodes`, counted by the store — the same
- * {@link CODE_ATTEMPTS} a challenge takes, per user and per window, so a
- * stolen session cannot guess the app's code at leisure.
+ * The attempts at an app's code outside a sign-in — `regenerateRecoveryCodes`
+ * and a step-up confirmed with the app — counted by the store, in one count
+ * both share: the same {@link CODE_ATTEMPTS} a challenge takes, per user and
+ * per window, so a stolen session cannot guess the app's code at leisure,
+ * nor buy more guesses by switching from one to the other.
  *
  * **No port of its own.** The count is a one-time token of kind
  * `secondFactor`, counted by `countAttempt` like a challenge's: one
@@ -34,7 +36,11 @@ export const REGENERATE_WINDOW_MS = 15 * 60_000;
 
 const WINDOW_MINUTES = REGENERATE_WINDOW_MS / 60_000;
 
-/** What the key is derived for: never the key that seals a secret itself. */
+/**
+ * What the key is derived for: never the key that seals a secret itself.
+ * Named after the first flow that counted, and kept: renamed, every count
+ * in progress would start over.
+ */
 const PURPOSE = 'janus/second-factor/regenerate-attempts/v1';
 
 /** More links than this in one window is more passwords written than guesses. */
@@ -73,11 +79,11 @@ function linkHash(
 }
 
 /**
- * Counts one attempt at regenerating the user's recovery codes, before the
- * code is compared, and answers how many are left. Past the last one, it
+ * Counts one attempt at the app's code — to regenerate the user's recovery
+ * codes, or to confirm a step-up — before the code is compared, and answers how many are left. Past the last one, it
  * refuses — the right code included — until the window ends.
  */
-export async function countRegenerateAttempt(
+export async function countAppCodeAttempt(
 	context: Context,
 	sealer: Sealer,
 	record: UserRecord,
