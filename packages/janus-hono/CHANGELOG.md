@@ -1,5 +1,13 @@
 # @nxgt/janus-hono
 
+## 0.3.6
+
+### Patch Changes
+
+- [#151](https://github.com/softistx/nxgt-janus/pull/151) [`f5b69f7`](https://github.com/softistx/nxgt-janus/commit/f5b69f7dffc529736727331e6ef66c61dc7f309e) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the README's API table names the six exported types it left out — `JanusErrorsOptions`, `Bindable`, `Bound`, `BoundAuth`, `BoundSession` and `BoundPermission` — and the README and the routes guide show typing a wrapper around `janusErrors()` and passing a `bindJanus()` result to a module of routes.
+- Updated dependencies [[`9e4bbf5`](https://github.com/softistx/nxgt-janus/commit/9e4bbf53891d98be7291f2e7589a5451903bfa73)]:
+  - @nxgt/janus@0.11.0
+
 ## 0.3.5
 
 ### Patch Changes
