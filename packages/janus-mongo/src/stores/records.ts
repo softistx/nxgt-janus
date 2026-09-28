@@ -27,7 +27,13 @@ export function toUserDocument(record: UserRecord): UserDocument {
 		fields: record.fields,
 		logins: [...record.logins],
 		password: record.password,
-		secondFactor: record.secondFactor,
+		secondFactor:
+			record.secondFactor === null
+				? null
+				: {
+						...record.secondFactor,
+						recoveryCodes: [...record.secondFactor.recoveryCodes],
+					},
 		emailVerifiedAt: record.emailVerifiedAt,
 		version: record.version,
 		createdAt: record.createdAt,
@@ -80,6 +86,7 @@ export function toUser(document: UserDocument): UserRecord {
 						secret: secondFactor.secret,
 						confirmedAt: secondFactor.confirmedAt,
 						lastStep: secondFactor.lastStep,
+						recoveryCodes: [...(secondFactor.recoveryCodes ?? [])],
 					},
 		emailVerifiedAt: document.emailVerifiedAt,
 		version: document.version,

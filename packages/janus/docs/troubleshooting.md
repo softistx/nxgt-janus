@@ -109,6 +109,7 @@ How the messages are shaped:
 - [`the error is named <Class> but is not @nxgt/janus's <Class>: two copies of @nxgt/janus are installed …`](#the-error-is-named-class-but-is-not-nxgtjanuss-class-two-copies-of-nxgtjanus-are-installed-the-adapter-must-list-it-as-a-peer-dependency-never-a-dependency)
 - [`expected <Class>, got <value>`](#expected-class-got-value)
 - [`expected null, got undefined — an absence is null; undefined is a store that forgot to answer`](#expected-null-got-undefined--an-absence-is-null-undefined-is-a-store-that-forgot-to-answer)
+- [`findUser should answer recoveryCodes [] as [] — never null, never undefined`](#finduser-should-answer-recoverycodes--as---never-null-never-undefined)
 
 ---
 
@@ -1197,3 +1198,24 @@ try {
 **When:** a conformance case on a `find*` method.
 **Why:** the adapter answers `undefined` for "not found". Many drivers do; the port does not.
 **Fix:** `return document ?? null;`.
+
+### `findUser should answer recoveryCodes [] as [] — never null, never undefined`
+
+Also `updateUser naming secondFactor should replace the second factor whole, its recovery codes in the order written`, followed by `at .recoveryCodes: expected [...], got undefined`.
+
+**When:** the case `users.secondFactorSlot`, on an adapter written before `@nxgt/janus` 0.10.
+**Why:** `SecondFactorRecord` holds `recoveryCodes`, the keyed hashes of the user's recovery codes. An adapter that maps the factor field by field drops them, and one that stores "no codes" as a missing value answers `undefined` or `null` — a user who lost their phone could then never sign in with a code.
+**Fix:** store the array as it is, in order, and read a missing value as `[]`:
+
+```ts
+secondFactor:
+	document.secondFactor === null
+		? null
+		: {
+				method: document.secondFactor.method,
+				secret: document.secondFactor.secret,
+				confirmedAt: document.secondFactor.confirmedAt,
+				lastStep: document.secondFactor.lastStep,
+				recoveryCodes: [...(document.secondFactor.recoveryCodes ?? [])],
+			},
+```

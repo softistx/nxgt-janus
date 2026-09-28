@@ -40,6 +40,11 @@ Nothing yet.
 
 Each entry names the version it came in; `CHANGELOG.md` holds the rest.
 
+- **Recovery codes on a second factor, v0.5.0** — for `@nxgt/janus` 0.10:
+  a user's `secondFactor` keeps its `recoveryCodes`, the codes' keyed hashes,
+  in order. A factor written before reads as having none, so no document is
+  rewritten; run the sync before deploying, since the previous validator
+  refuses the new field.
 - **A user's tokens spent in one write, v0.4.0** — for `@nxgt/janus` 0.7:
   `spendUserTokens(userId, kind, at, except?)` is one `updateMany`, and
   passes the four new conformance cases. No sync needed: it reads through the

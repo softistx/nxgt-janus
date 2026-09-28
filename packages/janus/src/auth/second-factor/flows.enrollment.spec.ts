@@ -18,6 +18,7 @@ describe('secondFactor.enroll and activate', () => {
 			method: 'totp',
 			confirmedAt: null,
 			lastStep: null,
+			recoveryCodes: [],
 		});
 		expect(record?.secondFactor?.secret).toStartWith('v1.k1.');
 		expect(record?.secondFactor?.secret).not.toContain(secret);

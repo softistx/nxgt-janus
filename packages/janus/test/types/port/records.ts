@@ -1,10 +1,14 @@
 /**
  * What a record a store answers must hold: readonly, JSON fields, and every
  * field present — null when absent, 0 when uncounted, never left out. Cases
- * 12, 13, 15, 18, 19 and 20 of the twenty-two — see `fixtures.ts`.
+ * 12, 13, 15, 18, 19, 20 and 23 of the twenty-three — see `fixtures.ts`.
  */
 
-import type { TokenRecord, UserRecord } from '../../../src/auth/port/types';
+import type {
+	SecondFactorRecord,
+	TokenRecord,
+	UserRecord,
+} from '../../../src/auth/port/types';
 import { record, token } from './fixtures';
 
 // ── 12. Editing a record a store answered ──────────────────────────────────
@@ -49,6 +53,15 @@ const { codeHash: _unhashed, ...withoutCodeHash } = token;
 // @ts-expect-error a token carries its code hash, null when it has none
 const unhashedToken: TokenRecord = withoutCodeHash;
 
+// ── 23. A second factor forwarded without its recovery codes ───────────────
+// A factor written before the codes existed — a document, a row with the
+// column null — passed through unmapped would answer no codes at all, and a
+// user whose phone is gone could not sign in with one.
+declare const factor: SecondFactorRecord;
+const { recoveryCodes: _dropped, ...withoutCodes } = factor;
+// @ts-expect-error a second factor carries its recovery codes, [] when none
+const codelessFactor: SecondFactorRecord = withoutCodes;
+
 // ── And the shape that MUST keep compiling ──────────────────────────────────
 
 // Fields nest, and hold arrays and numbers.
@@ -64,6 +77,7 @@ export const checked = {
 		missingSecondFactor,
 		uncountedToken,
 		unhashedToken,
+		codelessFactor,
 	],
 	allowed: [nestedFields],
 };

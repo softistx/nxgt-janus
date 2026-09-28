@@ -78,7 +78,9 @@ encoded. A document read in a shell reads like the record in the code.
 No secret is stored: sessions and tokens hold `sha256` of the secret,
 passwords a self-describing hash, and a user's `secondFactor.secret` a TOTP
 secret `@nxgt/janus` has already sealed with your application's key —
-`v1.<key id>.…` — which the store keeps byte for byte.
+`v1.<key id>.…` — which the store keeps byte for byte. Its
+`secondFactor.recoveryCodes` are keyed hashes of the recovery codes, never a
+code, kept in order; a factor without the field reads as having none.
 
 `countAttempt` counts an attempt at a code in one `findOneAndUpdate` with
 `$inc`, so twenty concurrent attempts answer twenty distinct counts.
@@ -110,6 +112,14 @@ spend the same one.
   run, every sign-up and every one-time token fails with `STORE_FAILED`,
   caused by `Document failed validation`.
   [Upgrading](docs/guide/sync.md#upgrading-sync-before-you-deploy) has the steps.
+- **Upgrading to 0.5: run the sync before deploying, again.** No document is
+  rewritten — a second factor without `recoveryCodes` reads as having none —
+  but the validator the previous sync wrote refuses the new field. Until
+  `syncMongoAdapter(db)` has run, every write of a second factor — `enroll`,
+  `activate`, a confirmed code — fails with `STORE_FAILED`, caused by
+  `Document failed validation`. And finish the rollout before users hold
+  recovery codes: an instance still on 0.4 writes a factor back without
+  them when it accepts a code.
 - **The TTL indexes are storage hygiene, not the expiry.** MongoDB's TTL monitor
   runs every sixty seconds, so a lapsed session can stay readable for up to a
   minute. The core compares `expiresAt` on every read, and that is what expires

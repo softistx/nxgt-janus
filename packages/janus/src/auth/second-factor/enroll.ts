@@ -45,6 +45,7 @@ export async function enrollFactor(
 					secret: seal(configured.sealer, secret, record.id),
 					confirmedAt: null,
 					lastStep: null,
+					recoveryCodes: [],
 				},
 			};
 		},
