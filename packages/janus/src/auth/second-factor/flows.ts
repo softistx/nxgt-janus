@@ -5,6 +5,7 @@ import type { UserRecord } from '../port/types';
 import { openSession } from '../sessions';
 import type { SecondFactorApi, SignInResult } from '../types';
 import { challengeFlows } from './challenge';
+import { recoveryCodesLeftOf } from './codes-left';
 import { isActive } from './factor';
 import { lifecycleFlows } from './lifecycle';
 import { recoverWithCode } from './recovery';
@@ -24,6 +25,13 @@ export function secondFactorFlows(
 		confirm: challenges.confirm,
 		recover: (challenge, code) =>
 			recoverWithCode(context, type, challenge, code, at),
+		recoveryCodesLeft: (user) =>
+			recoveryCodesLeftOf(
+				context,
+				type,
+				user,
+				at('secondFactor.recoveryCodesLeft'),
+			),
 	};
 
 	return {

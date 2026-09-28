@@ -105,5 +105,14 @@ export interface SecondFactorApi<U> {
 		 * `VERSION_CONFLICT`.
 		 */
 		recover(challenge: string, code: string): Promise<RecoveredSignIn<U>>;
+		/**
+		 * How many recovery codes the user still holds — what `recover`
+		 * answered as `recoveryCodesLeft`, read again for whoever did not see
+		 * that answer: a `user.recoveryCodeUsed` listener, which carries the
+		 * user's id only, or a security settings page. `null` when the user
+		 * has no active factor, so no codes to count; `NOT_FOUND` for an
+		 * unknown id. Writes nothing.
+		 */
+		recoveryCodesLeft(user: UserRef): Promise<number | null>;
 	};
 }

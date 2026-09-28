@@ -2,8 +2,8 @@
  * The second factor: a schema declaring its field, flows without keys, a
  * session read before narrowing, a factor on a type with no password, a
  * confirmation without its code, an activation read as the user, a recovery
- * without its code, a regeneration without its code. Cases 21–28 and 35–37
- * of the thirty-seven — see
+ * without its code, a regeneration without its code, the codes left read
+ * without their `null`. Cases 21–28 and 35–38 of the thirty-eight — see
  * `fixtures.ts`; case 30, a code that may still ask for the factor, is in
  * `sign-in-codes.ts`.
  */
@@ -98,6 +98,14 @@ async function secondFactor() {
 		// @ts-expect-error a fresh code from the app is what regenerating takes
 		{ ifVersion: 1 },
 	);
+
+	// ── 38. The recovery codes left, read as a count without the factor ────
+	// A user with no active factor has no codes to count: that is null, not 0.
+	// @ts-expect-error null when the factor is off: check it before counting
+	const left: number = await twoFactor.patient.secondFactor.recoveryCodesLeft(
+		'0190e3b4-0000-7000-8000-000000000000',
+	);
+	void left;
 }
 
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
@@ -119,7 +127,9 @@ async function recoveryCodes() {
 	const left: number = signedIn.recoveryCodesLeft;
 	const birthDate: string = signedIn.user.birthDate;
 	const codes: readonly string[] = shown;
-	void [left, birthDate, codes, signedIn.token];
+	const stillLeft: number | null =
+		await twoFactor.patient.secondFactor.recoveryCodesLeft(user);
+	void [left, birthDate, codes, stillLeft, signedIn.token];
 }
 
 export const checked = { secondFactor, allowed: [recoveryCodes] };
