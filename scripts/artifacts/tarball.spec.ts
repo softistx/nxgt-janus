@@ -45,6 +45,14 @@ describe('missingFiles', () => {
 		]);
 	});
 
+	test('reads a folder by its name, not by a prefix of it', () => {
+		expect(
+			missingFiles({ name: 'x', files: ['dis'] }, ['package/dist/index.js']),
+		).toEqual([
+			'x: files lists dis, which the tarball does not hold — build it first, or drop it from files',
+		]);
+	});
+
 	test('leaves a glob to npm, and a manifest without files alone', () => {
 		expect(missingFiles({ name: 'x', files: ['*.md'] }, entries)).toEqual([]);
 		expect(missingFiles({ name: 'x' }, entries)).toEqual([]);

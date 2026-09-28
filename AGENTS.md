@@ -347,9 +347,10 @@ The detail lives in the package's `docs/` — `guide/`, `troubleshooting.md`,
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied
 from nxgt-data, never shared**. That is the fourth copy, beside nxgt-http and
-nxgt-core, and `nxgt-data/AGENTS.md:460` says to change both when the reason
-holds for both. One divergence: this copy of `verify-artifacts.ts` is split
-into `scripts/artifacts/` (see *Verifying*).
+nxgt-core, and nxgt-data's AGENTS.md, in its table of what is kept twice, says
+to change both when the reason holds for both. `verify-artifacts.ts` is split
+into `scripts/artifacts/` in all four copies; what each one has and lacks is in
+*Deliberate duplications*.
 
 **Imports carry no extension**: `from './engine'`, not `'./engine.js'` — in
 the sources, and in what the build emits, the `.d.ts` files included.
@@ -476,7 +477,7 @@ The table that exists so a duplication is a decision rather than an accident.
 | --- | --- | --- |
 | `CursorPage`, `pageLimit` | `src/pagination/` | Four fields are not worth a dependency on a package from another repository |
 | `Clock`, `fixedClock` | `src/time/` | Same, and `fixedClock` is **shipped**, not test-only: a consumer testing session expiry needs it |
-| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above, except `scripts/artifacts/`, split here (see *Verifying*) |
+| The repository skeleton | root | Copied from nxgt-data. Fourth copy, by the rule above. `scripts/artifacts/` was split here first, and nxgt-data, nxgt-http and nxgt-core now follow it module for module. All four hold the test-code check and the guard that reports an unbuilt package as `no dist/`. `missingFiles` is here and in nxgt-data; nxgt-http's and nxgt-core's ports are softistx/nxgt-http#56 and softistx/nxgt-core#155. Only nxgt-core has `browser.ts`, for the `browser` export condition, which no package here declares. This copy and nxgt-data read a sibling's version from the workspace; nxgt-http and nxgt-core read it from the packed manifests. Outside `scripts/artifacts/`, `check-changesets.ts` and `check-nxgt-versions.ts` are this copy's alone. A check added to one copy is a check to port to the others |
 | `test/server.ts`, the pinned Redis the specs start | `packages/janus-redis/test/`, `packages/janus-kit/test/`, `packages/janus-webhooks-redis/test/` | A test helper in one package cannot be imported by another's specs without a shared test package; three copies of 60 lines are cheaper. The Redis version in them keys the one `.cache/redis`, and `$JANUS_REDIS_VERSION` and `$REDIS_BIN` override it the same way in all three. Byte-identical, and both CI jobs, `ci` and `floors`, key their Redis cache on all three. Change one, change all |
 | The Redis script runner and reply reader — `scriptsOver`, `isNoScript`, `runner` and its `Run`, `stamp`, `readerOf`, `unreadable` | `packages/janus-redis/src/{stores,replies}.ts`, `packages/janus-webhooks-redis/src/{queue,replies}.ts` | Two adapters of two ports in two packages, and neither may depend on the other; a shared package for 80 lines would be a third to publish. The runner is the same but for its failure's message: `webhookQueue.<method>: the queue could not answer` with `operation` only, where janus-redis says `<slot>.<operation>: the store could not answer` with `slot` too. `runner` takes no `slot` here, and this copy's `Run` takes a lazy `argsOf(operation)` builder where janus-redis's takes an eager `args` array, so a refusal names the operation before any I/O. The reader reads dates the same way — any number but `''` and `NaN` — and a count's digits the same way, with two differences: janus-redis's field `count` answers `0` for an absent field (a token of an earlier version) where this copy fails, and janus-redis's reply `count` takes any number where this copy's `toCount` requires a safe integer, 0 or more. `unreadable` differs in the same way as the runner. The webhook copy adds `type` and `failure`, and refuses before any I/O what it could not read back. Change one, change both |
 | `test/case.ts`, a case as a Redis user of its own prefix, its faults by `ACL SETUSER` | `packages/janus-redis/test/`, adapted in `packages/janus-webhooks-redis/test/` | Same. The adapted copy opens one user per method, since that port's fault fails one method and not the store, and fails the insert half-way by key permissions. Both end with the same `redisPerFile()`, the file's server started and stopped around its cases. A change to how a case opens or fails belongs in both |
@@ -605,9 +606,9 @@ prefix, as in `conformance/`, ships on purpose and passes.
 `scripts/artifacts/`, one module per responsibility, with a spec beside each
 pure one (`packages.ts` reads the workspace, `tarball.ts` a tarball's entries,
 `manifest.ts` its dependency fields, `registry.ts` asks npm, then `stale.ts`,
-`classes.ts`, `install.ts`, `load.ts`). nxgt-data's copy is still
-one file: the split is this copy's, made to keep every file under 250 lines,
-and the test-code check is the one to carry back.
+`classes.ts`, `install.ts`, `load.ts`). The split was made here to keep every
+file under 250 lines, and the three other copies have since followed it; the
+skeleton's row in *Deliberate duplications* says what each one lacks.
 
 The scripts have specs of their own, run by the root `test`:
 `scripts/artifacts/*.spec.ts` covers the pure checks. Among them is the
