@@ -1,5 +1,18 @@
 # @nxgt/janus-mongo
 
+## 0.7.0
+
+### Minor Changes
+
+- [#170](https://github.com/softistx/nxgt-janus/pull/170) [`3468e6b`](https://github.com/softistx/nxgt-janus/commit/3468e6b1e010e2e50cb0e2e0cf299f469aadf906) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Admits the token kind `magicLink`, `@nxgt/janus` 0.15's sign-in link.
+  
+  **Run `syncMongoAdapter(db)` or `syncMongoStores(db)` before deploying.** The `kind` enum the previous sync wrote refuses `magicLink`, so `magicLink.request` fails with `STORE_FAILED` (`Document failed validation`) until it runs. No document is rewritten.
+
+### Patch Changes
+
+- Updated dependencies [[`c69356d`](https://github.com/softistx/nxgt-janus/commit/c69356da514446558f728ac45981aaecef88be1d), [`3468e6b`](https://github.com/softistx/nxgt-janus/commit/3468e6b1e010e2e50cb0e2e0cf299f469aadf906)]:
+  - @nxgt/janus@0.15.0
+
 ## 0.6.2
 
 ### Patch Changes

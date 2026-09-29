@@ -1,5 +1,18 @@
 # @nxgt/janus-drizzle
 
+## 0.6.0
+
+### Minor Changes
+
+- [#170](https://github.com/softistx/nxgt-janus/pull/170) [`3468e6b`](https://github.com/softistx/nxgt-janus/commit/3468e6b1e010e2e50cb0e2e0cf299f469aadf906) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Admits the token kind `magicLink`, `@nxgt/janus` 0.15's sign-in link.
+  
+  **A migration is required: the `tokens_kind` check admits `magicLink`.** Run `drizzle-kit generate`, then migrate. It writes one statement, `ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind" CHECK (… 'magicLink', 'stepUp')`, and rewrites no row. Deployed without it, `magicLink.request` fails with `STORE_FAILED`, caused by `violates check constraint "tokens_kind"`; every other flow keeps working.
+
+### Patch Changes
+
+- Updated dependencies [[`c69356d`](https://github.com/softistx/nxgt-janus/commit/c69356da514446558f728ac45981aaecef88be1d), [`3468e6b`](https://github.com/softistx/nxgt-janus/commit/3468e6b1e010e2e50cb0e2e0cf299f469aadf906)]:
+  - @nxgt/janus@0.15.0
+
 ## 0.5.2
 
 ### Patch Changes
