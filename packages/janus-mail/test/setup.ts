@@ -2,7 +2,12 @@
  * What the specs share: the options of a `janusMail()` over a memory mailer,
  * and what each flow of `@nxgt/janus` answers, shaped as it answers it.
  */
-import { fixedClock, type IssuedCode, type IssuedToken } from '@nxgt/janus';
+import {
+	fixedClock,
+	type IssuedCode,
+	type IssuedToken,
+	type StepUpByEmail,
+} from '@nxgt/janus';
 import { createMemoryMailer, type MemoryMail } from '@nxgt/mail';
 import type { JanusMailLinks } from '../src/types';
 
@@ -59,6 +64,16 @@ export const signInLink: IssuedToken & {
 	readonly user: { readonly id: string };
 } = {
 	token: 'tok-link-789',
+	email: 'ada@example.com',
+	expiresAt,
+	user: { id: 'u1' },
+};
+
+/** What `auth.stepUp.request(user)` answers for a user with no active second factor — challenge included. */
+export const stepUp: StepUpByEmail<{ readonly id: string }> = {
+	via: 'email',
+	code: '315062',
+	challenge: 'STEP-UP-CHALLENGE-must-never-be-mailed',
 	email: 'ada@example.com',
 	expiresAt,
 	user: { id: 'u1' },

@@ -46,7 +46,7 @@ time one is sent, and kept.
 | `brand` | `string` | required | The name the e-mails show, in the header, the body and the footer. Text: escaped in the HTML |
 | `links.verifyEmail` | `(token) => string` | required | The page that confirms an address, given the one-time token |
 | `links.resetPassword` | `(token) => string` | required | The page that sets a new password, given the one-time token |
-| `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it |
+| `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it, and so does the step-up's code, for a user who asked for none |
 | `links.getStarted` | `() => string` | required | Where a new user starts — your home page, or your sign-in page for an account someone else created: the welcome's **Get started** button links to it |
 | `links.magicLink` | `(token) => string` | none: `magicLink` is a `TypeError` without it | The page a sign-in link opens, given the one-time token. That page spends nothing: its button posts the token to the route that calls `auth.magicLink.confirm` |
 | `links.recoveryCodes` | `() => string` | `links.secureAccount` | Where a user regenerates their recovery codes: the recovery code notice links to it, from its **Secure my account** button |
@@ -144,6 +144,44 @@ nobody by name — and only its `locale` is read.
 - **A sign-in code is not a link.** Its answer has a `challenge`, the
   visitor's secret, and no `token`: the compiler refuses it here, and
   JavaScript gets `janusMail.magicLink: token must be a string`.
+
+### `stepUp(issued, to, options?)`
+
+```ts
+const current = await auth.authenticate(request); // the signed-in user, their session
+if (current === null) return new Response(null, { status: 401 });
+const issued = await auth.stepUp.request(current.user); // StepUpByEmail, or StepUpByApp with a second factor
+if (issued.via === 'email') {
+	await mail.stepUp(issued, { name: current.user.name, locale: current.user.locale });
+}
+return Response.json({ challenge: issued.challenge, via: issued.via }); // the challenge stays with the user
+```
+
+The code of a step-up — a signed-in user proving again who they are before
+a sensitive action, `@nxgt/janus`'s
+[step-up guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/step-up.md) —
+sent to `issued.email`, greeting `to.name`: "Your confirmation code",
+"Votre code de confirmation", the code, how long it lasts — "This code
+expires in 10 minutes." — and a **Secure my account** button to
+`links.secureAccount()`, for a user who asked for nothing. The e-mail names
+no action: it says "something sensitive", whatever the route guards.
+
+- **Narrow `via` first.** A user whose second factor is active confirms with
+  their app: `request` answers `via: 'secondFactor'`, with no code and no
+  address, and there is nothing to send. The compiler refuses the answer
+  un-narrowed; JavaScript gets
+  `janusMail.stepUp: via must be 'email' — a step-up confirmed with the user's app sends no e-mail`,
+  before anything is rendered. A type without `secondFactor` in `janus()`
+  answers `via: 'email'` alone, and needs no check.
+- **`to` is required**, unlike `signInCode`'s: the e-mail greets the user by
+  name, and it is the user of the session, whose name you hold.
+- It reads `issued.via`, `issued.code`, `issued.email` and
+  `issued.expiresAt`, **and nothing else**: the challenge never reaches a
+  template.
+- **The link has no fallback, and needs none.** `links.secureAccount` is
+  required by `janusMail()`: the notices link to it too.
+- **Rate-limit `stepUp.request` per user**, as the step-up guide says: each
+  request sends this e-mail.
 
 ### `passwordChanged(to)`
 
@@ -313,8 +351,8 @@ when opening the session then fails.
 
 ## The expiry
 
-`verifyEmail`, `resetPassword`, `signInCode` and `magicLink` say how long
-the link or the code lasts — "This link expires in 1 hour.", "Ce code expire dans
+`verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp` say
+how long the link or the code lasts — "This link expires in 1 hour.", "Ce code expire dans
 10 minutes." The text is `expiresIn`, one of the template's variables,
 derived at send time from the flow's `issued.expiresAt`:
 
@@ -328,7 +366,7 @@ derived at send time from the flow's `issued.expiresAt`:
    `unitDisplay: 'long'`, in the recipient's locale: "3 hours", "3 heures".
 
 With `@nxgt/janus`'s defaults, a verification link says "1 day", a reset
-link "1 hour" and a sign-in code "10 minutes".
+link "1 hour", and a sign-in code and a step-up's code "10 minutes".
 
 The time is `janusMail({ clock })`'s — pass the clock `janus({ clock })` was
 given, a `fixedClock` in tests — else the system clock:
@@ -363,6 +401,7 @@ a `TypeError`, and nothing reaches the mailer: revive the date with
 | `resetPassword` | `issued.email` | the `email` passed to `request` |
 | `signInCode` | `issued.email` | the `email` passed to `request` |
 | `magicLink` | `issued.email` | the `email` passed to `request` |
+| `stepUp` | `issued.email` | an address the client sent |
 | `passwordChanged` | `to.email` | — |
 | `emailChanged` | `to.formerEmail` | `to.newEmail` |
 | `twoFactorEnabled`, `twoFactorDisabled` | `to.email` | — |
@@ -386,7 +425,7 @@ defines no error class and wraps nothing:
 | --- | --- | --- | --- |
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
-| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`. For [the expiry](#the-expiry): `janusMail.<method>: expiresAt must be a Date`, `janusMail.<method>: expiresAt is past — the link or code would not work`, `janusMail.<method>: expiresIn must be a string`, `janusMail.<method>: clock.now() must answer a Date` | A bug to fix — for a past `expiresAt`, issue a new token or code and send that |
+| `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`. For [the expiry](#the-expiry): `janusMail.<method>: expiresAt must be a Date`, `janusMail.<method>: expiresAt is past — the link or code would not work`, `janusMail.<method>: expiresIn must be a string`, `janusMail.<method>: clock.now() must answer a Date`. For `stepUp`: `janusMail.stepUp: via must be 'email' — …` | A bug to fix — for a past `expiresAt`, issue a new token or code and send that |
 | `Error` from `createMailRenderer` | the renderer | `mails/` is missing where the package runs: a bundler inlined `@nxgt/janus-mail`, or a deploy kept `dist/` only | Keep `@nxgt/janus-mail` external to your bundle and deploy its `mails/` with it; see [troubleshooting](../troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is

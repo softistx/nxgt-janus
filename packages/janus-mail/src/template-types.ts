@@ -40,6 +40,17 @@ export interface JanusMailVariables {
 		readonly link: string;
 		readonly expiresIn: string;
 	};
+	/**
+	 * `link` is where the account is secured, for a user who asked for no
+	 * step-up. No `challenge`, ever, as for the sign-in code.
+	 */
+	readonly stepUp: {
+		readonly brand: string;
+		readonly name: string;
+		readonly code: string;
+		readonly expiresIn: string;
+		readonly link: string;
+	};
 	readonly passwordChanged: {
 		readonly brand: string;
 		readonly name: string;
@@ -82,7 +93,7 @@ export interface JanusMailVariables {
 	};
 }
 
-/** The name of one of the ten templates: `verifyEmail`, `resetPassword`, … */
+/** The name of one of the eleven templates: `verifyEmail`, `resetPassword`, … */
 export type JanusMailTemplateName = keyof JanusMailVariables;
 
 /**
@@ -95,7 +106,7 @@ export type JanusMailTemplate<V, L extends string = JanusMailLocale> = (
 	variables: V & { readonly locale: L },
 ) => Rendered | PromiseLike<Rendered>;
 
-/** The ten templates, each for the locales `L`. */
+/** The eleven templates, each for the locales `L`. */
 export type JanusMailTemplates<L extends string = JanusMailLocale> = {
 	readonly [K in JanusMailTemplateName]: JanusMailTemplate<
 		JanusMailVariables[K],

@@ -1,7 +1,7 @@
 {
 	"name": "@nxgt/janus-mail",
 	"version": "0.7.1",
-	"description": "The e-mails of @nxgt/janus's flows — e-mail verification, password reset, sign-in code, sign-in link, password changed, e-mail changed, two-factor enabled and disabled, recovery code used, welcome — rendered in English and French from a prebuilt Maizzle build, with your brand, sent through any @nxgt/mail transport",
+	"description": "The e-mails of @nxgt/janus's flows — e-mail verification, password reset, sign-in code, sign-in link, step-up code, password changed, e-mail changed, two-factor enabled and disabled, recovery code used, welcome — rendered in English and French from a prebuilt Maizzle build, with your brand, sent through any @nxgt/mail transport",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -58,7 +58,7 @@
 		"@nxgt/mail": "1.0.1",
 		"@nxgt/mail-config": "1.0.1",
 		"@nxgt/mail-i18n": "1.0.1",
-		"@nxgt/mail-presets": "1.0.1",
+		"@nxgt/mail-presets": "1.1.0",
 		"@nxgt/mail-ui": "1.0.1",
 		"@types/bun": "^1.4.2",
 		"vue": "3.5.43",

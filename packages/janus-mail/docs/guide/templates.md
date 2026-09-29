@@ -1,7 +1,7 @@
 # Templates
 
 This page is for changing what an e-mail says or looks like: what a template
-is given and answers, replacing some of the ten, using the defaults on their
+is given and answers, replacing some of the eleven, using the defaults on their
 own, and what the defaults say.
 
 ```ts
@@ -22,7 +22,7 @@ const mail = janusMail({
 });
 ```
 
-The sign-in code e-mail is now yours; the eight others stay the defaults.
+The sign-in code e-mail is now yours; the ten others stay the defaults.
 
 ## What a template is
 
@@ -63,6 +63,7 @@ e-mail.
 | `resetPassword` | `brand`, `name`, `link`, `expiresIn` | `mail.resetPassword(issued, to, options?)` |
 | `signInCode` | `brand`, `code`, `expiresIn` | `mail.signInCode(issued, to?, options?)` |
 | `magicLink` | `brand`, `link`, `expiresIn` | `mail.magicLink(issued, to?, options?)` |
+| `stepUp` | `brand`, `name`, `code`, `expiresIn`, `link` | `mail.stepUp(issued, to, options?)` |
 | `passwordChanged` | `brand`, `name`, `link` | `mail.passwordChanged(to)` |
 | `emailChanged` | `brand`, `name`, `link`, `newEmail` | `mail.emailChanged(to)` |
 | `twoFactorEnabled` | `brand`, `name`, `link` | `mail.twoFactorEnabled(to)` |
@@ -72,7 +73,7 @@ e-mail.
 
 Every one also gets `locale`, one of `locales`. Every value is a string:
 `brand` from the options, `name` from the recipient, `link` from `links` —
-`links.secureAccount()` for the four notices, `links.recoveryCodes()` (else
+`links.secureAccount()` for the four notices and `stepUp`, `links.recoveryCodes()` (else
 `links.secureAccount()`) for `recoveryCodeUsed`, `links.getStarted()` for
 `welcome` — `code`, `newEmail` and `when` from the
 call, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
@@ -95,8 +96,8 @@ templates: {
 // await mail.recoveryCodeUsed(to, { when, recoveryCodesLeft: `Sie haben noch ${left} Wiederherstellungscodes.` });
 ```
 
-`signInCode` is **never given the challenge**: it is not in its variables,
-and the method never reads it. An override states the expiry from
+`signInCode` and `stepUp` are **never given the challenge**: it is not in
+their variables, and the methods never read it. An override states the expiry from
 `expiresIn`, already formatted:
 
 ```ts
@@ -125,11 +126,11 @@ methods live on its prototype and are refused — see
 [troubleshooting](../troubleshooting.md#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-).
 
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
-any of the ten, and the defaults render the rest. Once `locales` holds
-another locale, it takes **all ten** — see
+any of the eleven, and the defaults render the rest. Once `locales` holds
+another locale, it takes **all eleven** — `stepUp` included, since 0.8 — see
 [Adding a locale](locales.md#adding-a-locale).
 
-`mail.templates` answers the ten in use — yours, and the defaults for the
+`mail.templates` answers the eleven in use — yours, and the defaults for the
 rest — frozen:
 
 ```ts
@@ -151,7 +152,7 @@ const { subject, html, text } = await defaults.resetPassword({
 });
 ```
 
-It answers the ten defaults, typed for `'en' | 'fr'`, without a mailer:
+It answers the eleven defaults, typed for `'en' | 'fr'`, without a mailer:
 to preview an e-mail, to wrap one — add a line to the default text, say — or
 to send one through something other than `janusMail()`. A default reused for
 a wider set of locales is a compile error: it could not render the one it
@@ -177,7 +178,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-1.0.1, built with a neutral grey theme and no logo:
+1.1.0, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -185,6 +186,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 | `resetPassword` | `reset-password` | Reset your password | Réinitialisez votre mot de passe |
 | `signInCode` | `sign-in-code` | Your sign-in code: `042817` | Votre code de connexion : `042817` |
 | `magicLink` | `magic-link` | Your sign-in link | Votre lien de connexion |
+| `stepUp` | `confirm-action` | Your confirmation code | Votre code de confirmation |
 | `passwordChanged` | `password-changed` | Your password was changed | Votre mot de passe a été modifié |
 | `emailChanged` | `email-changed` | Your e-mail address was changed | Votre adresse e-mail a été modifiée |
 | `twoFactorEnabled` | `two-factor-enabled` | Two-factor authentication was turned on | L'authentification à deux facteurs a été activée |
@@ -194,16 +196,19 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 
 Each has a header and a footer with the brand, a heading, a greeting by name
 (but `signInCode` and `magicLink`), a button with its link and the link again in text for a
-client that shows no button, and a text part. The other four notices add a warning:
-*if this was not you, secure your account now*. `recoveryCodeUsed` says it
+client that shows no button, and a text part. The four notices but `recoveryCodeUsed` add a warning:
+*if this was not you, secure your account now*. `stepUp` shows its code as
+the sign-in code does, names no action — *someone, we hope you, asked to do
+something sensitive on your account* — and warns not to share the code if
+it was not the user, its button saying **Secure my account**. `recoveryCodeUsed` says it
 too, after a warning banner — *a recovery code was used on your account at
 `when`* — the codes left, and a line on generating new ones; its button says
 **Secure my account**. `welcome` has the brand in
 its heading — "Welcome to Acme" — and the recipient's name in its subject,
 filled at send time like the body; its button says **Get started**.
 
-`verifyEmail`, `resetPassword`, `signInCode` and `magicLink` also say how
-long the link or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
+`verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp` also
+say how long the link or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
 10 minutes." The text part keeps each paragraph on one line.
 
 **The HTML follows dark mode.** Each HTML part declares
@@ -215,7 +220,7 @@ is near-black (`#27272a`) with light text in light mode, and near-white
 (`#fafafa`) with near-black text (`#18181b`) in dark mode — 17:1 against the
 dark card, where the light primary would be 1.2:1. The page behind the card
 is 5% of the light primary over the dark background, a shade darker than the
-card, which its border outlines. The sign-in code's box is a light grey
+card, which its border outlines. The code's box — the sign-in code's and the step-up's — is a light grey
 (`#f1f5f9`) with near-black code (`#020918`) in light mode, and a slate a
 step above the dark card (`#1e293b`) with light code (`#cbd5e1`) in dark
 mode, 9.85:1. The muted text — the footer, and the closing *if you did not

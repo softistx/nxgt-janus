@@ -9,7 +9,7 @@
  *   writes, and one `@nxgt/mail` 0.1.0 reads** — the peer is `>=0.1.0 <2`, and
  *   a renderer reads every format up to its own, so a newer format would
  *   break an application on the floor;
- * - it **fails unless exactly the ten e-mails** of Janus's flows were built,
+ * - it **fails unless exactly the eleven e-mails** of Janus's flows were built,
  *   so a preset added or dropped by a new `@nxgt/mail-presets` is a failed
  *   build here, not a surprise in a consumer's outbox;
  * - it writes `src/generated/locales.ts` — the locales built, as a type —
@@ -30,6 +30,7 @@ import { branchesOf, codesLeftMessage, codesLeftModule } from './codes-left';
 
 /** The e-mails the package promises, sorted as the manifest sorts them. */
 export const EXPECTED_EMAILS = [
+	'confirm-action',
 	'email-changed',
 	'magic-link',
 	'password-changed',

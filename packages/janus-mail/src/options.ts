@@ -21,6 +21,7 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'resetPassword',
 	'signInCode',
 	'magicLink',
+	'stepUp',
 	'passwordChanged',
 	'emailChanged',
 	'twoFactorEnabled',
