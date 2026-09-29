@@ -43,7 +43,7 @@ The words — **user event**, **listener** — are defined in
 | `type` | Sent by | Not sent |
 | --- | --- | --- |
 | `user.created` | `create`, `signUp` — once the user is inserted, even if `signUp`'s session then fails to open | for a sign-up refused (`LOGIN_TAKEN`, `USER_INVALID`, `PASSWORD_TOO_SHORT`) |
-| `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm`, whose link proves the e-mail; `signInCode.confirm`, whose code does | for an e-mail already verified, or a refused confirm |
+| `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm` and `magicLink.confirm`, whose link proves the e-mail; `signInCode.confirm`, whose code does | for an e-mail already verified, or a refused confirm |
 | `user.passwordReset` | `resetPassword.confirm` | for `setPassword` or `changePassword` — they are not resets |
 | `user.passwordChanged` | `changePassword` and `setPassword` — a first password set on a user created without one included — once the password is written — even if spending the reset links and second-factor challenges it ends then fails | for a reset, which is `user.passwordReset` alone; for a `changePassword` refused (`CREDENTIALS_INVALID`) |
 | `user.emailChanged` | `update`, when it changed the e-mail — added, replaced or removed. It carries `formerEmail`, the address before | for an update that leaves the e-mail alone, or changes only its case (`Ada@…` for `ada@…`): compared normalised, the same test that makes the new address unverified; for a type with no e-mail; for an update refused |
@@ -204,7 +204,7 @@ Where the listener runs within a flow, and what an outage does to it:
 | `verifyEmail.confirm` | after the write — the flow's last step | — |
 | `update` | after the write — the flow's last step | — |
 | `changePassword`, `setPassword` | **after** the reset links and the second-factor challenges left open are spent | fails the call; the event is sent all the same, from a `finally` |
-| `signInCode.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
+| `signInCode.confirm`, `magicLink.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
 | `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |
 | `secondFactor.recover` | after the recovery code is spent and the session opened — or failed to open | fails the call; the recovery code is spent and the event sent all the same, from a `finally` |
 | `resetPassword.confirm` | **after** the sessions opened with the old password are revoked, and the other reset links and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |

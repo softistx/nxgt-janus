@@ -36,6 +36,10 @@ Nothing yet.
 
 ## Shipped
 
+- **The sign-in link kind, v0.6.0** — for `@nxgt/janus` 0.15: the
+  `tokens_kind` check admits `magicLink`, the token of a link that signs a
+  user in — a migration drizzle-kit writes as one statement, rewriting no
+  row.
 - **The step-up kind and `reauthenticateSession`, v0.5.0** — for
   `@nxgt/janus` 0.12: `reauthenticateSession` is one `update … where
   revoked_at is null returning`, and the `tokens_kind` check admits

@@ -1,6 +1,6 @@
 /**
  * Wiring `janus()`: logins, schemas and configurations it refuses. Cases 1–9 of
- * the fifty — see `fixtures.ts`.
+ * the fifty-four — see `fixtures.ts`.
  */
 
 import { z } from 'zod';

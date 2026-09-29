@@ -1,15 +1,12 @@
-import { UserInactiveError } from '../errors/janus-error';
 import type { At } from './at';
 import type { ResolvedType } from './config';
+import { type AnyUser, type Context, findRecord, toUser } from './context';
 import {
-	type AnyUser,
-	type Context,
-	findRecord,
-	holderOfEmail,
-	toUser,
-	writeUser,
-} from './context';
-import { emit } from './events';
+	type Finish,
+	finishEmailSignIn,
+	keepOnlyLatest,
+	signInHolder,
+} from './email-sign-in';
 import {
 	burnOneTime,
 	CODE_ATTEMPTS,
@@ -17,12 +14,9 @@ import {
 	codeMatches,
 	countCodeAttempt,
 	issueCode,
-	refuseStale,
 	spendOneTime,
 	unknownChallenge,
 } from './one-time';
-import type { UserRecord } from './port/types';
-import { hashSecret } from './secrets';
 import type { IssuedCode, SignInCodeApi, SignInResult } from './types';
 
 /**
@@ -56,11 +50,6 @@ export function signInCodeFlows(
 	};
 }
 
-type Finish = (
-	record: UserRecord,
-	where: string,
-) => Promise<SignInResult<AnyUser>>;
-
 /** Issues a code for the holder of `email`, and spends every other they had. */
 async function requestCode(
 	context: Context,
@@ -68,8 +57,8 @@ async function requestCode(
 	email: string,
 ): Promise<IssuedCode<AnyUser> | null> {
 	// Nobody, and an inactive user, get the same answer: no code.
-	const record = await holderOfEmail(context, type, email);
-	if (record === null || !record.active) return null;
+	const record = await signInHolder(context, type, email);
+	if (record === null) return null;
 
 	const { secret, code, expiresAt } = await issueCode(context, {
 		kind: 'signInCode',
@@ -77,15 +66,8 @@ async function requestCode(
 		address: String(record.fields[type.email]),
 		ttlMs: context.config.tokenTtlMs.signInCode,
 	});
-	// One live code per user: the ones sent before stop working. Issued
-	// first, spent after, so requests that race leave at most one live
-	// — maybe none, and the visitor asks again — never one each.
-	await context.store.tokens.spendUserTokens(
-		record.id,
-		'signInCode',
-		context.clock.now(),
-		hashSecret(secret),
-	);
+	// One live code per user: the ones sent before stop working.
+	await keepOnlyLatest(context, record.id, 'signInCode', secret);
 	return {
 		code,
 		challenge: secret,
@@ -131,25 +113,10 @@ async function confirmCode(
 	}
 
 	await spendOneTime(context, secret, 'signInCode', where, 'challenge');
-	refuseStale(type, user, token, where, 'code');
-	if (!user.active) {
-		throw new UserInactiveError(`${where}: the user is inactive`, {
-			userId: user.id,
-			userType: type.name,
-		});
-	}
-
-	// The code reached the inbox: that proves the e-mail — under the
-	// version read, so an address changed since is not the one proved.
-	if (user.emailVerifiedAt !== null) return finish(user, where);
-	const proved = await writeUser(
-		context,
-		user.id,
-		type,
-		{ ifVersion: user.version },
+	return finishEmailSignIn(context, type, finish, {
+		user,
+		token,
 		where,
-		(_, now) => ({ emailVerifiedAt: now }),
-	);
-	await emit(context, 'user.emailVerified', proved, proved.updatedAt);
-	return finish(proved, where);
+		noun: 'code',
+	});
 }

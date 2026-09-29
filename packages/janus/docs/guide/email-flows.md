@@ -91,8 +91,9 @@ clinic.patient.verifyEmail.send; // exists: `email` names the field
 clinic.staff.verifyEmail;
 ```
 
-A type with an e-mail can also sign in with a code sent to it, with or
-without a password — see [sign-in codes](sign-in-code.md).
+A type with an e-mail can also sign in with a code or a link sent to it,
+with or without a password — see [sign-in codes](sign-in-code.md) and
+[sign-in links](magic-link.md).
 
 ## Options
 
@@ -180,8 +181,8 @@ The links are spent **after** the password is written, so a link issued
 during the write is spent too. If the store fails at that step, the call
 rejects with `STORE_FAILED` although the password is written — answer 503 as
 usual — and the older links may still be live until the next `request`,
-which spends them. Sign-in codes and step-ups are not spent: the password
-proves neither.
+which spends them. Sign-in codes, sign-in links and step-ups are not spent:
+the password proves none of them.
 
 `confirm` sets the password, marks the e-mail verified — the link proved it —
 and **signs the user out everywhere**: their sessions are revoked, and every
@@ -234,6 +235,7 @@ never the token, and no refusal's message contains it.
 
 - [Users](users.md) — `email`, `update`, and the other per-type methods
 - [Sign-in codes](sign-in-code.md) — the third flow that sends an e-mail: a code, not a link
+- [Sign-in links](magic-link.md) — the fourth: a link that signs in, confirmed from a `POST` so a mail scanner spends nothing
 - [Sessions](sessions.md) — `signOutEverywhere`, which `resetPassword.confirm` calls for you
 - [User events](events.md) — `user.emailVerified` and `user.passwordReset`, which the confirms send
 - [Errors](errors.md) — every code, and the status it deserves

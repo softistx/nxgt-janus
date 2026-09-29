@@ -53,6 +53,7 @@ export type {
 	IssuedToken,
 	Janus,
 	LoginOf,
+	MagicLinkApi,
 	PasswordApi,
 	RecoveredSignIn,
 	RecoveryCodesIssued,

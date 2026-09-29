@@ -384,7 +384,7 @@ is as good as the user's phone.
 ### Signing in with one
 
 `recover(challenge, code)` redeems the challenge `signIn` answered — or
-`signInCode.confirm`'s — with a recovery code instead of the app's code, and
+`signInCode.confirm`'s, or `magicLink.confirm`'s — with a recovery code instead of the app's code, and
 opens the session. The recovery code is **spent**: its hash leaves the store,
 and `recoveryCodesLeft` says how many remain.
 
@@ -874,6 +874,7 @@ with `STORE_FAILED`.
 ## See also
 
 - [Sign-in codes](sign-in-code.md) — a sign-in by e-mailed code, which still asks for an active factor, with the same challenge
+- [Sign-in links](magic-link.md) — a sign-in by e-mailed link, which does the same
 - [Sessions](sessions.md) — the cookie `confirm`'s session is sent in, and `authenticatedAt`
 - [User events](events.md) — `user.secondFactorEnabled`, `user.secondFactorDisabled`, `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`
 - [Errors](errors.md) — `CODE_INVALID`, `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` and their statuses

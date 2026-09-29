@@ -17,10 +17,14 @@ const KINDS = Object.keys({
 	resetPassword: true,
 	secondFactor: true,
 	signInCode: true,
+	magicLink: true,
 	stepUp: true,
 } satisfies Record<TokenKind, true>) as TokenKind[];
 
-/** Each kind stored and redeemed as itself, and the two codes kept apart. */
+/**
+ * Each kind stored and redeemed as itself, a step-up kept apart from a
+ * sign-in code, and a sign-in link from both.
+ */
 export const tokenKindCases: readonly ConformanceCase[] = [
 	{
 		id: 'tokens.everyKind',
@@ -78,6 +82,44 @@ export const tokenKindCases: readonly ConformanceCase[] = [
 				),
 				signInCode,
 				'spendUserTokens of stepUp should not touch a sign-in code, nor anything else have counted it',
+			);
+		},
+	},
+	{
+		id: 'tokens.magicLinkKind',
+		group,
+		name: 'keeps a sign-in link apart from a sign-in code: neither is counted, spent nor answered as the other',
+		async run({ stores }) {
+			const userId = mintId();
+			const link = tokenRecord({ userId, kind: 'magicLink' });
+			const code = tokenRecord({
+				userId,
+				kind: 'signInCode',
+				codeHash: 'c'.repeat(64),
+			});
+			await stores.tokens.insertToken(link);
+			await stores.tokens.insertToken(code);
+			const now = at('2026-02-01T00:00:00.000Z');
+
+			// A sign-in code's challenge is held by whoever asked for it: redeemed
+			// as a link, it would sign them in with no code at all.
+			isNull(
+				await stores.tokens.consumeToken(code.tokenHash, 'magicLink', now),
+				'consumeToken for a signInCode token redeemed as magicLink',
+			);
+			isNull(
+				await stores.tokens.countAttempt(link.tokenHash, 'signInCode'),
+				'countAttempt for a magicLink token counted as signInCode',
+			);
+			equal(
+				await stores.tokens.spendUserTokens(userId, 'magicLink', now),
+				1,
+				'spendUserTokens of magicLink: the link only',
+			);
+			equal(
+				await stores.tokens.consumeToken(code.tokenHash, 'signInCode', now),
+				code,
+				'spendUserTokens of magicLink should not touch a sign-in code, nor anything else have counted it',
 			);
 		},
 	},

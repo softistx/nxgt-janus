@@ -128,9 +128,9 @@ and the time the answer takes would tell what its body does not. The store's
 own latency — one write for a code issued, none for `null` — still tells a
 patient observer; that limit is stated rather than denied.
 
-Every `request` issues a **new** code with its own challenge; the earlier
-ones stay valid until they are confirmed or expire. `janus` does not limit
-how often a code is asked for: **rate-limit the request route** per address
+Every `request` issues a **new** code with its own challenge, and spends the
+earlier ones: only the last code sent works — see
+[attempts](#attempts). `janus` does not limit how often a code is asked for: **rate-limit the request route** per address
 and per client, as you would a password reset, or anyone can fill a user's
 inbox.
 
@@ -153,9 +153,10 @@ if (issued !== null) {
 
 **No link, and no challenge.** A link carrying the challenge would put it in
 the mailbox beside the code — whoever reads the e-mail would hold both
-halves — and in every server log and proxy the link crosses. A sign-in link
-is not this flow: the code is typed into the page that asked for it, so the
-sign-in completes in the browser that started it.
+halves — and in every server log and proxy the link crosses. A [sign-in link](magic-link.md)
+is another flow, with a token of its own: here the code is typed into the
+page that asked for it, so the sign-in completes in the browser that started
+it.
 
 Send it to `issued.email`, not to what the visitor typed: it is the address
 the user's field holds, as they registered it.
@@ -272,6 +273,12 @@ A user whose `emailVerified` was `false` has it `true` once `confirm`
 succeeds, and their `version` moves: the code proves the address as a
 verification link would, and a [`user.emailVerified` event](events.md) is
 sent. A user already verified is not written, and nothing is sent.
+
+**The proof can land on an account someone else registered** — with a
+password of theirs, which keeps working, as does the session `signUp`
+opened. Where a password signs in before the e-mail is verified, see
+[the sign-in link guide](magic-link.md#an-account-someone-else-registered):
+the same holds for a code.
 
 ### A second factor is still asked for
 
@@ -499,6 +506,7 @@ a `secondFactor`, and `SignedIn<U>` everywhere else. `IssuedCode` and
 ## See also
 
 - [The second factor](second-factor.md) — the challenge `confirm` answers for a user whose factor is active
+- [Sign-in links](magic-link.md) — the same sign-in with a link instead of a code: nothing to type, on whichever device opens it
 - [E-mail verification and password reset](email-flows.md) — the other flows that send an e-mail, and `TOKEN_STALE`
 - [Sessions](sessions.md) — the cookie the session is sent in
 - [Errors](errors.md) — every code and its status

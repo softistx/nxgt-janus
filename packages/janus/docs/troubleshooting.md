@@ -91,6 +91,14 @@ How the messages are shaped:
 - [`TS2339: Property 'signInCode' does not exist on type 'TypeApi<…>'.`](#ts2339-property-signincode-does-not-exist-on-type-typeapi)
 - `CODE_INVALID`, `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `USER_INACTIVE` and `VERSION_CONFLICT` from `signInCode.confirm`, and `TS2339` on its `token`: in their entries above.
 
+**Sign-in links**
+- [A sign-in link answers `TOKEN_SPENT` on the user's first click](#a-sign-in-link-answers-token_spent-on-the-users-first-click)
+- [The link signed in another device than the one that asked](#the-link-signed-in-another-device-than-the-one-that-asked)
+- [`magicLink.request` answers `null` for a user who exists](#magiclinkrequest-answers-null-for-a-user-who-exists)
+- [`TS2339: Property 'magicLink' does not exist on type 'TypeApi<…>'.`](#ts2339-property-magiclink-does-not-exist-on-type-typeapi)
+- [`TS2554: Expected 1 arguments, but got 2.`, on `magicLink.confirm`](#ts2554-expected-1-arguments-but-got-2-on-magiclinkconfirm)
+- `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE`, `USER_INACTIVE` and `VERSION_CONFLICT` from `magicLink.confirm`, and `TS2339` on its `token`: in their entries above.
+
 **Step-up**
 - [`STEP_UP_REQUIRED` — `assertFresh: the session proved who it is longer ago than maxAge …`](#step_up_required--assertfresh-the-session-proved-who-it-is-longer-ago-than-maxage--confirm-with-a-step-up)
 - [`TOKEN_UNKNOWN` — `stepUp.confirm: no such challenge`, with a challenge just issued](#token_unknown--stepupconfirm-no-such-challenge-with-a-challenge-just-issued)
@@ -132,6 +140,7 @@ How the messages are shaped:
 - [`findUser should answer recoveryCodes [] as [] — never null, never undefined`](#finduser-should-answer-recoverycodes--as---never-null-never-undefined)
 - [`reauthenticateSession racing revokeSession: the session should stay revoked — one conditional write, never a read then a write`](#reauthenticatesession-racing-revokesession-the-session-should-stay-revoked--one-conditional-write-never-a-read-then-a-write)
 - [`tokens.insertToken: the store could not answer`, in `tokens.everyKind`](#tokensinserttoken-the-store-could-not-answer-in-tokenseverykind)
+- [`consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`](#consumetoken-for-a-signincode-token-redeemed-as-magiclink-in-tokensmagiclinkkind)
 
 ---
 
@@ -331,7 +340,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.stepUp`, `secondFactor.challenge` and `signIn.throttle.window` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.magicLink`, `tokens.stepUp`, `secondFactor.challenge` and `signIn.throttle.window` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.
@@ -507,6 +516,17 @@ challenge — the same code will not, it was used.
 form.addEventListener('submit', () => form.querySelector('button')?.setAttribute('disabled', ''));
 ```
 
+**From `signInCode.confirm` and `magicLink.confirm`**, the message names the
+call: `magicLink.confirm: expected version <n>, found <m>`.
+
+**When:** the user was written — an `update`, a sign-in that rehashed the
+password — between `confirm` reading them and writing the e-mail as
+verified. Rare: the window is one read.
+**Why:** the proof is written under the version read, so an address changed
+meanwhile is never the one marked verified. Nothing was written and no
+session opened, but the code's challenge or the link is already spent.
+**Fix:** answer it as a spent link or code: ask for a new one.
+
 **From `secondFactor.recover`**, the same store message.
 
 **When:** one recovery code used by two sign-ins at once — the same
@@ -611,8 +631,8 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, and `signInCode.confirm`, for a user set inactive after the code was sent.
-**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent.
+**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it. `magicLink.confirm` checks after spending the link, which is spent too, and `magicLink.request` answers `null` for an inactive user.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
 ### `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`
@@ -686,11 +706,31 @@ more time:
 janus({ ..., tokens: { signInCode: '15m' } });
 ```
 
+**On `magicLink.confirm`**, the messages name the token, as for the other
+links: `magicLink.confirm: no such token`, `magicLink.confirm: the token was
+already used`, `magicLink.confirm: the token has expired`.
+
+**When:** `magicLink.confirm(token)`.
+**Why:** a sign-in link lives fifteen minutes and is spent by its first
+`confirm`, whether that call signs in or is refused — so a second click, a
+refresh that posts again, or a link [a mail scanner opened](#a-sign-in-link-answers-token_spent-on-the-users-first-click)
+first answers `TOKEN_SPENT`. The next `request` for the same user spends it
+too: only the last link sent works. `TOKEN_UNKNOWN` also covers a link
+whose user was deleted, one confirmed through another user type's
+`magicLink` — which spends it — a sign-in code's challenge, and a token cut
+short by the mail client wrapping the URL.
+**Fix:** send the visitor back to ask for a new link — every `TOKEN_*`
+means that to them — and tell them to use the latest e-mail.
+
+```ts
+janus({ ..., tokens: { magicLink: '30m' } });
+```
+
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
 
-**When:** `verifyEmail.confirm` or `resetPassword.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
+**When:** `verifyEmail.confirm`, `resetPassword.confirm` or `magicLink.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
 **Why:** confirming it would verify an address nobody holds any more, or reset a password through one. The token is spent, and nothing is written.
-**Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)`.
+**Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)` — or, for a sign-in link, ask for a new one: `magicLink.request` sends it to the current address.
 
 ### `INVALID_CURSOR` — `<call>: this cursor was not minted by this store, or was minted for another ordering (<n> characters)`
 
@@ -758,7 +798,7 @@ each of those entries has a paragraph for it.
 
 The same for `session` and `user`.
 
-**When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor` — and `signInCode.confirm`'s, on a user type with a password.
+**When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor` — and `signInCode.confirm`'s and `magicLink.confirm`'s, on a user type with a password.
 **Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt, userId }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
 **Fix:** switch on `status`:
 
@@ -1148,6 +1188,88 @@ janus({
   ...
 });
 ```
+
+---
+
+## Sign-in links
+
+`magicLink.confirm`'s messages start with `magicLink.confirm` — prefixed by
+the type with several user types: `patient.magicLink.confirm: …`.
+`magicLink.request` throws nothing but `STORE_FAILED`: an e-mail it cannot
+sign in is `null`. `magicLink.confirm` rejects with
+[`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
+[`TOKEN_STALE`](#token_stale--call-the-token-was-sent-to-an-e-mail-the-user-no-longer-has),
+[`USER_INACTIVE`](#user_inactive--call-the-user-is-inactive) and
+[`VERSION_CONFLICT`](#version_conflict--call-expected-version-n-found-m);
+each of those entries has a paragraph for it. On a type with a password in
+an instance given a `secondFactor`, reading its `token` before narrowing on
+`status` is the `TS2339` of `signIn`'s. [The sign-in link guide](guide/magic-link.md)
+has the whole flow.
+
+### A sign-in link answers `TOKEN_SPENT` on the user's first click
+
+`magicLink.confirm: the token was already used`, when the user swears they
+clicked once.
+
+**When:** a route calls `magicLink.confirm` on the `GET` of the link — and
+most often for users behind a corporate mail gateway, or of a webmail that
+checks links.
+**Why:** a mail scanner opened the link before the user did. Gateways,
+safe-browsing checks and antivirus fetch every URL in an e-mail, and some
+run the page's scripts; a `GET` that confirms spent the token for them.
+**Fix:** make the link's `GET` a page that spends nothing, and confirm from
+its button's `POST` — not from a script that submits by itself, which a
+scanner that runs scripts submits too:
+
+```ts
+// GET /sign-in/link?token=…  → a page whose <form method="post"> holds the token, and a button
+// POST /sign-in/link         → the one place that calls confirm
+const token = String((await request.formData()).get('token') ?? '');
+const signedIn = await auth.magicLink.confirm(token);
+```
+
+The [guide](guide/magic-link.md#confirming-from-a-post-never-from-the-links-get)
+has the page, with the headers it needs.
+
+### The link signed in another device than the one that asked
+
+**When:** a user asks for a link on a laptop and opens the e-mail on their
+phone: the phone is signed in, the laptop still waits.
+**Why:** the session opens in the browser that posts the token — whoever
+opens the link signs in, wherever they open it. That is what a link is.
+**Fix:** say on the page that asked "open the link on this device", or send
+a [sign-in code](guide/sign-in-code.md) instead: it is typed into the page
+that asked for it, so the sign-in completes there.
+
+### `magicLink.request` answers `null` for a user who exists
+
+**When:** `magicLink.request(email)`, for an address you can see in the
+database.
+**Why:** the same three causes as a
+[sign-in code's `null`](#signincoderequest-answers-null-for-a-user-who-exists):
+the user is inactive, is of another user type, or the address is not the
+type's e-mail field.
+**Fix:** as there. Do not tell the visitor which — the route answers the
+same page either way.
+
+### `TS2339: Property 'magicLink' does not exist on type 'TypeApi<…>'.`
+
+Also `Property 'magicLink' does not exist on type 'Janus<…>'.`, with the
+single-type form.
+
+**When:** `tsc`, on `auth.magicLink` or `clinic.<type>.magicLink`.
+**Why:** the user type has no e-mail, so a link has nowhere to be sent — as
+for [`signInCode`](#ts2339-property-signincode-does-not-exist-on-type-typeapi).
+Or `@nxgt/janus` is older than 0.15, which brought `magicLink`.
+**Fix:** name the field that holds the e-mail with the type's `email`
+option, or upgrade `@nxgt/janus`.
+
+### `TS2554: Expected 1 arguments, but got 2.`, on `magicLink.confirm`
+
+**When:** `tsc`, on `magicLink.confirm(challenge, code)` — a sign-in code's
+route copied for a link.
+**Why:** a link carries no code: its token is the whole secret.
+**Fix:** `magicLink.confirm(token)`, with the token the link's page posted.
 
 ---
 
@@ -1600,5 +1722,24 @@ In SQL, `update … set authenticated_at = $2 where id = $1 and revoked_at is nu
 ### `tokens.insertToken: the store could not answer`, in `tokens.everyKind`
 
 **When:** the case `tokens.everyKind`, on an adapter whose database lists the token kinds — a `CHECK`, a validator's enum.
-**Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
-**Fix:** add `stepUp` to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'stepUp'`.
+**Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, or `magicLink`, which came in 0.15, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
+**Fix:** add the missing kind to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp'`.
+
+### `consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`
+
+Also `countAttempt for a magicLink token counted as signInCode`, `spendUserTokens of magicLink: the link only`, and `spendUserTokens of magicLink should not touch a sign-in code, nor anything else have counted it`.
+
+**When:** the case `tokens.magicLinkKind`, on an adapter that matches a token by its hash alone, or spends a user's tokens of every kind at once.
+**Why:** a sign-in code's challenge is handed to whoever asked for the code. Redeemed as a link, it would sign them in with no code at all — the kind is what keeps the two apart, so every token method must match it.
+**Fix:** put `kind` in the condition of `consumeToken`, `countAttempt` and `spendUserTokens`, beside the hash or the user:
+
+```ts
+// MongoDB: consumeToken — the hash and the kind, never the hash alone
+await tokens.findOneAndUpdate(
+	{ _id: tokenHash, kind },
+	[{ $set: { spentAt: { $ifNull: ['$spentAt', at] } } }],
+	{ returnDocument: 'before' },
+);
+```
+
+In SQL, `… where token_hash = $1 and kind = $2`; `spendUserTokens` holds `user_id = $1 and kind = $2`. See [`TokenStore`](guide/adapters.md#sessionstore-and-tokenstore).

@@ -70,6 +70,16 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Sign in with an e-mailed link (magic link), v0.15.0** —
+  `auth.magicLink.request(email)` and `magicLink.confirm(token)` on every
+  user type with an e-mail, with or without a password: the sign-in code
+  with nothing to type. `request` answers `null` for nobody and for an
+  inactive user alike; only the last link sent works; a link lives fifteen
+  minutes (`tokens.magicLink`) and is spent by its first `confirm`, which
+  proves the e-mail and still asks for an active second factor. Confirmed
+  from a `POST`, so a mail scanner that opens the link spends nothing.
+  **Breaking for an adapter: `TokenKind` gains `'magicLink'`**, which a
+  `CHECK` or a validator's enum must list.
 - **Password guessing throttled per login, v0.14.0** — past ten passwords
   tried at one login in a 15-minute window, `signIn` answers
   `CREDENTIALS_INVALID` with `reason: 'throttled'` and `retryAfter`, the right
@@ -149,8 +159,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `STORE_FAILED` on PostgreSQL alone. The relation store suite holds every
   adapter to reading back every other character in an id exactly as written.
   — v0.8.3
-- **Webhooks, `@nxgt/janus-webhooks` v0.1.0** — a package of its own: the
-  user events `janus({ events })` hands over, signed by the Standard
-  Webhooks specification (HMAC-SHA256, secrets that rotate) and posted to
-  your endpoints, retried with backoff, and reported to `onGivingUp` when
-  given up — never dropped in silence. `verifyWebhook` is the receiving side.

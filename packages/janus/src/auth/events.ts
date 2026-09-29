@@ -6,8 +6,9 @@ import type { Context } from './context';
  *
  * - `user.created` — by `create` or `signUp`;
  * - `user.emailVerified` — by `verifyEmail.confirm`, or by the link of
- *   `resetPassword.confirm` or the code of `signInCode.confirm`, which prove
- *   the e-mail too; never for an e-mail already verified;
+ *   `resetPassword.confirm` or `magicLink.confirm`, or the code of
+ *   `signInCode.confirm`, which prove the e-mail too; never for an e-mail
+ *   already verified;
  * - `user.passwordReset` — by `resetPassword.confirm`;
  * - `user.passwordChanged` — by `changePassword` and `setPassword`; never by a
  *   reset, which is `user.passwordReset` alone;

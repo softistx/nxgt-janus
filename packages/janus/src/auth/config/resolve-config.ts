@@ -124,6 +124,10 @@ function resolveTokenTtls(
 			config.tokens?.signInCode ?? '10m',
 			`${where}: tokens.signInCode`,
 		),
+		magicLink: parseDuration(
+			config.tokens?.magicLink ?? '15m',
+			`${where}: tokens.magicLink`,
+		),
 		stepUp: parseDuration(
 			config.tokens?.stepUp ?? '10m',
 			`${where}: tokens.stepUp`,

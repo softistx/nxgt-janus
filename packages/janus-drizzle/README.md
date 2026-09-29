@@ -145,6 +145,12 @@ a code, in the order written; no codes are `null`, read as `[]`.
   "tokens" violates check constraint "tokens_kind"`.
   [To 0.5](docs/guide/migrations.md#to-05-the-step-up-kind) shows the one
   statement drizzle-kit writes.
+- **Upgrading to 0.6 needs the same kind of migration.** The check admits
+  `magicLink`, `@nxgt/janus` 0.15's sign-in link. Deployed without it,
+  every `magicLink.request` fails with `STORE_FAILED`, caused by the same
+  `violates check constraint "tokens_kind"`.
+  [To 0.6](docs/guide/migrations.md#to-06-the-sign-in-link-kind) shows the
+  statement.
 - **Your migrations create the tables, not this package.** The core never
   manages a schema, and the stores create nothing per request. Without the
   exports in your schema file, the first sign-up fails with `STORE_FAILED`,

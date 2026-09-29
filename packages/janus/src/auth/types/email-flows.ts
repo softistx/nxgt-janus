@@ -48,9 +48,9 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 		 * time — send the e-mail off the request's path.
 		 *
 		 * **Rate-limit it, per e-mail and per client.** Every call issues a new
-		 * challenge with five attempts of its own, and the earlier ones stay
-		 * valid until they lapse: the five attempts bound one challenge, not
-		 * one account.
+		 * challenge with five attempts of its own, and spends the earlier ones:
+		 * only the last code sent works, and a new `request` is five guesses
+		 * more — the five attempts bound one challenge, not one account.
 		 */
 		request(email: string): Promise<IssuedCode<U> | null>;
 		/**

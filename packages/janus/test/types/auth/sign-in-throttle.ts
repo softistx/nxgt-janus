@@ -1,6 +1,6 @@
 /**
  * The sign-in throttle: what `signIn.throttle` takes, and what a throttled
- * refusal carries. Cases 45–50 of the fifty — see `fixtures.ts`. The
+ * refusal carries. Cases 45–50 of the fifty-four — see `fixtures.ts`. The
  * shapes that must keep compiling are at the end of this file.
  */
 

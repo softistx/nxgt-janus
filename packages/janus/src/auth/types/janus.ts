@@ -19,6 +19,7 @@ import type {
 	UserOf,
 	UserOfType,
 } from './inference';
+import type { MagicLinkApi } from './magic-link';
 import type { PasswordApi } from './password';
 import type { SecondFactorApi } from './second-factor';
 import type { Authenticated, RequestLike, Session } from './session';
@@ -26,6 +27,21 @@ import type { SignedIn, SignInResult } from './sign-in';
 import type { StepUpApi, StepUpByApp, StepUpByEmail } from './step-up';
 import type { UserRef } from './user';
 import type { UserTypeApi } from './user-type';
+
+/**
+ * What a sign-in by e-mail — a code or a link — answers: a session, or a
+ * challenge when the type has a password in an instance given a
+ * `secondFactor`, since the e-mail proves the address and not the factor.
+ */
+type EmailSignInAnswer<
+	Name extends string,
+	Def,
+	TwoFactor extends boolean,
+> = TwoFactor extends true
+	? [LoginOf<Def>] extends [never]
+		? SignedIn<UserOfType<Name, Def>>
+		: SignInResult<UserOfType<Name, Def>>
+	: SignedIn<UserOfType<Name, Def>>;
 
 /**
  * The whole surface of one user type, with only the flows its configuration
@@ -52,11 +68,11 @@ export type TypeApi<
 		: VerifyEmailApi<UserOfType<Name, Def>> &
 				SignInCodeApi<
 					UserOfType<Name, Def>,
-					TwoFactor extends true
-						? [LoginOf<Def>] extends [never]
-							? SignedIn<UserOfType<Name, Def>>
-							: SignInResult<UserOfType<Name, Def>>
-						: SignedIn<UserOfType<Name, Def>>
+					EmailSignInAnswer<Name, Def, TwoFactor>
+				> &
+				MagicLinkApi<
+					UserOfType<Name, Def>,
+					EmailSignInAnswer<Name, Def, TwoFactor>
 				> &
 				StepUpApi<
 					UserOfType<Name, Def>,

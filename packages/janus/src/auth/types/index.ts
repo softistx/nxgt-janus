@@ -24,6 +24,7 @@ export type {
 	UserOf,
 } from './inference';
 export type { Janus, SharedApi, TypeApi } from './janus';
+export type { MagicLinkApi } from './magic-link';
 export type { PasswordApi } from './password';
 export type {
 	RecoveredSignIn,
