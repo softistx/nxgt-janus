@@ -128,9 +128,9 @@ and the time the answer takes would tell what its body does not. The store's
 own latency — one write for a code issued, none for `null` — still tells a
 patient observer; that limit is stated rather than denied.
 
-Every `request` issues a **new** code with its own challenge; the earlier
-ones stay valid until they are confirmed or expire. `janus` does not limit
-how often a code is asked for: **rate-limit the request route** per address
+Every `request` issues a **new** code with its own challenge, and spends the
+earlier ones: only the last code sent works — see
+[attempts](#attempts). `janus` does not limit how often a code is asked for: **rate-limit the request route** per address
 and per client, as you would a password reset, or anyone can fill a user's
 inbox.
 
