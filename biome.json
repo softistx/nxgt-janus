@@ -13,6 +13,7 @@
 			"!**/dist",
 			"!**/generated",
 			"!**/mails",
+			"!packages/janus-mail/mail/.maizzle",
 			"!!.claude/worktrees"
 		]
 	},
