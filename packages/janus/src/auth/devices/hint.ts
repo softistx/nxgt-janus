@@ -22,9 +22,9 @@ export const UNTRACKED: DeviceOutcome = Object.freeze({
 });
 
 /**
- * The device a sign-in's options name. A JavaScript caller's `device` of
- * another type, and a device given to a `janus()` wired without `devices`,
- * are wiring mistakes — bare `TypeError`s. The value itself, whatever it
+ * The device a sign-in's options name. A JavaScript caller's options that
+ * are not an object (the token itself), a `device` of another type, and a
+ * device given to a `janus()` wired without `devices`, are wiring mistakes — bare `TypeError`s. The value itself, whatever it
  * holds, is the client's, and never refused.
  */
 export function deviceHint(
@@ -32,6 +32,14 @@ export function deviceHint(
 	options: SignInOptions | undefined,
 	where: string,
 ): DeviceHint {
+	if (
+		options !== undefined &&
+		(typeof options !== 'object' || options === null)
+	) {
+		throw new TypeError(
+			`${where}: options must be { device }, or left out — the token goes under device`,
+		);
+	}
 	const device = options?.device;
 	if (device === undefined) return undefined;
 	if (device !== null && typeof device !== 'string') {

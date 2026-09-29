@@ -349,13 +349,14 @@ new one: every user gets one notice per device.
 
 ## Errors
 
-Both are bare `TypeError`s — wiring mistakes, thrown before anything is
+All three are bare `TypeError`s — wiring mistakes, thrown before anything is
 written. `<call>` is the call you wrote: `signIn`, `secondFactor.confirm`, or
 `patient.signIn` with several user types.
 
 | Message | Cause |
 | --- | --- |
 | `<call>: a device was given, but janus() has no devices — pass devices: { keys }` | `{ device }`, even `null`, given to a `janus()` wired without `devices` |
+| `<call>: options must be { device }, or left out — the token goes under device` | options that are not an object — the token itself where `{ device }` belongs — from JavaScript or through a cast |
 | `<call>: options.device must be the device token the client holds, or null when it holds none` | a `device` that is neither a string nor `null`, from JavaScript or through a cast |
 
 The configuration's are [above](#wiring). Every call may still reject as it

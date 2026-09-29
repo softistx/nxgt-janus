@@ -17,6 +17,6 @@ if (signedIn.status === 'signedIn') {
 - `SignInOptions { device?: string | null }`, the last optional argument of `signUp`, `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and `magicLink.confirm`: the token the client holds, or `null` when it holds none. Absent, devices are not tracked for that call. The challenge of a second factor carries no device: give it again to `secondFactor.confirm` or `recover`. The step-up never counts.
 - Every answer that opens a session carries `newDevice` and `deviceToken`. `signUp` mints the first token and is never new. A malformed, forged, another user's or a forgotten key's token is a new device, never an error.
 - A new event, `user.newDeviceSignedIn`, carrying the new session's `sessionId`, sent once the sign-in is complete.
-- A device given to a `janus()` without `devices`, or a device neither a string nor `null`, is a bare `TypeError` before anything is written. Six new compile-time refusals: 147.
+- A device given to a `janus()` without `devices`, a device neither a string nor `null`, or options that are not an object (the token itself where `{ device }` belongs) is a bare `TypeError`, thrown before anything is written or spent. Six new compile-time refusals: 147.
 - **Breaking for an exhaustive `switch` over `UserEventType`, which gains `'user.newDeviceSignedIn'`. With `@nxgt/janus-webhooks`, upgrade receivers first.**
 - **Breaking for a `SignedIn` built by hand (a test double): it needs `newDevice` and `deviceToken`.**

@@ -114,6 +114,7 @@ How the messages are shaped:
 
 **Devices**
 - [`<call>: a device was given, but janus() has no devices — pass devices: { keys }`](#call-a-device-was-given-but-janus-has-no-devices--pass-devices--keys-)
+- [`<call>: options must be { device }, or left out — the token goes under device`](#call-options-must-be--device--or-left-out--the-token-goes-under-device)
 - [`<call>: options.device must be the device token the client holds, or null when it holds none`](#call-optionsdevice-must-be-the-device-token-the-client-holds-or-null-when-it-holds-none)
 - [Every sign-in reports a new device](#every-sign-in-reports-a-new-device)
 - [A new device is never reported: `newDevice` is always `false`](#a-new-device-is-never-reported-newdevice-is-always-false)
@@ -1502,6 +1503,19 @@ janus({ ...config, devices });
 ```
 
 Or stop passing `{ device }` where devices are not wanted.
+
+### `<call>: options must be { device }, or left out — the token goes under device`
+
+**When:** from JavaScript, or through a cast, options that are not an
+object — most often the token itself, `auth.signIn(credentials, deviceOf(c))`,
+where `{ device: deviceOf(c) }` belongs. Left unrefused, that sign-in would
+be silently untracked: no token, no notice.
+**Why:** the last argument is `SignInOptions`, `{ device }`, or nothing.
+**Fix:**
+
+```ts
+await auth.signIn(credentials, { device: token ?? null });
+```
 
 ### `<call>: options.device must be the device token the client holds, or null when it holds none`
 

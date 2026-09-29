@@ -19,7 +19,12 @@ type Keys = readonly [SealingKey, ...SealingKey[]];
 export const firstKeys: Keys = [{ id: 'd1', key: key(7) }];
 
 export function setup(
-	options: { readonly keys?: Keys; readonly store?: JanusStores } = {},
+	options: {
+		readonly keys?: Keys;
+		readonly store?: JanusStores;
+		/** Wired without `devices`, to test a device given anyway. */
+		readonly untracked?: true;
+	} = {},
 ) {
 	const clock = fixedClock(Date.UTC(2026, 8, 29));
 	const store = options.store ?? createMemoryStores();
@@ -31,7 +36,9 @@ export function setup(
 		hasher,
 		clock,
 		secondFactor: { issuer: 'Clinic', keys: [{ id: 'k1', key: key(1) }] },
-		devices: { keys: options.keys ?? firstKeys },
+		...(options.untracked
+			? {}
+			: { devices: { keys: options.keys ?? firstKeys } }),
 		events: (event) => void received.push(event),
 	});
 	const types = () => received.map((event) => event.type);
@@ -43,18 +50,24 @@ export function setup(
 export const credentials = { email: ada.email, password };
 
 /** Ada signed up on a device: the token that device keeps. */
-export async function signedUp(auth: ReturnType<typeof setup>['auth']) {
+export async function signedUp(
+	auth: ReturnType<typeof setup>['auth'],
+	options: { readonly device?: null } = { device: null },
+) {
 	const { user, deviceToken } = await auth.signUp(
 		{ ...ada, password },
-		{ device: null },
+		options,
 	);
 	return { user, deviceToken: deviceToken as string };
 }
 
 /** Ada with an active second factor, and the code her app shows now. */
-export async function withFactor(context: ReturnType<typeof setup>) {
+export async function withFactor(
+	context: ReturnType<typeof setup>,
+	options?: { readonly device?: null },
+) {
 	const { auth, clock } = context;
-	const { user, deviceToken } = await signedUp(auth);
+	const { user, deviceToken } = await signedUp(auth, options);
 	const { secret } = await auth.secondFactor.enroll(user);
 	const now = () => codeAt(fromBase32(secret), stepAt(clock.now()));
 	const { recoveryCodes } = await auth.secondFactor.activate(user, now());

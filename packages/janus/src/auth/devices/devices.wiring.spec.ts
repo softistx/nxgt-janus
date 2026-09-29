@@ -49,6 +49,19 @@ describe('a device that is not a token, from JavaScript', () => {
 	});
 });
 
+describe('options that are the token itself, from JavaScript', () => {
+	it('is a TypeError, not a sign-in silently untracked', async () => {
+		const { auth } = setup();
+		const refused = await rejection(
+			auth.signIn(credentials, 'd1.token' as unknown as { device: string }),
+		);
+		expect(refused).toBeInstanceOf(TypeError);
+		expect((refused as Error).message).toBe(
+			'signIn: options must be { device }, or left out — the token goes under device',
+		);
+	});
+});
+
 describe('janus({ devices })', () => {
 	it('refuses no key, naming the option', () => {
 		expect(() =>

@@ -48,14 +48,10 @@ export function knownDeviceToken(
 	userId: string,
 	presented: string,
 ): string | null {
-	const parts = TOKEN.exec(presented);
-	if (parts === null) return null;
-	const [, keyId, deviceId, mac] = parts as unknown as [
-		string,
-		string,
-		string,
-		string,
-	];
+	const [, keyId, deviceId, mac] = TOKEN.exec(presented) ?? [];
+	if (keyId === undefined || deviceId === undefined || mac === undefined) {
+		return null;
+	}
 	const key = derivedKey(sealer, PURPOSE, keyId);
 	if (key === undefined) return null;
 
