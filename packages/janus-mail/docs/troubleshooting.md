@@ -347,8 +347,8 @@ formatted in the recipient's locale and time zone —
 
 ### `janusMail.<method>: expiresAt must be a Date`
 
-A `TypeError` from `verifyEmail`, `resetPassword`, `signInCode` or
-`magicLink`: the e-mail says how long its link or code lasts, from `issued.expiresAt`, and that is
+A `TypeError` from `verifyEmail`, `resetPassword`, `signInCode`,
+`magicLink` or `stepUp`: the e-mail says how long its link or code lasts, from `issued.expiresAt`, and that is
 not a valid `Date`. The usual cause is a flow's answer that went through
 JSON — a job queue, a cache — where a `Date` becomes a string. Nothing is
 sent. Revive it when the job runs, or say the expiry yourself:
@@ -388,8 +388,8 @@ await mail.recoveryCodeUsed(to, { when, recoveryCodesLeft: `Sie haben noch ${lef
 
 ### `janusMail.<method>: clock.now() must answer a Date`
 
-A `TypeError` from `verifyEmail`, `resetPassword`, `signInCode` or
-`magicLink`: the `clock` given to `janusMail()` has a `now` that answered something else — a
+A `TypeError` from `verifyEmail`, `resetPassword`, `signInCode`,
+`magicLink` or `stepUp`: the `clock` given to `janusMail()` has a `now` that answered something else — a
 number from `Date.now()`, a string, an invalid `Date`. Nothing is sent.
 `clock` is `@nxgt/janus`'s `Clock`: pass the one `janus({ clock })` was
 given, or `{ now: () => new Date() }`.
@@ -689,8 +689,8 @@ See [Templates](guide/templates.md#what-each-template-is-given).
 
 What `auth.stepUp.request(user)` answered, passed to `mail.stepUp` without
 checking `via`, on a user type that may have a second factor. The error
-goes on: `Type 'StepUpByApp<…>' is missing the following properties …:
-email, code` — a user whose factor is active confirms with their app, and
+goes on: `Type 'StepUpByApp<…>' is missing the following properties …`,
+naming `code` and `email` — a user whose factor is active confirms with their app, and
 there is nothing to send. Narrow it first:
 
 ```ts

@@ -126,7 +126,7 @@ describe('stepUp', () => {
 		await mail.stepUp(issued, { name: 'Ada', locale: 'fr' });
 
 		const text = mailer.sent[0]?.text ?? '';
-		expect(text).toContain('10 minutes');
+		expect(text).toMatch(/10\s+minutes/);
 		const code = /\b(\d{6})\b/.exec(text)?.[1] ?? '';
 		const request = new Request('https://acme.example', {
 			headers: { authorization: `Bearer ${token}` },

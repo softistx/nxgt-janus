@@ -196,7 +196,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 
 Each has a header and a footer with the brand, a heading, a greeting by name
 (but `signInCode` and `magicLink`), a button with its link and the link again in text for a
-client that shows no button, and a text part. The other four notices add a warning:
+client that shows no button, and a text part. The four notices but `recoveryCodeUsed` add a warning:
 *if this was not you, secure your account now*. `stepUp` shows its code as
 the sign-in code does, names no action — *someone, we hope you, asked to do
 something sensitive on your account* — and warns not to share the code if

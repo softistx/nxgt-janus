@@ -149,6 +149,7 @@ nobody by name — and only its `locale` is read.
 
 ```ts
 const current = await auth.authenticate(request); // the signed-in user, their session
+if (current === null) return new Response(null, { status: 401 });
 const issued = await auth.stepUp.request(current.user); // StepUpByEmail, or StepUpByApp with a second factor
 if (issued.via === 'email') {
 	await mail.stepUp(issued, { name: current.user.name, locale: current.user.locale });
