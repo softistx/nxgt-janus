@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { RedisClient } from 'bun';
 import RedisMemoryServer from 'redis-memory-server';
 import RedisBinary from 'redis-memory-server/lib/util/RedisBinary';
+import { underBuildLock } from './build-lock';
 
 /**
  * The Redis the specs run against: pinned, as `@nxgt/redis`'s own specs pin
@@ -10,10 +11,12 @@ import RedisBinary from 'redis-memory-server/lib/util/RedisBinary';
  * Nobody publishes a prebuilt `redis-server`, so `redis-memory-server`
  * compiles it from source on the first start — about two minutes, measured in
  * nxgt-data — into the repository's git-ignored `.cache/redis`, which CI
- * caches. `$REDIS_BIN` names a `redis-server` to use instead — CI's `floors`
- * job points it at a Valkey. `$JANUS_REDIS_VERSION` compiles another version
- * than the pin, into its own folder of the cache: that job runs the floor the
- * READMEs promise, 7.0, with it.
+ * caches. Two suites started at once build it once: the second waits on
+ * `./build-lock`, then finds the binary built. `$REDIS_BIN` names a
+ * `redis-server` to use instead — CI's `floors` job points it at a Valkey.
+ * `$JANUS_REDIS_VERSION` compiles another version than the pin, into its own
+ * folder of the cache: that job runs the floor the READMEs promise, 7.0, with
+ * it.
  */
 export const REDIS_VERSION = process.env.JANUS_REDIS_VERSION || '7.4.1';
 
@@ -27,10 +30,9 @@ const REDIS_CACHE = join(
 export async function redisBinary(): Promise<string> {
 	const given = process.env.REDIS_BIN;
 	if (given) return given;
-	return await RedisBinary.getPath({
-		version: REDIS_VERSION,
-		downloadDir: REDIS_CACHE,
-	});
+	return await underBuildLock(REDIS_CACHE, REDIS_VERSION, () =>
+		RedisBinary.getPath({ version: REDIS_VERSION, downloadDir: REDIS_CACHE }),
+	);
 }
 
 export interface TestServer {
