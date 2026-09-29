@@ -9,16 +9,16 @@ Nothing between releases.
 
 ## Next
 
-- **A notice when a new device signs in** — a password, a sign-in code, a
-  sign-in link, or a second factor or recovery code confirmed, from a device
-  or client this user has not signed in from before (a step-up opens no
-  session and never counts): the sign-in says so, a user event reports it, and
-  a *new sign-in* e-mail with the device and the time — next on
-  `@nxgt/janus-mail`'s roadmap — can tell the user. You pass what identifies
-  the device — a long-lived cookie of your own, say — and nothing more than a
-  hash of it is kept. How Janus remembers a device is still being decided: on
-  the sessions, which would change the sessions store port, or in a signed
-  cookie you keep, which would not.
+- **A notice when a new device signs in** — a sign-in by password, sign-in
+  code, sign-in link, second factor or recovery code, from a device this user
+  has not recently signed in from, is reported: by the sign-in's answer, a
+  user event, or both. A sign-up or a step-up never counts. A *new sign-in*
+  e-mail with the device and the time — next on `@nxgt/janus-mail`'s roadmap —
+  can then tell the user. You pass what identifies the device — a long-lived
+  cookie of your own, say — and nothing more than a hash of it is kept. How
+  Janus remembers a device is still being decided: on the sessions, which
+  would change the sessions store port, or in a signed cookie you keep, which
+  would not.
 
 ## Later
 
