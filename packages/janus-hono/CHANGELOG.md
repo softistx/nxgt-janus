@@ -1,5 +1,24 @@
 # @nxgt/janus-hono
 
+## 0.6.0
+
+### Minor Changes
+
+- [#181](https://github.com/softistx/nxgt-janus/pull/181) [`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The device cookie: `deviceOf(c, options?)` reads it for a sign-in's `device`, and `sendSession` sets it — or sets it again, for another `maxAge` — whenever the answer carries a `deviceToken`.
+  
+  ```ts
+  const signedIn = await auth.signIn({ email, password }, { device: deviceOf(c) });
+  const user = sendSession(c, auth, signedIn);
+  ```
+  
+  - `sendSession(c, auth, signedIn, { device })` and `DeviceCookieOptions`: `janus-device` (`DEVICE_COOKIE`), HttpOnly, Secure, `SameSite=Lax`, `Path=/`, 400 days. Give `deviceOf` the same options. `signOut` leaves it: the device stays known.
+  - Two new compile-time refusals: 28.
+
+### Patch Changes
+
+- Updated dependencies [[`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070)]:
+  - @nxgt/janus@0.17.0
+
 ## 0.5.2
 
 ### Patch Changes

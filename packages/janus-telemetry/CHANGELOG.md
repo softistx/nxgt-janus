@@ -1,5 +1,16 @@
 # @nxgt/janus-telemetry
 
+## 0.8.0
+
+### Minor Changes
+
+- [#181](https://github.com/softistx/nxgt-janus/pull/181) [`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070) Thanks [@SteveGT96](https://github.com/SteveGT96)! - A sign-in from a new device is marked: the `janus.signIn` log carries `janus.signIn.newDevice: true` when the answer's `newDevice` is — from `signIn`, `signInCode.confirm`, `magicLink.confirm`, `secondFactor.confirm` and `secondFactor.recover`. The device token is never written.
+
+### Patch Changes
+
+- Updated dependencies [[`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070)]:
+  - @nxgt/janus@0.17.0
+
 ## 0.7.1
 
 ### Patch Changes

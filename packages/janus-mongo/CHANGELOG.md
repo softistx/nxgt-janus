@@ -1,5 +1,12 @@
 # @nxgt/janus-mongo
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies [[`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070)]:
+  - @nxgt/janus@0.17.0
+
 ## 0.7.1
 
 ### Patch Changes

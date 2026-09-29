@@ -1,5 +1,25 @@
 # @nxgt/janus-mail
 
+## 0.9.0
+
+### Minor Changes
+
+- [#181](https://github.com/softistx/nxgt-janus/pull/181) [`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The new sign-in notice: `mail.newSignIn(to, { device, time, location? })`, built from `@nxgt/mail-presets`' `new-sign-in`, in English and French — "New sign-in to your account" / "Nouvelle connexion à votre compte", the device, where, when, and a button to `links.secureAccount()`. Send it when a janus sign-in answers `newDevice: true`, or on `user.newDeviceSignedIn`.
+  
+  ```ts
+  if (signedIn.newDevice) await mail.newSignIn({ name, email, locale }, { device: 'Firefox on macOS', time });
+  ```
+  
+  - Every value is the app's text in the recipient's locale; janus sees no IP, so `location` is the app's to compute. Left out, the e-mail shows `—`. Four new compile-time refusals: 50.
+  - **Breaking for a locale beyond `en` and `fr`: `templates` must include `newSignIn`.** Twelve templates now. With `en` and `fr` only, nothing changes.
+  - **Breaking for an exhaustive `switch` over `JanusMailTemplateName`**, which gains `'newSignIn'`.
+
+### Patch Changes
+
+- [#182](https://github.com/softistx/nxgt-janus/pull/182) [`bdf9937`](https://github.com/softistx/nxgt-janus/commit/bdf99374cf03fb60fa803022428b8f31b803f831) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the templates guide says "the notices other than `recoveryCodeUsed`" where it said "the four notices", since there are five.
+- Updated dependencies [[`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070)]:
+  - @nxgt/janus@0.17.0
+
 ## 0.8.0
 
 ### Minor Changes
