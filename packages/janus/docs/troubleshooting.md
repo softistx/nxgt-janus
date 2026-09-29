@@ -140,6 +140,7 @@ How the messages are shaped:
 - [`findUser should answer recoveryCodes [] as [] — never null, never undefined`](#finduser-should-answer-recoverycodes--as---never-null-never-undefined)
 - [`reauthenticateSession racing revokeSession: the session should stay revoked — one conditional write, never a read then a write`](#reauthenticatesession-racing-revokesession-the-session-should-stay-revoked--one-conditional-write-never-a-read-then-a-write)
 - [`tokens.insertToken: the store could not answer`, in `tokens.everyKind`](#tokensinserttoken-the-store-could-not-answer-in-tokenseverykind)
+- [`consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`](#consumetoken-for-a-signincode-token-redeemed-as-magiclink-in-tokensmagiclinkkind)
 
 ---
 
@@ -515,6 +516,17 @@ challenge — the same code will not, it was used.
 form.addEventListener('submit', () => form.querySelector('button')?.setAttribute('disabled', ''));
 ```
 
+**From `signInCode.confirm` and `magicLink.confirm`**, the message names the
+call: `magicLink.confirm: expected version <n>, found <m>`.
+
+**When:** the user was written — an `update`, a sign-in that rehashed the
+password — between `confirm` reading them and writing the e-mail as
+verified. Rare: the window is one read.
+**Why:** the proof is written under the version read, so an address changed
+meanwhile is never the one marked verified. Nothing was written and no
+session opened, but the code's challenge or the link is already spent.
+**Fix:** answer it as a spent link or code: ask for a new one.
+
 **From `secondFactor.recover`**, the same store message.
 
 **When:** one recovery code used by two sign-ins at once — the same
@@ -619,8 +631,8 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, and `signInCode.confirm`, for a user set inactive after the code was sent.
-**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent.
+**Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it. `magicLink.confirm` checks after spending the link, which is spent too, and `magicLink.request` answers `null` for an inactive user.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
 ### `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`
@@ -786,7 +798,7 @@ each of those entries has a paragraph for it.
 
 The same for `session` and `user`.
 
-**When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor` — and `signInCode.confirm`'s, on a user type with a password.
+**When:** `tsc`, wherever `signIn`'s answer is read, once `janus()` is given a `secondFactor` — and `signInCode.confirm`'s and `magicLink.confirm`'s, on a user type with a password.
 **Why:** `signIn` then answers one of two shapes: `{ status: 'signedIn', user, session, token }`, or `{ status: 'secondFactor', challenge, expiresAt, userId }` for a user whose second factor is active — the password alone opens no session for them. Without `secondFactor`, `signIn` still answers a session.
 **Fix:** switch on `status`:
 
@@ -1712,3 +1724,22 @@ In SQL, `update … set authenticated_at = $2 where id = $1 and revoked_at is nu
 **When:** the case `tokens.everyKind`, on an adapter whose database lists the token kinds — a `CHECK`, a validator's enum.
 **Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, or `magicLink`, which came in 0.15, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
 **Fix:** add the missing kind to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp'`.
+
+### `consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`
+
+Also `countAttempt for a magicLink token counted as signInCode`, `spendUserTokens of magicLink: the link only`, and `spendUserTokens of magicLink should not touch a sign-in code, nor anything else have counted it`.
+
+**When:** the case `tokens.magicLinkKind`, on an adapter that matches a token by its hash alone, or spends a user's tokens of every kind at once.
+**Why:** a sign-in code's challenge is handed to whoever asked for the code. Redeemed as a link, it would sign them in with no code at all — the kind is what keeps the two apart, so every token method must match it.
+**Fix:** put `kind` in the condition of `consumeToken`, `countAttempt` and `spendUserTokens`, beside the hash or the user:
+
+```ts
+// MongoDB: consumeToken — the hash and the kind, never the hash alone
+await tokens.findOneAndUpdate(
+	{ _id: tokenHash, kind },
+	[{ $set: { spentAt: { $ifNull: ['$spentAt', at] } } }],
+	{ returnDocument: 'before' },
+);
+```
+
+In SQL, `… where token_hash = $1 and kind = $2`; `spendUserTokens` holds `user_id = $1 and kind = $2`. See [`TokenStore`](guide/adapters.md#sessionstore-and-tokenstore).

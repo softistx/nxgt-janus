@@ -35,8 +35,8 @@ signedIn.user.emailVerified; // true: the link reached the inbox
 It is the [sign-in code](sign-in-code.md) with the code folded into a link:
 the same users have it, the same refusals, the same second factor. What
 differs is what a link is — something anybody holding the e-mail can open,
-on any device, **and that a mail scanner opens too**. The words — **one-time
-token**, **spent**, **issued** — are defined in
+on any device, **and that a mail scanner opens too**. The words — **sign-in
+link**, **one-time token**, **spent**, **issued** — are defined in
 [the vocabulary](vocabulary.md#identities).
 
 ## Which types have it
@@ -153,6 +153,12 @@ export function linkPage(request: Request): Response {
   script-running scanner opens.
 - **`Referrer-Policy: no-referrer`** keeps the URL, and the token in it, out
   of the `Referer` of anything the page loads.
+- **Refuse a `POST` from another site.** The token says nothing of the
+  browser that asked for it: a page anywhere that posts a token of the
+  attacker's own account to your route signs its visitor in as the attacker,
+  and what they type next lands there. Check `Origin` against your own, or
+  that `Sec-Fetch-Site` is `same-origin`, before calling `confirm` — as the
+  route [below](#as-routes) does.
 
 ## Confirming the link
 
@@ -192,6 +198,24 @@ succeeds, and their `version` moves; a
 not written, and nothing is sent. The proof is written under the version
 read: a user written meanwhile answers `VERSION_CONFLICT`, with the link
 spent.
+
+### An account someone else registered
+
+The proof can land on an account its owner did not create. `signUp` does
+not wait for the e-mail to be proved, and `signIn` does not ask whether it
+was, so anyone can register `ada@example.com` with a password of theirs. When
+Ada later signs in by link, `confirm` marks the e-mail verified and opens her
+session — **and the other password, and the session `signUp` opened, still
+work**. A [password reset](email-flows.md) would have replaced both; a link
+or a [code](sign-in-code.md) touches neither.
+
+Where a password signs in before the e-mail is verified, **require
+`verifyEmail` before `signIn`**, and the question does not arise. Otherwise
+treat the first proof as a takeover of the address: `confirm` sends
+[`user.emailVerified`](events.md) exactly when the e-mail was not verified
+before, and awaits your listener before the session opens. Sign every
+session out there — `signOutEverywhere(user)`; the one `confirm` opens comes
+after — and have the user set a password of their own.
 
 ### A second factor is still asked for
 
@@ -267,14 +291,16 @@ The page above, and a fetch-style pair beside it — the shape Bun and most
 frameworks hand you:
 
 ```ts
-import { JanusError } from '@nxgt/janus';
+import { JanusError, TokenError, UserInactiveError } from '@nxgt/janus';
+
+const ORIGIN = 'https://app.example';
 
 // POST /sign-in/email/link — ask for a link
 export async function requestLink(request: Request): Promise<Response> {
 	const { email } = (await request.json()) as { email: string };
 	const issued = await auth.magicLink.request(email);
 	if (issued !== null) {
-		const link = `https://app.example/sign-in/link?token=${issued.token}`;
+		const link = `${ORIGIN}/sign-in/link?token=${issued.token}`;
 		void sendMail(issued.email, 'Your sign-in link', link); // not awaited
 	}
 	return new Response(null, { status: 202 }); // the same answer either way
@@ -282,6 +308,8 @@ export async function requestLink(request: Request): Promise<Response> {
 
 // POST /sign-in/link — the page's button
 export async function confirmLink(request: Request): Promise<Response> {
+	// Only your own page posts here: another site's form would sign its visitor in.
+	if (request.headers.get('Origin') !== ORIGIN) return new Response(null, { status: 403 });
 	const token = String((await request.formData()).get('token') ?? '');
 	try {
 		const signedIn = await auth.magicLink.confirm(token);
@@ -290,7 +318,8 @@ export async function confirmLink(request: Request): Promise<Response> {
 			headers: { Location: '/', 'Set-Cookie': auth.cookie.serialize(signedIn.token, signedIn.session) },
 		});
 	} catch (error) {
-		if (error instanceof JanusError && error.code !== 'STORE_FAILED') {
+		if (error instanceof UserInactiveError) return new Response(null, { status: 403 });
+		if (error instanceof TokenError || (error instanceof JanusError && error.code === 'VERSION_CONFLICT')) {
 			return new Response(null, { status: 303, headers: { Location: '/sign-in?link=expired' } });
 		}
 		throw error; // STORE_FAILED: your 503
@@ -298,10 +327,11 @@ export async function confirmLink(request: Request): Promise<Response> {
 }
 ```
 
-A refused link sends the user back to ask for another: every `TOKEN_*`
-means the same thing to them. With a `secondFactor` configured, narrow
-`confirm`'s answer on `status` before reading `token`, and hand the
-challenge on to [the second factor's route](second-factor.md#a-sign-in-with-a-code-as-routes).
+A refused link sends the user back to ask for another: every `TOKEN_*`, and
+the rare `VERSION_CONFLICT`, means the same thing to them. With a
+`secondFactor` configured, narrow `confirm`'s answer on `status` before
+reading `token`, and hand the challenge on to
+[the second factor's route](second-factor.md#a-sign-in-with-a-code-as-routes).
 
 ## In a test
 

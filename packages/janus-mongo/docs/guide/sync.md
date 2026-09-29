@@ -146,7 +146,8 @@ nothing the previous version writes, so the previous version keeps working
 against it while the deployment rolls. Deployed before the sync,
 every sign-up and every one-time token fails with `STORE_FAILED`, caused by
 `Document failed validation` (code 121) — from 0.5 to 0.6, every step-up
-request only; from 0.6 to 0.7, every `magicLink.request` only. No document is rewritten either way.
+request only; from 0.6 to 0.7, every `magicLink.request` only. No document
+is rewritten either way.
 
 **From 0.4 to 0.5, finish the rollout before users hold recovery codes.** An
 instance still on 0.4 reads a second factor without its `recoveryCodes`, and

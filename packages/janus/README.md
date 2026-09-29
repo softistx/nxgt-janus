@@ -46,7 +46,7 @@ a published entry point is a promise.
 ## Three ways to use it
 
 Janus has two sides. **Identities** answers *who is this?* — users, their
-logins and passwords, codes sent by e-mail, a TOTP second factor, sessions, one-time tokens. **Permissions** answers *may
+logins and passwords, codes and links sent by e-mail, a TOTP second factor, sessions, one-time tokens. **Permissions** answers *may
 they?* — a model, the tuples stored against it, and `can`. Each side is usable
 alone, and neither loads the other's code: a spec reads the import graph of
 each entry point and fails if one reaches into the other.
@@ -1022,8 +1022,21 @@ scanners open every link in an e-mail before the user does: a route that
 calls `magicLink.confirm` on the link's `GET` spends it for the scanner, and
 the user's click answers `TOKEN_SPENT`. Link to a page that spends nothing,
 whose button posts the token — and echo into that page only a token of the
-token's shape. Whoever opens the link signs in, on the device that opened it:
-where the sign-in must complete in the browser that asked, send a code.
+token's shape. Refuse that `POST` from another site — check its `Origin`,
+or `Sec-Fetch-Site: same-origin` — or any page can sign a visitor into an
+account whose link it holds. Whoever opens the link signs in, on the device
+that opened it: where the sign-in must complete in the browser that asked,
+send a code.
+
+**A link or a code proves an e-mail someone else may have registered.**
+`signUp` does not wait for the address to be proved, and `signIn` does not
+ask whether it was: whoever registered the address with a password of theirs
+keeps that password, and their session, after its owner signs in by link or
+code and the e-mail turns verified. Where a password signs in before the
+e-mail is verified, require `verifyEmail` before `signIn` — or, on the
+`user.emailVerified` those confirmations send, sign the user out everywhere
+— the listener runs before the new session opens — and have them set a
+password of their own.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`

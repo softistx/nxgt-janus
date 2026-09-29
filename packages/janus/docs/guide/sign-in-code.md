@@ -274,6 +274,12 @@ succeeds, and their `version` moves: the code proves the address as a
 verification link would, and a [`user.emailVerified` event](events.md) is
 sent. A user already verified is not written, and nothing is sent.
 
+**The proof can land on an account someone else registered** — with a
+password of theirs, which keeps working, as does the session `signUp`
+opened. Where a password signs in before the e-mail is verified, see
+[the sign-in link guide](magic-link.md#an-account-someone-else-registered):
+the same holds for a code.
+
 ### A second factor is still asked for
 
 The code proves the e-mail, not the second factor. With `janus({ secondFactor })`,
