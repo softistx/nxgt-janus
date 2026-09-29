@@ -1,5 +1,15 @@
 # @nxgt/janus-hono
 
+## 0.5.2
+
+### Patch Changes
+
+- [#174](https://github.com/softistx/nxgt-janus/pull/174) [`d62a6c6`](https://github.com/softistx/nxgt-janus/commit/d62a6c6db1520d917480e812bb7a99d75091a4f8) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: troubleshooting names `magicLink.confirm` and `signInCode.confirm` beside `signIn` for the `SignInResult` compiler error, and has an entry for the `403 Forbidden` that Hono's `csrf()` answers on `POST /sign-in/link`.
+
+- [#178](https://github.com/softistx/nxgt-janus/pull/178) [`819c954`](https://github.com/softistx/nxgt-janus/commit/819c95494bdefe372284ef25a630c3f601d7765a) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the routes guide's sign-in link page is sent with `Referrer-Policy: strict-origin` instead of `no-referrer`. With `no-referrer` the browser posts the page's form with `Origin: null`, so `csrf({ origin })` answered 403 wherever it fell back to the `Origin` (no `Sec-Fetch-Site` on plain HTTP off `localhost`, or an older browser). `strict-origin` still keeps the token out of any `Referer` — only the origin is sent. The troubleshooting entry for that `403` points to it.
+- Updated dependencies [[`530e301`](https://github.com/softistx/nxgt-janus/commit/530e301eaf523af0b4f1d637e1990564bde70489), [`fba19d4`](https://github.com/softistx/nxgt-janus/commit/fba19d47836fb4dfbe11df7e5a184284082ac061), [`819c954`](https://github.com/softistx/nxgt-janus/commit/819c95494bdefe372284ef25a630c3f601d7765a)]:
+  - @nxgt/janus@0.16.0
+
 ## 0.5.1
 
 ### Patch Changes

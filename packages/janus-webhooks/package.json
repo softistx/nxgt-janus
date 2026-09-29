@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus-webhooks",
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"description": "Signed webhooks for @nxgt/janus user events: Standard Webhooks signatures, retries with backoff through a pluggable durable queue, rotating secrets, and deliveries that run out reported — never dropped in silence",
 	"license": "MIT",
 	"type": "module",

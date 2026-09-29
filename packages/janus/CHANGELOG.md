@@ -1,5 +1,34 @@
 # @nxgt/janus
 
+## 0.16.0
+
+### Minor Changes
+
+- [#173](https://github.com/softistx/nxgt-janus/pull/173) [`530e301`](https://github.com/softistx/nxgt-janus/commit/530e301eaf523af0b4f1d637e1990564bde70489) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **`signInCode.confirm` and `magicLink.confirm` now drop the password and sign out every session when they prove an e-mail never verified before.** Anyone could sign up with somebody else's e-mail and a password of their own; when the address's owner later signed in by code or link, the e-mail turned verified while that password — and the session `signUp` opened — kept working. The first proof now ends both, as `resetPassword.confirm` does:
+  
+  - In the write that proves the e-mail, the password is removed (`hasPassword` turns `false`). Every session of the user is revoked, and the reset links and second-factor challenges still waiting are spent, before that write and again after it — and before the new session, or second-factor challenge, is opened. An outage in the sign-outs before the write leaves the e-mail unproved, so the owner's next code or link runs all of it again.
+  - `user.emailVerified` is sent, then **`user.passwordChanged` when a password was dropped**, even if an outage interrupts the sign-outs. `@nxgt/janus-mail`'s `passwordChanged` notice, sent on that event, tells the inbox's owner.
+  - **An e-mail already verified changes nothing**: no write, no sign-out, no event. An e-mail changed by `update` is unverified again, so its first proof by code or link drops the password too.
+  - **A user who signed up with a password and signs in by code or link before verifying has no password afterwards**: `signIn` answers `CREDENTIALS_INVALID` with `reason: 'noPassword'`. Offer `setPassword` after such a sign-in, or send `verifyEmail` at sign-up.
+  - The second factor goes too, in the same write — see the entry on the second factor.
+  - No change to the store port or the conformance suite: `updateUser` with `password: null` and `revokeUserSessions` were already required, and are already tested.
+  
+  The README trap that told you to sign out everywhere on `user.emailVerified` yourself is replaced; the sign-in link and sign-in code guides, the events guide, troubleshooting (`CREDENTIALS_INVALID`) and `@nxgt/janus-mail`'s docs say what changed.
+
+- [#176](https://github.com/softistx/nxgt-janus/pull/176) [`fba19d4`](https://github.com/softistx/nxgt-janus/commit/fba19d47836fb4dfbe11df7e5a184284082ac061) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **`signInCode.confirm` and `magicLink.confirm` now remove the second factor too when they prove an e-mail never verified before.** Anyone could sign up with somebody else's e-mail, then enrol and activate a second factor on their own phone; when the address's owner later signed in by code or link, the password was dropped but the factor stayed, so the owner was asked for a code they could never produce. The write that proves the e-mail now drops the second factor with the password:
+  
+  - The factor is removed whether active or still waiting for its first code, with its recovery codes (`hasSecondFactor` turns `false`, `secondFactor.recoveryCodesLeft` answers `null`) — the same write `secondFactor.disable` makes. The owner's sign-in answers a session, not a challenge, and a challenge left waiting was already spent.
+  - **`user.secondFactorDisabled` is sent when an active factor was removed**, after `user.emailVerified` and `user.passwordChanged`, from the same `finally` — so an outage in the sign-outs after the write still reports it. `@nxgt/janus-mail`'s `twoFactorDisabled` notice, sent on that event, tells the inbox's owner. A factor still waiting was never asked for, and sends nothing, as for `disable`.
+  - **An e-mail already verified changes nothing**: the factor is kept and `confirm` answers a challenge, as `signIn` does.
+  - **A user who enrolled a factor before proving their own e-mail loses it on their first sign-in by code or link**: the library cannot tell them from someone who registered their address. Send `verifyEmail` before offering `secondFactor.enroll`.
+  - No change to the store port or the conformance suite: `updateUser` with `secondFactor: null` was already required, and is already tested.
+  
+  The README (sign-in codes, sign-in links, second factor, events and the trap that said the factor was kept), the sign-in link, sign-in code, second factor and events guides, troubleshooting (`SECOND_FACTOR_NOT_ENROLLED`, `CREDENTIALS_INVALID`) and the roadmap say what changed.
+
+### Patch Changes
+
+- [#178](https://github.com/softistx/nxgt-janus/pull/178) [`819c954`](https://github.com/softistx/nxgt-janus/commit/819c95494bdefe372284ef25a630c3f601d7765a) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the sign-in link guide sends the link's page with `Referrer-Policy: strict-origin` instead of `no-referrer`, and says why. Under `no-referrer` the browser posts the page's form with `Origin: null`, so the guide's own `confirmLink` route, which checks `Origin` alone, refused every sign-in behind that page — and a check that tries `Sec-Fetch-Site` first refused it wherever the browser sends none. With `strict-origin` a `Referer` holds the origin only, never the token. The README's sign-in link trap names the header, and troubleshooting has an entry for the `403` on the link's own button.
+
 ## 0.15.0
 
 ### Minor Changes
