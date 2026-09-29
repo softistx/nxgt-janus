@@ -6,6 +6,7 @@ import {
 	reset,
 	signIn,
 	signInLink,
+	stepUp,
 	verification,
 } from '../test/setup';
 import { janusMail } from './janus-mail';
@@ -23,6 +24,7 @@ const sends: Record<
 	resetPassword: (mail, locale) => mail.resetPassword(reset, { name, locale }),
 	signInCode: (mail, locale) => mail.signInCode(signIn, { locale }),
 	magicLink: (mail, locale) => mail.magicLink(signInLink, { locale }),
+	stepUp: (mail, locale) => mail.stepUp(stepUp, { name, locale }),
 	passwordChanged: (mail, locale) =>
 		mail.passwordChanged({ name, locale, email: 'ada@example.com' }),
 	emailChanged: (mail, locale) =>
@@ -62,6 +64,10 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 	magicLink: {
 		en: 'Your sign-in link',
 		fr: 'Votre lien de connexion',
+	},
+	stepUp: {
+		en: 'Your confirmation code',
+		fr: 'Votre code de confirmation',
 	},
 	passwordChanged: {
 		en: 'Your password was changed',

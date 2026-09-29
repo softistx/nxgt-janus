@@ -9,6 +9,7 @@ import { expiringMails } from './expiring-mails';
 import { noticeMails } from './notice-mails';
 import { resolveOptions } from './options';
 import { recoveryMail } from './recovery-mail';
+import { stepUpMail } from './step-up-mail';
 import type { JanusMail, JanusMailLocale, JanusMailOptions } from './types';
 
 /**
@@ -42,6 +43,7 @@ export function janusMail<const L extends string = JanusMailLocale>(
 		...expiringMails(resolved),
 		...noticeMails(resolved),
 		...recoveryMail(resolved),
+		...stepUpMail(resolved),
 		templates: resolved.templates,
 		locales: resolved.locales,
 	});

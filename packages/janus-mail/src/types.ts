@@ -3,7 +3,12 @@
  * implementation works on a degenericised mirror (`string` locales) and casts
  * once, in `janusMail()`.
  */
-import type { Clock, IssuedCode, IssuedToken } from '@nxgt/janus';
+import type {
+	Clock,
+	IssuedCode,
+	IssuedToken,
+	StepUpByEmail,
+} from '@nxgt/janus';
 import type { Address, Mailer, SentMail, WantedLocales } from '@nxgt/mail';
 import type { JanusMailLocale } from './generated/locales';
 import type { JanusMailTemplates } from './template-types';
@@ -46,7 +51,8 @@ export interface JanusMailLinks {
 	/**
 	 * Where a user who did not make a change secures their account — their
 	 * security settings. `passwordChanged`, `emailChanged`, `twoFactorEnabled`
-	 * and `twoFactorDisabled` link to it.
+	 * and `twoFactorDisabled` link to it, and so does `stepUp`, for a user who
+	 * asked for no code.
 	 */
 	readonly secureAccount: () => string;
 	/**
@@ -97,7 +103,8 @@ interface JanusMailBaseOptions<L extends string> {
 }
 
 /**
- * What one send of `verifyEmail`, `resetPassword`, `signInCode` or `magicLink` may pass
+ * What one send of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`
+ * or `stepUp` may pass
  * besides the flow's answer and the recipient.
  */
 export interface JanusMailSendOptions {
@@ -163,6 +170,23 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 	magicLink(
 		issued: IssuedToken,
 		to?: Pick<Recipient, 'locale'>,
+		options?: JanusMailSendOptions,
+	): Promise<SentMail>;
+	/**
+	 * The code `auth.stepUp.request(user)` answered, once narrowed to
+	 * `via: 'email'`, to `issued.email`, greeting `to.name`, saying how long
+	 * the code lasts, with `links.secureAccount()` for a user who asked for
+	 * nothing. Reads `via`, `code`, `email` and `expiresAt` only: the
+	 * challenge never reaches the e-mail. A step-up confirmed with the user's
+	 * app (`via: 'secondFactor'`) sends nothing: a compile error, and a
+	 * `TypeError` in JavaScript.
+	 */
+	stepUp(
+		issued: Pick<
+			StepUpByEmail<unknown>,
+			'via' | 'code' | 'email' | 'expiresAt'
+		>,
+		to: Recipient,
 		options?: JanusMailSendOptions,
 	): Promise<SentMail>;
 	/** Tells `to.email` their password was changed, with a link to secure the account. */

@@ -2,7 +2,7 @@
 
 The e-mails of [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus)'s
 flows, ready to send: **e-mail verification, password reset, sign-in code,
-sign-in link, password changed, e-mail changed, two-factor authentication turned on or
+sign-in link, a step-up's confirmation code, password changed, e-mail changed, two-factor authentication turned on or
 off, a recovery code used, and a welcome to a new user**, in English and
 French, with your brand
 in them. `@nxgt/janus` sends no e-mail — its flows answer what to send — and
@@ -65,12 +65,12 @@ needs Node `^22.22.3`, `^24.15.0` or `>=26`, for Maizzle — see
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?` and `magicLink?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The ten default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `stepUp`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?` and `magicLink?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The eleven default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the ten of them, and their names |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the eleven of them, and their names |
 | `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn`, `newEmail`, `when` or `recoveryCodesLeft` as its e-mail needs |
-| `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword`, `signInCode` and `magicLink`: `{ expiresIn? }`, the expiry as text, over the one derived |
+| `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
 | `JanusMailLinks`, `Recipient` | The `links` option; who an e-mail is for — `{ name, locale? }` |
 
@@ -88,6 +88,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `resetPassword(issued, to, options?)` | `issued` from `auth.resetPassword.request(email)`, checked for `null`; a link from `links.resetPassword(issued.token)`, and how long it lasts | `issued.email` |
 | `signInCode(issued, to?, options?)` | `issued.code` from `auth.signInCode.request(email)`, and how long it lasts — **never the challenge** | `issued.email` |
 | `magicLink(issued, to?, options?)` | `issued` from `auth.magicLink.request(email)`, checked for `null`; a link from `links.magicLink(issued.token)`, and how long it lasts. A `TypeError` without `links.magicLink` | `issued.email` |
+| `stepUp(issued, to, options?)` | `issued.code` from `auth.stepUp.request(user)`, narrowed to `via: 'email'`, and how long it lasts, greeting `to.name`, with `links.secureAccount()` — **never the challenge**. A `TypeError` for `via: 'secondFactor'` | `issued.email` |
 | `passwordChanged(to)` | A notice, with `links.secureAccount()` | `to.email` |
 | `emailChanged(to)` | A notice naming `to.newEmail`, with `links.secureAccount()` | `to.formerEmail` |
 | `twoFactorEnabled(to)` | A notice: two-factor authentication was turned on, with `links.secureAccount()` | `to.email` |
@@ -95,7 +96,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `recoveryCodeUsed(to, { when, recoveryCodesLeft })` | A notice: a recovery code was used, `when`, and how many are left — "You have 9 recovery codes left." — with `links.recoveryCodes()`, else `links.secureAccount()` | `to.email` |
 | `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
 
-The four e-mails of a link or a code say how long it lasts — "This link
+The five e-mails of a link or a code say how long it lasts — "This link
 expires in 1 hour.", "Ce lien expire dans 1 heure." — from the flow's
 `issued.expiresAt`: the time left at send time, rounded to the minute, then
 down to the largest whole unit (days, hours or minutes), formatted with
@@ -155,6 +156,23 @@ button posts the token to the route calling `auth.magicLink.confirm`: mail
 scanners open every link in an e-mail, and one that signs in on `GET` signs
 in for the scanner. [`@nxgt/janus`'s sign-in link guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md)
 has that page.
+
+### Confirming a sensitive action — the step-up
+
+```ts
+const issued = await auth.stepUp.request(current.user); // the user of the session
+if (issued.via === 'email') {
+	await mail.stepUp(issued, { name: current.user.name, locale: current.user.locale }); // "Your confirmation code"
+}
+return Response.json({ challenge: issued.challenge, via: issued.via }); // the challenge stays with the user
+```
+
+A user whose second factor is active confirms with their app
+(`via: 'secondFactor'`): there is nothing to send. The e-mail names no
+action, and its **Secure my account** button links to
+`links.secureAccount()`, for a user who asked for nothing.
+[`@nxgt/janus`'s step-up guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/step-up.md)
+has the confirming route.
 
 ### Saying the expiry yourself
 
@@ -361,14 +379,21 @@ it.** An application that sends no sign-in link leaves it out; calling
 rendered or sent. Unlike `recoveryCodes`, it has no fallback: no other page
 can carry the token.
 
+**Check `via` before `stepUp`.** `auth.stepUp.request(user)` answers
+`via: 'secondFactor'` — no code, no address — for a user whose second
+factor is active. Passed un-narrowed it is a compile error; in JavaScript,
+`janusMail.stepUp: via must be 'email' — …`, a `TypeError` before anything
+is sent. Unlike `signInCode`, `stepUp` takes the recipient: it greets the
+user by name.
+
 **Templates are own properties.** A class's methods live on its prototype
 and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all ten
-templates — `recoveryCodeUsed` included, since 0.5, and `magicLink`, since
-0.7 — is a compile error, and a `TypeError` in JavaScript.
+built in those two only, so `locales: ['en', 'fr', 'de']` without all eleven
+templates — `recoveryCodeUsed` included, since 0.5, `magicLink`, since
+0.7, and `stepUp`, since 0.8 — is a compile error, and a `TypeError` in JavaScript.
 
 **The brand is text only.** `brand: 'Acme'` is written in the header, the
 body and the footer, escaped: no logo, no link, no markup. For those, replace
@@ -425,8 +450,8 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Forty plausible mistakes, forty refused at compile time.**
-Seven files hold one `@ts-expect-error` per mistake, beside the calls that
+**Forty-six plausible mistakes, forty-six refused at compile time.**
+Eight files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
@@ -440,9 +465,12 @@ the two-factor notices and the welcome, 26 to 29;
 [`test/types/recovery-refusals.ts`](test/types/recovery-refusals.ts) the
 five of the recovery code notice, 30 to 34;
 [`test/types/change-refusals.ts`](test/types/change-refusals.ts) the two of
-the e-mail change notice sent on its event, 35 and 36; and
+the e-mail change notice sent on its event, 35 and 36;
 [`test/types/magic-link-refusals.ts`](test/types/magic-link-refusals.ts) the
-four of the sign-in link, 37 to 40:
+four of the sign-in link, 37 to 40; and
+[`test/types/step-up-refusals.ts`](test/types/step-up-refusals.ts) the six
+of the step-up's code, 41 to 46, beside the names of the templates, held to
+the eleven:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -484,8 +512,14 @@ four of the sign-in link, 37 to 40:
 38. `magicLink.request`'s answer, not checked for `null` first.
 39. The token alone given to `magicLink`, rather than what the flow answered.
 40. `links.magicLink` computed asynchronously.
+41. `stepUp.request`'s answer not narrowed to `via: 'email'`: an app's step-up has nothing to send.
+42. A step-up confirmed with the user's app, narrowed to it, given to `stepUp`.
+43. A sign-in code given to `stepUp`: it signs in, it confirms no action.
+44. A one-time token given to `stepUp`: it has no code.
+45. `stepUp` without the recipient: its e-mail greets the user by name.
+46. The step-up's `user` given as the recipient when the user type has no name.
 
-In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 40 are a `TypeError` at send
+In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 46 are a `TypeError` at send
 time instead, naming the call or the field, and 25, 29 and 34 one from
 `janusMail()`.
 

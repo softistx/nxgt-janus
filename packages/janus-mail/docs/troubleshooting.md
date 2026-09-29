@@ -34,7 +34,7 @@ How the messages are shaped:
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
 - [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
-- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-magiclink-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-welcome)
+- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-magiclink-stepup-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-welcome)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
@@ -42,6 +42,7 @@ How the messages are shaped:
 
 **Sending**
 - [`janusMail.magicLink: links.magicLink is missing — pass it to janusMail({ links }) to send sign-in links`](#janusmailmagiclink-linksmagiclink-is-missing--pass-it-to-janusmail-links--to-send-sign-in-links)
+- [`janusMail.stepUp: via must be 'email' — a step-up confirmed with the user's app sends no e-mail`](#janusmailstepup-via-must-be-email--a-step-up-confirmed-with-the-users-app-sends-no-e-mail)
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`janusMail.<method>: expiresAt must be a Date`](#janusmailmethod-expiresat-must-be-a-date)
 - [`janusMail.recoveryCodeUsed: recoveryCodesLeft must be a count — a whole number, 0 or more — or the sentence to show`](#janusmailrecoverycodeused-recoverycodesleft-must-be-a-count--a-whole-number-0-or-more--or-the-sentence-to-show)
@@ -68,6 +69,8 @@ How the messages are shaped:
 - [`TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`](#ts2739-type----is-missing-the-following-properties-from-type-janusmailtemplates)
 - [`TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-recoverycodeused-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2741: Property 'magicLink' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-magiclink-is-missing-in-type----but-required-in-type-janusmailtemplates)
+- [`TS2741: Property 'stepUp' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-stepup-is-missing-in-type----but-required-in-type-janusmailtemplates)
+- [`TS2345: Argument of type 'StepUpByEmail<…> | StepUpByApp<…>' is not assignable to parameter of type 'Pick<StepUpByEmail<unknown>, …>'.`](#ts2345-argument-of-type-stepupbyemail--stepupbyapp-is-not-assignable-to-parameter-of-type-pickstepupbyemailunknown-)
 - [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
 - [`TS2741: Property 'getStarted' is missing in type '{ … }' but required in type 'JanusMailLinks'.`](#ts2741-property-getstarted-is-missing-in-type----but-required-in-type-janusmaillinks)
 - [`TS2322: Type 'number | null' is not assignable to type 'string | number'.`](#ts2322-type-number--null-is-not-assignable-to-type-string--number)
@@ -196,9 +199,9 @@ A `fallbackLocale` the list does not hold — `'de'` with the default
 
 `templates` given as a list or a function. Key each template by its name.
 
-### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`
+### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`
 
-A key that is not one of the ten — `newSignIn`, or the e-mail's file name
+A key that is not one of the eleven — `newSignIn`, or the e-mail's file name
 `'verify-email'` rather than the template's, `verifyEmail`. Other e-mails are
 on the [roadmap](roadmap.md); send them with `@nxgt/mail` directly meanwhile.
 
@@ -232,7 +235,7 @@ as it is: fields are own properties.
 ### `janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` leaves some
-out: the defaults could not render them in that locale. Pass all ten — see
+out: the defaults could not render them in that locale. Pass all eleven — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
 
@@ -267,6 +270,26 @@ const mail = janusMail({
 
 Sending again fails again: it is a bug, not an outage.
 
+### `janusMail.stepUp: via must be 'email' — a step-up confirmed with the user's app sends no e-mail`
+
+A `TypeError` from `mail.stepUp`, before anything is rendered or sent: it
+was given what `auth.stepUp.request(user)` answered for a user whose second
+factor is active — `via: 'secondFactor'`, with no code and no address — or
+something with no `via` at all, such as a sign-in code's answer. A step-up
+confirmed with the user's app sends nothing: ask for the code their app
+shows. Check `via` first:
+
+```ts
+const issued = await auth.stepUp.request(current.user);
+if (issued.via === 'email') {
+	await mail.stepUp(issued, { name: current.user.name, locale: current.user.locale });
+}
+return Response.json({ challenge: issued.challenge, via: issued.via });
+```
+
+In TypeScript the unchecked call does not compile — see
+[`TS2345: Argument of type 'StepUpByEmail<…> | StepUpByApp<…>' …`](#ts2345-argument-of-type-stepupbyemail--stepupbyapp-is-not-assignable-to-parameter-of-type-pickstepupbyemailunknown-).
+
 ### `janusMail.<method>: <field> must be a string`
 
 A `TypeError` from a call, naming the method and the field it could not read
@@ -286,7 +309,9 @@ send it with `signInCode`, or ask `auth.magicLink.request` for a link.
 
 `issued` needs `token` and `email` (`code` and `email` for `signInCode`), and
 the recipient its `name` — a user whose schema has no name passes one
-anyway: `{ name: user.email }`. `janusMail.verifyEmail: expiresIn must be a
+anyway: `{ name: user.email }`. `janusMail.stepUp: name must be a string`
+is `stepUp` called without the recipient: unlike `signInCode`, its e-mail
+greets the user by name. `janusMail.verifyEmail: expiresIn must be a
 string` is the third argument's `expiresIn` given as something else — a
 number of seconds: pass the text to show, `{ expiresIn: '1 hour' }`, or
 leave it out.
@@ -497,7 +522,7 @@ avoids the read altogether. (In this repository: run `bun run build`.)
 
 The default templates read `mails/` with `node:fs`, through
 `@nxgt/mail/renderer`: Node, Bun or Deno only. On an edge runtime, pass all
-ten templates yourself; an inlined build is on the [roadmap](roadmap.md).
+eleven templates yourself; an inlined build is on the [roadmap](roadmap.md).
 
 ### An e-mail stays light in dark mode
 
@@ -630,7 +655,7 @@ whole.
 ### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` does not give
-all ten. With five or more missing, the code is `TS2740` and the list ends
+all eleven. With five or more missing, the code is `TS2740` and the list ends
 `…, and 5 more.` See [Adding a locale](guide/locales.md#adding-a-locale).
 
 ### `TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
@@ -650,6 +675,32 @@ See [Templates](guide/templates.md#what-each-template-is-given).
 Add `magicLink` — it is given `brand`, `link` and `expiresIn` — even if you
 never send it; in JavaScript the same `templates` is
 [`janusMail: the default templates are built in en and fr only — …; magicLink missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
+
+### `TS2741: Property 'stepUp' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
+
+`templates` written before 0.8, with a locale beyond `en` and `fr`: since
+0.8.0 there are eleven templates, and with such a locale every one is
+yours. Add `stepUp` — it is given `brand`, `name`, `code`, `expiresIn` and
+`link` — even if you never send it; in JavaScript the same `templates` is
+[`janusMail: the default templates are built in en and fr only — …; stepUp missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
+See [Templates](guide/templates.md#what-each-template-is-given).
+
+### `TS2345: Argument of type 'StepUpByEmail<…> | StepUpByApp<…>' is not assignable to parameter of type 'Pick<StepUpByEmail<unknown>, …>'.`
+
+What `auth.stepUp.request(user)` answered, passed to `mail.stepUp` without
+checking `via`, on a user type that may have a second factor. The error
+goes on: `Type 'StepUpByApp<…>' is missing the following properties …:
+email, code` — a user whose factor is active confirms with their app, and
+there is nothing to send. Narrow it first:
+
+```ts
+const issued = await auth.stepUp.request(current.user);
+if (issued.via === 'email') await mail.stepUp(issued, { name: current.user.name });
+```
+
+A sign-in code's answer given to `stepUp` reads `Property 'via' is missing
+in type 'IssuedCode<…>'`: a sign-in code signs in, it confirms no action —
+send it with `signInCode`.
 
 ### `TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`
 

@@ -30,6 +30,12 @@ const session = await auth.stepUp.confirm(request, issued.challenge, code);
 session.authenticatedAt; // now: the action goes through for the next ten minutes
 ```
 
+`sendMail` stands for your own sending. With
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail) 0.8,
+`mail.stepUp(issued, { name, locale })` sends it — "Your confirmation code",
+in English or French — see [Sending the code with
+`@nxgt/janus-mail`](#sending-the-code-with-nxgtjanus-mail).
+
 A step-up is two requests, as a sign-in by code is: one issues the code, the
 other takes it and stamps the session. It **opens no session** and hands out
 no new token: the session the request presents is the one confirmed, which
@@ -110,6 +116,31 @@ if (issued.via === 'email') {
 return Response.json({ challenge: issued.challenge, via: issued.via });
 ```
 
+### Sending the code with `@nxgt/janus-mail`
+
+`@nxgt/janus-mail`'s `mail.stepUp` takes what `request` answered, once
+narrowed to `via: 'email'`, and sends it to `issued.email`: a greeting by
+name, the code, how long it lasts — "This code expires in 10 minutes." —
+and a **Secure my account** button to its `links.secureAccount()`, for a
+user who asked for nothing. It reads the code, the address and `expiresAt`,
+never the challenge:
+
+```ts
+import { janusMail } from '@nxgt/janus-mail';
+
+const mail = janusMail({ mailer, from: 'noreply@acme.example', brand: 'Acme', links });
+
+const issued = await auth.stepUp.request(current.user);
+if (issued.via === 'email') {
+	await mail.stepUp(issued, { name: current.user.name, locale: current.user.locale });
+}
+return Response.json({ challenge: issued.challenge, via: issued.via });
+```
+
+An un-narrowed answer is a compile error there, and a `via: 'secondFactor'`
+passed from JavaScript a `TypeError`: an app's step-up has nothing to send.
+See its [sending guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/docs/guide/sending.md#stepupissued-to-options).
+
 **One step-up is live per user**: a request spends every step-up issued
 before it. The challenge lapses after ten minutes by default —
 `janus({ tokens: { stepUp: '5m' } })` changes it.
@@ -176,3 +207,5 @@ calls are traced like every other flow.
 - [Signing in with an e-mailed code](sign-in-code.md) — the same six digits,
   to sign in.
 - [Errors](errors.md) — every code and its status.
+- [`@nxgt/janus-mail`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-mail/docs/guide/sending.md#stepupissued-to-options)
+  — `mail.stepUp`, the step-up's e-mail.

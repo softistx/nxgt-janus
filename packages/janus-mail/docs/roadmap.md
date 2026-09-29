@@ -40,12 +40,22 @@ Nothing between releases.
   its flows answer what to send, and this package is called with that answer.
   An application that sends its own way needs neither this package nor a
   hook to turn off.
-- **The challenge in an e-mail** — a sign-in code e-mail carries the code and
-  never the challenge, not even through an override.
+- **The challenge in an e-mail** — a sign-in code's or a step-up's e-mail
+  carries the code and never the challenge, not even through an override.
 
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The step-up's code, v0.8.0.** `stepUp(issued, to, options?)`, built
+  from `@nxgt/mail-presets` 1.1.0's `confirm-action` in English and French:
+  send what `@nxgt/janus`'s `auth.stepUp.request(user)` answered, once
+  narrowed to `via: 'email'`, to `issued.email` — "Your confirmation code",
+  the code, how long it lasts, and a **Secure my account** button to
+  `links.secureAccount()` for a user who asked for nothing. A step-up
+  confirmed with the user's app sends nothing, and is refused. Eleven
+  e-mails now, and eleven templates to pass for a locale beyond `en` and
+  `fr`.
 
 - **The sign-in link, v0.7.0.** `magicLink(issued, to?, options?)`, built
   from `@nxgt/mail-presets` 1.0.1's `magic-link` in English and French:
