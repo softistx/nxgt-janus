@@ -153,7 +153,7 @@ export function linkPage(request: Request): Response {
 		{
 			headers: {
 				'Content-Type': 'text/html; charset=utf-8',
-				'Referrer-Policy': 'no-referrer', // the URL holds the token: send it nowhere
+				'Referrer-Policy': 'strict-origin', // the origin only: the token's URL reaches nobody
 				'Cache-Control': 'no-store',
 			},
 		},
@@ -167,8 +167,14 @@ export function linkPage(request: Request): Response {
   scripts submits the form too; one that does not click buttons does not.
   Auto-submitting saves the user a click, at the price of every link a
   script-running scanner opens.
-- **`Referrer-Policy: no-referrer`** keeps the URL, and the token in it, out
-  of the `Referer` of anything the page loads.
+- **`Referrer-Policy: strict-origin`** keeps the URL, and the token in it,
+  out of the `Referer` of anything the page loads: a `Referer` holds the
+  origin only — `https://app.example/` — never the path and its query, and
+  none at all from HTTPS to HTTP. Not `no-referrer`: with it the browser
+  posts the form with `Origin: null`, which a check on `Origin` alone — as
+  `confirmLink` [below](#as-routes) — refuses every time, and one that tries
+  `Sec-Fetch-Site` first refuses whenever the browser sends none: on plain
+  HTTP off `localhost`, or in an older browser.
 - **Refuse a `POST` from another site.** The token says nothing of the
   browser that asked for it: a page anywhere that posts a token of the
   attacker's own account to your route signs its visitor in as the attacker,

@@ -495,9 +495,9 @@ character for character. Neither held:
 - **The browser sends no `Sec-Fetch-Site`.** It sends none to plain `http://`
   on a host other than `localhost` or a loopback address, and an older browser
   sends none at all. The `Origin` decides here too.
-- **The `Origin` is `null`.** The page's `Referrer-Policy: no-referrer` makes
-  the browser send `Origin: null` for every form it posts. So whenever the
-  `Origin` decides, the answer is 403, whatever `ORIGIN` holds.
+- **The `Origin` is `null`.** A page sent with `Referrer-Policy: no-referrer`
+  makes the browser send `Origin: null` for every form it posts. So whenever
+  the `Origin` decides, the answer is 403, whatever `ORIGIN` holds.
 - **`ORIGIN` is not what the browser shows.** Check for `http` against
   `https`, a missing or extra port, or a trailing `/`. Leaving `origin` out does
   not help behind a proxy: `csrf()` then compares with the URL the app sees,
@@ -506,9 +506,10 @@ character for character. Neither held:
 **Fix:** serve the page and the route on one origin, over HTTPS or on
 `localhost` in development. Redirect `www.` to the bare host, and post the form
 to a relative `action`. Set `ORIGIN` to the scheme, host and port the address
-bar shows. Where the `Origin` must decide, send the page with `strict-origin`
-instead of `no-referrer`. A `Referer` then holds the origin only, never the
-path and its token, and the form carries its real `Origin`.
+bar shows. Send the page with `strict-origin`, as
+[the guide](guide/routes.md#a-link-sent-by-e-mail) does, never
+`no-referrer`. A `Referer` then holds the origin only, never the path and its
+token, and the form carries its real `Origin`.
 
 ```ts
 const ORIGIN = process.env.ORIGIN ?? 'https://app.example'; // what the address bar shows, no trailing slash
