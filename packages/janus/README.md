@@ -756,9 +756,6 @@ A sign-in from a device the user had not signed in from is told apart, so
 you can tell the user. **Nothing is stored**: the client keeps a device
 token janus signs, and presents it at its next sign-in.
 
-- **`devices: { keys }`** — a `DevicesConfig` — wires it: the first key
-  signs, every key checks, in `secondFactor.keys`'s format.
-
 - **`{ device }` is the last argument** of `signUp`, `signIn`,
   `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and
   `magicLink.confirm` — a `SignInOptions`: the token the client holds, or
@@ -769,7 +766,8 @@ token janus signs, and presents it at its next sign-in.
   malformed, forged or another user's token is a new device, never an error.
 - **`user.newDeviceSignedIn`** is sent for a new device, once the sign-in is
   complete, with the new session's `sessionId`.
-- **`devices.keys`** take `secondFactor.keys`' format. The first signs,
+- **`devices: { keys }`** — a `DevicesConfig` — wires it; the keys take
+  `secondFactor.keys`' format. The first signs,
   every one checks: a token signed by an older key is known, and handed back
   signed with the first. **Removing a key is the only way to forget devices,
   and it forgets every device that key signed.**

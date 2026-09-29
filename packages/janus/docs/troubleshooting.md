@@ -120,7 +120,7 @@ How the messages are shaped:
 - [A new device is never reported: `newDevice` is always `false`](#a-new-device-is-never-reported-newdevice-is-always-false)
 - [`TS2379: Argument of type '{ device: string | undefined; }' is not assignable to parameter of type 'SignInOptions' …`](#ts2379-argument-of-type--device-string--undefined--is-not-assignable-to-parameter-of-type-signinoptions-with-exactoptionalpropertytypes-true)
 - [`TS2739: Type '{ … }' is missing the following properties from type 'SignedIn<…>': newDevice, deviceToken`](#ts2739-type----is-missing-the-following-properties-from-type-signedin-newdevice-devicetoken)
-- [`TS2559: Type '"<value>"' has no properties in common with type 'SignInOptions'.`](#ts2559-type-value-has-no-properties-in-common-with-type-signinoptions)
+- [`TS2559: Type 'string' has no properties in common with type 'SignInOptions'.`, on `secondFactor.confirm` or `signInCode.confirm`](#ts2559-type-string-has-no-properties-in-common-with-type-signinoptions-on-secondfactorconfirm-or-signincodeconfirm)
 - [`TS2322: Type 'string | null' is not assignable to type 'string'.`, on `deviceToken`](#ts2322-type-string--null-is-not-assignable-to-type-string-on-devicetoken)
 - `janus: devices.keys: …`: under [Configuring `janus()`](#configuring-janus).
 
@@ -1611,13 +1611,18 @@ a stub of `auth` — after upgrading to 0.17.
 const signedIn: SignedIn<User> = { status: 'signedIn', user, session, token, newDevice: false, deviceToken: null };
 ```
 
-### `TS2559: Type '"<value>"' has no properties in common with type 'SignInOptions'.`
+### `TS2559: Type 'string' has no properties in common with type 'SignInOptions'.`, on `secondFactor.confirm` or `signInCode.confirm`
+
+Also: `Type '"<value>"' has no properties in common with type 'SignInOptions'.`
+for a literal token, and `TS2345: Argument of type 'string | undefined' is
+not assignable to parameter of type 'SignInOptions | undefined'.` — or
+`'string | null'` — for a cookie or an earlier `deviceToken`, given as is.
 
 **When:** `tsc`, on `secondFactor.confirm(challenge, code, token)` or
 `signInCode.confirm(challenge, code, token)` — the device token given as a
-bare string.
+bare string, or as a nullable one.
 **Why:** the options come last, as an object: `{ device }`.
-**Fix:** `secondFactor.confirm(challenge, code, { device: token })`.
+**Fix:** `secondFactor.confirm(challenge, code, { device: token ?? null })`.
 
 ### `TS2322: Type 'string | null' is not assignable to type 'string'.`, on `deviceToken`
 
