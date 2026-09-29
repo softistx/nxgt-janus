@@ -122,7 +122,9 @@ e-mail changed while the link is being redeemed is `TOKEN_STALE` too, and
 nothing is written.
 A confirm that verifies the e-mail sends a [`user.emailVerified`
 event](events.md); one for an e-mail already verified sends nothing.
-Changing the e-mail with `update` sets `emailVerified` back to `false`.
+Changing the e-mail with `update` sets `emailVerified` back to `false` — and
+the next sign-in by code or link then [drops the password and signs out
+every session](magic-link.md#an-account-someone-else-registered).
 
 ## `resetPassword`
 

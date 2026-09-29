@@ -11,6 +11,7 @@
  * `resetPassword.confirm`, which proves the address too.
  */
 
+import type { Id } from '../ids/id';
 import type { ResolvedType } from './config';
 import { type Context, writeUser } from './context';
 import { emit } from './events';
@@ -20,9 +21,13 @@ import type { UserRecord } from './port/types';
 /**
  * Proves `user`'s e-mail, never proved before, under the version read — an
  * address changed since is not the one proved: a `VERSION_CONFLICT` then.
- * Drops the password in the same write, then revokes every session and
- * spends what the password opened: reset links and second-factor
- * challenges.
+ * Drops the password in the same write, and revokes every session and spends
+ * what the password opened — reset links and second-factor challenges —
+ * **both before the write and after it**.
+ *
+ * Before, so an outage there leaves the e-mail unproved and the owner's next
+ * code or link runs this again; after, so a sign-in landing in between is
+ * ended too. An outage after the write is the one that leaves a session live.
  *
  * `user.emailVerified` is sent, and `user.passwordChanged` when a password
  * was dropped — from a `finally`, so an outage ending the sessions still
@@ -34,6 +39,7 @@ export async function proveFirstEmail(
 	user: UserRecord,
 	where: string,
 ): Promise<UserRecord> {
+	await endWhatTheSquatterOpened(context, user.id);
 	let dropped = false;
 	const proved = await writeUser(
 		context,
@@ -53,11 +59,7 @@ export async function proveFirstEmail(
 		// Whoever signed up with this address and not its inbox is signed
 		// out, and a sign-in they left waiting on its second factor cannot
 		// be finished — before the new session opens.
-		await context.store.sessions.revokeUserSessions(
-			proved.id,
-			context.clock.now(),
-		);
-		await endWhatThePasswordOpened(context, proved.id);
+		await endWhatTheSquatterOpened(context, proved.id);
 	} finally {
 		await emit(context, 'user.emailVerified', proved, proved.updatedAt);
 		if (dropped) {
@@ -65,4 +67,13 @@ export async function proveFirstEmail(
 		}
 	}
 	return proved;
+}
+
+/** Every session of the user revoked, and what their password opened spent. */
+async function endWhatTheSquatterOpened(
+	context: Context,
+	userId: Id,
+): Promise<void> {
+	await context.store.sessions.revokeUserSessions(userId, context.clock.now());
+	await endWhatThePasswordOpened(context, userId);
 }

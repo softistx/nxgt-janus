@@ -140,13 +140,6 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `SecondFactorRecord.recoveryCodes`,
   stored by the users stores of `@nxgt/janus-drizzle` and
   `@nxgt/janus-mongo`, with conformance cases.
-- **The second factor in the user events, v0.9.0** —
-  `user.secondFactorEnabled`, once `secondFactor.activate` made a factor
-  active, and `user.secondFactorDisabled`, once `secondFactor.disable`
-  removed an active one: a listener can tell the user, as
-  `@nxgt/janus-mail`'s `twoFactorEnabled` and `twoFactorDisabled` notices
-  do, whoever made the change. `enroll`, a factor still waiting, and a
-  `disable` that found none send nothing.
 - **Sending the e-mails, `@nxgt/janus-mail` v0.1.0** — a package of its
   own, built on the `@nxgt/mail` toolkit: `janusMail({ mailer, from, brand,
   links })` takes what each flow answers —

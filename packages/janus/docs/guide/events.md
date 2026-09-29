@@ -204,7 +204,7 @@ Where the listener runs within a flow, and what an outage does to it:
 | `verifyEmail.confirm` | after the write — the flow's last step | — |
 | `update` | after the write — the flow's last step | — |
 | `changePassword`, `setPassword` | **after** the reset links and the second-factor challenges left open are spent | fails the call; the event is sent all the same, from a `finally` |
-| `signInCode.confirm`, `magicLink.confirm` | after the write, **before** the session or the second-factor challenge is opened | fails the call; the event is already sent |
+| `signInCode.confirm`, `magicLink.confirm` | on an e-mail never verified: **after** every session is revoked and the reset links and second-factor challenges left open are spent — before the write and again after it — and **before** the new session or second-factor challenge is opened. `user.passwordChanged` follows `user.emailVerified` when a password was dropped. An e-mail already verified sends nothing | fails the call; the events are sent all the same, from a `finally`. An outage in the sign-outs before the write fails the call with nothing written and nothing sent: the next code or link proves the e-mail again |
 | `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |
 | `secondFactor.recover` | after the recovery code is spent and the session opened — or failed to open | fails the call; the recovery code is spent and the event sent all the same, from a `finally` |
 | `resetPassword.confirm` | **after** the sessions opened with the old password are revoked, and the other reset links and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |

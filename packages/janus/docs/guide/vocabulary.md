@@ -43,7 +43,7 @@ either finds this row.
 | **credential** | What a caller presents to prove who they are: a login and a password at sign-in (`CredentialError`, `CREDENTIALS_INVALID`), or a token on a request — always written *session credential* | |
 | **password policy** | The rules a new password must meet: `minLength`, `normalize` | the model |
 | **session** | A signed-in period, carried by a **session token** | |
-| **lapsed**, **revoked**, **renewed** | A session past its `expiresAt`; one ended by a sign-out or a password reset; one whose `expiresAt` moved in passing (`renewAfter`) | "expired" — kept for `TOKEN_EXPIRED`, a one-time token |
+| **lapsed**, **revoked**, **renewed** | A session past its `expiresAt`; one ended by a sign-out, a password reset, or the first proof of an e-mail by a code or a link; one whose `expiresAt` moved in passing (`renewAfter`) | "expired" — kept for `TOKEN_EXPIRED`, a one-time token |
 | **anonymous** | A request that presents no session credential, or one that authenticates nobody: `authenticate` answers `null` | "unauthenticated", "guest", "logged out" |
 | **bearer client** | A client that sends its session token as `Authorization: Bearer` rather than in a cookie | |
 | **one-time token** | A single-use token sent by e-mail in a link, for verification, a password reset or a sign-in | "code": a code is typed, a token is followed in a link |

@@ -226,8 +226,10 @@ and signs out every session** before it opens hers — as a
 [code](sign-in-code.md).
 
 - In the write that proves the e-mail, the password is removed
-  (`hasPassword` turns `false`); then every session of the user is revoked,
-  and the reset links and second-factor challenges still waiting are spent.
+  (`hasPassword` turns `false`). Every session of the user is revoked, and
+  the reset links and second-factor challenges still waiting are spent,
+  before that write and again after it: an outage before it leaves the
+  e-mail unproved, so the next link or code runs all of it again.
 - [`user.emailVerified`](events.md) is sent, then `user.passwordChanged`
   when a password was dropped — even if an outage interrupts the sign-outs.
 - **An e-mail already verified changes nothing**: the password and the
