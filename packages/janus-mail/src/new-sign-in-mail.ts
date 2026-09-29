@@ -7,22 +7,24 @@
  * sees no IP, so the sender may know none, and the e-mail then shows `—`,
  * which reads the same in every locale.
  */
+
+import { noLocationText } from './no-location';
 import type { ResolvedOptions } from './options';
 import { field, link, localeFor, send } from './send';
 import type { JanusMail } from './types';
 
 const METHOD = 'newSignIn';
 
-/** What the e-mail shows where the sender knew no location. */
-export const NO_LOCATION = '—';
-
-/** The sender's location, `—` without one, or a `TypeError` for anything else. */
-function locationOf(signIn: unknown): string {
+/**
+ * The sender's location, the text of a missing one in `locale` without one,
+ * or a `TypeError` for anything else.
+ */
+function locationOf(signIn: unknown, locale: string): string {
 	const given =
 		typeof signIn === 'object' && signIn !== null
 			? (signIn as { location?: unknown }).location
 			: undefined;
-	if (given === undefined) return NO_LOCATION;
+	if (given === undefined) return noLocationText(locale);
 	return field(METHOD, signIn, 'location');
 }
 
@@ -34,14 +36,15 @@ export function newSignInMail(
 	return {
 		// Async, so a wrong argument rejects as the other methods' do.
 		async newSignIn(to, signIn) {
+			const locale = localeFor(options, to);
 			return send(options, METHOD, field(METHOD, to, 'email'), {
 				brand,
 				name: field(METHOD, to, 'name'),
 				device: field(METHOD, signIn, 'device'),
-				location: locationOf(signIn),
+				location: locationOf(signIn, locale),
 				time: field(METHOD, signIn, 'time'),
 				link: link(METHOD, links.secureAccount(), 'secureAccount()'),
-				locale: localeFor(options, to),
+				locale,
 			});
 		},
 	};

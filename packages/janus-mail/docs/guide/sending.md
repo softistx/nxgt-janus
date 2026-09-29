@@ -386,14 +386,18 @@ it carries no request to describe the device from.
   happened.
 - **`location` is optional, and yours.** `@nxgt/janus` sees no IP: a
   location comes from a geo-IP of your own, if you have one. Left out, the
-  e-mail shows `—` — an em dash, which reads the same in English and
-  French — since every line of the summary is always there. `null` is a
+  e-mail says so in the locale it is sent in — "Unknown location", "Lieu
+  inconnu" — since every line of the summary is always there. A locale
+  beyond `en` and `fr`, sent through templates of your own, gets its
+  language's text when it is `en` or `fr` (`fr-CA` gets "Lieu inconnu"),
+  and "Unknown location" otherwise: pass `location` yourself there. `null` is a
   compile error, and in JavaScript `janusMail.newSignIn: location must be a
   string`: spread it in only when you have one,
   `...(city === null ? {} : { location: city })`.
-- **The text part** gives each line of the summary as its label, then its
-  value on the next line — `Device`, then `Firefox on macOS` — where every
-  other paragraph is one line.
+- **The text part** gives each line of the summary on one line, its label
+  then its value — `Device Firefox on macOS`, `Location Unknown location`,
+  `Time September 29, 2026 at 9:12 AM` — one row per line, with no blank line
+  between rows.
 
 ## The expiry
 

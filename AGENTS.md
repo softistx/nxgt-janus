@@ -76,8 +76,8 @@ floor's tarball from npm, outside the lock (`scripts/run-on-peer-floor.ts`).
 nxgt-mail, peers `janus-mail` at `>=0.1.0 <2` — widened from `<1` when
 nxgt-mail reached 1.0.0 (1.0 removed `withTelemetry`, `withRendererTelemetry`
 and `RetryOptions`, none of which `janus-mail` imports) — and the specs run
-on 1.0.1 from the lock, with `@nxgt/mail-config`, `@nxgt/mail-i18n` and
-`@nxgt/mail-ui`, all 1.0.1, and `@nxgt/mail-presets` 1.1.0 (whose
+on 1.0.1 from the lock, with `@nxgt/mail-i18n` and `@nxgt/mail-ui`, both
+1.0.1, `@nxgt/mail-config` 1.0.2 and `@nxgt/mail-presets` 1.1.1 (whose
 `confirm-action` is the step-up's e-mail, `stepUp`; the manifest stays
 format 1), building `mails/` — whose
 HTML follows dark mode since `@nxgt/mail-ui` 0.4.0, with a dark primary of its
@@ -95,8 +95,10 @@ is a message no template reads, `recovery-code-used.codes-left`, which
 time — held equal to `@nxgt/mail-i18n`'s `createTranslator` by a spec, since
 `createTranslator` is build-only here. The `mails/`
 text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, and keep
-each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it,
-bar `new-sign-in`'s summary rows, a label line then a value line),
+each paragraph on one line since 0.2.1, and each row of `new-sign-in`'s
+summary on one line — `Device Firefox on macOS` — since 1.0.2 (specs in
+`render.spec.ts` hold both, and allow an address on its own line after its
+sentence's colon, which upstream keeps by design),
 so `mail/maizzle.config.ts` sets no `plaintext` of its own. Since
 `@nxgt/mail-presets` 0.3.0 the presets' message keys are kebab-case
 (`presets.link-expires`, `verify-email.*`); `@nxgt/mail-i18n` 0.4.0 accepts a

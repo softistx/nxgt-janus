@@ -78,7 +78,9 @@ Every one also gets `locale`, one of `locales`. Every value is a string:
 for `stepUp`, `links.recoveryCodes()` (else
 `links.secureAccount()`) for `recoveryCodeUsed`, `links.getStarted()` for
 `welcome` — `code`, `newEmail`, `when`, `device` and `time` from the
-call, `location` from the call or `—` without one, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
+call, `location` from the call or, without one, "Unknown location" in the
+send's locale — "Lieu inconnu" in `fr`, `en`'s text for a locale beyond
+the two — and `expiresIn` derived from the flow's `expiresAt` in the locale, or
 the send's own `expiresIn` ([Sending](sending.md#the-expiry)).
 
 `recoveryCodesLeft` is a **sentence**, not the count: "You have 9 recovery
@@ -181,7 +183,7 @@ them renders: that is when the package's `mails/` folder is read, once.
 ## What the defaults say
 
 The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail-presets)
-1.1.0, built with a neutral grey theme and no logo:
+1.1.1, built with a neutral grey theme and no logo:
 
 | Template | Built from | Subject (`en`) | Subject (`fr`) |
 | --- | --- | --- | --- |
@@ -212,7 +214,8 @@ device we had not seen*, then a summary of three lines — **Device**,
 **Location** and **Time**, *Appareil*, *Lieu* and *Heure* in French — then
 *if this was you, there is nothing to do; if this was not you, secure your
 account now*, its button saying **Secure my account**; in the text part each
-line of the summary is its label, then its value on the next line. `welcome` has the brand in
+line of the summary is one line, its label then its value — `Device Firefox
+on macOS` — with no blank line between rows. `welcome` has the brand in
 its heading — "Welcome to Acme" — and the recipient's name in its subject,
 filled at send time like the body; its button says **Get started**.
 

@@ -346,7 +346,8 @@ if (event.type === 'user.emailChanged' && event.formerEmail != null) {
 time must be a string` are the second argument missing, or its `time` given
 as the session's `Date`: pass the device as you describe it and the time as
 text. `janusMail.newSignIn: location must be a string` is a location lookup's
-`null`: leave `location` out, and the e-mail shows `—`. `janusMail.newSignIn:
+`null`: leave `location` out, and the e-mail says "Unknown location" in
+the recipient's locale. `janusMail.newSignIn:
 email must be a string` is the `user.newDeviceSignedIn` event itself given
 as the recipient — read the user first.
 
@@ -769,7 +770,7 @@ Also, without `exactOptionalPropertyTypes` in your tsconfig:
 
 On `newSignIn`'s `location`: a geo-IP lookup's answer, `null` when it found
 nothing, passed as it is. `location` is optional: leave it out, and the
-e-mail shows `—`:
+e-mail says "Unknown location" — "Lieu inconnu" in French:
 
 ```ts
 await mail.newSignIn(to, { device, time, ...(city === null ? {} : { location: city }) });
