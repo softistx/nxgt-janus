@@ -267,7 +267,8 @@ device, where, when, and a button to your security settings. Every value is
 your text, in the recipient's locale: **Janus sees no IP and no
 `User-Agent`**, so describing the device, formatting the time in the user's
 time zone and finding a location — from a geo-IP of your own, if you have one
-— are yours. Without a location, the e-mail shows `—`.
+— are yours. Without a location, the e-mail says "Unknown" in its place —
+`Location Unknown`, `Lieu Inconnu` in French — since `@nxgt/janus-mail` 0.9.1.
 
 From the sign-in's answer, where the request is in hand:
 
