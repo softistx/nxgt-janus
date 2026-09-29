@@ -17,7 +17,7 @@ Nothing between releases.
   can then tell the user. You pass what identifies the device — a long-lived
   cookie of your own, say — and nothing more than a hash of it is kept. How
   Janus remembers a device is still being decided: on the sessions, which
-  would change the sessions store port, or in a signed cookie you keep, which
+  would change the `SessionStore` port, or in a signed cookie you keep, which
   would not.
 
 ## Later
