@@ -36,6 +36,10 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **The routes of a sign-in link, v0.5.1** — the routes guide's
+  [A link sent by e-mail](guide/routes.md#a-link-sent-by-e-mail): a page
+  that spends nothing, a `POST` behind `csrf()` that confirms, and the
+  second factor's challenge handed on. Needs `@nxgt/janus` 0.15.0.
 - **A throttled sign-in's `retryAfter`, v0.5.0** — `janusErrors()` and
   `bodyOf()` answer `@nxgt/janus`'s throttled `CREDENTIALS_INVALID` with
   `retryAfter` in the body and a `Retry-After` header. Needs `@nxgt/janus`

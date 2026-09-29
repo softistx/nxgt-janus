@@ -48,6 +48,7 @@ time one is sent, and kept.
 | `links.resetPassword` | `(token) => string` | required | The page that sets a new password, given the one-time token |
 | `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it |
 | `links.getStarted` | `() => string` | required | Where a new user starts — your home page, or your sign-in page for an account someone else created: the welcome's **Get started** button links to it |
+| `links.magicLink` | `(token) => string` | none: `magicLink` is a `TypeError` without it | The page a sign-in link opens, given the one-time token. That page spends nothing: its button posts the token to the route that calls `auth.magicLink.confirm` |
 | `links.recoveryCodes` | `() => string` | `links.secureAccount` | Where a user regenerates their recovery codes: the recovery code notice links to it, from its **Secure my account** button |
 | `locales` | `readonly L[]` | `['en', 'fr']` | The locales sent in — see [Locales](locales.md) |
 | `fallbackLocale` | one of `locales` | `'en'`, else the first of `locales` | The locale when the recipient wants none of `locales` |
@@ -113,6 +114,36 @@ else**: the
 challenge is the visitor's secret, and neither the default template nor an
 override is ever given it. `to` is optional — the e-mail greets nobody by
 name — and only its `locale` is read.
+
+### `magicLink(issued, to?, options?)`
+
+```ts
+const issued = await auth.magicLink.request(email); // IssuedToken & { user } | null
+if (issued !== null) await mail.magicLink(issued, { locale: issued.user.locale });
+return new Response(null, { status: 202 }); // the same answer either way
+```
+
+`request` answers `null` for an address nobody holds, and for an inactive
+user; the compiler refuses `null` here. Sent to `issued.email`, with a
+**Sign in** button to `links.magicLink(issued.token)` and how long it lasts —
+"This link expires in 15 minutes." `to` is optional — the e-mail greets
+nobody by name — and only its `locale` is read.
+
+- **`links.magicLink` is required to send it.** It is optional in
+  `janusMail()`, for an application that sends no sign-in link, and without
+  it `magicLink` throws a `TypeError` —
+  `janusMail.magicLink: links.magicLink is missing — …` — before anything is
+  rendered. There is no fallback: only your page can carry the token.
+- **Link to a page, never to the route that signs in.** Mail scanners open
+  every link in an e-mail; one that signs in on `GET` signs in for the
+  scanner, and the user's click answers `TOKEN_SPENT`. The page's button
+  posts the token to the route calling `auth.magicLink.confirm` —
+  [`@nxgt/janus`'s sign-in link guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md)
+  has it, and [`@nxgt/janus-hono`'s routes](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-hono/docs/guide/routes.md#a-link-sent-by-e-mail)
+  the same on Hono.
+- **A sign-in code is not a link.** Its answer has a `challenge`, the
+  visitor's secret, and no `token`: the compiler refuses it here, and
+  JavaScript gets `janusMail.magicLink: token must be a string`.
 
 ### `passwordChanged(to)`
 
@@ -276,8 +307,8 @@ when opening the session then fails.
 
 ## The expiry
 
-`verifyEmail`, `resetPassword` and `signInCode` say how long the link or the
-code lasts — "This link expires in 1 hour.", "Ce code expire dans
+`verifyEmail`, `resetPassword`, `signInCode` and `magicLink` say how long
+the link or the code lasts — "This link expires in 1 hour.", "Ce code expire dans
 10 minutes." The text is `expiresIn`, one of the template's variables,
 derived at send time from the flow's `issued.expiresAt`:
 
@@ -325,6 +356,7 @@ a `TypeError`, and nothing reaches the mailer: revive the date with
 | `verifyEmail` | `issued.email` | what the visitor typed |
 | `resetPassword` | `issued.email` | the `email` passed to `request` |
 | `signInCode` | `issued.email` | the `email` passed to `request` |
+| `magicLink` | `issued.email` | the `email` passed to `request` |
 | `passwordChanged` | `to.email` | — |
 | `emailChanged` | `to.formerEmail` | `to.newEmail` |
 | `twoFactorEnabled`, `twoFactorDisabled` | `to.email` | — |

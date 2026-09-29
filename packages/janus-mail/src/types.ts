@@ -62,6 +62,15 @@ export interface JanusMailLinks {
 	 * the codes usually are.
 	 */
 	readonly recoveryCodes?: () => string;
+	/**
+	 * The page a sign-in link opens, given its one-time token —
+	 * `magicLink` links to it. **Optional**, for an application that sends no
+	 * sign-in link; without it, `magicLink` throws a `TypeError` before
+	 * anything is rendered. That page spends nothing: its button posts the
+	 * token to the route that calls `auth.magicLink.confirm`, so a mail
+	 * scanner that opens the link does not sign in for the user.
+	 */
+	readonly magicLink?: (token: string) => string;
 }
 
 /** The options every locale set shares. */
@@ -88,7 +97,7 @@ interface JanusMailBaseOptions<L extends string> {
 }
 
 /**
- * What one send of `verifyEmail`, `resetPassword` or `signInCode` may pass
+ * What one send of `verifyEmail`, `resetPassword`, `signInCode` or `magicLink` may pass
  * besides the flow's answer and the recipient.
  */
 export interface JanusMailSendOptions {
@@ -141,6 +150,18 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 	 */
 	signInCode(
 		issued: Pick<IssuedCode<unknown>, 'code' | 'email' | 'expiresAt'>,
+		to?: Pick<Recipient, 'locale'>,
+		options?: JanusMailSendOptions,
+	): Promise<SentMail>;
+	/**
+	 * The sign-in link `auth.magicLink.request(email)` answered, once checked
+	 * for `null`, to `issued.email` — its button and its fallback link built
+	 * by `links.magicLink(issued.token)`, saying how long it stays valid.
+	 * Greets nobody by name, as a sign-in code does not. A `TypeError`, before
+	 * anything is rendered, when `janusMail()` was given no `links.magicLink`.
+	 */
+	magicLink(
+		issued: IssuedToken,
 		to?: Pick<Recipient, 'locale'>,
 		options?: JanusMailSendOptions,
 	): Promise<SentMail>;

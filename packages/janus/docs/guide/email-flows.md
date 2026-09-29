@@ -34,11 +34,13 @@ verified.emailVerified; // true
 `sendMail` above is yours to write, or
 [`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)
 writes it: it takes what `send` and `request` answer, as they answer it, and
-sends the verification, reset and sign-in code e-mails — with the notices
+sends the verification, reset, sign-in code and sign-in link e-mails — with the notices
 of a password, an e-mail or a second factor changed, and a welcome on
 `user.created` — in English and French, over any `@nxgt/mail` transport.
-Every link is required: `getStarted`, since janus-mail 0.4.0, is where the
-welcome's **Get started** button leads.
+Every link is required but two: `getStarted`, since janus-mail 0.4.0, is
+where the welcome's **Get started** button leads; `recoveryCodes` and
+`magicLink` — the page a [sign-in link](magic-link.md) opens, since
+janus-mail 0.7.0 — are optional.
 
 ```ts
 import { janusMail } from '@nxgt/janus-mail';

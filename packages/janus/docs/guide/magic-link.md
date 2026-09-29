@@ -111,6 +111,22 @@ stored, like a session token's, so the store cannot give it back.
 Send it to `issued.email`, not to what the visitor typed: it is the address
 the user's field holds, as they registered it.
 
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)
+sends this e-mail ready-made, in English and French, over any `@nxgt/mail`
+transport: its **Sign in** button is built by `links.magicLink(token)` —
+point it at the page below — and it says how long the link lasts, from
+`issued.expiresAt`.
+
+```ts
+const mail = janusMail({ …, links: { …, magicLink: (token) => `https://app.example/sign-in/link?token=${token}` } });
+if (issued !== null) await mail.magicLink(issued, { locale: 'fr-CA' }); // the recipient's locale: sent in fr
+```
+
+`links.magicLink` is optional there, and `mail.magicLink` throws a
+`TypeError` without it. Its send rejects with the mailer's `MailFailure` when
+the transport fails: hand it to a queue that awaits it and retries, rather
+than a promise nobody awaits.
+
 ## Confirming from a `POST`, never from the link's `GET`
 
 **Mail scanners open links.** A corporate gateway, a webmail's safe-browsing
@@ -288,7 +304,9 @@ duration; …`.
 ## As routes
 
 The page above, and a fetch-style pair beside it — the shape Bun and most
-frameworks hand you:
+frameworks hand you;
+[`@nxgt/janus-hono`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-hono/docs/guide/routes.md#a-link-sent-by-e-mail)
+has the same in Hono, behind its `csrf()`:
 
 ```ts
 import { JanusError, TokenError, UserInactiveError } from '@nxgt/janus';
@@ -301,7 +319,7 @@ export async function requestLink(request: Request): Promise<Response> {
 	const issued = await auth.magicLink.request(email);
 	if (issued !== null) {
 		const link = `${ORIGIN}/sign-in/link?token=${issued.token}`;
-		void sendMail(issued.email, 'Your sign-in link', link); // not awaited
+		void sendMail(issued.email, 'Your sign-in link', link); // not awaited, so the answer's time tells nothing; in production, a queue that awaits and retries
 	}
 	return new Response(null, { status: 202 }); // the same answer either way
 }
@@ -390,3 +408,4 @@ holds that a link and a sign-in code are never redeemed as each other. See
 - [Sessions](sessions.md) — the cookie the session is sent in
 - [Errors](errors.md) — every code and its status
 - [Troubleshooting](../troubleshooting.md#sign-in-links) — by the message you see
+- [`@nxgt/janus-telemetry`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-telemetry/docs/guide/tracing.md#a-link-sent-by-e-mail) — the events a sign-in by link writes

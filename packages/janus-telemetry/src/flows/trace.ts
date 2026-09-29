@@ -18,14 +18,14 @@ function answered(scope: SpanScope, call: Call, outcome: Outcome): void {
 		if (typeof value === 'object' && value !== null && 'renewed' in value) {
 			scope.attribute('janus.session.renewed', value.renewed === true);
 		}
-		const status =
-			call.flow === 'signIn' || call.flow === 'signInCode.confirm'
-				? statusOf(value)
-				: undefined;
+		const status = SIGN_INS.has(call.flow) ? statusOf(value) : undefined;
 		if (status !== undefined) scope.attribute('janus.signIn.status', status);
 	}
 	WRITTEN[call.flow]?.(call, outcome);
 }
+
+/** The flows whose answer is a sign-in's: a session, or a second factor asked for. */
+const SIGN_INS = new Set(['signIn', 'signInCode.confirm', 'magicLink.confirm']);
 
 /** `cookie` answers synchronously: it is the one part of `janus()` not traced. */
 const UNTRACED = new Set(['cookie']);

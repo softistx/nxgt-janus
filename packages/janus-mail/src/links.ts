@@ -14,8 +14,11 @@ const REQUIRED_LINKS = [
 	'getStarted',
 ] as const;
 
-/** The links a `janusMail()` may leave out, each with a fallback. */
-const OPTIONAL_LINKS = ['recoveryCodes'] as const;
+/**
+ * The links a `janusMail()` may leave out: `recoveryCodes` falls back to
+ * `secureAccount`; `magicLink` has none, and its send is refused without it.
+ */
+const OPTIONAL_LINKS = ['recoveryCodes', 'magicLink'] as const;
 
 /** `links`: an object of functions, every required one there. */
 export function checkLinks(

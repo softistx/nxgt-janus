@@ -23,11 +23,11 @@ They mean the same here. These pages add:
 
 | Word | Means | Not |
 | --- | --- | --- |
-| **e-mail** | One of the nine this package sends: `verify-email`, `reset-password`, `sign-in-code`, `password-changed`, `email-changed`, `two-factor-enabled`, `two-factor-disabled`, `recovery-code-used`, `welcome` — by the name of its built file | "mail", "message" — a *message* is what a mailer sends, addressed |
+| **e-mail** | One of the ten this package sends: `verify-email`, `reset-password`, `sign-in-code`, `magic-link`, `password-changed`, `email-changed`, `two-factor-enabled`, `two-factor-disabled`, `recovery-code-used`, `welcome` — by the name of its built file | "mail", "message" — a *message* is what a mailer sends, addressed |
 | **template** | The function that renders one e-mail: `(variables & { locale }) => Rendered`. Named in camelCase, after the method that sends it: `verifyEmail`, `signInCode` | "renderer" — the renderer is `@nxgt/mail`'s, and reads the build |
 | **default template** | A template of `janusTemplates()`: the prebuilt e-mail, filled by the renderer | "preset" — a preset is `@nxgt/mail-presets`' source, which the build compiles |
 | **override** | A template of yours, passed in `templates`, used instead of the default | "custom template" |
-| **issued** | What a flow answered: an `IssuedToken` from `verifyEmail.send` or `resetPassword.request`, an `IssuedCode` from `signInCode.request` | "result", "payload" |
+| **issued** | What a flow answered: an `IssuedToken` from `verifyEmail.send`, `resetPassword.request` or `magicLink.request`, an `IssuedCode` from `signInCode.request` | "result", "payload" |
 | **recipient** | Who an e-mail is for besides the address: a `Recipient`, `{ name, locale? }` | "user" — a user is a record of `@nxgt/janus`; "to" is the address |
 | **notice** | An e-mail that tells, and asks for nothing: `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`. It links to `links.secureAccount()` — `recoveryCodeUsed` to `links.recoveryCodes()` when given | "alert", "notification" |
 | **welcome** | The e-mail sent once a user was created, on `@nxgt/janus`'s `user.created`: `welcome`. It links to `links.getStarted()` — not a notice, since it warns of nothing | "onboarding", "greeting" |

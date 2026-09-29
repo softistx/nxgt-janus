@@ -2,7 +2,7 @@
 
 The e-mails of [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus)'s
 flows, ready to send: **e-mail verification, password reset, sign-in code,
-password changed, e-mail changed, two-factor authentication turned on or
+sign-in link, password changed, e-mail changed, two-factor authentication turned on or
 off, a recovery code used, and a welcome to a new user**, in English and
 French, with your brand
 in them. `@nxgt/janus` sends no e-mail — its flows answer what to send — and
@@ -23,6 +23,7 @@ const mail = janusMail({
 		secureAccount: () => 'https://acme.example/account/security',
 		getStarted: () => 'https://acme.example/',
 		recoveryCodes: () => 'https://acme.example/account/recovery-codes', // optional
+		magicLink: (token) => `https://acme.example/sign-in/link?token=${token}`, // optional
 	},
 });
 
@@ -47,7 +48,7 @@ bun add -d typescript
 
 Three peers, all required: `@nxgt/mail` (0.1 or later, below 2 — 1.0 and
 its transports included), which defines the `Mailer` port and the errors;
-`@nxgt/janus` (0.14), whose flows' answers the methods take — types only,
+`@nxgt/janus` (0.15), whose flows' answers the methods take — types only,
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
@@ -64,12 +65,12 @@ needs Node `^22.22.3`, `^24.15.0` or `>=26`, for Maizzle — see
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The nine default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?` and `magicLink?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The ten default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the nine of them, and their names |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the ten of them, and their names |
 | `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn`, `newEmail`, `when` or `recoveryCodesLeft` as its e-mail needs |
-| `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword` and `signInCode`: `{ expiresIn? }`, the expiry as text, over the one derived |
+| `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword`, `signInCode` and `magicLink`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
 | `JanusMailLinks`, `Recipient` | The `links` option; who an e-mail is for — `{ name, locale? }` |
 
@@ -86,6 +87,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `verifyEmail(issued, to, options?)` | `issued` from `auth.verifyEmail.send(user)`; a link from `links.verifyEmail(issued.token)`, and how long it lasts | `issued.email` |
 | `resetPassword(issued, to, options?)` | `issued` from `auth.resetPassword.request(email)`, checked for `null`; a link from `links.resetPassword(issued.token)`, and how long it lasts | `issued.email` |
 | `signInCode(issued, to?, options?)` | `issued.code` from `auth.signInCode.request(email)`, and how long it lasts — **never the challenge** | `issued.email` |
+| `magicLink(issued, to?, options?)` | `issued` from `auth.magicLink.request(email)`, checked for `null`; a link from `links.magicLink(issued.token)`, and how long it lasts. A `TypeError` without `links.magicLink` | `issued.email` |
 | `passwordChanged(to)` | A notice, with `links.secureAccount()` | `to.email` |
 | `emailChanged(to)` | A notice naming `to.newEmail`, with `links.secureAccount()` | `to.formerEmail` |
 | `twoFactorEnabled(to)` | A notice: two-factor authentication was turned on, with `links.secureAccount()` | `to.email` |
@@ -93,7 +95,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `recoveryCodeUsed(to, { when, recoveryCodesLeft })` | A notice: a recovery code was used, `when`, and how many are left — "You have 9 recovery codes left." — with `links.recoveryCodes()`, else `links.secureAccount()` | `to.email` |
 | `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
 
-The three e-mails of a link or a code say how long it lasts — "This link
+The four e-mails of a link or a code say how long it lasts — "This link
 expires in 1 hour.", "Ce lien expire dans 1 heure." — from the flow's
 `issued.expiresAt`: the time left at send time, rounded to the minute, then
 down to the largest whole unit (days, hours or minutes), formatted with
@@ -137,6 +139,22 @@ if (issued !== null) {
 	// issued.challenge stays with the visitor — a cookie or the form — never in the e-mail
 }
 ```
+
+### Signing in with a link
+
+```ts
+const issued = await auth.magicLink.request(email);
+if (issued !== null) {
+	await mail.magicLink(issued, { locale: issued.user.locale }); // "Your sign-in link", valid 15 minutes
+}
+return new Response(null, { status: 202 }); // the same answer whether or not someone holds the address
+```
+
+`links.magicLink` should open **a page of yours that spends nothing**, whose
+button posts the token to the route calling `auth.magicLink.confirm`: mail
+scanners open every link in an e-mail, and one that signs in on `GET` signs
+in for the scanner. [`@nxgt/janus`'s sign-in link guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md)
+has that page.
 
 ### Saying the expiry yourself
 
@@ -330,14 +348,21 @@ send time and must return an `http(s)` or `mailto:` URL as a string: an
 `links`, `from` and `replyTo` are copied when `janusMail()` is called, so
 changing them afterwards changes nothing.
 
+**`links.magicLink` is optional, and `magicLink` refuses to send without
+it.** An application that sends no sign-in link leaves it out; calling
+`mail.magicLink` then throws a `TypeError` —
+`janusMail.magicLink: links.magicLink is missing — …` — before anything is
+rendered or sent. Unlike `recoveryCodes`, it has no fallback: no other page
+can carry the token.
+
 **Templates are own properties.** A class's methods live on its prototype
 and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all nine
-templates — `recoveryCodeUsed` included, since 0.5 — is a compile error, and
-a `TypeError` in JavaScript.
+built in those two only, so `locales: ['en', 'fr', 'de']` without all ten
+templates — `recoveryCodeUsed` included, since 0.5, and `magicLink`, since
+0.7 — is a compile error, and a `TypeError` in JavaScript.
 
 **The brand is text only.** `brand: 'Acme'` is written in the header, the
 body and the footer, escaped: no logo, no link, no markup. For those, replace
@@ -394,8 +419,8 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Thirty-six plausible mistakes, thirty-six refused at compile time.**
-Six files hold one `@ts-expect-error` per mistake, beside the calls that
+**Forty plausible mistakes, forty refused at compile time.**
+Seven files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
@@ -407,9 +432,11 @@ the expiry and the clock, 21 to 25;
 [`test/types/notice-refusals.ts`](test/types/notice-refusals.ts) the four of
 the two-factor notices and the welcome, 26 to 29;
 [`test/types/recovery-refusals.ts`](test/types/recovery-refusals.ts) the
-five of the recovery code notice, 30 to 34; and
+five of the recovery code notice, 30 to 34;
 [`test/types/change-refusals.ts`](test/types/change-refusals.ts) the two of
-the e-mail change notice sent on its event, 35 and 36:
+the e-mail change notice sent on its event, 35 and 36; and
+[`test/types/magic-link-refusals.ts`](test/types/magic-link-refusals.ts) the
+four of the sign-in link, 37 to 40:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -447,8 +474,12 @@ the e-mail change notice sent on its event, 35 and 36:
 34. `links.recoveryCodes` given as a URL rather than a function.
 35. `user.emailChanged`'s `formerEmail` given to `emailChanged` unchecked: it is `null` for a user who had none.
 36. The `user.emailChanged` event itself given to `emailChanged`: it has the former address, but neither a name nor the new one.
+37. A sign-in code given to `magicLink`: it has no token, and its challenge must never be mailed.
+38. `magicLink.request`'s answer, not checked for `null` first.
+39. The token alone given to `magicLink`, rather than what the flow answered.
+40. `links.magicLink` computed asynchronously.
 
-In JavaScript, 19 to 23, 26 to 28, 30 to 33, 35 and 36 are a `TypeError` at send
+In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 40 are a `TypeError` at send
 time instead, naming the call or the field, and 25, 29 and 34 one from
 `janusMail()`.
 

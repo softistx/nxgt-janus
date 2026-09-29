@@ -11,6 +11,7 @@ export const links: JanusMailLinks = {
 	resetPassword: (token) => `https://acme.example/reset?token=${token}`,
 	secureAccount: () => 'https://acme.example/account/security',
 	getStarted: () => 'https://acme.example/start',
+	magicLink: (token) => `https://acme.example/sign-in/link?token=${token}`,
 };
 
 /** The options every spec starts from, with a fresh memory mailer. */
@@ -52,6 +53,23 @@ export const signIn: IssuedCode<{ readonly id: string }> = {
 	expiresAt,
 	user: { id: 'u1' },
 };
+
+/** What `auth.magicLink.request(email)` answers for a user who exists. */
+export const signInLink: IssuedToken & {
+	readonly user: { readonly id: string };
+} = {
+	token: 'tok-link-789',
+	email: 'ada@example.com',
+	expiresAt,
+	user: { id: 'u1' },
+};
+
+/** The error a send rejects with, settled where it is created — `null` when it resolved. */
+export const rejection = (sending: Promise<unknown>): Promise<unknown> =>
+	sending.then(
+		() => null,
+		(error: unknown) => error,
+	);
 
 /** Every part of a sent e-mail, to search in one go. */
 export function partsOf(sent: MemoryMail | undefined): string[] {

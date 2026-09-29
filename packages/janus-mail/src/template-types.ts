@@ -34,6 +34,12 @@ export interface JanusMailVariables {
 		readonly code: string;
 		readonly expiresIn: string;
 	};
+	/** No `name`: the e-mail greets nobody, as the sign-in code's does not. */
+	readonly magicLink: {
+		readonly brand: string;
+		readonly link: string;
+		readonly expiresIn: string;
+	};
 	readonly passwordChanged: {
 		readonly brand: string;
 		readonly name: string;
@@ -76,7 +82,7 @@ export interface JanusMailVariables {
 	};
 }
 
-/** The name of one of the nine templates: `verifyEmail`, `resetPassword`, … */
+/** The name of one of the ten templates: `verifyEmail`, `resetPassword`, … */
 export type JanusMailTemplateName = keyof JanusMailVariables;
 
 /**
@@ -89,7 +95,7 @@ export type JanusMailTemplate<V, L extends string = JanusMailLocale> = (
 	variables: V & { readonly locale: L },
 ) => Rendered | PromiseLike<Rendered>;
 
-/** The nine templates, each for the locales `L`. */
+/** The ten templates, each for the locales `L`. */
 export type JanusMailTemplates<L extends string = JanusMailLocale> = {
 	readonly [K in JanusMailTemplateName]: JanusMailTemplate<
 		JanusMailVariables[K],

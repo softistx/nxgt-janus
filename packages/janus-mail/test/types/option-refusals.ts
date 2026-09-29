@@ -89,7 +89,7 @@ janusMail({
 	brand: 'Acme',
 	links,
 	// @ts-expect-error
-	templates: { magicLink: () => rendered },
+	templates: { newSignIn: () => rendered },
 });
 
 // 15. A fallbackLocale outside locales.
@@ -130,7 +130,7 @@ const wide: JanusMailTemplates<'en' | 'fr' | 'de'> = {
 
 // 18. A template that does not exist, read from what janusMail answered.
 // @ts-expect-error
-void mail.templates.magicLink;
+void mail.templates.newSignIn;
 
 // 19. A link computed asynchronously: the e-mail needs the string now.
 janusMail({

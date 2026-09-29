@@ -28,18 +28,20 @@ How the messages are shaped:
 - [`janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }`](#janusmail-links-must-be-an-object-as--verifyemail-resetpassword-secureaccount-getstarted-)
 - [`janusMail: links.<name> must be a function`](#janusmail-linksname-must-be-a-function)
 - [`janusMail: links.recoveryCodes must be a function, or left out`](#janusmail-linksrecoverycodes-must-be-a-function-or-left-out)
+- [`janusMail: links.magicLink must be a function, or left out`](#janusmail-linksmagiclink-must-be-a-function-or-left-out)
 - [`janusMail: locales must list at least one locale, as ['en', 'fr']`](#janusmail-locales-must-list-at-least-one-locale-as-en-fr)
 - [`janusMail: locales must be BCP 47 language tags, as 'fr-CA'`](#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca)
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
 - [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
-- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-welcome)
+- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-magiclink-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-welcome)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
 - [`janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing)
 
 **Sending**
+- [`janusMail.magicLink: links.magicLink is missing — pass it to janusMail({ links }) to send sign-in links`](#janusmailmagiclink-linksmagiclink-is-missing--pass-it-to-janusmail-links--to-send-sign-in-links)
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`janusMail.<method>: expiresAt must be a Date`](#janusmailmethod-expiresat-must-be-a-date)
 - [`janusMail.recoveryCodeUsed: recoveryCodesLeft must be a count — a whole number, 0 or more — or the sentence to show`](#janusmailrecoverycodeused-recoverycodesleft-must-be-a-count--a-whole-number-0-or-more--or-the-sentence-to-show)
@@ -65,6 +67,7 @@ How the messages are shaped:
 - [`TS2345: … Types of property 'expiresAt' are incompatible. Type 'string' is not assignable to type 'Date'.`](#ts2345--types-of-property-expiresat-are-incompatible-type-string-is-not-assignable-to-type-date)
 - [`TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`](#ts2739-type----is-missing-the-following-properties-from-type-janusmailtemplates)
 - [`TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-recoverycodeused-is-missing-in-type----but-required-in-type-janusmailtemplates)
+- [`TS2741: Property 'magicLink' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-magiclink-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
 - [`TS2741: Property 'getStarted' is missing in type '{ … }' but required in type 'JanusMailLinks'.`](#ts2741-property-getstarted-is-missing-in-type----but-required-in-type-janusmaillinks)
 - [`TS2322: Type 'number | null' is not assignable to type 'string | number'.`](#ts2322-type-number--null-is-not-assignable-to-type-string--number)
@@ -114,7 +117,8 @@ janusMail({ mailer, from, brand: 'Acme', links });
 ### `janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }`
 
 No `links`. Four are required: the notices link to `secureAccount`, and
-the welcome to `getStarted`. A fifth, `recoveryCodes`, is optional.
+the welcome to `getStarted`. Two more, `recoveryCodes` and `magicLink`, are
+optional.
 
 ### `janusMail: links.<name> must be a function`
 
@@ -146,6 +150,18 @@ regenerates their codes:
 
 ```ts
 links: { …, recoveryCodes: () => 'https://acme.example/account/recovery-codes' },
+```
+
+### `janusMail: links.magicLink must be a function, or left out`
+
+`links.magicLink` given as a URL, or as anything but a function. It is
+optional — an application that sends no sign-in link leaves it out — but
+when given it takes the link's one-time token and answers **a page of
+yours that spends nothing**, whose button posts the token to the route
+calling `auth.magicLink.confirm`:
+
+```ts
+links: { …, magicLink: (token) => `https://acme.example/sign-in/link?token=${token}` },
 ```
 
 ### `janusMail: locales must list at least one locale, as ['en', 'fr']`
@@ -180,9 +196,9 @@ A `fallbackLocale` the list does not hold — `'de'` with the default
 
 `templates` given as a list or a function. Key each template by its name.
 
-### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`
+### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`
 
-A key that is not one of the nine — `magicLink`, or the e-mail's file name
+A key that is not one of the ten — `newSignIn`, or the e-mail's file name
 `'verify-email'` rather than the template's, `verifyEmail`. Other e-mails are
 on the [roadmap](roadmap.md); send them with `@nxgt/mail` directly meanwhile.
 
@@ -216,7 +232,7 @@ as it is: fields are own properties.
 ### `janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` leaves some
-out: the defaults could not render them in that locale. Pass all nine — see
+out: the defaults could not render them in that locale. Pass all ten — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
 
@@ -234,6 +250,23 @@ janusMail({ mailer, from, brand: 'Acme', links, clock });
 
 ## Sending
 
+### `janusMail.magicLink: links.magicLink is missing — pass it to janusMail({ links }) to send sign-in links`
+
+A `TypeError` from `mail.magicLink`, before anything is rendered or sent:
+`janusMail()` was given no `links.magicLink`. It is optional, so
+`janusMail()` accepts `links` without it — written before 0.7, or for an
+application that sent no sign-in link — and there is no page to fall back
+on: only yours can carry the token. Add it:
+
+```ts
+const mail = janusMail({
+	…,
+	links: { …, magicLink: (token) => `https://acme.example/sign-in/link?token=${token}` },
+});
+```
+
+Sending again fails again: it is a bug, not an outage.
+
 ### `janusMail.<method>: <field> must be a string`
 
 A `TypeError` from a call, naming the method and the field it could not read
@@ -246,6 +279,10 @@ passing what a flow answered without checking it for `null`:
 const issued = await auth.resetPassword.request(email);
 if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name });
 ```
+
+`janusMail.magicLink: token must be a string` is a sign-in code's answer
+given to `magicLink` — it has a `challenge`, never mailed, and no token:
+send it with `signInCode`, or ask `auth.magicLink.request` for a link.
 
 `issued` needs `token` and `email` (`code` and `email` for `signInCode`), and
 the recipient its `name` — a user whose schema has no name passes one
@@ -285,8 +322,8 @@ formatted in the recipient's locale and time zone —
 
 ### `janusMail.<method>: expiresAt must be a Date`
 
-A `TypeError` from `verifyEmail`, `resetPassword` or `signInCode`: the e-mail
-says how long its link or code lasts, from `issued.expiresAt`, and that is
+A `TypeError` from `verifyEmail`, `resetPassword`, `signInCode` or
+`magicLink`: the e-mail says how long its link or code lasts, from `issued.expiresAt`, and that is
 not a valid `Date`. The usual cause is a flow's answer that went through
 JSON — a job queue, a cache — where a `Date` becomes a string. Nothing is
 sent. Revive it when the job runs, or say the expiry yourself:
@@ -326,8 +363,8 @@ await mail.recoveryCodeUsed(to, { when, recoveryCodesLeft: `Sie haben noch ${lef
 
 ### `janusMail.<method>: clock.now() must answer a Date`
 
-A `TypeError` from `verifyEmail`, `resetPassword` or `signInCode`: the
-`clock` given to `janusMail()` has a `now` that answered something else — a
+A `TypeError` from `verifyEmail`, `resetPassword`, `signInCode` or
+`magicLink`: the `clock` given to `janusMail()` has a `now` that answered something else — a
 number from `Date.now()`, a string, an invalid `Date`. Nothing is sent.
 `clock` is `@nxgt/janus`'s `Clock`: pass the one `janus({ clock })` was
 given, or `{ now: () => new Date() }`.
@@ -384,7 +421,7 @@ A `TypeError` from a call, before anything is rendered or sent
 must answer a string`, `janusMail.emailChanged: links.secureAccount() must
 answer a string`, `janusMail.welcome: links.getStarted() must answer a
 string`, `janusMail.recoveryCodeUsed: links.recoveryCodes() must answer a
-string`. The `links` function answered something other than a
+string`, `janusMail.magicLink: links.magicLink(token) must answer a string`. The `links` function answered something other than a
 string: a `URL` object, `undefined`, or a promise — an `async` function.
 Answer `url.href`, and compute the link synchronously:
 
@@ -460,7 +497,7 @@ avoids the read altogether. (In this repository: run `bun run build`.)
 
 The default templates read `mails/` with `node:fs`, through
 `@nxgt/mail/renderer`: Node, Bun or Deno only. On an edge runtime, pass all
-nine templates yourself; an inlined build is on the [roadmap](roadmap.md).
+ten templates yourself; an inlined build is on the [roadmap](roadmap.md).
 
 ### An e-mail stays light in dark mode
 
@@ -576,7 +613,9 @@ if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name }
 return new Response(null, { status: 202 });
 ```
 
-The same holds for `signInCode.request`, whose answer passed unchecked reads
+`auth.magicLink.request(email)`'s answer, passed to `mail.magicLink`
+unchecked, reads the same. The same holds for `signInCode.request`, whose
+answer passed unchecked reads
 `Argument of type 'IssuedCode<…> | null' is not assignable to parameter of
 type 'Pick<IssuedCode<unknown>, "email" | "code" | "expiresAt">'`.
 
@@ -591,18 +630,26 @@ whole.
 ### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` does not give
-all nine. With five or more missing, the code is `TS2740` and the list ends
-`…, and 4 more.` See [Adding a locale](guide/locales.md#adding-a-locale).
+all ten. With five or more missing, the code is `TS2740` and the list ends
+`…, and 5 more.` See [Adding a locale](guide/locales.md#adding-a-locale).
 
 ### `TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
 
 `templates` written for 0.4, with a locale beyond `en` and `fr`: since
-0.5.0 there are nine templates, and with such a locale every one is yours.
+0.5.0 `recoveryCodeUsed` is one of the templates, and with such a locale every one is yours.
 Add `recoveryCodeUsed` — it is given `brand`, `name`, `when`,
 `recoveryCodesLeft` (a sentence) and `link` — even if you never send it; in
 JavaScript the same `templates` is
 [`janusMail: the default templates are built in en and fr only — …; recoveryCodeUsed missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
 See [Templates](guide/templates.md#what-each-template-is-given).
+
+### `TS2741: Property 'magicLink' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
+
+`templates` written before 0.7, with a locale beyond `en` and `fr`: since
+0.7.0 there are ten templates, and with such a locale every one is yours.
+Add `magicLink` — it is given `brand`, `link` and `expiresIn` — even if you
+never send it; in JavaScript the same `templates` is
+[`janusMail: the default templates are built in en and fr only — …; magicLink missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
 
 ### `TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`
 
