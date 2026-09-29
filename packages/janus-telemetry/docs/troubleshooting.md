@@ -12,6 +12,7 @@ would be without it.
 - [A wrong password does not fail the span](#a-wrong-password-does-not-fail-the-span)
 - [`janus.signIn.refused` has no `user.id`](#janussigninrefused-has-no-userid)
 - [A `janus.signInCode.request` span with no `janus.signInCode.sent` event](#a-janussignincoderequest-span-with-no-janussignincodesent-event)
+- [`janus.signIn.refused` with `TOKEN_SPENT` and `janus.signIn.magicLink`, for users who clicked once](#janussigninrefused-with-token_spent-and-janussigninmagiclink-for-users-who-clicked-once)
 - [Every wrong password fails its span](#every-wrong-password-fails-its-span)
 
 ### No `janus.*` span or event at all
@@ -99,6 +100,25 @@ must not become a list of addresses tried against your users.
 **Fix:** nothing, if the address is nobody's. For a user you expected to
 find, see
 [`signInCode.request` answers `null` for a user who exists](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#signincoderequest-answers-null-for-a-user-who-exists).
+
+The same holds for a `janus.magicLink.request` span with no
+`janus.magicLink.sent` event: `magicLink.request` answered `null`, for the
+same reasons.
+
+### `janus.signIn.refused` with `TOKEN_SPENT` and `janus.signIn.magicLink`, for users who clicked once
+
+**When:** sign-in links answer `TOKEN_SPENT` on the first click the user
+remembers, often for the users of one company's mail.
+
+**Why:** a mail scanner — a gateway, a webmail's link check, an antivirus —
+opened the link before the user, and the route that answers the link's
+`GET` calls `magicLink.confirm`. The scanner's visit spent the token. The
+span of that `GET` is the first `janus.magicLink.confirm` of the token, and
+the user's click the second.
+
+**Fix:** make the link's `GET` a page that spends nothing, and confirm from
+its button's `POST`; see
+[confirming from a `POST`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md#confirming-from-a-post-never-from-the-links-get).
 
 ### Every wrong password fails its span
 

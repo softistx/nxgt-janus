@@ -22,6 +22,7 @@ const events = {
 	signInThrottled: event('janus.signIn.throttled'),
 	secondFactorAsked: event('janus.signIn.secondFactor'),
 	signInCodeSent: event('janus.signInCode.sent'),
+	magicLinkSent: event('janus.magicLink.sent'),
 	stepUpAsked: event('janus.stepUp.asked'),
 	stepUpConfirmed: event('janus.stepUp.confirmed'),
 	stepUpRefused: event('janus.stepUp.refused'),
@@ -96,6 +97,34 @@ export const WRITTEN: Readonly<
 				events.signedIn({
 					...userFields(call, outcome.value),
 					'janus.signIn.code': true,
+				}),
+			);
+		}
+	},
+	'magicLink.request': (call, outcome) => {
+		// Only when a link was issued: `null` is nobody, and says nothing.
+		if (outcome.ok && outcome.value !== null) {
+			log.info(events.magicLinkSent(userFields(call, outcome.value)));
+		}
+	},
+	'magicLink.confirm': (call, outcome) => {
+		if (!outcome.ok) {
+			// Marked, so an alert on spent links can tell them from codes.
+			log.warn(
+				events.signInRefused({
+					...refusalFields(call, outcome.refusal),
+					'janus.signIn.magicLink': true,
+				}),
+			);
+		} else if (statusOf(outcome.value) === 'secondFactor') {
+			log.info(
+				events.secondFactorAsked(secondFactorFields(call, outcome.value)),
+			);
+		} else {
+			log.info(
+				events.signedIn({
+					...userFields(call, outcome.value),
+					'janus.signIn.magicLink': true,
 				}),
 			);
 		}

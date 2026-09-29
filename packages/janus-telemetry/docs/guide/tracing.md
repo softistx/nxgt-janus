@@ -235,6 +235,46 @@ inbox, or trying their luck with a challenge at a time:
 // name = 'janus.signInCode.sent', grouped by user.id, more than 10 in an hour
 ```
 
+## A link sent by e-mail
+
+A sign-in by e-mailed link — `magicLink.request`, then `magicLink.confirm`
+from the page the link opens — writes the same shape as a code, with its own
+names:
+
+```
+POST /sign-in/email/link                 server
+└─ janus.magicLink.request               janus.user.type=user  user.id=0199…
+     log  janus.magicLink.sent           janus.user.type=user  user.id=0199…
+
+POST /sign-in/link                       server
+└─ janus.magicLink.confirm               janus.user.type=user  user.id=0199…  janus.signIn.status=signedIn
+     log  janus.signIn                   user.id=0199…  janus.signIn.magicLink=true
+```
+
+`janus.magicLink.sent` is written only when a link was issued, and never
+holds the token nor the address. `janus.signIn.magicLink: true` tells a
+sign-in by link from one by password or by code; a user whose second factor
+is active gets `janus.signIn.status=secondFactor` and a
+`janus.signIn.secondFactor` event instead, as after a code.
+
+A refused link is a `janus.signIn.refused` with its code — `TOKEN_SPENT`,
+`TOKEN_EXPIRED`, `TOKEN_UNKNOWN` with no `user.id`; `TOKEN_STALE` and
+`USER_INACTIVE` with one — and **every** refusal carries
+`janus.signIn.magicLink: true`:
+
+```
+janus.signIn.refused   janus.refusal=TOKEN_SPENT  janus.signIn.magicLink=true
+```
+
+A link has no attempts, so there is no count to watch. What is worth an
+alert is a burst of `TOKEN_SPENT` on links: a user clicks once, and a mail
+scanner that opened the link before them already spent it — the sign of a
+route that confirms on the link's `GET`:
+
+```ts
+// name = 'janus.signIn.refused' and janus.signIn.magicLink = true and janus.refusal = 'TOKEN_SPENT', more than 5 in an hour
+```
+
 ## A step-up
 
 A step-up — a signed-in user proving again who they are before a
@@ -273,16 +313,18 @@ session worth looking at — it may not be theirs:
 ## What is never written
 
 A login, an e-mail, a password, a session token, a one-time token, a
-challenge — a second factor's or a sign-in code's — a code, a TOTP secret,
+challenge — a second factor's or a sign-in code's — a code, a sign-in
+link's token, a TOTP secret,
 the `otpauth://` URI that holds it, a session id: nothing a log reader could
 sign in with, or use to tell who holds an account. A refused sign-in by
 an unknown login says `janus.refusal.reason: 'unknownLogin'`, not which login
 was tried; only a refusal after the password was right, or against a
 challenge — `USER_INACTIVE`, `CODE_INVALID`, `TOKEN_STALE` or
 `SECOND_FACTOR_NOT_ENROLLED` — names the user. The specs that hold this run
-every flow — `enroll`, `activate`, a sign-in code requested for nobody and
-for a user, a refused and an accepted `confirm` among them — and search
-every signal for each code, challenge and session token they handled.
+every flow — `enroll`, `activate`, a sign-in code and a sign-in link
+requested for nobody and for a user, a refused and an accepted `confirm`
+among them — and search every signal for each code, challenge, link token
+and session token they handled.
 
 ## In a test
 

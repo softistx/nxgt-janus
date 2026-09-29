@@ -33,6 +33,12 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Sign-in links in the audit trail, v0.7.0** — `janus.magicLink.sent`
+  when `magicLink.request` issued a link, never its token nor the address;
+  a sign-in by link is `janus.signIn` with `janus.signIn.magicLink: true`,
+  and every refusal of `magicLink.confirm` a `janus.signIn.refused` with the
+  same mark. The `magicLink.confirm` span records `janus.signIn.status`.
+  Needs `@nxgt/janus` 0.15.0.
 - **Throttled sign-ins in the audit trail, v0.6.0** —
   `janus.signIn.throttled`, a warning with `janus.signIn.retryAfter`, when
   `@nxgt/janus` refuses a login past its attempts; never the login. Needs
