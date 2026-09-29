@@ -9,7 +9,15 @@ Nothing between releases.
 
 ## Next
 
-Nothing yet.
+- **A notice when a new device signs in** — a password, a sign-in code, a
+  sign-in link, or a second factor confirmed, from a device or client this
+  user has not signed in from before: the sign-in says so, a user event
+  reports it, and `@nxgt/janus-mail` sends its *new sign-in* e-mail with the
+  device and the time. You pass what identifies the device — a long-lived
+  cookie of your own, say — and nothing more than a hash of it is kept. How
+  Janus remembers a device is still being decided: on the sessions, which
+  would change the sessions store port, or in a signed cookie you keep, which
+  would not.
 
 ## Later
 
