@@ -34,9 +34,10 @@ export interface MagicLinkApi<U, Answer = SignedIn<U>> {
 		/**
 		 * Spends the link's token, marks the e-mail verified — the link reached
 		 * the inbox — and signs the user in. **An e-mail proved for the first
-		 * time drops the password and signs out every session** before the
-		 * new one opens: whoever registered the address without its inbox
-		 * keeps nothing. An e-mail already verified changes nothing.
+		 * time drops the password and the second factor, and signs out every
+		 * session** before the new one opens: whoever registered the address
+		 * without its inbox keeps nothing, and no factor is asked for. An
+		 * e-mail already verified changes nothing.
 		 *
 		 * **Call it from a `POST`**, never from the `GET` of the link: a mail
 		 * scanner that opens the link would spend it. An unknown, spent or

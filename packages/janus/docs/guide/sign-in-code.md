@@ -274,18 +274,21 @@ succeeds, and their `version` moves: the code proves the address as a
 verification link would, and a [`user.emailVerified` event](events.md) is
 sent. A user already verified is not written, and nothing is sent.
 
-**An e-mail proved for the first time drops the password and signs out
-every session** before the new one opens: the proof can land on an account
-someone else registered, with a password of theirs. `user.passwordChanged`
-follows `user.emailVerified` when a password was dropped; an e-mail already
-verified changes nothing. The details, and the second factor that is kept,
-are in [the sign-in link guide](magic-link.md#an-account-someone-else-registered):
+**An e-mail proved for the first time drops the password and the second
+factor, and signs out every session** before the new one opens: the proof
+can land on an account someone else registered, with a password — and maybe
+a second factor — of theirs. `user.passwordChanged` follows
+`user.emailVerified` when a password was dropped, then
+`user.secondFactorDisabled` when an active factor was; an e-mail already
+verified changes nothing. The details are in
+[the sign-in link guide](magic-link.md#an-account-someone-else-registered):
 the same holds for a code.
 
 ### A second factor is still asked for
 
 The code proves the e-mail, not the second factor. With `janus({ secondFactor })`,
-a user whose factor is active gets **no session from the code**: `confirm`
+a user whose e-mail was already verified and whose factor is active gets
+**no session from the code**: `confirm`
 answers a challenge, exactly as `signIn` does with a password, and
 [`secondFactor.confirm`](second-factor.md#confirming-the-code-at-sign-in)
 redeems it with the code of their authenticator app — or

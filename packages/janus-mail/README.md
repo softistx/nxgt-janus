@@ -165,7 +165,7 @@ await mail.verifyEmail(issued, { name: user.name, locale: 'fr' }, { expiresIn: '
 ### Telling a user their password or e-mail changed
 
 `@nxgt/janus` 0.14 sends `user.passwordChanged` once `changePassword` or
-`setPassword` wrote the password — and 0.15 once `signInCode.confirm` or
+`setPassword` wrote the password — and 0.16 once `signInCode.confirm` or
 `magicLink.confirm` dropped a password when proving the e-mail for the
 first time, so the inbox's owner hears of a password someone else had set —
 and `user.emailChanged` once `update`
@@ -198,8 +198,11 @@ see [Sending](docs/guide/sending.md#emailchangedto).
 
 `@nxgt/janus` sends `user.secondFactorEnabled` once `secondFactor.activate`
 made the factor active, and `user.secondFactorDisabled` once
-`secondFactor.disable` removed an active one — never for a user who had
-none. The event names the user by id, so read the rest from the user:
+`secondFactor.disable` removed an active one — and, from 0.16, once
+`signInCode.confirm` or `magicLink.confirm` removed one when proving the
+e-mail for the first time, so the inbox's owner hears of a factor someone else
+had set — never for a user who had none. The event names the user by id, so
+read the rest from the user:
 
 ```ts
 const auth = janus({

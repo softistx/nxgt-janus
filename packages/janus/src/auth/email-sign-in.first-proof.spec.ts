@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, bearer, hasher, password, person } from '../../test/auth';
+import { ada, bearer, password } from '../../test/auth';
 import { rejection } from '../../test/rejection';
-import { fixedClock } from '../time/clock';
 import { setup, types } from './events.fixtures';
-import { janus } from './janus';
-import { createMemoryStores } from './port/memory';
-import { codeAt, fromBase32, stepAt } from './totp';
 
 type Auth = ReturnType<typeof setup>['auth'];
 
@@ -87,39 +83,3 @@ for (const [name, signInByEmail] of Object.entries(flows)) {
 		});
 	});
 }
-
-describe('a first proof by e-mail, and a second factor', () => {
-	it('spends the challenge a password sign-in left waiting, and still asks for the factor', async () => {
-		const clock = fixedClock(Date.UTC(2026, 8, 28));
-		const auth = janus({
-			user: person,
-			password: { login: 'email' },
-			store: createMemoryStores(),
-			hasher,
-			clock,
-			secondFactor: {
-				issuer: 'Clinic',
-				keys: [{ id: 'k1', key: Buffer.alloc(32, 1).toString('base64') }],
-			},
-		});
-		const { user } = await auth.signUp({ ...ada, password });
-		const { secret } = await auth.secondFactor.enroll(user);
-		await auth.secondFactor.activate(
-			user,
-			codeAt(fromBase32(secret), stepAt(clock.now())),
-		);
-		const waiting = await auth.signIn({ email: ada.email, password });
-		if (waiting.status !== 'secondFactor') throw new Error('expected a factor');
-		const issued = await auth.magicLink.request(ada.email);
-
-		const result = await auth.magicLink.confirm(issued?.token ?? '');
-
-		// The factor is not dropped: the application disables it, if it must.
-		expect(result.status).toBe('secondFactor');
-		clock.advance(30_000);
-		const code = codeAt(fromBase32(secret), stepAt(clock.now()));
-		expect(
-			await rejection(auth.secondFactor.confirm(waiting.challenge, code)),
-		).toMatchObject({ code: 'TOKEN_SPENT' });
-	});
-});

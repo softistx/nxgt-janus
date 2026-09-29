@@ -162,7 +162,7 @@ const auth = janus({
 A notice: the password of the account at `to.email` changed, with a link to
 `links.secureAccount()` for a user who did not change it. Send it on the
 `user.passwordChanged` event, which `changePassword` and `setPassword` send —
-and, from `@nxgt/janus` 0.15, `signInCode.confirm` and `magicLink.confirm`
+and, from `@nxgt/janus` 0.16, `signInCode.confirm` and `magicLink.confirm`
 when their first proof of the e-mail dropped a password someone may have set
 without holding the inbox. A reset sends `user.passwordReset` instead, never both: to tell a reset too,
 send the same notice on that type — `event.type === 'user.passwordChanged'
@@ -212,17 +212,21 @@ const auth = janus({
 });
 ```
 
-Two notices: two-factor authentication was turned on, or off, for the
-account at `to.email`, each with a link to `links.secureAccount()` — the
-user's security settings — for a user who did not make the change. Send
+Two notices: two-factor authentication was turned on, or off, for the account
+at `to.email`, each with a link to `links.secureAccount()` — the user's
+security settings — for a user who did not make the change. Send
 `twoFactorEnabled` on the `user.secondFactorEnabled` event, which
 `auth.secondFactor.activate` sends once the factor is active, and
 `twoFactorDisabled` on `user.secondFactorDisabled`, which
 `auth.secondFactor.disable` sends only when it removed an active factor: a
-`disable` on a user who had none tells nobody anything. The event names the
-user by id alone, so read the name, the locale and the address from the
-user. Calling them right after `activate` or `disable` answered works as
-well — without the events, check `hasSecondFactor` before the `disable`.
+`disable` on a user who had none tells nobody anything. From `@nxgt/janus`
+0.16, `signInCode.confirm` and `magicLink.confirm` send it too when their
+first proof of the e-mail removed a factor someone may have enrolled without
+holding the inbox — after `user.passwordChanged`, so the inbox's owner gets
+both notices. The event names the user by id alone, so read the name, the
+locale and the address from the user. Calling them right after `activate` or
+`disable` answered works as well — without the events, check `hasSecondFactor`
+before the `disable`.
 
 ### `welcome(to)`
 

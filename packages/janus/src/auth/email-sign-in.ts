@@ -59,11 +59,12 @@ export async function keepOnlyLatest(
  * since it was sent and an inactive user, proves the e-mail — it reached the
  * inbox — and finishes as a password would.
  *
- * **An e-mail proved for the first time drops the password and revokes every
- * session** before the new one opens (`./first-proof`): whoever signed up
- * with the address without holding its inbox keeps nothing. An e-mail
- * already proved changes nothing. The proof is written under the version
- * read, so an address changed since is not the one proved: a
+ * **An e-mail proved for the first time drops the password and the second
+ * factor, and revokes every session** before the new one opens
+ * (`./first-proof`): whoever signed up with the address without holding its
+ * inbox keeps nothing, and the owner is asked for no factor they never set.
+ * An e-mail already proved changes nothing. The proof is written under the
+ * version read, so an address changed since is not the one proved: a
  * `VERSION_CONFLICT` then, with the token spent.
  */
 export async function finishEmailSignIn(

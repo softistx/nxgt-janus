@@ -1,21 +1,26 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, bearer, password } from '../../test/auth';
 import { rejection } from '../../test/rejection';
+import { enrolled, setup as withFactor } from '../../test/second-factor';
 import { StoreFailure } from '../errors/janus-error';
 import { setup, types } from './events.fixtures';
 import { createMemoryStores } from './port/memory';
 import type { JanusStores } from './port/types';
 
-/** The reference stores, with the `nth` call to `revokeUserSessions` failing. */
-function failingRevoke(nth: number): JanusStores {
+/**
+ * The reference stores, with the `nth` call to `revokeUserSessions` failing —
+ * counted from the first call, or from `arm()` when `armed` starts `false`.
+ */
+function failingRevoke(nth: number, armed = true) {
 	const store = createMemoryStores();
 	let calls = 0;
-	return {
+	let counting = armed;
+	const failing: JanusStores = {
 		...store,
 		sessions: {
 			...store.sessions,
 			async revokeUserSessions(userId, at, except) {
-				calls += 1;
+				if (counting) calls += 1;
 				if (calls === nth) {
 					throw new StoreFailure('sessions down', { cause: null });
 				}
@@ -23,6 +28,11 @@ function failingRevoke(nth: number): JanusStores {
 			},
 		},
 	};
+	return Object.assign(failing, {
+		arm() {
+			counting = true;
+		},
+	});
 }
 
 /** A code requested and confirmed for Ada. */
@@ -69,6 +79,30 @@ describe('a first proof by e-mail, and an outage', () => {
 			'user.created',
 			'user.emailVerified',
 			'user.passwordChanged',
+		]);
+	});
+
+	it('after the write still reports a second factor removed', async () => {
+		const store = failingRevoke(2, false);
+		const received: string[] = [];
+		const context = withFactor({
+			store,
+			events: (event) => void received.push(event.type),
+		});
+		const { user } = await enrolled(context);
+		received.length = 0;
+		store.arm();
+
+		const issued = await context.auth.magicLink.request(ada.email);
+		expect(
+			await rejection(context.auth.magicLink.confirm(issued?.token ?? '')),
+		).toMatchObject({ code: 'STORE_FAILED' });
+
+		expect((await context.auth.get(user.id)).hasSecondFactor).toBe(false);
+		expect(received).toEqual([
+			'user.emailVerified',
+			'user.passwordChanged',
+			'user.secondFactorDisabled',
 		]);
 	});
 });

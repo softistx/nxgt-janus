@@ -219,26 +219,32 @@ spent.
 
 The proof can land on an account its owner did not create. `signUp` does
 not wait for the e-mail to be proved, so anyone can register
-`ada@example.com` with a password of theirs. When Ada later signs in by
-link, `confirm` proves an e-mail never verified, and **drops the password
-and signs out every session** before it opens hers — as a
+`ada@example.com` with a password of theirs — and enrol a second factor on
+their own phone. When Ada later signs in by link, `confirm` proves an e-mail
+never verified, and **drops the password and the second factor, and signs
+out every session** before it opens hers — as a
 [password reset](email-flows.md) does. The same holds for a
 [code](sign-in-code.md).
 
 - In the write that proves the e-mail, the password is removed
-  (`hasPassword` turns `false`). Every session of the user is revoked, and
+  (`hasPassword` turns `false`), and so is the second factor, active or
+  still waiting for its first code, with its recovery codes
+  (`hasSecondFactor` turns `false`): Ada's sign-in asks for no factor she
+  never set. Every session of the user is revoked, and
   the reset links and second-factor challenges still waiting are spent,
   before that write and again after it: an outage before it leaves the
   e-mail unproved, so the next link or code runs all of it again.
 - [`user.emailVerified`](events.md) is sent, then `user.passwordChanged`
-  when a password was dropped — even if an outage interrupts the sign-outs.
-- **An e-mail already verified changes nothing**: the password and the
-  sessions stay, and nothing is written or sent.
+  when a password was dropped, then `user.secondFactorDisabled` when an
+  active factor was — even if an outage interrupts the sign-outs.
+- **An e-mail already verified changes nothing**: the password, the second
+  factor and the sessions stay, and nothing is written or sent.
 - An e-mail changed by `update` is unverified again: its first proof drops
-  the password too.
-- **A second factor is kept.** One a squatter activated still gates the
-  sign-in: `confirm` answers a challenge Ada cannot pass. Disable it from
-  support with `secondFactor.disable(user)` once you know the inbox is hers.
+  the password and the second factor too.
+- **A user who enrolled a factor before proving their own e-mail loses it
+  the same way**: the library cannot tell them from a squatter. Send
+  `verifyEmail` before offering `secondFactor.enroll`, and no owner's
+  factor is ever dropped by a sign-in.
 
 A user who signed up with a password and signs in by link before verifying
 has **no password afterwards**: `signIn` answers `CREDENTIALS_INVALID` with
@@ -254,9 +260,10 @@ if (signedIn.status === 'signedIn' && !signedIn.user.hasPassword) {
 ### A second factor is still asked for
 
 The link proves the e-mail, not the second factor. With
-`janus({ secondFactor })`, a user whose factor is active gets **no session
-from the link**: `confirm` answers a challenge, exactly as `signIn` does,
-and [`secondFactor.confirm`](second-factor.md#confirming-the-code-at-sign-in)
+`janus({ secondFactor })`, a user whose e-mail was already verified and
+whose factor is active gets **no session from the link**: `confirm` answers
+a challenge, exactly as `signIn` does, and
+[`secondFactor.confirm`](second-factor.md#confirming-the-code-at-sign-in)
 redeems it with their app's code.
 
 ```ts
