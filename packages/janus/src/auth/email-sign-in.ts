@@ -9,6 +9,7 @@
 import { UserInactiveError } from '../errors/janus-error';
 import type { ResolvedType } from './config';
 import { type AnyUser, type Context, holderOfEmail } from './context';
+import { type DeviceHint, reportNewDevice } from './devices';
 import { proveFirstEmail } from './first-proof';
 import { refuseStale } from './one-time';
 import type { TokenKind, TokenRecord, UserRecord } from './port/types';
@@ -19,6 +20,7 @@ import type { SignInResult } from './types';
 export type Finish = (
 	record: UserRecord,
 	where: string,
+	device: DeviceHint,
 ) => Promise<SignInResult<AnyUser>>;
 
 /**
@@ -57,7 +59,7 @@ export async function keepOnlyLatest(
 /**
  * Ends a sign-in by e-mail whose token is spent: refuses an e-mail changed
  * since it was sent and an inactive user, proves the e-mail — it reached the
- * inbox — and finishes as a password would.
+ * inbox — and finishes as a password would, reporting a new device.
  *
  * **An e-mail proved for the first time drops the password and the second
  * factor, and revokes every session** before the new one opens
@@ -76,9 +78,10 @@ export async function finishEmailSignIn(
 		readonly token: TokenRecord;
 		readonly where: string;
 		readonly noun: 'token' | 'code';
+		readonly device: DeviceHint;
 	},
 ): Promise<SignInResult<AnyUser>> {
-	const { user, token, where, noun } = signIn;
+	const { user, token, where, noun, device } = signIn;
 	refuseStale(type, user, token, where, noun);
 	if (!user.active) {
 		throw new UserInactiveError(`${where}: the user is inactive`, {
@@ -87,6 +90,11 @@ export async function finishEmailSignIn(
 		});
 	}
 
-	if (user.emailVerifiedAt !== null) return finish(user, where);
-	return finish(await proveFirstEmail(context, type, user, where), where);
+	const proved =
+		user.emailVerifiedAt !== null
+			? user
+			: await proveFirstEmail(context, type, user, where);
+	const result = await finish(proved, where, device);
+	await reportNewDevice(context, result);
+	return result;
 }

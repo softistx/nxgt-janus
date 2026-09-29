@@ -1,6 +1,7 @@
 import type { At } from './at';
 import type { ResolvedType } from './config';
 import { type AnyUser, type Context, toUser } from './context';
+import { type DeviceHint, deviceHint } from './devices';
 import { redeemEmailToken } from './email-flows/email-token';
 import {
 	type Finish,
@@ -37,14 +38,10 @@ export function magicLinkFlows(
 			return requestLink(context, type, String(email));
 		},
 
-		async confirm(token) {
-			return confirmLink(
-				context,
-				type,
-				finish,
-				String(token),
-				at('magicLink.confirm'),
-			);
+		async confirm(token, options) {
+			const where = at('magicLink.confirm');
+			const device = deviceHint(context, options, where);
+			return confirmLink(context, type, finish, String(token), where, device);
 		},
 	};
 }
@@ -78,6 +75,7 @@ async function confirmLink(
 	finish: Finish,
 	secret: string,
 	where: string,
+	device: DeviceHint,
 ): Promise<SignInResult<AnyUser>> {
 	// Spent first, whatever follows: a link is redeemed once, and a refused
 	// one — stale, inactive, another type's — cannot be tried again.
@@ -94,5 +92,6 @@ async function confirmLink(
 		token,
 		where,
 		noun: 'token',
+		device,
 	});
 }

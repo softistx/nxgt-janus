@@ -12,6 +12,7 @@
 export type { PasswordHasher } from './hasher';
 export type {
 	CookieConfig,
+	DevicesConfig,
 	JanusConfig,
 	MultiTypeConfig,
 	SecondFactorConfig,

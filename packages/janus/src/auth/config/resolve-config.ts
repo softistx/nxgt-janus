@@ -12,7 +12,7 @@ import type {
 import { NAME } from './names';
 import { RESERVED_TYPES, SINGLE_TYPE } from './reserved';
 import { resolveCookie } from './resolve-cookie';
-import { resolveSecondFactor } from './resolve-second-factor';
+import { resolveDevices, resolveSecondFactor } from './resolve-second-factor';
 import { resolveSignInThrottle } from './resolve-sign-in';
 import { resolveType } from './resolve-type';
 import type { ResolvedConfig, ResolvedType } from './resolved-config';
@@ -45,6 +45,7 @@ export function resolveConfig(
 		cookie: resolveCookie(config.cookie ?? {}, where),
 		signInThrottle: resolveSignInThrottle(config.signIn, where),
 		secondFactor: resolveSecondFactor(config.secondFactor, where),
+		devices: resolveDevices(config.devices, where),
 	};
 }
 

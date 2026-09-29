@@ -1,10 +1,11 @@
 import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
+import { deviceHint, reportNewDevice } from '../devices';
 import { emit } from '../events';
 import { openSession } from '../sessions';
 import { restartSignInCount } from '../sign-in-attempts';
-import type { RecoveredSignIn } from '../types';
+import type { RecoveredSignIn, SignedIn, SignInOptions } from '../types';
 import { findRecoveryCode } from './recovery-codes';
 import { openChallenge, refuseCode, spendChallenge } from './redeem';
 
@@ -21,12 +22,17 @@ import { openChallenge, refuseCode, spendChallenge } from './redeem';
 export async function recoverWithCode(
 	context: Context,
 	type: ResolvedType,
-	challenge: string,
-	code: string,
+	given: {
+		readonly challenge: string;
+		readonly code: string;
+		readonly options: SignInOptions | undefined;
+	},
 	at: At,
 ): Promise<RecoveredSignIn<AnyUser>> {
 	const where = at('secondFactor.recover');
-	const opened = await openChallenge(context, type, challenge, where);
+	const device = deviceHint(context, given.options, where);
+	const { code } = given;
+	const opened = await openChallenge(context, type, given.challenge, where);
 	const { record } = opened;
 	const factor = record.secondFactor;
 
@@ -52,12 +58,14 @@ export async function recoverWithCode(
 	);
 	// The code is spent once written, whatever follows: the event reports it
 	// even when spending the challenge or opening the session fails.
+	let signedIn: SignedIn<AnyUser>;
 	try {
 		await spendChallenge(context, opened.secret, where);
 		await restartSignInCount(context, type, written, where);
-		const signedIn = await openSession(context, type, written);
-		return { ...signedIn, recoveryCodesLeft: recoveryCodes.length };
+		signedIn = await openSession(context, type, written, device);
 	} finally {
 		await emit(context, 'user.recoveryCodeUsed', written, written.updatedAt);
 	}
+	await reportNewDevice(context, signedIn);
+	return { ...signedIn, recoveryCodesLeft: recoveryCodes.length };
 }

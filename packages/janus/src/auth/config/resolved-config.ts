@@ -41,6 +41,8 @@ export interface ResolvedConfig {
 		readonly sealer: Sealer;
 		readonly challengeTtlMs: number;
 	} | null;
+	/** `null` without `devices`: no sign-in may be given a device. */
+	readonly devices: { readonly sealer: Sealer } | null;
 	readonly cookie: {
 		readonly name: string;
 		readonly domain: string | null;

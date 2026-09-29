@@ -1,6 +1,7 @@
 import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
+import type { DeviceHint } from '../devices';
 import type { UserRecord } from '../port/types';
 import { openSession } from '../sessions';
 import type { SecondFactorApi, SignInResult } from '../types';
@@ -23,8 +24,8 @@ export function secondFactorFlows(
 	const api: SecondFactorApi<AnyUser>['secondFactor'] = {
 		...lifecycleFlows(context, type, at),
 		confirm: challenges.confirm,
-		recover: (challenge, code) =>
-			recoverWithCode(context, type, challenge, code, at),
+		recover: (challenge, code, options) =>
+			recoverWithCode(context, type, { challenge, code, options }, at),
 		recoveryCodesLeft: (user) =>
 			recoveryCodesLeftOf(
 				context,
@@ -39,14 +40,16 @@ export function secondFactorFlows(
 		/**
 		 * What a sign-in answers once the user proved who they are — by
 		 * password or by an e-mail code: a session, or a challenge when their
-		 * second factor is active. The first factor alone opens nothing then.
+		 * second factor is active. The first factor alone opens nothing then,
+		 * and the device is not carried: its confirmation is given it again.
 		 */
 		finish: (
 			record: UserRecord,
 			where: string,
+			device: DeviceHint,
 		): Promise<SignInResult<AnyUser>> =>
 			isActive(record.secondFactor)
 				? challenges.issue(record, where)
-				: openSession(context, type, record),
+				: openSession(context, type, record, device),
 	};
 }

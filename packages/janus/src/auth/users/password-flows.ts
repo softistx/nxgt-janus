@@ -9,6 +9,7 @@ import {
 	toUser,
 	writeUser,
 } from '../context';
+import { deviceHint } from '../devices';
 import { passwordChanged } from '../password-written';
 import { openSession } from '../sessions';
 import type { PasswordApi, SignInResult } from '../types';
@@ -29,18 +30,21 @@ export function passwordFlows(
 	finish: Finish,
 ): PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> {
 	return {
-		async signUp(input) {
+		async signUp(input, options) {
 			const where = at('signUp');
+			const device = deviceHint(context, options, where);
 			passwordRule(type, where);
 			if ((input as Input)?.password === undefined) {
 				checkPassword(type, undefined as unknown as string, where);
 			}
 			const record = await insert(context, type, input as Input, where);
-			return openSession(context, type, record);
+			return openSession(context, type, record, device, true);
 		},
 
-		async signIn(input) {
-			return signIn(context, type, finish, input as Input, at('signIn'));
+		async signIn(input, options) {
+			const where = at('signIn');
+			const device = deviceHint(context, options, where);
+			return signIn(context, type, finish, input as Input, { where, device });
 		},
 
 		async findByLogin(login) {

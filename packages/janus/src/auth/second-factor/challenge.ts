@@ -1,11 +1,12 @@
 import type { At } from '../at';
 import type { ResolvedType } from '../config';
 import type { AnyUser, Context } from '../context';
+import { deviceHint, reportNewDevice } from '../devices';
 import { issueOneTime } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { openSession } from '../sessions';
 import { restartSignInCount } from '../sign-in-attempts';
-import type { SecondFactorRequired, SignedIn } from '../types';
+import type { SecondFactorRequired, SignedIn, SignInOptions } from '../types';
 import { acceptCode, requireSettings } from './factor';
 import { openChallenge, refuseCode, spendChallenge } from './redeem';
 
@@ -40,8 +41,12 @@ export function challengeFlows(context: Context, type: ResolvedType, at: At) {
 			};
 		},
 
-		async confirm(challenge: string, code: string): Promise<SignedIn<AnyUser>> {
-			return confirmChallenge(context, type, challenge, code, at);
+		async confirm(
+			challenge: string,
+			code: string,
+			options?: SignInOptions,
+		): Promise<SignedIn<AnyUser>> {
+			return confirmChallenge(context, type, challenge, code, at, options);
 		},
 	};
 }
@@ -57,8 +62,10 @@ async function confirmChallenge(
 	challenge: string,
 	code: string,
 	at: At,
+	options: SignInOptions | undefined,
 ): Promise<SignedIn<AnyUser>> {
 	const where = at('secondFactor.confirm');
+	const device = deviceHint(context, options, where);
 	const opened = await openChallenge(context, type, challenge, where);
 	const { record } = opened;
 
@@ -83,5 +90,7 @@ async function confirmChallenge(
 	await spendChallenge(context, opened.secret, where);
 	// The sign-in is complete: the password's count starts again.
 	await restartSignInCount(context, type, written, where);
-	return openSession(context, type, written);
+	const signedIn = await openSession(context, type, written, device);
+	await reportNewDevice(context, signedIn);
+	return signedIn;
 }

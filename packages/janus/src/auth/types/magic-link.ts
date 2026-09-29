@@ -6,7 +6,7 @@
  */
 
 import type { IssuedToken } from './email-flows';
-import type { SignedIn } from './sign-in';
+import type { SignedIn, SignInOptions } from './sign-in';
 
 /**
  * Signing in with a link sent to the user's e-mail, no password needed —
@@ -46,6 +46,6 @@ export interface MagicLinkApi<U, Answer = SignedIn<U>> {
 		 * `USER_INACTIVE`. The first call spends the token, whether it signs
 		 * in or is refused.
 		 */
-		confirm(token: string): Promise<Answer>;
+		confirm(token: string, options?: SignInOptions): Promise<Answer>;
 	};
 }

@@ -2,7 +2,7 @@
  * User events: a listener that is not a function, an event type Janus never
  * sends, a field an event never carries, the new address an e-mail change
  * does not carry, the former one read as if always there — and the listener
- * that must keep compiling. Cases 32–34, 43 and 44 of the fifty-four — see
+ * that must keep compiling. Cases 32–34, 43 and 44 of the sixty — see
  * `fixtures.ts`.
  */
 
@@ -65,6 +65,11 @@ const listening = janus({
 				const who: string = event.userId;
 				const when: Date = event.occurredAt;
 				void [who, when, event.id, event.userType];
+				return;
+			}
+			case 'user.newDeviceSignedIn': {
+				const session: string | undefined = event.sessionId;
+				void session;
 				return;
 			}
 			case 'user.emailChanged': {
