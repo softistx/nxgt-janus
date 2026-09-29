@@ -632,6 +632,11 @@ A six-digit code sent to the user's e-mail signs them in, with no password.
   attempts: a wrong code is `CODE_INVALID` with `attemptsLeft`, and the fifth
   spends it. An e-mail changed since is `TOKEN_STALE`; a user deactivated
   since is `USER_INACTIVE`.
+- **An e-mail proved for the first time drops the password and signs out
+  every session** before the new one opens, as `resetPassword.confirm`
+  does: whoever registered the address without holding its inbox keeps
+  nothing. `user.passwordChanged` follows `user.emailVerified` when a
+  password was dropped. An e-mail already verified changes nothing.
 - **An active second factor is still asked for**: with `secondFactor`
   configured, `confirm` answers `SignInResult` on a type with a password, and
   a user whose factor is active gets a challenge for `secondFactor.confirm`
@@ -667,8 +672,9 @@ to type.
 - **`confirm(token)`** spends the token in one conditional write — of two
   confirmations at once, one signs in — marks the e-mail verified and opens
   the session. A link lives `'15m'` (`tokens.magicLink`); there are no
-  attempts, since there is nothing to guess. `TOKEN_STALE`, `USER_INACTIVE`
-  and an active second factor are handled as for a code.
+  attempts, since there is nothing to guess. `TOKEN_STALE`, `USER_INACTIVE`,
+  an active second factor and **an e-mail proved for the first time — the
+  password dropped, every session signed out** — are handled as for a code.
 - **Not ended by a password write, nor limited by the sign-in throttle**:
   the password proves nothing a link does, and the throttle counts
   passwords. Rate-limit `request` per address and per client.
@@ -744,7 +750,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.created` | `create`, `signUp` |
 | `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
-| `user.passwordChanged` | `changePassword`, `setPassword` — never a reset, which is `user.passwordReset` alone |
+| `user.passwordChanged` | `changePassword`, `setPassword`; `signInCode.confirm` and `magicLink.confirm` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
 | `user.emailChanged` | `update`, when it changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor — never for a user who had none, or one still waiting |
@@ -1028,15 +1034,18 @@ account whose link it holds. Whoever opens the link signs in, on the device
 that opened it: where the sign-in must complete in the browser that asked,
 send a code.
 
-**A link or a code proves an e-mail someone else may have registered.**
-`signUp` does not wait for the address to be proved, and `signIn` does not
-ask whether it was: whoever registered the address with a password of theirs
-keeps that password, and their session, after its owner signs in by link or
-code and the e-mail turns verified. Where a password signs in before the
-e-mail is verified, require `verifyEmail` before `signIn` — or, on the
-`user.emailVerified` those confirmations send, sign the user out everywhere
-— the listener runs before the new session opens — and have them set a
-password of their own.
+**The first sign-in by link or code drops the password.** `signUp` does not
+wait for the address to be proved, so anyone can register somebody else's
+e-mail with a password of theirs. When `signInCode.confirm` or
+`magicLink.confirm` proves an e-mail never verified, it drops the password
+and signs out every session before opening its own — so a user who signed
+up, never verified, and then signs in by code has no password afterwards,
+and `signIn` answers `CREDENTIALS_INVALID` (`reason: 'noPassword'`). Offer
+`setPassword` after such a sign-in, or send `verifyEmail` at sign-up. An
+e-mail changed by `update` is unverified again, and its first proof by link
+or code drops the password too. **A second factor is kept**: one a squatter
+activated still gates the owner's sign-in — `secondFactor.disable` it, from
+support, if the owner cannot pass it.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`

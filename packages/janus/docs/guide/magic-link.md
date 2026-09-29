@@ -218,20 +218,38 @@ spent.
 ### An account someone else registered
 
 The proof can land on an account its owner did not create. `signUp` does
-not wait for the e-mail to be proved, and `signIn` does not ask whether it
-was, so anyone can register `ada@example.com` with a password of theirs. When
-Ada later signs in by link, `confirm` marks the e-mail verified and opens her
-session — **and the other password, and the session `signUp` opened, still
-work**. A [password reset](email-flows.md) would have replaced both; a link
-or a [code](sign-in-code.md) touches neither.
+not wait for the e-mail to be proved, so anyone can register
+`ada@example.com` with a password of theirs. When Ada later signs in by
+link, `confirm` proves an e-mail never verified, and **drops the password
+and signs out every session** before it opens hers — as a
+[password reset](email-flows.md) does. The same holds for a
+[code](sign-in-code.md).
 
-Where a password signs in before the e-mail is verified, **require
-`verifyEmail` before `signIn`**, and the question does not arise. Otherwise
-treat the first proof as a takeover of the address: `confirm` sends
-[`user.emailVerified`](events.md) exactly when the e-mail was not verified
-before, and awaits your listener before the session opens. Sign every
-session out there — `signOutEverywhere(user)`; the one `confirm` opens comes
-after — and have the user set a password of their own.
+- In the write that proves the e-mail, the password is removed
+  (`hasPassword` turns `false`). Every session of the user is revoked, and
+  the reset links and second-factor challenges still waiting are spent,
+  before that write and again after it: an outage before it leaves the
+  e-mail unproved, so the next link or code runs all of it again.
+- [`user.emailVerified`](events.md) is sent, then `user.passwordChanged`
+  when a password was dropped — even if an outage interrupts the sign-outs.
+- **An e-mail already verified changes nothing**: the password and the
+  sessions stay, and nothing is written or sent.
+- An e-mail changed by `update` is unverified again: its first proof drops
+  the password too.
+- **A second factor is kept.** One a squatter activated still gates the
+  sign-in: `confirm` answers a challenge Ada cannot pass. Disable it from
+  support with `secondFactor.disable(user)` once you know the inbox is hers.
+
+A user who signed up with a password and signs in by link before verifying
+has **no password afterwards**: `signIn` answers `CREDENTIALS_INVALID` with
+`reason: 'noPassword'`. Offer to set one:
+
+```ts
+const signedIn = await auth.magicLink.confirm(token);
+if (signedIn.status === 'signedIn' && !signedIn.user.hasPassword) {
+	// a page of yours that calls auth.setPassword(signedIn.user, password)
+}
+```
 
 ### A second factor is still asked for
 

@@ -33,7 +33,10 @@ export interface MagicLinkApi<U, Answer = SignedIn<U>> {
 		): Promise<(IssuedToken & { readonly user: U }) | null>;
 		/**
 		 * Spends the link's token, marks the e-mail verified — the link reached
-		 * the inbox — and signs the user in.
+		 * the inbox — and signs the user in. **An e-mail proved for the first
+		 * time drops the password and signs out every session** before the
+		 * new one opens: whoever registered the address without its inbox
+		 * keeps nothing. An e-mail already verified changes nothing.
 		 *
 		 * **Call it from a `POST`**, never from the `GET` of the link: a mail
 		 * scanner that opens the link would spend it. An unknown, spent or

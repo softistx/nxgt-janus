@@ -182,7 +182,10 @@ if (current !== null) {
 ```
 
 `changePassword` leaves other sessions open; call this after it when that is
-your policy. `resetPassword.confirm` signs out everywhere on its own.
+your policy. `resetPassword.confirm` signs out everywhere on its own, and so
+do `signInCode.confirm` and `magicLink.confirm` when they prove an e-mail
+never verified, before opening their own session
+([why](magic-link.md#an-account-someone-else-registered)).
 
 ## `collectExpired`
 

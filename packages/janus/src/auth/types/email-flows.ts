@@ -55,7 +55,10 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 		request(email: string): Promise<IssuedCode<U> | null>;
 		/**
 		 * Checks the code against its challenge, marks the e-mail verified —
-		 * the code reached the inbox — and signs the user in.
+		 * the code reached the inbox — and signs the user in. **An e-mail
+		 * proved for the first time drops the password and signs out every
+		 * session** before the new one opens, as for a link. An e-mail
+		 * already verified changes nothing.
 		 *
 		 * A challenge takes **five attempts**: a code that does not match is
 		 * `CODE_INVALID` with `attemptsLeft`, and the fifth spends it. An

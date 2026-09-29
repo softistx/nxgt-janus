@@ -564,8 +564,8 @@ if (error instanceof UserInvalidError) {
 Also `changePassword: the current password does not match`.
 
 **When:** `signIn`, `changePassword`.
-**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter; a login past its attempts has its own message, below. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one.
-**Fix:** answer 401 with the same body whatever the reason:
+**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter; a login past its attempts has its own message, below. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one. A user who signed up with a password and then signed in by `signInCode` or `magicLink` before verifying the e-mail has no password any more (`noPassword`): that first proof drops it and signs out every session, so an address registered by someone else keeps nothing of theirs — [the sign-in link guide](guide/magic-link.md#an-account-someone-else-registered) has why.
+**Fix:** answer 401 with the same body whatever the reason — and, for a user who signed in by code or link before verifying, offer `setPassword` after that sign-in, or send `verifyEmail` at sign-up:
 
 ```ts
 // Never: { reason: error.reason } — `unknownLogin` tells an attacker which users exist.
@@ -1435,7 +1435,7 @@ process.on('warning', (warning) => {
 
 **Fix:** for the last two, reconcile against the users themselves and treat events as the fast path, not the record: page through `auth.list()` and compare with the receiver's copy — a user it lacks is a missed `user.created`, a user the receiver has that `auth.find` answers `null` for is a missed `user.deleted`, a user whose `emailVerified` differs is a missed `user.emailVerified`, and a user whose `hasSecondFactor` differs is a missed `user.secondFactorEnabled` or `user.secondFactorDisabled`.
 
-A store outage **after** the write does not lose the event. `create`, `signUp` and `signInCode.confirm` send it before the steps that follow; `delete` and `resetPassword.confirm` run theirs — removing the sessions, tokens and tuples; revoking the sessions — in a `try`, and send it from its `finally`, whether they succeeded or not.
+A store outage **after** the write does not lose the event. `create` and `signUp` send it before the steps that follow; `delete`, `resetPassword.confirm`, and `signInCode.confirm` and `magicLink.confirm` on an e-mail never verified run theirs — removing the sessions, tokens and tuples; revoking the sessions — in a `try`, and send it from its `finally`, whether they succeeded or not. `signInCode.confirm` and `magicLink.confirm` also revoke the sessions **before** the write: an outage there leaves nothing written and nothing sent, and the next code or link proves the e-mail again.
 
 ---
 

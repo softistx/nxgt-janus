@@ -165,7 +165,10 @@ await mail.verifyEmail(issued, { name: user.name, locale: 'fr' }, { expiresIn: '
 ### Telling a user their password or e-mail changed
 
 `@nxgt/janus` 0.14 sends `user.passwordChanged` once `changePassword` or
-`setPassword` wrote the password, and `user.emailChanged` once `update`
+`setPassword` wrote the password — and 0.15 once `signInCode.confirm` or
+`magicLink.confirm` dropped a password when proving the e-mail for the
+first time, so the inbox's owner hears of a password someone else had set —
+and `user.emailChanged` once `update`
 changed the e-mail. The e-mail change is told to the **former** address — the
 new one belongs to whoever changed it — which the event carries as
 `formerEmail`, `null` for a user who had none:

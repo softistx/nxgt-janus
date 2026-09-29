@@ -66,7 +66,11 @@ describe('magicLink.confirm', () => {
 		const signedIn = await auth.magicLink.confirm(again?.token ?? '');
 
 		expect(signedIn.user.version).toBe(verified.user.version);
-		expect(types(received)).toEqual(['user.created', 'user.emailVerified']);
+		expect(types(received)).toEqual([
+			'user.created',
+			'user.emailVerified',
+			'user.passwordChanged',
+		]);
 	});
 
 	it('survives a password write: the password proves nothing a link does', async () => {
