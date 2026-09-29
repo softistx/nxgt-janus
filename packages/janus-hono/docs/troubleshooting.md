@@ -187,13 +187,16 @@ app.post('/sign-in/code', async (c) => {
 });
 ```
 
-`magicLink.confirm` and `signInCode.confirm` narrow the same way, and hand
-the challenge to the code form — see "With a second factor" under
+`magicLink.confirm` and `signInCode.confirm` narrow the same way. They hand
+the challenge on in a cookie, which the guide's `/sign-in/code` reads instead of
+the body. `CHALLENGE`, `scope` and that route are under "A second factor" in
+the routes guide. The link route redirects, as below. The code route answers
+`c.json({ next: 'secondFactor' })` instead. See "With a second factor" under
 [a code sent by e-mail](guide/routes.md#with-a-second-factor) and under
-[a link sent by e-mail](guide/routes.md#with-a-second-factor-1):
+[a link sent by e-mail](guide/routes.md#with-a-second-factor-1).
 
 ```ts
-const result = await auth.magicLink.confirm(token); // or auth.signInCode.confirm(challenge, code)
+const result = await auth.magicLink.confirm(token);
 if (result.status === 'secondFactor') {
 	setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
 	return c.redirect('/sign-in/second-factor', 303); // a page whose form posts the code to /sign-in/code
