@@ -74,7 +74,8 @@ e-mail.
 
 Every one also gets `locale`, one of `locales`. Every value is a string:
 `brand` from the options, `name` from the recipient, `link` from `links` —
-`links.secureAccount()` for the four notices, `newSignIn` and `stepUp`, `links.recoveryCodes()` (else
+`links.secureAccount()` for the notices other than `recoveryCodeUsed` and
+for `stepUp`, `links.recoveryCodes()` (else
 `links.secureAccount()`) for `recoveryCodeUsed`, `links.getStarted()` for
 `welcome` — `code`, `newEmail`, `when`, `device` and `time` from the
 call, `location` from the call or `—` without one, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
@@ -199,7 +200,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 
 Each has a header and a footer with the brand, a heading, a greeting by name
 (but `signInCode` and `magicLink`), a button with its link and the link again in text for a
-client that shows no button, and a text part. The four notices but `recoveryCodeUsed` add a warning:
+client that shows no button, and a text part. The notices other than `recoveryCodeUsed` add a warning:
 *if this was not you, secure your account now*. `stepUp` shows its code as
 the sign-in code does, names no action — *someone, we hope you, asked to do
 something sensitive on your account* — and warns not to share the code if
