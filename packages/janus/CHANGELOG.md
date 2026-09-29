@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.17.1
+
+### Patch Changes
+
+- [#184](https://github.com/softistx/nxgt-janus/pull/184) [`1e71a5d`](https://github.com/softistx/nxgt-janus/commit/1e71a5d1ee4cb532a030f262412cecd10f25d3bc) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the devices guide says a new-sign-in notice without a location reads "Unknown" — `Location Unknown`, `Lieu Inconnu` in French — as `@nxgt/janus-mail` 0.9.1 sends it, where it said `—`.
+
 ## 0.17.0
 
 ### Minor Changes

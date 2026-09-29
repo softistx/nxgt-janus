@@ -1,5 +1,16 @@
 # @nxgt/janus-mail
 
+## 0.9.1
+
+### Patch Changes
+
+- [#184](https://github.com/softistx/nxgt-janus/pull/184) [`dba54d3`](https://github.com/softistx/nxgt-janus/commit/dba54d3ff4641c93759aac53abd29aa357f1d53b) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `newSignIn`'s e-mail text changes in two places:
+  
+  - **Its text part gives each row of the summary on one line** — `Device Firefox on macOS`, `Location Lyon, France`, `Time …`, one row per line with no blank line between — where it split each row into a label line and a value line. Built with `@nxgt/mail-config` 1.0.2 and `@nxgt/mail-presets` 1.1.1; the manifest stays format 1, and every other e-mail reads as before.
+  - **A new sign-in sent without `location` says "Unknown"** — `Location Unknown`, `Lieu Inconnu` in French — in the recipient's locale, where it showed `—`. A locale beyond `en` and `fr`, sent through templates of your own, gets its language's text when that is `en` or `fr`, else "Unknown": pass `location` yourself there.
+- Updated dependencies [[`1e71a5d`](https://github.com/softistx/nxgt-janus/commit/1e71a5d1ee4cb532a030f262412cecd10f25d3bc)]:
+  - @nxgt/janus@0.17.1
+
 ## 0.9.0
 
 ### Minor Changes
