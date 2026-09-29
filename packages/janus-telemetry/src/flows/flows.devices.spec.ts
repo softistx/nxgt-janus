@@ -23,6 +23,14 @@ function withDevices() {
 	);
 }
 
+/** A sign-in that opened a session: the factor is not active yet. */
+function opened<T extends { status: string }>(
+	result: T,
+): Extract<T, { status: 'signedIn' }> {
+	if (result.status !== 'signedIn') throw new Error('expected a session');
+	return result as Extract<T, { status: 'signedIn' }>;
+}
+
 describe('instrumentJanus()', () => {
 	it('marks a sign-in from a new device — never the device token', async () => {
 		const auth = withDevices();
@@ -32,11 +40,12 @@ describe('instrumentJanus()', () => {
 		);
 		const tokens: string[] = [deviceToken as string];
 		const { logs, all } = await collect(async () => {
-			const known = await auth.signIn(
-				{ email, password },
-				{ device: deviceToken },
+			const known = opened(
+				await auth.signIn({ email, password }, { device: deviceToken }),
 			);
-			const fresh = await auth.signIn({ email, password }, { device: null });
+			const fresh = opened(
+				await auth.signIn({ email, password }, { device: null }),
+			);
 			tokens.push(fresh.deviceToken as string, known.token, fresh.token);
 		});
 
@@ -59,12 +68,10 @@ describe('instrumentJanus()', () => {
 			const issued = await auth.signInCode.request(email);
 			const link = await auth.magicLink.request(email);
 			if (issued === null || link === null) throw new Error('expected both');
-			const byCode = await auth.signInCode.confirm(
-				issued.challenge,
-				issued.code,
-				fresh,
+			const byCode = opened(
+				await auth.signInCode.confirm(issued.challenge, issued.code, fresh),
 			);
-			const byLink = await auth.magicLink.confirm(link.token, fresh);
+			const byLink = opened(await auth.magicLink.confirm(link.token, fresh));
 			tokens.push(byCode.deviceToken as string, byLink.deviceToken as string);
 
 			const { secret } = await auth.secondFactor.enroll(user);
