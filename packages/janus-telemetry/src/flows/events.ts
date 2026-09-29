@@ -7,6 +7,7 @@ import {
 	refusalFields,
 	secondFactorFields,
 	sessionUserFields,
+	signedInFields,
 	statusOf,
 	userFields,
 	viaOf,
@@ -63,7 +64,10 @@ function emailedSignIn(mark: string): (call: Call, outcome: Outcome) => void {
 			);
 		} else {
 			log.info(
-				events.signedIn({ ...userFields(call, outcome.value), [mark]: true }),
+				events.signedIn({
+					...signedInFields(call, outcome.value),
+					[mark]: true,
+				}),
 			);
 		}
 	};
@@ -96,7 +100,7 @@ export const WRITTEN: Readonly<
 				events.secondFactorAsked(secondFactorFields(call, outcome.value)),
 			);
 		} else {
-			log.info(events.signedIn(userFields(call, outcome.value)));
+			log.info(events.signedIn(signedInFields(call, outcome.value)));
 		}
 	},
 	'signInCode.request': (call, outcome) => {
@@ -135,7 +139,7 @@ export const WRITTEN: Readonly<
 		if (outcome.ok) {
 			log.info(
 				events.signedIn({
-					...userFields(call, outcome.value),
+					...signedInFields(call, outcome.value),
 					'janus.signIn.secondFactor': true,
 				}),
 			);
@@ -148,7 +152,7 @@ export const WRITTEN: Readonly<
 		if (outcome.ok) {
 			log.info(
 				events.signedIn({
-					...userFields(call, outcome.value),
+					...signedInFields(call, outcome.value),
 					'janus.signIn.recoveryCode': true,
 					'janus.secondFactor.recoveryCodesLeft': recoveryCodesLeft(
 						outcome.value,

@@ -14,6 +14,22 @@ export function userFields(call: Call, value: unknown): Fields {
 	});
 }
 
+/**
+ * A session opened: the user, and `janus.signIn.newDevice` when the answer
+ * says the device was new to them — never the device token itself.
+ */
+export function signedInFields(call: Call, value: unknown): Fields {
+	const newDevice =
+		typeof value === 'object' &&
+		value !== null &&
+		'newDevice' in value &&
+		value.newDevice === true;
+	return {
+		...userFields(call, value),
+		...(newDevice ? { 'janus.signIn.newDevice': true } : {}),
+	};
+}
+
 /** Whose sign-in waits for a code: the `userId` the answer carries. */
 export function secondFactorFields(call: Call, value: unknown): Fields {
 	const userId =
