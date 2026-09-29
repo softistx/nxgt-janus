@@ -24,6 +24,8 @@ describe('instrumentJanus()', () => {
 		const { spans, logs } = await collect(async () => {
 			const { user } = await auth.signUp({ email, password });
 			id = user.id;
+			// Proved first: a first proof by code would remove the factor.
+			await auth.verifyEmail.confirm((await auth.verifyEmail.send(user)).token);
 			const { secret, uri } = await auth.secondFactor.enroll(user);
 			const first = totp(secret, Date.now());
 			await auth.secondFactor.activate(user, first);
@@ -35,7 +37,7 @@ describe('instrumentJanus()', () => {
 			const code = totp(secret, Date.now() + 30_000);
 			const signedIn = await auth.secondFactor.confirm(asked.challenge, code);
 			secrets.push(secret, uri, asked.challenge, first, code, signedIn.token);
-			// An e-mailed code proves the e-mail, and the factor is asked again.
+			// An e-mailed code, on an e-mail already proved: the factor is asked again.
 			const issued = await auth.signInCode.request(email);
 			if (issued === null) throw new Error('expected a code');
 			const byCode = await auth.signInCode.confirm(

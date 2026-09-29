@@ -223,12 +223,13 @@ The patch is spread over the stored fields and the result is checked against
 the schema, so a patch can never leave a user the schema would refuse.
 Changing the e-mail sets `emailVerified` back to `false`, and moves the login
 with it when the e-mail is the login — so the next sign-in by code or link
-proves it anew, and [drops the password and signs out every
-session](magic-link.md#an-account-someone-else-registered). It also sends a
-[`user.emailChanged` event](events.md#telling-the-user-their-password-or-e-mail-changed)
-carrying `formerEmail`, the address before — so the notice goes to the inbox
-the account just left. A change of case only (`Ada@…` for `ada@…`) is no
-change, and sends nothing.
+proves it anew, and [drops the password and the second factor, and signs out
+every session](magic-link.md#an-account-someone-else-registered). It also
+sends a [`user.emailChanged`
+event](events.md#telling-the-user-their-password-or-e-mail-changed) carrying
+`formerEmail`, the address before — so the notice goes to the inbox the
+account just left. A change of case only (`Ada@…` for `ada@…`) is no change,
+and sends nothing.
 
 ### `ifVersion`
 

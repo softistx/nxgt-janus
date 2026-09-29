@@ -85,7 +85,7 @@ describe('magicLink.confirm', () => {
 		);
 	});
 
-	it('still asks for an active second factor', async () => {
+	it('still asks for an active second factor, on an e-mail already verified', async () => {
 		const clock = fixedClock(Date.UTC(2026, 8, 28));
 		const auth = janus({
 			user: person,
@@ -99,6 +99,8 @@ describe('magicLink.confirm', () => {
 			},
 		});
 		const { user } = await auth.signUp({ ...ada, password });
+		// A first proof would remove the factor: prove the e-mail before.
+		await auth.verifyEmail.confirm((await auth.verifyEmail.send(user)).token);
 		const { secret } = await auth.secondFactor.enroll(user);
 		await auth.secondFactor.activate(
 			user,
@@ -109,8 +111,6 @@ describe('magicLink.confirm', () => {
 		const result = await auth.magicLink.confirm(issued?.token ?? '');
 
 		expect(result.status).toBe('secondFactor');
-		// The link proved the e-mail, whatever the second factor answers.
-		expect((await auth.get(user.id)).emailVerified).toBe(true);
 		if (result.status !== 'secondFactor') throw new Error('expected a factor');
 		clock.advance(30_000);
 		const code = codeAt(fromBase32(secret), stepAt(clock.now()));

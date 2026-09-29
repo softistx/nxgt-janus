@@ -123,8 +123,8 @@ nothing is written.
 A confirm that verifies the e-mail sends a [`user.emailVerified`
 event](events.md); one for an e-mail already verified sends nothing.
 Changing the e-mail with `update` sets `emailVerified` back to `false` — and
-the next sign-in by code or link then [drops the password and signs out
-every session](magic-link.md#an-account-someone-else-registered).
+the next sign-in by code or link then [drops the password and the second
+factor, and signs out every session](magic-link.md#an-account-someone-else-registered).
 
 ## `resetPassword`
 

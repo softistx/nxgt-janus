@@ -564,7 +564,7 @@ if (error instanceof UserInvalidError) {
 Also `changePassword: the current password does not match`.
 
 **When:** `signIn`, `changePassword`.
-**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter; a login past its attempts has its own message, below. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one. A user who signed up with a password and then signed in by `signInCode` or `magicLink` before verifying the e-mail has no password any more (`noPassword`): that first proof drops it and signs out every session, so an address registered by someone else keeps nothing of theirs — [the sign-in link guide](guide/magic-link.md#an-account-someone-else-registered) has why.
+**Why:** no user holds the login, the user has no password, or the password is wrong — **one code for the three**. Also a sign-in that verified a password written over while it ran (`reason: 'wrongPassword'`): its session is revoked, or its challenge spent, before the refusal. `error.reason` (`unknownLogin`, `noPassword`, `wrongPassword`) tells them apart for your logs and your rate limiter; a login past its attempts has its own message, below. A login holding a NUL character or a lone surrogate is `unknownLogin`: no user can hold one. A user who signed up with a password and then signed in by `signInCode` or `magicLink` before verifying the e-mail has no password any more (`noPassword`): that first proof drops it, and the second factor, and signs out every session, so an address registered by someone else keeps nothing of theirs — [the sign-in link guide](guide/magic-link.md#an-account-someone-else-registered) has why.
 **Fix:** answer 401 with the same body whatever the reason — and, for a user who signed in by code or link before verifying, offer `setPassword` after that sign-in, or send `verifyEmail` at sign-up:
 
 ```ts
@@ -986,7 +986,7 @@ const { recoveryCodes } = await auth.secondFactor.regenerateRecoveryCodes(curren
 
 `SecondFactorError`. Also `secondFactor.confirm: the user no longer has a second factor — sign in again`, and the same from `secondFactor.recover`.
 
-**When:** `activate` before `enroll`, or after `disable`. On `confirm` or `recover`: the factor was disabled after `signIn` asked for a code.
+**When:** `activate` before `enroll`, or after `disable` — or after a sign-in by `signInCode` or `magicLink` that proved the e-mail for the first time, which removes a factor enrolled before it. On `confirm` or `recover`: the factor was disabled after `signIn` asked for a code, or removed by such a first proof when an outage kept its challenges from being spent — the proof spends them otherwise, and `confirm` answers `TOKEN_SPENT`.
 **Why:** `activate` checks a code against the secret `enroll` wrote, and there is none. On `confirm`, the factor the challenge asked for is gone, so the challenge is spent.
 **Fix:** `enroll`, show the `uri` as a QR code, then `activate` with a code from the app. After `confirm`'s refusal, sign in again: `signIn` answers a session directly for a user without a factor.
 

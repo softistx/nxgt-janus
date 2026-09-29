@@ -20,7 +20,10 @@ import type { Context } from './context';
  * - `user.secondFactorEnabled` — by `secondFactor.activate`, once the factor
  *   is active: not by `enroll`, which leaves it waiting for its first code;
  * - `user.secondFactorDisabled` — by `secondFactor.disable`, when it removed
- *   an active factor; never for a user who had none, or one still waiting;
+ *   an active factor, and by `signInCode.confirm` and `magicLink.confirm`
+ *   when their first proof of the e-mail removed one, after
+ *   `user.emailVerified` and any `user.passwordChanged`; never for a user who
+ *   had none, or one still waiting;
  * - `user.recoveryCodesRegenerated` — by `secondFactor.regenerateRecoveryCodes`:
  *   the codes the user held stopped working. Not by `activate`, whose codes
  *   come with `user.secondFactorEnabled`;

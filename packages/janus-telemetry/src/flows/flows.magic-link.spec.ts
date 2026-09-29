@@ -45,6 +45,8 @@ describe('instrumentJanus()', () => {
 	it('writes the second factor asked for, when the link opens no session', async () => {
 		const auth = twoFactor();
 		const { user } = await auth.signUp({ email, password });
+		// Proved first: a first proof by link would remove the factor.
+		await auth.verifyEmail.confirm((await auth.verifyEmail.send(user)).token);
 		const { secret } = await auth.secondFactor.enroll(user);
 		await auth.secondFactor.activate(user, totp(secret, Date.now()));
 		const issued = await auth.magicLink.request(email);

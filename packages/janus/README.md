@@ -589,6 +589,10 @@ every user type with a password.
   and key the recovery codes' hashes. The first seals and every key opens, so
   keys rotate: put the new one first, keep the old one until no secret is
   sealed and no recovery code hashed with it.
+- **The first proof of an e-mail by a sign-in code or link removes the
+  factor too**, active or waiting, with its recovery codes: whoever enrolled
+  it had not proved the address. Send `verifyEmail` before offering
+  `enroll`, and an owner's factor is never dropped this way.
 - **Asking for a password or a code before `enroll`, `disable` or
   `regenerateRecoveryCodes` is your policy**, not the library's — a recent
   `session.authenticatedAt` is one rule. `regenerateRecoveryCodes` asks for
@@ -632,15 +636,19 @@ A six-digit code sent to the user's e-mail signs them in, with no password.
   attempts: a wrong code is `CODE_INVALID` with `attemptsLeft`, and the fifth
   spends it. An e-mail changed since is `TOKEN_STALE`; a user deactivated
   since is `USER_INACTIVE`.
-- **An e-mail proved for the first time drops the password and signs out
-  every session** before the new one opens, as `resetPassword.confirm`
-  does: whoever registered the address without holding its inbox keeps
-  nothing. `user.passwordChanged` follows `user.emailVerified` when a
-  password was dropped. An e-mail already verified changes nothing.
-- **An active second factor is still asked for**: with `secondFactor`
-  configured, `confirm` answers `SignInResult` on a type with a password, and
-  a user whose factor is active gets a challenge for `secondFactor.confirm`
-  — switch on `status`, as after `signIn`.
+- **An e-mail proved for the first time drops the password and the second
+  factor, and signs out every session** before the new one opens, as
+  `resetPassword.confirm` does for the password: whoever registered the
+  address without holding its inbox keeps nothing, and the owner is asked
+  for no factor they never set. `user.passwordChanged` follows
+  `user.emailVerified` when a password was dropped, then
+  `user.secondFactorDisabled` when an active factor was. An e-mail already
+  verified changes nothing.
+- **An active second factor is still asked for** on an e-mail already
+  verified: with `secondFactor` configured, `confirm` answers `SignInResult`
+  on a type with a password, and a user whose factor is active gets a
+  challenge for `secondFactor.confirm` — switch on `status`, as after
+  `signIn`.
 
 [The sign-in code guide](docs/guide/sign-in-code.md) has the request that
 tells nobody who exists, the challenge in a cookie, every error, and a test.
@@ -674,7 +682,8 @@ to type.
   the session. A link lives `'15m'` (`tokens.magicLink`); there are no
   attempts, since there is nothing to guess. `TOKEN_STALE`, `USER_INACTIVE`,
   an active second factor and **an e-mail proved for the first time — the
-  password dropped, every session signed out** — are handled as for a code.
+  password and the second factor dropped, every session signed out** — are
+  handled as for a code.
 - **Not ended by a password write, nor limited by the sign-in throttle**:
   the password proves nothing a link does, and the throttle counts
   passwords. Rate-limit `request` per address and per client.
@@ -753,7 +762,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.passwordChanged` | `changePassword`, `setPassword`; `signInCode.confirm` and `magicLink.confirm` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
 | `user.emailChanged` | `update`, when it changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
-| `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor — never for a user who had none, or one still waiting |
+| `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor; `signInCode.confirm` and `magicLink.confirm` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — never for a user who had none, or one still waiting |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes` — not `activate`, whose codes come with `user.secondFactorEnabled` |
 | `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent: a sign-in without the user's phone |
 | `user.deleted` | `delete`, once — a replay that deletes nobody sends nothing |
@@ -1034,18 +1043,21 @@ account whose link it holds. Whoever opens the link signs in, on the device
 that opened it: where the sign-in must complete in the browser that asked,
 send a code.
 
-**The first sign-in by link or code drops the password.** `signUp` does not
-wait for the address to be proved, so anyone can register somebody else's
-e-mail with a password of theirs. When `signInCode.confirm` or
-`magicLink.confirm` proves an e-mail never verified, it drops the password
-and signs out every session before opening its own — so a user who signed
+**The first sign-in by link or code drops the password and the second
+factor.** `signUp` does not wait for the address to be proved, so anyone can
+register somebody else's e-mail with a password of theirs, and enrol a second
+factor on their own phone. When `signInCode.confirm` or `magicLink.confirm`
+proves an e-mail never verified, it drops the password and the second factor
+— active or waiting, with its recovery codes — and signs out every session
+before opening its own — so a user who signed
 up, never verified, and then signs in by code has no password afterwards,
 and `signIn` answers `CREDENTIALS_INVALID` (`reason: 'noPassword'`). Offer
 `setPassword` after such a sign-in, or send `verifyEmail` at sign-up. An
 e-mail changed by `update` is unverified again, and its first proof by link
-or code drops the password too. **A second factor is kept**: one a squatter
-activated still gates the owner's sign-in — `secondFactor.disable` it, from
-support, if the owner cannot pass it.
+or code drops both too. **So does a user who enrolled a factor before
+proving their own e-mail**: they sign in with no challenge, and enrol again
+— offer `secondFactor.enroll` after such a sign-in, or send `verifyEmail`
+before letting anyone enrol. An e-mail already verified keeps both.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`

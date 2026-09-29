@@ -127,7 +127,7 @@ Without `secondFactor`, `signIn` answers a session as before, typed
 
 | State | `hasSecondFactor` | `signIn` answers | Recovery codes | Reached by |
 | --- | --- | --- | --- | --- |
-| none | `false` | a session | none | a new user; `disable`, which removes the codes with the factor |
+| none | `false` | a session | none | a new user; `disable`, which removes the codes with the factor; the [first proof of the e-mail](#a-first-sign-in-by-e-mail-removes-it-too) by a sign-in code or link |
 | **enrolled** — waiting for a first code | `false` | a session | none | `enroll` |
 | **active** | `true` | a challenge | ten from `activate`; one fewer per `recover`; ten new from `regenerateRecoveryCodes` | `activate`, with a code that matches |
 
@@ -558,6 +558,31 @@ const auth = janus({
 	},
 });
 ```
+
+### A first sign-in by e-mail removes it too
+
+When [`signInCode.confirm`](sign-in-code.md) or
+[`magicLink.confirm`](magic-link.md#an-account-someone-else-registered)
+proves an e-mail **never verified**, the write that proves it also removes
+the factor, active or enrolled, with its recovery codes — and drops the
+password, and signs out every session. Whoever registered the address never
+proved they held its inbox, so a factor they enrolled is not theirs to keep:
+the inbox's owner signs in with no challenge.
+
+```ts
+const signedIn = await auth.magicLink.confirm(token); // an e-mail never verified
+if (signedIn.status === 'signedIn' && !signedIn.user.hasSecondFactor) {
+	// offer setPassword, then enroll again
+}
+```
+
+`user.secondFactorDisabled` is sent when the factor removed was active, after
+`user.emailVerified` and any `user.passwordChanged`, so the listener above
+tells the inbox's owner. An e-mail already verified keeps the factor, and
+`confirm` answers a challenge as `signIn` does. **Send `verifyEmail` before
+offering `enroll`**: a user who enrolls before proving their own e-mail loses
+the factor on their first sign-in by code or link, since the library cannot
+tell them from someone who registered their address.
 
 ### Asking before `enroll` and `disable` is your policy
 

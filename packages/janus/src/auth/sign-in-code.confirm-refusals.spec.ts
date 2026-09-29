@@ -122,7 +122,7 @@ describe('signInCode.confirm', () => {
 		).toMatchObject({ code: 'TOKEN_SPENT' });
 	});
 
-	it('still asks for an active second factor', async () => {
+	it('still asks for an active second factor, on an e-mail already verified', async () => {
 		const clock = fixedClock(Date.UTC(2026, 8, 26));
 		const auth = janus({
 			user: person,
@@ -136,6 +136,8 @@ describe('signInCode.confirm', () => {
 			},
 		});
 		const { user } = await auth.signUp({ ...ada, password });
+		// A first proof would remove the factor: prove the e-mail before.
+		await auth.verifyEmail.confirm((await auth.verifyEmail.send(user)).token);
 		const { secret } = await auth.secondFactor.enroll(user);
 		await auth.secondFactor.activate(
 			user,
@@ -147,7 +149,5 @@ describe('signInCode.confirm', () => {
 		const result = await auth.signInCode.confirm(issued.challenge, issued.code);
 
 		expect(result.status).toBe('secondFactor');
-		// The code proved the e-mail, whatever the second factor answers.
-		expect((await auth.get(user.id)).emailVerified).toBe(true);
 	});
 });
