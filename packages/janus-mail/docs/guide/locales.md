@@ -106,7 +106,8 @@ plural of the codes left in `en` and `fr` only, so a German recipient's
 Wiederherstellungscodes." — and a count is a `TypeError` there.
 `location`, left out of a `newSignIn`, is "Unknown" for `de`:
 the text of a missing location is held in `en` and `fr` only, so pass
-`location` yourself — "Unbekannter Ort" — where it matters.
+`location` yourself — "Unbekannt", so the row reads `Ort Unbekannt` —
+where it matters.
 `recoveryCodeUsed` is the ninth template, since 0.5.0, `magicLink` the
 tenth, since 0.7.0, `stepUp` the eleventh, since 0.8.0, and `newSignIn` the
 twelfth, since 0.9.0: a `templates`
