@@ -15,7 +15,7 @@
     },
     "packages/janus": {
       "name": "@nxgt/janus",
-      "version": "0.17.0",
+      "version": "0.17.1",
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "zod": "^4",
@@ -136,7 +136,7 @@
     },
     "packages/janus-mail": {
       "name": "@nxgt/janus-mail",
-      "version": "0.9.0",
+      "version": "0.9.1",
       "devDependencies": {
         "@formatjs/icu-messageformat-parser": "3.5.20",
         "@maizzle/framework": "6.1.7",
