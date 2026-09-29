@@ -300,7 +300,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Documentation
 
-- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in, of a second factor and of a code sent by e-mail, guarded routes
+- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in, of a second factor and of a code or a link sent by e-mail, guarded routes
 - [Troubleshooting](docs/troubleshooting.md) — by the symptom or message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 

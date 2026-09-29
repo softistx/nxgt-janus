@@ -465,6 +465,110 @@ A user type with no password has no second factor, so its `confirm` always
 answers a session. The attempts, the lifetime and every refusal are
 [`@nxgt/janus`'s sign-in code guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sign-in-code.md).
 
+## A link sent by e-mail
+
+A sign-in by e-mailed link takes three routes. The first asks for a link.
+The link then opens **a page that spends nothing**, and that page's button
+posts the token back to the third route, which signs the user in.
+
+Never sign in on the link's `GET`. Mail scanners open every link in an
+e-mail and would spend the token before the user clicks. Sending the e-mail
+is your job.
+
+```ts
+import { JanusError, TokenError } from '@nxgt/janus';
+import { sendSession } from '@nxgt/janus-hono';
+import { csrf } from 'hono/csrf';
+
+const ORIGIN = 'https://app.example';
+const TOKEN = /^[A-Za-z0-9_-]{43}$/; // 32 bytes, base64url: the only thing echoed into the page
+
+app.post('/sign-in/email/link', async (c) => {
+	const { email } = await c.req.json();
+	const issued = await auth.magicLink.request(email);
+	if (issued !== null) {
+		void mailer.send(issued.email, `${ORIGIN}/sign-in/link?token=${issued.token}`); // not awaited
+	}
+	return c.body(null, 202); // the same answer either way: nothing of a link reaches the visitor
+});
+
+// GET: what the e-mail links to. It renders a page and does nothing else.
+app.get('/sign-in/link', (c) => {
+	const token = c.req.query('token') ?? '';
+	c.header('Referrer-Policy', 'no-referrer'); // the URL holds the token: send it nowhere
+	c.header('Cache-Control', 'no-store');
+	if (!TOKEN.test(token)) return c.text('This link is not valid.', 400);
+	return c.html(`<!doctype html><meta charset="utf-8"><title>Sign in</title>
+<form method="post" action="/sign-in/link">
+	<input type="hidden" name="token" value="${token}">
+	<button>Sign in</button>
+</form>`);
+});
+
+// POST: the page's button. csrf() answers 403 to a form posted from another site.
+app.post('/sign-in/link', csrf({ origin: ORIGIN }), async (c) => {
+	const token = String((await c.req.parseBody()).token ?? '');
+	try {
+		sendSession(c, auth, await auth.magicLink.confirm(token));
+		return c.redirect('/', 303);
+	} catch (error) {
+		if (error instanceof TokenError || (error instanceof JanusError && error.code === 'VERSION_CONFLICT')) {
+			return c.redirect('/sign-in?link=expired', 303); // ask for another link
+		}
+		throw error; // USER_INACTIVE 403, STORE_FAILED 503: janusErrors()
+	}
+});
+```
+
+- **The request route answers `202` whoever asked.** `magicLink.request`
+  answers `null` for an address nobody holds and for an inactive user. With
+  a code, the route needs a decoy challenge. Nothing of a link reaches the
+  visitor, so here there is no decoy to forge. Rate-limit the route per
+  address and per client: every call sends an e-mail and cancels the link
+  sent before it.
+- **The page echoes only a token of the token's shape.** Anything else
+  written into the HTML is a cross-site scripting hole. Use a button, not a
+  script that submits the form by itself: a scanner that runs scripts would
+  submit it too.
+- **Put `csrf({ origin })` on the `POST`.** The token does not identify the
+  browser that asked for it. Without the check, any site could post a token
+  for an account it controls and sign its visitor into that account.
+- **Answer the `POST` with a `303`**, so that reloading the page does not
+  post the spent token again. The cookie that `sendSession` set is sent with
+  the redirect.
+
+`confirm` spends the link on its first call, whether that call signs the
+user in or is refused, and it marks the user's e-mail verified. To the user,
+every `TOKEN_*` error means the same thing: ask for another link. The rare
+`VERSION_CONFLICT` means the same too; it happens when the user record was
+written while the e-mail was being proved.
+
+### With a second factor
+
+With `janus({ secondFactor })`, a user whose factor is active gets a
+**challenge** from `magicLink.confirm`, not a session. On a type with a
+password, passing that answer straight to `sendSession` no longer compiles.
+Narrow on `status`, and hand the challenge to the second factor's cookie:
+
+```ts
+app.post('/sign-in/link', csrf({ origin: ORIGIN }), async (c) => {
+	const token = String((await c.req.parseBody()).token ?? '');
+	const result = await auth.magicLink.confirm(token);
+	if (result.status === 'secondFactor') {
+		setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
+		return c.redirect('/sign-in/code', 303); // your page asking for the app's code
+	}
+	sendSession(c, auth, result);
+	return c.redirect('/', 303);
+});
+```
+
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail) sends
+this e-mail with `mail.magicLink(issued)`, building its button with
+`links.magicLink(token)`. Point `links.magicLink` at the `GET` route above.
+For the lifetime and every refusal, see [`@nxgt/janus`'s sign-in link
+guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md).
+
 ## A step-up
 
 A route a stolen session should not run alone — deleting the account,
