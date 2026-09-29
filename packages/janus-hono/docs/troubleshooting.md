@@ -473,8 +473,9 @@ in a test, advance the clock past `retryAfter`, or wire
 
 ### `403 Forbidden` on `POST /sign-in/link`
 
-The body is the text `Forbidden`, not a `{ code }`: `janusErrors()` did not
-answer it.
+The body is the text `Forbidden`, not a `{ code }`. It is not a `JanusError`:
+`csrf()` threw it, and `janusErrors()` hands it to Hono's default response, or
+to your `fallback`.
 
 **When:** the button of the page the e-mailed link opens, on the route
 guarded by `csrf({ origin: ORIGIN })` — see
@@ -484,32 +485,35 @@ guarded by `csrf({ origin: ORIGIN })` — see
 `Sec-Fetch-Site: same-origin`, or else an `Origin` header equal to `origin`,
 character for character. Neither held:
 
-- **The page and the route are on two origins** — the page served by a
+- **The page and the route are on two origins.** The page may be served by a
   development server on another port, or on `www.` while the route is on the
-  bare host. The browser then sends `same-site` or `cross-site`, and an
-  `Origin` that must be in `origin`.
-- **`ORIGIN` is not what the browser shows** — `http` against `https`, a
-  missing or extra port, a trailing `/`. Leaving `origin` out does not help
-  behind a proxy: `csrf()` then compares with the URL the app sees, the
-  proxy's `http://` upstream, not the public one.
-- **The browser sends no `Sec-Fetch-Site`** — it sends none to plain `http://`
-  on a host other than `localhost`, and an older browser sends none at all.
-  The `Origin` alone decides, and the page's `Referrer-Policy: no-referrer`
-  makes the browser send `Origin: null` for the form it posts.
+  bare host. The browser then sends `same-site` or `cross-site`, and the
+  `Origin` decides.
+- **The browser sends no `Sec-Fetch-Site`.** It sends none to plain `http://`
+  on a host other than `localhost` or a loopback address, and an older browser
+  sends none at all. The `Origin` decides here too.
+- **The `Origin` is `null`.** The page's `Referrer-Policy: no-referrer` makes
+  the browser send `Origin: null` for every form it posts. So whenever the
+  `Origin` decides, the answer is 403, whatever `ORIGIN` holds.
+- **`ORIGIN` is not what the browser shows.** Check for `http` against
+  `https`, a missing or extra port, or a trailing `/`. Leaving `origin` out does
+  not help behind a proxy: `csrf()` then compares with the URL the app sees,
+  which is the proxy's `http://` upstream, not the public one.
 
-**Fix:** set `ORIGIN` to the scheme, host and port the address bar shows,
-and list every origin that serves the page. Serve over HTTPS, or
-`localhost` in development. If an older browser must pass, send the page
-with `same-origin` instead of `no-referrer`: the URL still reaches no other
-site, and the form carries its real `Origin`.
+**Fix:** serve the page and the route on one origin, over HTTPS or on
+`localhost` in development. Redirect `www.` to the bare host, and post the form
+to a relative `action`. Set `ORIGIN` to the scheme, host and port the address
+bar shows. Where the `Origin` must decide, send the page with `strict-origin`
+instead of `no-referrer`. A `Referer` then holds the origin only, never the
+path and its token, and the form carries its real `Origin`.
 
 ```ts
-const ORIGIN = process.env.ORIGIN ?? 'https://app.example'; // no trailing slash
-const origins = [ORIGIN, 'https://www.app.example']; // every origin that serves the link page
+const ORIGIN = process.env.ORIGIN ?? 'https://app.example'; // what the address bar shows, no trailing slash
 
-app.post('/sign-in/link', csrf({ origin: origins }), handler);
-// on the GET page, for a browser that sends no Sec-Fetch-Site:
-c.header('Referrer-Policy', 'same-origin');
+// on the GET page: the token's URL still reaches nobody, and Origin is no longer null
+c.header('Referrer-Policy', 'strict-origin');
+
+app.post('/sign-in/link', csrf({ origin: ORIGIN }), handler);
 ```
 
 ### `409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`
