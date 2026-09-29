@@ -27,6 +27,7 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'twoFactorEnabled',
 	'twoFactorDisabled',
 	'recoveryCodeUsed',
+	'newSignIn',
 	'welcome',
 ];
 

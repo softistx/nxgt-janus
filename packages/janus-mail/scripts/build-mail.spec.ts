@@ -13,15 +13,15 @@ describe('emailsProblem', () => {
 		emails: Object.fromEntries(emails.map((email) => [email, {}])),
 	});
 
-	test('holds for exactly the eleven e-mails, in any order', () => {
+	test('holds for exactly the twelve e-mails, in any order', () => {
 		expect(emailsProblem(built([...EXPECTED_EMAILS].reverse()))).toBeNull();
 	});
 
 	test('refuses an e-mail too many, one missing, or none', () => {
 		expect(
-			emailsProblem(built([...EXPECTED_EMAILS, 'new-sign-in'])),
+			emailsProblem(built([...EXPECTED_EMAILS, 'invitation'])),
 		).toStartWith(
-			'build-mail: the build holds confirm-action, email-changed, magic-link, new-sign-in, password-changed, recovery-code-used, reset-password, sign-in-code, two-factor-disabled, two-factor-enabled, verify-email, welcome, ',
+			'build-mail: the build holds confirm-action, email-changed, invitation, magic-link, new-sign-in, password-changed, recovery-code-used, reset-password, sign-in-code, two-factor-disabled, two-factor-enabled, verify-email, welcome, ',
 		);
 		expect(emailsProblem(built(EXPECTED_EMAILS.slice(1)))).not.toBeNull();
 		expect(emailsProblem(built([]))).toStartWith(
