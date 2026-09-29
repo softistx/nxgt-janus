@@ -1039,7 +1039,9 @@ the user's click answers `TOKEN_SPENT`. Link to a page that spends nothing,
 whose button posts the token — and echo into that page only a token of the
 token's shape. Refuse that `POST` from another site — check its `Origin`,
 or `Sec-Fetch-Site: same-origin` — or any page can sign a visitor into an
-account whose link it holds. Whoever opens the link signs in, on the device
+account whose link it holds. Send that page with
+`Referrer-Policy: strict-origin`, not `no-referrer`, which makes its form's
+`Origin` `null` and the check refuse its own button. Whoever opens the link signs in, on the device
 that opened it: where the sign-in must complete in the browser that asked,
 send a code.
 

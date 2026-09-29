@@ -495,7 +495,7 @@ app.post('/sign-in/email/link', async (c) => {
 // GET: what the e-mail links to. It renders a page and does nothing else.
 app.get('/sign-in/link', (c) => {
 	const token = c.req.query('token') ?? '';
-	c.header('Referrer-Policy', 'no-referrer'); // the URL holds the token: send it nowhere
+	c.header('Referrer-Policy', 'strict-origin'); // the origin only: never the token
 	c.header('Cache-Control', 'no-store');
 	if (!TOKEN.test(token)) return c.text('This link is not valid.', 400);
 	return c.html(`<!doctype html><meta charset="utf-8"><title>Sign in</title>
@@ -533,6 +533,13 @@ app.post('/sign-in/link', csrf({ origin: ORIGIN }), async (c) => {
 - **Put `csrf({ origin })` on the `POST`.** The token does not identify the
   browser that asked for it. Without the check, any site could post a token
   for an account it controls and sign its visitor into that account.
+- **Send the page with `Referrer-Policy: strict-origin`.** A `Referer` then
+  holds the origin only — never the path and the token in its query — so
+  nothing the page loads learns the token. Not `no-referrer`: with it the
+  browser posts the form with `Origin: null`, and wherever `csrf()` falls
+  back to the `Origin` — no `Sec-Fetch-Site` on plain HTTP off `localhost`,
+  or from an older browser — the button's own `POST` answers
+  [403](../troubleshooting.md#403-forbidden-on-post-sign-inlink).
 - **Answer the `POST` with a `303`**, so that reloading the page does not
   post the spent token again. The cookie that `sendSession` set is sent with
   the redirect.

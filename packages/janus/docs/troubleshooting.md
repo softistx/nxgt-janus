@@ -93,6 +93,7 @@ How the messages are shaped:
 
 **Sign-in links**
 - [A sign-in link answers `TOKEN_SPENT` on the user's first click](#a-sign-in-link-answers-token_spent-on-the-users-first-click)
+- [The link's own button answers `403`](#the-links-own-button-answers-403)
 - [The link signed in another device than the one that asked](#the-link-signed-in-another-device-than-the-one-that-asked)
 - [`magicLink.request` answers `null` for a user who exists](#magiclinkrequest-answers-null-for-a-user-who-exists)
 - [`TS2339: Property 'magicLink' does not exist on type 'TypeApi<…>'.`](#ts2339-property-magiclink-does-not-exist-on-type-typeapi)
@@ -1230,6 +1231,30 @@ const signedIn = await auth.magicLink.confirm(token);
 
 The [guide](guide/magic-link.md#confirming-from-a-post-never-from-the-links-get)
 has the page, with the headers it needs.
+
+### The link's own button answers `403`
+
+**When:** the page the e-mailed link opens posts its token, and the route
+that checks the `Origin` before `magicLink.confirm` refuses it — for every
+user, or only on plain HTTP off `localhost` and in older browsers.
+**Why:** the page is sent with `Referrer-Policy: no-referrer`, and under it
+the browser posts the form with `Origin: null`. A check on `Origin` alone
+refuses every such `POST`; one that tries `Sec-Fetch-Site: same-origin`
+first refuses it wherever the browser sends no `Sec-Fetch-Site`. A
+mismatched `ORIGIN` — `http` for `https`, a port, a trailing `/` — does the
+same.
+**Fix:** send the page with `Referrer-Policy: strict-origin`, and set
+`ORIGIN` to the scheme, host and port the address bar shows. A `Referer`
+then holds the origin only, never the path and its token, and the form
+carries its real `Origin`:
+
+```ts
+new Response(html, { headers: { 'Referrer-Policy': 'strict-origin', 'Cache-Control': 'no-store' } }); // the GET page
+if (request.headers.get('Origin') !== ORIGIN) return new Response(null, { status: 403 }); // on the POST
+```
+
+The [guide](guide/magic-link.md#confirming-from-a-post-never-from-the-links-get)
+has the page and the route.
 
 ### The link signed in another device than the one that asked
 
