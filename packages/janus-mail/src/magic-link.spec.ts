@@ -2,15 +2,14 @@ import { describe, expect, test } from 'bun:test';
 import { createMemoryStores, fixedClock, janus } from '@nxgt/janus';
 import { createMemoryMailer } from '@nxgt/mail';
 import { z } from 'zod';
-import { baseOptions, links, partsOf, signInLink } from '../test/setup';
+import {
+	baseOptions,
+	links,
+	partsOf,
+	rejection,
+	signInLink,
+} from '../test/setup';
 import { janusMail } from './janus-mail';
-
-/** Settles a rejection where it is created. */
-const rejection = (promise: Promise<unknown>): Promise<unknown> =>
-	promise.then(
-		() => undefined,
-		(error: unknown) => error,
-	);
 
 describe('magicLink', () => {
 	test('sends the sign-in link to issued.email, its token only in the link', async () => {

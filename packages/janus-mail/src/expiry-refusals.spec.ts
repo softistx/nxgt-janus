@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
 	baseOptions,
 	issuedAt,
+	rejection,
 	reset,
 	signIn,
 	verification,
@@ -11,13 +12,6 @@ import { janusMail } from './janus-mail';
 const MINUTE = 60_000;
 
 describe('expiresIn refusals', () => {
-	/** The error a send rejects with, settled where it is created. */
-	const rejection = (sending: Promise<unknown>) =>
-		sending.then(
-			() => null,
-			(e: unknown) => e,
-		);
-
 	test('an expiresAt that went through JSON is a TypeError, and nothing is sent', async () => {
 		const options = baseOptions();
 		const issued = JSON.parse(JSON.stringify(verification));

@@ -44,6 +44,32 @@ const events = {
 };
 
 /**
+ * What a sign-in by e-mail writes once confirmed — a code or a link —
+ * marked, so an alert on refusals can tell one from the other and from a
+ * password: a refusal, the second factor asked for, or a sign-in.
+ */
+function emailedSignIn(mark: string): (call: Call, outcome: Outcome) => void {
+	return (call, outcome) => {
+		if (!outcome.ok) {
+			log.warn(
+				events.signInRefused({
+					...refusalFields(call, outcome.refusal),
+					[mark]: true,
+				}),
+			);
+		} else if (statusOf(outcome.value) === 'secondFactor') {
+			log.info(
+				events.secondFactorAsked(secondFactorFields(call, outcome.value)),
+			);
+		} else {
+			log.info(
+				events.signedIn({ ...userFields(call, outcome.value), [mark]: true }),
+			);
+		}
+	};
+}
+
+/**
  * What each flow writes once it answered. Nothing here reads a login, an
  * e-mail, a password or a token: only user types, ids, codes and reasons.
  */
@@ -79,56 +105,14 @@ export const WRITTEN: Readonly<
 			log.info(events.signInCodeSent(userFields(call, outcome.value)));
 		}
 	},
-	'signInCode.confirm': (call, outcome) => {
-		if (!outcome.ok) {
-			// Marked, so an alert on burnt challenges can tell the two codes apart.
-			log.warn(
-				events.signInRefused({
-					...refusalFields(call, outcome.refusal),
-					'janus.signIn.code': true,
-				}),
-			);
-		} else if (statusOf(outcome.value) === 'secondFactor') {
-			log.info(
-				events.secondFactorAsked(secondFactorFields(call, outcome.value)),
-			);
-		} else {
-			log.info(
-				events.signedIn({
-					...userFields(call, outcome.value),
-					'janus.signIn.code': true,
-				}),
-			);
-		}
-	},
+	'signInCode.confirm': emailedSignIn('janus.signIn.code'),
 	'magicLink.request': (call, outcome) => {
 		// Only when a link was issued: `null` is nobody, and says nothing.
 		if (outcome.ok && outcome.value !== null) {
 			log.info(events.magicLinkSent(userFields(call, outcome.value)));
 		}
 	},
-	'magicLink.confirm': (call, outcome) => {
-		if (!outcome.ok) {
-			// Marked, so an alert on spent links can tell them from codes.
-			log.warn(
-				events.signInRefused({
-					...refusalFields(call, outcome.refusal),
-					'janus.signIn.magicLink': true,
-				}),
-			);
-		} else if (statusOf(outcome.value) === 'secondFactor') {
-			log.info(
-				events.secondFactorAsked(secondFactorFields(call, outcome.value)),
-			);
-		} else {
-			log.info(
-				events.signedIn({
-					...userFields(call, outcome.value),
-					'janus.signIn.magicLink': true,
-				}),
-			);
-		}
-	},
+	'magicLink.confirm': emailedSignIn('janus.signIn.magicLink'),
 	'stepUp.request': (call, outcome) => {
 		// Which code confirms it — e-mailed, or from the app — never the code.
 		if (outcome.ok) {

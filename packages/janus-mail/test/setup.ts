@@ -64,6 +64,13 @@ export const signInLink: IssuedToken & {
 	user: { id: 'u1' },
 };
 
+/** The error a send rejects with, settled where it is created — `null` when it resolved. */
+export const rejection = (sending: Promise<unknown>): Promise<unknown> =>
+	sending.then(
+		() => null,
+		(error: unknown) => error,
+	);
+
 /** Every part of a sent e-mail, to search in one go. */
 export function partsOf(sent: MemoryMail | undefined): string[] {
 	if (sent === undefined) throw new Error('nothing was sent');
