@@ -1,5 +1,19 @@
 # @nxgt/janus-webhooks
 
+## 0.7.0
+
+### Minor Changes
+
+- [#181](https://github.com/softistx/nxgt-janus/pull/181) [`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Posts `user.newDeviceSignedIn`, janus 0.17's eleventh event type — without its `sessionId`, as `user.emailChanged` is posted without its `formerEmail`. `webhooks({ types })`, `verifyWebhook` and the conformance suite's queue case accept it.
+  
+  - **Breaking for a receiver built on 0.6.x: it refuses the new type. Upgrade receivers first**, then senders; or leave `user.newDeviceSignedIn` out of `webhooks({ types })` until every receiver is on 0.7.
+  - **Breaking for an exhaustive `switch` over the posted event's `type`.**
+
+### Patch Changes
+
+- Updated dependencies [[`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070)]:
+  - @nxgt/janus@0.17.0
+
 ## 0.6.2
 
 ### Patch Changes

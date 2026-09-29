@@ -1,5 +1,13 @@
 # @nxgt/janus-graphql
 
+## 0.5.3
+
+### Patch Changes
+
+- [#181](https://github.com/softistx/nxgt-janus/pull/181) [`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the context guide shows a sign-in mutation passing janus 0.17's `device` from the request's cookie and setting the answer's `deviceToken` back.
+- Updated dependencies [[`c0a91ca`](https://github.com/softistx/nxgt-janus/commit/c0a91ca63f7baf8285bc6a73f8cad50410531070)]:
+  - @nxgt/janus@0.17.0
+
 ## 0.5.2
 
 ### Patch Changes
