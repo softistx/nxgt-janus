@@ -1,13 +1,14 @@
 import type { At } from './at';
 import type { ResolvedType } from './config';
-import { type AnyUser, type Context, findRecord, toUser } from './context';
+import { type AnyUser, type Context, toUser } from './context';
+import { redeemEmailToken } from './email-flows/email-token';
 import {
 	type Finish,
 	finishEmailSignIn,
 	keepOnlyLatest,
 	signInHolder,
 } from './email-sign-in';
-import { issueOneTime, spendOneTime, unknownOneTime } from './one-time';
+import { issueOneTime } from './one-time';
 import type { IssuedToken, MagicLinkApi, SignInResult } from './types';
 
 /**
@@ -80,15 +81,13 @@ async function confirmLink(
 ): Promise<SignInResult<AnyUser>> {
 	// Spent first, whatever follows: a link is redeemed once, and a refused
 	// one — stale, inactive, another type's — cannot be tried again.
-	const token = await spendOneTime(
+	const { token, user } = await redeemEmailToken(
 		context,
-		secret,
+		type,
 		'magicLink',
+		secret,
 		where,
-		'token',
 	);
-	const user = await findRecord(context, token.userId, type.name);
-	if (user === null) throw unknownOneTime(where, 'token');
 
 	return finishEmailSignIn(context, type, finish, {
 		user,

@@ -85,6 +85,47 @@ describe('magicLink.confirm', () => {
 		).toBe('signedIn');
 	});
 
+	it('answers VERSION_CONFLICT when the user is written between the read and the proof — the link spent', async () => {
+		const stores = createMemoryStores();
+		let armed = false;
+		const { auth } = setup({
+			store: {
+				...stores,
+				users: {
+					...stores.users,
+					// Somebody else writes the user once confirm has read it.
+					async findUser(id) {
+						const found = await stores.users.findUser(id);
+						if (found !== null && armed) {
+							armed = false;
+							await stores.users.updateUser(
+								found.id,
+								{ updatedAt: new Date(), fields: { ...ada, name: 'Ada King' } },
+								found.version,
+							);
+						}
+						return found;
+					},
+				},
+			},
+		});
+		await auth.signUp({ ...ada, password });
+		const issued = await auth.magicLink.request(ada.email);
+
+		armed = true;
+		expect(
+			await rejection(auth.magicLink.confirm(issued?.token ?? '')),
+		).toMatchObject({
+			code: 'VERSION_CONFLICT',
+			message: expect.stringMatching(
+				/^magicLink\.confirm: expected version \d+, found \d+$/,
+			),
+		});
+		expect(
+			await rejection(auth.magicLink.confirm(issued?.token ?? '')),
+		).toMatchObject({ code: 'TOKEN_SPENT' });
+	});
+
 	it("answers another type's link as unknown, naming nobody — and spends it", async () => {
 		const auth = janus({
 			users: {
