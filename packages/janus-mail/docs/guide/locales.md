@@ -104,7 +104,7 @@ mail.locales; // readonly ('en' | 'fr' | 'de')[]
 plural of the codes left in `en` and `fr` only, so a German recipient's
 `mail.recoveryCodeUsed` takes the sentence as text — "Sie haben noch 3
 Wiederherstellungscodes." — and a count is a `TypeError` there.
-`location`, left out of a `newSignIn`, is "Unknown location" for `de`:
+`location`, left out of a `newSignIn`, is "Unknown" for `de`:
 the text of a missing location is held in `en` and `fr` only, so pass
 `location` yourself — "Unbekannter Ort" — where it matters.
 `recoveryCodeUsed` is the ninth template, since 0.5.0, `magicLink` the

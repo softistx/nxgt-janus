@@ -1,6 +1,7 @@
 /**
- * What `newSignIn` shows where the sender knew no location — "Unknown
- * location", "Lieu inconnu" — in the recipient's locale.
+ * What `newSignIn` shows where the sender knew no location — "Unknown",
+ * "Inconnu" — in the recipient's locale: the value after the row's label,
+ * so "Location Unknown", "Lieu Inconnu".
  *
  * A map written here, not a message in `mail/locales/*.json`: those
  * catalogues are read by the Maizzle build alone, and hold only the
@@ -15,8 +16,8 @@ import type { JanusMailLocale } from './generated/locales';
 /** The text of a missing location, by built locale. */
 export const NO_LOCATION: Readonly<Record<JanusMailLocale, string>> =
 	Object.freeze({
-		en: 'Unknown location',
-		fr: 'Lieu inconnu',
+		en: 'Unknown',
+		fr: 'Inconnu',
 	});
 
 function isBuilt(locale: string): locale is JanusMailLocale {

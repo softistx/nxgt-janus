@@ -90,7 +90,7 @@ describe('janusMail().newSignIn', () => {
 		const { sent } = mailer;
 		expect(sent).toHaveLength(1);
 		expect(sent[0]?.subject).toBe('New sign-in to your account');
-		expect(sent[0]?.text).toContain('Location Unknown location\n');
+		expect(sent[0]?.text).toContain('Location Unknown\n');
 	});
 
 	describe('without a location, the e-mail says so in the locale sent', () => {
@@ -104,27 +104,27 @@ describe('janusMail().newSignIn', () => {
 			return options.mailer.sent[0];
 		};
 
-		test('en: Unknown location', async () => {
+		test('en: Unknown', async () => {
 			const notice = await sentWithout('en');
-			expect(notice?.text).toContain('Location Unknown location\n');
-			expect(notice?.html).toContain('Unknown location');
+			expect(notice?.text).toContain('Location Unknown\n');
+			expect(notice?.html).toContain('>Unknown\n</td>');
 			expect(notice?.html).not.toContain('—');
 		});
 
-		test('fr: Lieu inconnu', async () => {
+		test('fr: Inconnu', async () => {
 			const notice = await sentWithout('fr-FR');
-			expect(notice?.text).toContain('Lieu Lieu inconnu\n');
-			expect(notice?.html).toContain('Lieu inconnu');
+			expect(notice?.text).toContain('Lieu Inconnu\n');
+			expect(notice?.html).toContain('>Inconnu\n</td>');
 		});
 
 		test("a locale not sent in: the fallback locale's, as the rest of the e-mail", async () => {
 			const english = await sentWithout('de');
 			expect(english?.subject).toBe('New sign-in to your account');
-			expect(english?.text).toContain('Location Unknown location\n');
+			expect(english?.text).toContain('Location Unknown\n');
 
 			const french = await sentWithout('de', 'fr');
 			expect(french?.subject).toBe('Nouvelle connexion à votre compte');
-			expect(french?.text).toContain('Lieu Lieu inconnu\n');
+			expect(french?.text).toContain('Lieu Inconnu\n');
 		});
 	});
 

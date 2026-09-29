@@ -50,9 +50,9 @@ Newest first; from the first release on, the package's CHANGELOG holds every one
   `@nxgt/mail-config` 1.0.2 and `@nxgt/mail-presets` 1.1.1, the text part of
   `newSignIn` gives each row of its summary on one line — `Device Firefox on
   macOS` — with no blank line between rows, where it split each into a label
-  line and a value line. A new sign-in sent without `location` says "Unknown
-  location", "Lieu inconnu" in French, in the recipient's locale, where it
-  showed `—`.
+  line and a value line. A new sign-in sent without `location` says
+  "Unknown" — `Location Unknown`, `Lieu Inconnu` in French — in the
+  recipient's locale, where it showed `—`.
 
 - **The new sign-in notice, v0.9.0.** `newSignIn(to, { device, time,
   location? })`, built from `@nxgt/mail-presets` 1.1.0's `new-sign-in` in

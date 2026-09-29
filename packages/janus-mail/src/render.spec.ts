@@ -113,16 +113,8 @@ const ADDRESS_LINE = /:\n(?=(?:https?:\/\/|mailto:)\S+$)/gm;
  * given: one row per line, "Label value", no blank line between.
  */
 const SUMMARY_ROWS = {
-	en: [
-		'Device Firefox on macOS',
-		'Location Unknown location',
-		'Time 29/09/2026 09:12',
-	],
-	fr: [
-		'Appareil Firefox on macOS',
-		'Lieu Lieu inconnu',
-		'Heure 29/09/2026 09:12',
-	],
+	en: ['Device Firefox on macOS', 'Location Unknown', 'Time 29/09/2026 09:12'],
+	fr: ['Appareil Firefox on macOS', 'Lieu Inconnu', 'Heure 29/09/2026 09:12'],
 } as const;
 
 describe('the default e-mails', () => {

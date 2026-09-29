@@ -5,8 +5,7 @@
  *
  * Apart from the other notices because of its optional `location`: Janus
  * sees no IP, so the sender may know none, and the e-mail then says so in
- * the send's locale — "Unknown location", "Lieu inconnu"
- * (`./no-location`).
+ * the send's locale — "Location Unknown", "Lieu Inconnu" (`./no-location`).
  */
 
 import { noLocationText } from './no-location';

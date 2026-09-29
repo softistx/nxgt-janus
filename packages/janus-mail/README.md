@@ -94,7 +94,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `twoFactorEnabled(to)` | A notice: two-factor authentication was turned on, with `links.secureAccount()` | `to.email` |
 | `twoFactorDisabled(to)` | A notice: two-factor authentication was turned off, with `links.secureAccount()` | `to.email` |
 | `recoveryCodeUsed(to, { when, recoveryCodesLeft })` | A notice: a recovery code was used, `when`, and how many are left — "You have 9 recovery codes left." — with `links.recoveryCodes()`, else `links.secureAccount()` | `to.email` |
-| `newSignIn(to, { device, time, location? })` | A notice: the account was signed in from a new device — which device, `time`, and `location`, "Unknown location" ("Lieu inconnu") when left out — with `links.secureAccount()` | `to.email` |
+| `newSignIn(to, { device, time, location? })` | A notice: the account was signed in from a new device — which device, `time`, and `location`, "Unknown" ("Inconnu") when left out — with `links.secureAccount()` | `to.email` |
 | `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
 
 The five e-mails of a link or a code say how long it lasts — "This link
@@ -328,8 +328,8 @@ const auth = janus({
 Every value is your text, in the recipient's locale: `device` described
 from the request's `User-Agent`, `time` formatted in their time zone.
 **`@nxgt/janus` sees no IP**, so `location` is yours to work out — from a
-geo-IP of your own — and an e-mail without one says "Unknown location",
-"Lieu inconnu" in French, in its place. The
+geo-IP of your own — and an e-mail without one says "Unknown" in its
+place: `Location Unknown`, `Lieu Inconnu` in French. The
 button links to `links.secureAccount()`.
 
 ### Replacing a template
@@ -424,7 +424,7 @@ can carry the token.
 nothing answers `null`, which is a compile error here and, in JavaScript,
 `janusMail.newSignIn: location must be a string`: spread it in only when it
 is a string — `...(city === null ? {} : { location: city })` — and the
-e-mail says "Unknown location" in the recipient's locale.
+e-mail says "Unknown" in the recipient's locale.
 
 **Check `via` before `stepUp`.** `auth.stepUp.request(user)` answers
 `via: 'secondFactor'` — no code, no address — for a user whose second
