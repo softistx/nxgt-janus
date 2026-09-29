@@ -24,8 +24,9 @@ export const UNTRACKED: DeviceOutcome = Object.freeze({
 /**
  * The device a sign-in's options name. A JavaScript caller's options that
  * are not an object (the token itself), a `device` of another type, and a
- * device given to a `janus()` wired without `devices`, are wiring mistakes — bare `TypeError`s. The value itself, whatever it
- * holds, is the client's, and never refused.
+ * device given to a `janus()` wired without `devices`, are wiring
+ * mistakes — bare `TypeError`s. The value itself, whatever it holds, is the
+ * client's, and never refused.
  */
 export function deviceHint(
 	context: Context,

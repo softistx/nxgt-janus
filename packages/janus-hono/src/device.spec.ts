@@ -9,10 +9,10 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { ada, password } from '../test/app';
 import { bindJanus } from './bind';
-import { deviceOf } from './device';
+import { type DeviceCookieOptions, deviceOf } from './device';
 import { sendSession } from './session';
 
-function app(options: { name?: string; maxAge?: number } = {}) {
+function app(options: DeviceCookieOptions = {}) {
 	const received: string[] = [];
 	const auth = janus({
 		user: z.strictObject({ email: z.email(), name: z.string() }),
@@ -112,6 +112,25 @@ describe('deviceOf() and sendSession()', () => {
 		const response = await routes.request('/sign-in', presenting(set));
 
 		expect(await response.json()).toEqual({ newDevice: false });
+	});
+
+	it('take a domain, a path, SameSite and Secure as options', async () => {
+		const { routes } = app({
+			domain: 'example.test',
+			path: '/auth',
+			sameSite: 'Strict',
+			secure: false,
+		});
+
+		const set = deviceCookie(
+			await routes.request('/sign-up', { method: 'POST' }),
+		);
+
+		expect(set).toContain('Domain=example.test');
+		expect(set).toContain('Path=/auth');
+		expect(set).toContain('SameSite=Strict');
+		expect(set).toContain('HttpOnly');
+		expect(set).not.toContain('Secure');
 	});
 
 	it('set no device cookie for a sign-in given no device', async () => {
