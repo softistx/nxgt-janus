@@ -1,5 +1,13 @@
 # @nxgt/janus-mail
 
+## 0.7.1
+
+### Patch Changes
+
+- [#176](https://github.com/softistx/nxgt-janus/pull/176) [`fba19d4`](https://github.com/softistx/nxgt-janus/commit/fba19d47836fb4dfbe11df7e5a184284082ac061) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the `twoFactorDisabled` notice is also sent on the `user.secondFactorDisabled` that `@nxgt/janus` 0.16's `signInCode.confirm` and `magicLink.confirm` send when their first proof of an e-mail removes a second factor; the `passwordChanged` notice's version is corrected to 0.16.
+- Updated dependencies [[`530e301`](https://github.com/softistx/nxgt-janus/commit/530e301eaf523af0b4f1d637e1990564bde70489), [`fba19d4`](https://github.com/softistx/nxgt-janus/commit/fba19d47836fb4dfbe11df7e5a184284082ac061), [`819c954`](https://github.com/softistx/nxgt-janus/commit/819c95494bdefe372284ef25a630c3f601d7765a)]:
+  - @nxgt/janus@0.16.0
+
 ## 0.7.0
 
 ### Minor Changes
