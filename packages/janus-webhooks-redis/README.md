@@ -88,7 +88,8 @@ and how long it stays.
   that is not … a user event type`) in a 0.1.x process that claims it — and
   so is one of `user.recoveryCodesRegenerated` or `user.recoveryCodeUsed`,
   written by 0.3.0, in a 0.2.x process, and one of `user.passwordChanged` or
-  `user.emailChanged`, written by 0.4.0, in a 0.3.x process — and that
+  `user.emailChanged`, written by 0.4.0, in a 0.3.x process, and one of
+  `user.newDeviceSignedIn`, written by 0.5.0, in a 0.4.x process — and that
   endpoint's claims fail
   there until every process is upgraded. Upgrade
   `@nxgt/janus`, `@nxgt/janus-webhooks` and `@nxgt/janus-webhooks-redis`
@@ -115,6 +116,13 @@ and how long it stays.
 
   ```ts
   types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.recoveryCodesRegenerated', 'user.recoveryCodeUsed', 'user.deleted'],
+  ```
+
+  When the oldest run 0.4.x, which read the change events but not the new
+  device's, add those two:
+
+  ```ts
+  types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.passwordChanged', 'user.emailChanged', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.recoveryCodesRegenerated', 'user.recoveryCodeUsed', 'user.deleted'],
   ```
 
 - **Eviction is data loss.** A Redis whose `maxmemory-policy` evicts keys

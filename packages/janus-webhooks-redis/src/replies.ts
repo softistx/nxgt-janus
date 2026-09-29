@@ -103,7 +103,7 @@ function toDelivery(reply: unknown, operation: Method): QueuedDelivery {
 
 /**
  * Every user event type, once: `satisfies` fails to compile the day
- * `@nxgt/janus` adds an eleventh, which a queue must then read back too.
+ * `@nxgt/janus` adds a twelfth, which a queue must then read back too.
  */
 const TYPES = {
 	'user.created': true,
@@ -115,6 +115,7 @@ const TYPES = {
 	'user.secondFactorDisabled': true,
 	'user.recoveryCodesRegenerated': true,
 	'user.recoveryCodeUsed': true,
+	'user.newDeviceSignedIn': true,
 	'user.deleted': true,
 } as const satisfies Record<UserEventType, true>;
 

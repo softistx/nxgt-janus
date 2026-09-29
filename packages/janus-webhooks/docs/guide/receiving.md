@@ -75,7 +75,7 @@ It names the user by id, and nothing else — not even on `user.emailChanged`,
 whose `formerEmail` `@nxgt/janus` hands its own listener only: a webhook never
 carries an address. Read the rest from where it is
 kept — an API of the sender's, `auth.get(event.userId)` when you share its
-store — if you may. [The ten types](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md#the-ten-types)
+store — if you may. [The eleven types](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md#the-eleven-types)
 are a closed union, so a `switch` on `event.type` is exhaustive.
 
 **`null`** when the request is not a user event these secrets signed:
@@ -86,7 +86,7 @@ are a closed union, so a `switch` on `event.type` is exhaustive.
 | `webhook-timestamp` is not whole seconds | a forgery, or a sender that is not a Standard Webhooks one |
 | `webhook-timestamp` is more than `toleranceSeconds` from `now` | a replay, or a clock that drifted — the receiver's or the sender's |
 | no `v1` signature in `webhook-signature` matches one of `secrets` | a forgery; an altered body; the wrong secret; a body that was parsed and serialised again before the check |
-| the body is not JSON, or not a user event | a `type` other than the ten this version knows, a `timestamp` that is not a date, `data.userId` or `data.userType` not a string |
+| the body is not JSON, or not a user event | a `type` other than the eleven this version knows, a `timestamp` that is not a date, `data.userId` or `data.userType` not a string |
 
 The signatures are compared in constant time. `null` says nothing about which
 check failed, on purpose: a caller probing the endpoint learns nothing.

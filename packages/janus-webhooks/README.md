@@ -25,7 +25,7 @@ export const auth = janus({
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.passwordChanged, user.emailChanged, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted
+	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.passwordChanged, user.emailChanged, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.newDeviceSignedIn, user.deleted
 });
 
 process.on('SIGTERM', async () => {
@@ -88,7 +88,7 @@ and what fails it.
 
 `webhooks({ endpoints })` answers the listener `janus({ events })` takes,
 with a `close()` for shutdown. It posts each user event to every endpoint
-whose `types` include it — all ten types when `types` is absent:
+whose `types` include it — all eleven types when `types` is absent:
 
 ```ts
 import { webhooks } from '@nxgt/janus-webhooks';
@@ -259,8 +259,9 @@ answers `null` for a type it does not know, so the delivery fails until it is
 given up — `@nxgt/janus-webhooks` before 0.3.0 knows neither
 `user.secondFactorEnabled` nor `user.secondFactorDisabled`, and before 0.4.0
 neither `user.recoveryCodesRegenerated` nor `user.recoveryCodeUsed`, and
-before 0.6.0 neither `user.passwordChanged` nor `user.emailChanged`. Until
-every receiver is upgraded, give its endpoint the `types` it knows:
+before 0.6.0 neither `user.passwordChanged` nor `user.emailChanged`, and
+before 0.7.0 not `user.newDeviceSignedIn`. Until every receiver is upgraded,
+give its endpoint the `types` it knows:
 
 ```ts
 webhooks({
@@ -282,6 +283,13 @@ the change events', add those two:
 types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.recoveryCodesRegenerated', 'user.recoveryCodeUsed', 'user.deleted'],
 ```
 
+For one on 0.6.x, which knows the change events but not the new device's,
+add those two:
+
+```ts
+types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.passwordChanged', 'user.emailChanged', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.recoveryCodesRegenerated', 'user.recoveryCodeUsed', 'user.deleted'],
+```
+
 **`user.emailChanged` is posted without its `formerEmail`.** `@nxgt/janus`
 hands the listener the address the user had before, so a notice can reach
 that inbox; `webhooks()` drops it before the queue, so no endpoint, queue or
@@ -301,6 +309,11 @@ const auth = janus({
 	},
 });
 ```
+
+**`user.newDeviceSignedIn` is posted without its `sessionId`**, for the same
+reason: a session id stays in the process. Send the new-sign-in notice from
+the `janus({ events })` listener, or from the sign-in's own answer, whose
+`newDevice` says so.
 
 **The warnings name the URL's origin, never the URL.** `JANUS_WEBHOOK_GAVE_UP`
 writes `https://crm.example.com` because a path or query may hold a token of
