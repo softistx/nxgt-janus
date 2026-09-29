@@ -756,6 +756,9 @@ A sign-in from a device the user had not signed in from is told apart, so
 you can tell the user. **Nothing is stored**: the client keeps a device
 token janus signs, and presents it at its next sign-in.
 
+- **`devices: { keys }`** — a `DevicesConfig` — wires it: the first key
+  signs, every key checks, in `secondFactor.keys`'s format.
+
 - **`{ device }` is the last argument** of `signUp`, `signIn`,
   `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and
   `magicLink.confirm` — a `SignInOptions`: the token the client holds, or

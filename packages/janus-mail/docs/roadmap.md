@@ -130,23 +130,3 @@ Newest first; from the first release on, the package's CHANGELOG holds every one
   linking to `links.secureAccount()`: send them on `@nxgt/janus` 0.9's
   `user.secondFactorEnabled` and `user.secondFactorDisabled` events. Seven
   e-mails now, and seven templates to pass for a locale beyond `en` and `fr`.
-- **Dark mode, v0.3.0.** The e-mails follow the reader's dark mode in
-  every client that supports it, Gmail excepted: a dark page, a dark card and
-  light text. Built from `@nxgt/mail-ui` 0.4.0, `@nxgt/mail-presets` 0.4.0
-  and `@nxgt/mail-i18n` 0.5.0; the text parts, subjects and variables are
-  unchanged, the manifest is still format 1, and the `@nxgt/mail` peer stays
-  `>=0.1.0 <1`.
-
-- **The expiry in the e-mail, v0.2.0.** The verification, reset and sign-in
-  code e-mails say how long the link or code lasts — "1 hour", "1 heure" —
-  derived from the flow's `expiresAt` in the recipient's locale, measured
-  against `janusMail({ clock })` (the clock given to `janus()`), or given per
-  send as `{ expiresIn }`. Two breaks: a template called directly takes
-  `expiresIn`, and `signInCode` reads `issued.expiresAt`. Built from
-  `@nxgt/mail-presets` 0.2.0, whose text parts keep each paragraph on one
-  line.
-
-- **The first release, v0.1.0.** The five e-mails of `@nxgt/janus`'s flows,
-  in English and French, over any `@nxgt/mail` transport: `janusMail()` and
-  `janusTemplates()`. Built with Maizzle when the package is built, shipped
-  in `mails/`, and only filled in at send time, every value escaped.

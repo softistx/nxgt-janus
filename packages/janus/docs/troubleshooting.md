@@ -1479,7 +1479,7 @@ a code has nowhere to be sent.
 
 ## Devices
 
-The two messages below are bare `TypeError`s, thrown by a sign-in before
+The three messages below are bare `TypeError`s, thrown by a sign-in before
 anything is written — a `signUp` creates no user. `<call>` is the call you
 wrote: `signIn`, `secondFactor.recover`, `patient.magicLink.confirm`. A
 device token itself is never refused: one that proves nothing is a new

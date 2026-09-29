@@ -135,8 +135,9 @@ No helper is shipped for it: read the cookie from `ctx.request`, and set it
 back on the response.
 
 With Yoga, [`useCookies()`](https://the-guild.dev/graphql/yoga-server/docs/features/cookies)
-from `@whatwg-node/server-plugin-cookies` gives the request a
-`cookieStore` to read and write through:
+from `@whatwg-node/server-plugin-cookies` — a separate install, not a peer
+of this package: `bun add @whatwg-node/server-plugin-cookies` — gives the
+request a `cookieStore` to read and write through:
 
 ```ts
 import { janusMaskError, janusTypeDefs, useJanus } from '@nxgt/janus-graphql';

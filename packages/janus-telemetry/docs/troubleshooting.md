@@ -14,6 +14,7 @@ would be without it.
 - [A `janus.signInCode.request` span with no `janus.signInCode.sent` event](#a-janussignincoderequest-span-with-no-janussignincodesent-event)
 - [`janus.signIn.refused` with `TOKEN_SPENT` and `janus.signIn.magicLink`, for users who clicked once](#janussigninrefused-with-token_spent-and-janussigninmagiclink-for-users-who-clicked-once)
 - [Every wrong password fails its span](#every-wrong-password-fails-its-span)
+- [`janus.signIn.newDevice` never appears](#janussigninnewdevice-never-appears)
 
 ### No `janus.*` span or event at all
 
@@ -132,3 +133,22 @@ failure.
 
 **Fix:** keep one copy: `bun pm ls | grep @nxgt/janus` should print one
 version. Align the versions, or dedupe the lockfile.
+
+### `janus.signIn.newDevice` never appears
+
+**When:** users sign in from new browsers, and no `janus.signIn` log carries
+`janus.signIn.newDevice`.
+
+**Why:** the mark copies the answer's `newDevice`, and janus answers `false`
+whenever the device is not tracked: `janus()` has no `devices`, the sign-in
+was given no `{ device }` — absent is "not tracked", `null` is "a device
+holding no token" — or, with a second factor, `{ device }` was given to
+`signIn` but not again to `secondFactor.confirm` or `recover`, which open
+the session.
+
+**Fix:** wire `devices`, and give every call that opens a session the
+device, `null` when the client holds no token.
+
+```ts
+await auth.secondFactor.confirm(challenge, code, { device: cookie ?? null });
+```

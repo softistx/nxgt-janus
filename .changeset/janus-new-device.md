@@ -5,7 +5,7 @@
 A sign-in from a new device: janus tells it apart, with a device token it signs and the app keeps in a long-lived cookie — nothing is stored, and the store ports are unchanged.
 
 ```ts
-const auth = janus({ /* … */, devices: { keys: [{ id: '2026-09', key: process.env.DEVICES_KEY }] } });
+const auth = janus({ ...config, devices: { keys: [{ id: '2026-09', key: process.env.DEVICES_KEY ?? '' }] } });
 
 const signedIn = await auth.signIn({ email, password }, { device: cookie ?? null });
 if (signedIn.status === 'signedIn') {

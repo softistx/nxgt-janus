@@ -76,7 +76,7 @@ How the messages are shaped:
 - [`TS2741: Property 'getStarted' is missing in type '{ … }' but required in type 'JanusMailLinks'.`](#ts2741-property-getstarted-is-missing-in-type----but-required-in-type-janusmaillinks)
 - [`TS2322: Type 'number | null' is not assignable to type 'string | number'.`](#ts2322-type-number--null-is-not-assignable-to-type-string--number)
 - [`TS2322: Type 'Date' is not assignable to type 'string'.`](#ts2322-type-date-is-not-assignable-to-type-string)
-- [`TS2322: Type 'string | null' is not assignable to type 'string'.`, on `location`](#ts2322-type-string--null-is-not-assignable-to-type-string-on-location)
+- [`TS2322: Type 'string | null' is not assignable to type 'string'.`, on `location`](#ts2322-type-string--null-is-not-assignable-to-type-string-on-location) — or `… to type 'string | undefined'.`
 
 ---
 
@@ -763,6 +763,9 @@ const when = new Intl.DateTimeFormat(user.locale, { dateStyle: 'long', timeStyle
 ```
 
 ### `TS2322: Type 'string | null' is not assignable to type 'string'.`, on `location`
+
+Also, without `exactOptionalPropertyTypes` in your tsconfig:
+`Type 'string | null' is not assignable to type 'string | undefined'.`
 
 On `newSignIn`'s `location`: a geo-IP lookup's answer, `null` when it found
 nothing, passed as it is. `location` is optional: leave it out, and the
