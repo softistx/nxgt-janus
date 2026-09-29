@@ -4,6 +4,7 @@
 /** The e-mails of the build, each with the variables it takes when it is sent. */
 export interface MailEmails {
 	"email-changed": { readonly brand: string | number; readonly link: string; readonly name: string | number; readonly newEmail: string | number };
+	"magic-link": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string };
 	"password-changed": { readonly brand: string | number; readonly link: string; readonly name: string | number };
 	"recovery-code-used": { readonly brand: string | number; readonly link: string; readonly name: string | number; readonly recoveryCodesLeft: string | number; readonly when: string | number };
 	"reset-password": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };

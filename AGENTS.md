@@ -402,7 +402,7 @@ only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
 `build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
 `@nxgt/mail` 0.1.0 reads and that exactly the
-nine e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
+ten e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer. The `maizzle` bin runs on the `node` on the `PATH`, even under
 `bun run`, and Maizzle 6.1.7 needs Node `^22.22.3`, `^24.15.0` or `>=26`

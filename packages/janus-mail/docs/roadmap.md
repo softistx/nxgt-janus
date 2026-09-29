@@ -9,9 +9,9 @@ Nothing between releases.
 
 ## Next
 
-- **The other presets** — `magic-link`, `new-sign-in` and `invitation` from
+- **The other presets** — `new-sign-in` and `invitation` from
   `@nxgt/mail-presets`, each once `@nxgt/janus` has a flow that sends it: a
-  sign-in link, a sign-in from a new device, an invitation to a user type.
+  sign-in from a new device, an invitation to a user type.
 - **The other presets of `@nxgt/mail-presets` 0.4.0** — `account-deleted`,
   after a user is deleted, once `@nxgt/janus` has a deletion a link can
   undo; and `invitation-accepted`, once it has invitations.
@@ -46,6 +46,15 @@ Nothing between releases.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The sign-in link, v0.7.0.** `magicLink(issued, to?, options?)`, built
+  from `@nxgt/mail-presets` 1.0.1's `magic-link` in English and French:
+  send what `@nxgt/janus` 0.15's `auth.magicLink.request(email)` answered,
+  to `issued.email`, its button built by the new, optional
+  `links.magicLink(token)` and its expiry read from `issued.expiresAt` —
+  "This link expires in 15 minutes." Without `links.magicLink`, the send is
+  a `TypeError`. Ten e-mails now, and ten templates to pass for a locale
+  beyond `en` and `fr`.
 
 - **The change notices on their events, v0.6.0.** `passwordChanged` and
   `emailChanged` are sent from `@nxgt/janus` 0.14's `user.passwordChanged`

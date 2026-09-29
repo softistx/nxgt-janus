@@ -11,6 +11,7 @@ export const links: JanusMailLinks = {
 	resetPassword: (token) => `https://acme.example/reset?token=${token}`,
 	secureAccount: () => 'https://acme.example/account/security',
 	getStarted: () => 'https://acme.example/start',
+	magicLink: (token) => `https://acme.example/sign-in/link?token=${token}`,
 };
 
 /** The options every spec starts from, with a fresh memory mailer. */
@@ -48,6 +49,16 @@ export const reset: IssuedToken & { readonly user: { readonly id: string } } = {
 export const signIn: IssuedCode<{ readonly id: string }> = {
 	code: '042817',
 	challenge: 'CHALLENGE-must-never-be-mailed',
+	email: 'ada@example.com',
+	expiresAt,
+	user: { id: 'u1' },
+};
+
+/** What `auth.magicLink.request(email)` answers for a user who exists. */
+export const signInLink: IssuedToken & {
+	readonly user: { readonly id: string };
+} = {
+	token: 'tok-link-789',
 	email: 'ada@example.com',
 	expiresAt,
 	user: { id: 'u1' },

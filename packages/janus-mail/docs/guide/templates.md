@@ -1,7 +1,7 @@
 # Templates
 
 This page is for changing what an e-mail says or looks like: what a template
-is given and answers, replacing some of the nine, using the defaults on their
+is given and answers, replacing some of the ten, using the defaults on their
 own, and what the defaults say.
 
 ```ts
@@ -62,6 +62,7 @@ e-mail.
 | `verifyEmail` | `brand`, `name`, `link`, `expiresIn` | `mail.verifyEmail(issued, to, options?)` |
 | `resetPassword` | `brand`, `name`, `link`, `expiresIn` | `mail.resetPassword(issued, to, options?)` |
 | `signInCode` | `brand`, `code`, `expiresIn` | `mail.signInCode(issued, to?, options?)` |
+| `magicLink` | `brand`, `link`, `expiresIn` | `mail.magicLink(issued, to?, options?)` |
 | `passwordChanged` | `brand`, `name`, `link` | `mail.passwordChanged(to)` |
 | `emailChanged` | `brand`, `name`, `link`, `newEmail` | `mail.emailChanged(to)` |
 | `twoFactorEnabled` | `brand`, `name`, `link` | `mail.twoFactorEnabled(to)` |
@@ -124,11 +125,11 @@ methods live on its prototype and are refused — see
 [troubleshooting](../troubleshooting.md#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-).
 
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
-any of the nine, and the defaults render the rest. Once `locales` holds
-another locale, it takes **all nine** — see
+any of the ten, and the defaults render the rest. Once `locales` holds
+another locale, it takes **all ten** — see
 [Adding a locale](locales.md#adding-a-locale).
 
-`mail.templates` answers the nine in use — yours, and the defaults for the
+`mail.templates` answers the ten in use — yours, and the defaults for the
 rest — frozen:
 
 ```ts
@@ -150,7 +151,7 @@ const { subject, html, text } = await defaults.resetPassword({
 });
 ```
 
-It answers the nine defaults, typed for `'en' | 'fr'`, without a mailer:
+It answers the ten defaults, typed for `'en' | 'fr'`, without a mailer:
 to preview an e-mail, to wrap one — add a line to the default text, say — or
 to send one through something other than `janusMail()`. A default reused for
 a wider set of locales is a compile error: it could not render the one it
@@ -183,6 +184,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 | `verifyEmail` | `verify-email` | Confirm your e-mail address | Confirmez votre adresse e-mail |
 | `resetPassword` | `reset-password` | Reset your password | Réinitialisez votre mot de passe |
 | `signInCode` | `sign-in-code` | Your sign-in code: `042817` | Votre code de connexion : `042817` |
+| `magicLink` | `magic-link` | Your sign-in link | Votre lien de connexion |
 | `passwordChanged` | `password-changed` | Your password was changed | Votre mot de passe a été modifié |
 | `emailChanged` | `email-changed` | Your e-mail address was changed | Votre adresse e-mail a été modifiée |
 | `twoFactorEnabled` | `two-factor-enabled` | Two-factor authentication was turned on | L'authentification à deux facteurs a été activée |
@@ -191,7 +193,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 | `welcome` | `welcome` | Welcome, `Ada` | Bienvenue, `Ada` |
 
 Each has a header and a footer with the brand, a heading, a greeting by name
-(but `signInCode`), a button with its link and the link again in text for a
+(but `signInCode` and `magicLink`), a button with its link and the link again in text for a
 client that shows no button, and a text part. The other four notices add a warning:
 *if this was not you, secure your account now*. `recoveryCodeUsed` says it
 too, after a warning banner — *a recovery code was used on your account at
@@ -200,8 +202,8 @@ too, after a warning banner — *a recovery code was used on your account at
 its heading — "Welcome to Acme" — and the recipient's name in its subject,
 filled at send time like the body; its button says **Get started**.
 
-`verifyEmail`, `resetPassword` and `signInCode` also say how long the link
-or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
+`verifyEmail`, `resetPassword`, `signInCode` and `magicLink` also say how
+long the link or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
 10 minutes." The text part keeps each paragraph on one line.
 
 **The HTML follows dark mode.** Each HTML part declares
