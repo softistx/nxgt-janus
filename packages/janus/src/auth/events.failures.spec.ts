@@ -135,6 +135,8 @@ describe('a listener that fails', () => {
 			expect.stringContaining('user.passwordReset'),
 			expect.stringContaining('user.emailVerified'),
 			expect.stringContaining('user.emailVerified'),
+			// Bob's first proof dropped the password he signed up with.
+			expect.stringContaining('user.passwordChanged'),
 		]);
 	});
 

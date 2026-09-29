@@ -274,10 +274,12 @@ succeeds, and their `version` moves: the code proves the address as a
 verification link would, and a [`user.emailVerified` event](events.md) is
 sent. A user already verified is not written, and nothing is sent.
 
-**The proof can land on an account someone else registered** — with a
-password of theirs, which keeps working, as does the session `signUp`
-opened. Where a password signs in before the e-mail is verified, see
-[the sign-in link guide](magic-link.md#an-account-someone-else-registered):
+**An e-mail proved for the first time drops the password and signs out
+every session** before the new one opens: the proof can land on an account
+someone else registered, with a password of theirs. `user.passwordChanged`
+follows `user.emailVerified` when a password was dropped; an e-mail already
+verified changes nothing. The details, and the second factor that is kept,
+are in [the sign-in link guide](magic-link.md#an-account-someone-else-registered):
 the same holds for a code.
 
 ### A second factor is still asked for

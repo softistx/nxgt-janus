@@ -49,7 +49,7 @@ describe('user events', () => {
 		expect(types(received)).toEqual(['user.created', 'user.emailVerified']);
 	});
 
-	it('reports the e-mail a sign-in code proved', async () => {
+	it('reports the e-mail a sign-in code proved, and the password it dropped', async () => {
 		const { auth, received } = setup();
 		await auth.signUp({ ...ada, password });
 
@@ -61,7 +61,12 @@ describe('user events', () => {
 			);
 		}
 
-		expect(types(received)).toEqual(['user.created', 'user.emailVerified']);
+		// The first proof drops the password; the second changes nothing.
+		expect(types(received)).toEqual([
+			'user.created',
+			'user.emailVerified',
+			'user.passwordChanged',
+		]);
 	});
 
 	it('reports a password reset, and the e-mail its link proved', async () => {

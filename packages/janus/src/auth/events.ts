@@ -10,7 +10,9 @@ import type { Context } from './context';
  *   `signInCode.confirm`, which prove the e-mail too; never for an e-mail
  *   already verified;
  * - `user.passwordReset` — by `resetPassword.confirm`;
- * - `user.passwordChanged` — by `changePassword` and `setPassword`; never by a
+ * - `user.passwordChanged` — by `changePassword` and `setPassword`, and by
+ *   `signInCode.confirm` and `magicLink.confirm` when their first proof of
+ *   the e-mail dropped a password, after `user.emailVerified`; never by a
  *   reset, which is `user.passwordReset` alone;
  * - `user.emailChanged` — by `update`, when it changed the e-mail — compared
  *   normalised, the same test that makes the new one unverified. The one

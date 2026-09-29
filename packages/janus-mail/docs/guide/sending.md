@@ -161,8 +161,10 @@ const auth = janus({
 
 A notice: the password of the account at `to.email` changed, with a link to
 `links.secureAccount()` for a user who did not change it. Send it on the
-`user.passwordChanged` event, which `changePassword` and `setPassword` send.
-A reset sends `user.passwordReset` instead, never both: to tell a reset too,
+`user.passwordChanged` event, which `changePassword` and `setPassword` send —
+and, from `@nxgt/janus` 0.15, `signInCode.confirm` and `magicLink.confirm`
+when their first proof of the e-mail dropped a password someone may have set
+without holding the inbox. A reset sends `user.passwordReset` instead, never both: to tell a reset too,
 send the same notice on that type — `event.type === 'user.passwordChanged'
 || event.type === 'user.passwordReset'`. The event names the user by id
 alone, so read the name, the locale and the address from the user.

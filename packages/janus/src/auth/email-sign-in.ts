@@ -8,13 +8,8 @@
 
 import { UserInactiveError } from '../errors/janus-error';
 import type { ResolvedType } from './config';
-import {
-	type AnyUser,
-	type Context,
-	holderOfEmail,
-	writeUser,
-} from './context';
-import { emit } from './events';
+import { type AnyUser, type Context, holderOfEmail } from './context';
+import { proveFirstEmail } from './first-proof';
 import { refuseStale } from './one-time';
 import type { TokenKind, TokenRecord, UserRecord } from './port/types';
 import { hashSecret } from './secrets';
@@ -64,8 +59,12 @@ export async function keepOnlyLatest(
  * since it was sent and an inactive user, proves the e-mail — it reached the
  * inbox — and finishes as a password would.
  *
- * The proof is written under the version read, so an address changed since
- * is not the one proved: a `VERSION_CONFLICT` then, with the token spent.
+ * **An e-mail proved for the first time drops the password and revokes every
+ * session** before the new one opens (`./first-proof`): whoever signed up
+ * with the address without holding its inbox keeps nothing. An e-mail
+ * already proved changes nothing. The proof is written under the version
+ * read, so an address changed since is not the one proved: a
+ * `VERSION_CONFLICT` then, with the token spent.
  */
 export async function finishEmailSignIn(
 	context: Context,
@@ -88,14 +87,5 @@ export async function finishEmailSignIn(
 	}
 
 	if (user.emailVerifiedAt !== null) return finish(user, where);
-	const proved = await writeUser(
-		context,
-		user.id,
-		type,
-		{ ifVersion: user.version },
-		where,
-		(_, now) => ({ emailVerifiedAt: now }),
-	);
-	await emit(context, 'user.emailVerified', proved, proved.updatedAt);
-	return finish(proved, where);
+	return finish(await proveFirstEmail(context, type, user, where), where);
 }
