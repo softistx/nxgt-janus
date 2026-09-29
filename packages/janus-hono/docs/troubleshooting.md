@@ -43,6 +43,7 @@ for what causes each.
 - [A bearer client holds an expiry earlier than the session's](#a-bearer-client-holds-an-expiry-earlier-than-the-sessions)
 - [Every sign-in reports a new device](#every-sign-in-reports-a-new-device)
 - [No device cookie is set](#no-device-cookie-is-set)
+- [`Cookies Max-Age SHOULD NOT be greater than 400 days (34560000 seconds) in duration.`](#cookies-max-age-should-not-be-greater-than-400-days-34560000-seconds-in-duration)
 - [`TypeError: signIn: a device was given, but janus() has no devices — pass devices: { keys }`](#typeerror-signin-a-device-was-given-but-janus-has-no-devices--pass-devices--keys-)
 
 ## Types
@@ -648,6 +649,21 @@ sendSession(c, auth, signedIn, { device });
 `confirm` called without it, since the challenge carries none. The session
 renewal of `session()` never sets it either.
 **Fix:** give every call that opens a session `{ device: deviceOf(c) }`.
+
+### `Cookies Max-Age SHOULD NOT be greater than 400 days (34560000 seconds) in duration.`
+
+**When:** `sendSession` answers a sign-in that carries a `deviceToken`, with
+`device: { maxAge }` above 34560000 — most often milliseconds given where
+seconds belong. It throws after the sign-in completed: the session exists,
+the response is not sent.
+**Why:** Hono's `setCookie` refuses a `Max-Age` beyond 400 days, the longest
+a browser keeps a cookie.
+**Fix:** give seconds, 400 days at most — or leave `maxAge` out, which is
+400 days.
+
+```ts
+sendSession(c, auth, signedIn, { device: { maxAge: 60 * 60 * 24 * 180 } }); // 180 days
+```
 
 ### `TypeError: signIn: a device was given, but janus() has no devices — pass devices: { keys }`
 

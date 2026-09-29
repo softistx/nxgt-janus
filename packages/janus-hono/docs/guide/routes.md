@@ -614,7 +614,7 @@ new device, never an error. A sign-in given no `device` answers no
 | `path` | `string` | `'/'` | `Path=`: keep it covering every sign-in route |
 | `sameSite` | `'Lax' \| 'Strict' \| 'None'` | `'Lax'` | `SameSite=` — Hono's capitalised values, unlike `janus({ cookie })`'s `'lax'` |
 | `secure` | `boolean` | `true` | `Secure` |
-| `maxAge` | seconds | `34560000`, 400 days | `Max-Age=` — the longest a browser keeps a cookie |
+| `maxAge` | seconds | `34560000`, 400 days | `Max-Age=` — the longest a browser keeps a cookie; above it, Hono's `setCookie` throws |
 
 The cookie is always `HttpOnly`. Give `deviceOf` and `sendSession` the same
 options — one object, passed to both:
