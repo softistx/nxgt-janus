@@ -1,5 +1,22 @@
 # @nxgt/janus-telemetry
 
+## 0.7.0
+
+### Minor Changes
+
+- [#171](https://github.com/softistx/nxgt-janus/pull/171) [`203190f`](https://github.com/softistx/nxgt-janus/commit/203190f032dbd2f451f28a244f85ff57f0502713) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Sign-in links in the audit trail, for `@nxgt/janus` 0.15's `magicLink`:
+  
+  - `janus.magicLink.sent` when `magicLink.request` issued a link — never its token, nor the address; nothing when it answered `null`.
+  - A sign-in by link is `janus.signIn` with `janus.signIn.magicLink: true`, and each refusal of `magicLink.confirm` a `janus.signIn.refused` with the same mark and its `janus.refusal` code. A link that asks for the second factor is `janus.signIn.secondFactor`.
+  - The `magicLink.confirm` span records `janus.signIn.status`, `signedIn` or `secondFactor`, as `signIn`'s and `signInCode.confirm`'s do.
+  
+  Without this release, sign-ins by link are missing from the audit trail.
+
+### Patch Changes
+
+- Updated dependencies [[`c69356d`](https://github.com/softistx/nxgt-janus/commit/c69356da514446558f728ac45981aaecef88be1d), [`3468e6b`](https://github.com/softistx/nxgt-janus/commit/3468e6b1e010e2e50cb0e2e0cf299f469aadf906)]:
+  - @nxgt/janus@0.15.0
+
 ## 0.6.0
 
 ### Minor Changes

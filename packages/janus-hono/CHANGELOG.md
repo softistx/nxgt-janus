@@ -1,5 +1,13 @@
 # @nxgt/janus-hono
 
+## 0.5.1
+
+### Patch Changes
+
+- [#171](https://github.com/softistx/nxgt-janus/pull/171) [`c69356d`](https://github.com/softistx/nxgt-janus/commit/c69356da514446558f728ac45981aaecef88be1d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the routes guide has "A link sent by e-mail" — the request route, a `GET` page that spends nothing and echoes only a token of the token's shape, the `POST` that confirms behind Hono's `csrf()` and redirects with `303`, and the second factor's challenge handed on.
+- Updated dependencies [[`c69356d`](https://github.com/softistx/nxgt-janus/commit/c69356da514446558f728ac45981aaecef88be1d), [`3468e6b`](https://github.com/softistx/nxgt-janus/commit/3468e6b1e010e2e50cb0e2e0cf299f469aadf906)]:
+  - @nxgt/janus@0.15.0
+
 ## 0.5.0
 
 ### Minor Changes

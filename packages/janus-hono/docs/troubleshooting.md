@@ -35,6 +35,7 @@ for what causes each.
 - [`400 {"code":"HASH_UNSUPPORTED"}` on sign-in](#400-codehash_unsupported-on-sign-in)
 - [`401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form](#401-codecode_invalidattemptsleftn-on-the-code-form) — a second factor's, or the code sent by e-mail
 - [`401 {"code":"CREDENTIALS_INVALID","retryAfter":<n>}` with the right password](#401-codecredentials_invalidretryaftern-with-the-right-password)
+- [`403 Forbidden` on `POST /sign-in/link`](#403-forbidden-on-post-sign-inlink) — Hono's `csrf()`, not `janusErrors()`
 - [`409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`](#409-codesecond_factor_active-or-409-codesecond_factor_not_enrolled)
 - [The browser never sends the cookie back](#the-browser-never-sends-the-cookie-back)
 - [A bearer client holds an expiry earlier than the session's](#a-bearer-client-holds-an-expiry-earlier-than-the-sessions)
@@ -156,15 +157,19 @@ const app = new Hono().use(session(auth), provide({ auth, access }));
 
 Also: `Type 'SecondFactorRequired' is missing the following properties …: token, session, user`.
 
-**When:** `sendSession(c, auth, await auth.signIn(...))`, once `janus()` is
-given a `secondFactor`.
+**When:** `sendSession(c, auth, await auth.signIn(...))`,
+`sendSession(c, auth, await auth.magicLink.confirm(token))` or
+`sendSession(c, auth, await auth.signInCode.confirm(challenge, code))`, once
+`janus()` is given a `secondFactor`, for a user type with a password.
 
-**Why:** `signIn` then answers a session, or `{ status: 'secondFactor',
+**Why:** each of the three then answers a session, or `{ status: 'secondFactor',
 challenge, expiresAt, userId }` for a user whose second factor is active — and a
-challenge is no session to send.
+challenge is no session to send. A link or a code sent by e-mail proves the
+e-mail, not the factor. A user type with no password has no second factor, so
+its `confirm` answers a session and compiles as it is.
 
 **Fix:** switch on `status`, and send the session `secondFactor.confirm`
-answers on the next request.
+answers on the next request. For the password form:
 
 ```ts
 app.post('/sign-in', async (c) => {
@@ -180,6 +185,23 @@ app.post('/sign-in/code', async (c) => {
 	const { challenge, code } = await c.req.json();
 	return c.json(sendSession(c, auth, await auth.secondFactor.confirm(challenge, code)));
 });
+```
+
+`magicLink.confirm` and `signInCode.confirm` narrow the same way. They hand
+the challenge on in a cookie, which the guide's `/sign-in/code` reads instead of
+the body. `CHALLENGE`, `scope` and that route are under
+[A second factor](guide/routes.md#a-second-factor). The link route redirects, as below. The code route answers
+`c.json({ next: 'secondFactor' })` instead. See "With a second factor" under
+[a code sent by e-mail](guide/routes.md#with-a-second-factor) and under
+[a link sent by e-mail](guide/routes.md#with-a-second-factor-1).
+
+```ts
+const result = await auth.magicLink.confirm(token);
+if (result.status === 'secondFactor') {
+	setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
+	return c.redirect('/sign-in/second-factor', 303); // a page whose form posts the code to /sign-in/code
+}
+sendSession(c, auth, result);
 ```
 
 ## Runtime
@@ -451,6 +473,51 @@ if (response.status === 401) {
 To change the limit, `janus({ signIn: { throttle: { attempts, window } } })`;
 in a test, advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`.
+
+### `403 Forbidden` on `POST /sign-in/link`
+
+The body is the text `Forbidden`, not a `{ code }`. It is not a `JanusError`:
+`csrf()` threw it, and `janusErrors()` hands it to Hono's default response, or
+to your `fallback`.
+
+**When:** the button of the page the e-mailed link opens, on the route
+guarded by `csrf({ origin: ORIGIN })` — see
+[a link sent by e-mail](guide/routes.md#a-link-sent-by-e-mail).
+
+**Why:** Hono's `csrf()` lets a form post through when the browser sends
+`Sec-Fetch-Site: same-origin`, or else an `Origin` header equal to `origin`,
+character for character. Neither held:
+
+- **The page and the route are on two origins.** The page may be served by a
+  development server on another port, or on `www.` while the route is on the
+  bare host. The browser then sends `same-site` or `cross-site`, and the
+  `Origin` decides.
+- **The browser sends no `Sec-Fetch-Site`.** It sends none to plain `http://`
+  on a host other than `localhost` or a loopback address, and an older browser
+  sends none at all. The `Origin` decides here too.
+- **The `Origin` is `null`.** The page's `Referrer-Policy: no-referrer` makes
+  the browser send `Origin: null` for every form it posts. So whenever the
+  `Origin` decides, the answer is 403, whatever `ORIGIN` holds.
+- **`ORIGIN` is not what the browser shows.** Check for `http` against
+  `https`, a missing or extra port, or a trailing `/`. Leaving `origin` out does
+  not help behind a proxy: `csrf()` then compares with the URL the app sees,
+  which is the proxy's `http://` upstream, not the public one.
+
+**Fix:** serve the page and the route on one origin, over HTTPS or on
+`localhost` in development. Redirect `www.` to the bare host, and post the form
+to a relative `action`. Set `ORIGIN` to the scheme, host and port the address
+bar shows. Where the `Origin` must decide, send the page with `strict-origin`
+instead of `no-referrer`. A `Referer` then holds the origin only, never the
+path and its token, and the form carries its real `Origin`.
+
+```ts
+const ORIGIN = process.env.ORIGIN ?? 'https://app.example'; // what the address bar shows, no trailing slash
+
+// on the GET page: the token's URL still reaches nobody, and Origin is no longer null
+c.header('Referrer-Policy', 'strict-origin');
+
+app.post('/sign-in/link', csrf({ origin: ORIGIN }), handler);
+```
 
 ### `409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`
 
