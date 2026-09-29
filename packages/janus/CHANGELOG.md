@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.16.1
+
+### Patch Changes
+
+- [#179](https://github.com/softistx/nxgt-janus/pull/179) [`dbabb22`](https://github.com/softistx/nxgt-janus/commit/dbabb22fd60ffb4ce5707f6fb00201ef51d6e50e) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the step-up guide shows `@nxgt/janus-mail` 0.8's `mail.stepUp(issued, { name, locale })` sending the code of a step-up answered `via: 'email'`.
+
 ## 0.16.0
 
 ### Minor Changes
