@@ -158,8 +158,9 @@ What it does, precisely:
   refused while the login is throttled**, so somebody who knows only a login
   can keep its password sign-in shut by trying ten passwords every window.
   That is the price of counting per login; limit per client address (below),
-  and a [sign-in code](sign-in-code.md), when you wire them, still opens
-  the account.
+  and a [sign-in code](sign-in-code.md) or [link](magic-link.md), when you
+  wire them, still opens the account: the throttle counts passwords, never
+  e-mailed codes or links.
 - **Per login, known or not.** A login nobody holds is counted as a
   registered one is — `unknownLogin` ten times, then `throttled` — so the
   throttle does not say which logins exist; an unknown login is still
@@ -232,8 +233,8 @@ The throttle counts per login. It does not see:
   the call, with the limiter you already run.
 - `changePassword`, which compares the current password too: limit it per
   user.
-- `resetPassword.request` and `signInCode.request`, which send e-mail: limit
-  them per address.
+- `resetPassword.request`, `signInCode.request` and `magicLink.request`,
+  which send e-mail: limit them per address.
 
 ```ts
 if (!(await limiter.consume(`sign-in:${clientAddress}`))) {

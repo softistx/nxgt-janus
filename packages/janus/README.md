@@ -324,6 +324,8 @@ await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
 await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user, session, token }
+await auth.magicLink.request(email);               // { token, email, expiresAt, user } | null
+await auth.magicLink.confirm(token);               // { status: 'signedIn', user, session, token }
 await auth.stepUp.request(user);                   // { via: 'email', code, challenge, email, expiresAt, user }
 await auth.stepUp.confirm(request, challenge, code); // the request's session, authenticatedAt: now
 
@@ -366,8 +368,8 @@ else reaches the store and is asynchronous.
   compile error on `login`, and the message lists the fields you could have
   meant. It is normalised with `'lowercaseTrim'` unless you say otherwise.
 - **`email`** defaults to the field named `email`. A type without one has no
-  `verifyEmail`, no `resetPassword` and no `signInCode` — they are absent from
-  its type, not failing at run time. Changing the e-mail sets `emailVerified`
+  `verifyEmail`, no `resetPassword`, no `signInCode` and no `magicLink` — they
+  are absent from its type, not failing at run time. Changing the e-mail sets `emailVerified`
   back to `false`.
 - **Per type**: `create`, `find` (or `null`), `get` (or `NOT_FOUND`), `list`,
   `update(user, patch)` — merged over the stored fields, then validated whole —
@@ -502,7 +504,11 @@ await sessions.reauthenticateSession(session.id, new Date()); // { …, authenti
 ```
 
 A token of kind `stepUp` is that confirmation's challenge: kept apart from
-`signInCode`, so neither is ever redeemed as the other.
+`signInCode`, so neither is ever redeemed as the other. A token of kind
+`magicLink`, new in 0.15, is a sign-in link's, kept apart from `signInCode`
+the same way: a sign-in code's challenge is held by whoever asked for it,
+and must never sign anyone in as a link. A store that lists the kinds — a
+`CHECK`, a validator's enum — adds `magicLink`.
 
 An adapter written against `@nxgt/janus` 0.3 does not compile against this
 port until it implements `countAttempt`, nor one written against 0.6 until it
@@ -634,6 +640,43 @@ A six-digit code sent to the user's e-mail signs them in, with no password.
 [The sign-in code guide](docs/guide/sign-in-code.md) has the request that
 tells nobody who exists, the challenge in a cookie, every error, and a test.
 
+### Sign-in links — `magicLink`
+
+```ts
+const issued = await auth.magicLink.request(email); // null for nobody, or an inactive user
+if (issued !== null) {
+	const link = `https://app.example/sign-in/link?token=${issued.token}`; // a page of yours
+	await sendMail(issued.email, `Sign in: ${link}`); // the token in the e-mail, and nowhere else
+}
+// answer the same page either way: nothing reaches the visitor, so there is nothing to forge
+
+// the page's button POSTs the token back — never confirm on the link's GET
+const signedIn = await auth.magicLink.confirm(token); // { status: 'signedIn', user, session, token }
+```
+
+A link sent to the user's e-mail signs them in: a sign-in code with nothing
+to type.
+
+- **On every user type with an e-mail**, with a password or without one, as
+  `signInCode`. A type with no e-mail has no `magicLink` at all.
+- **`request(email)` answers `null`** when nobody of this type holds that
+  e-mail, or the user is inactive — never say which. It answers a `token` of
+  32 random bytes, base64url, for a link; only its hash is stored. One link
+  is live per user: a new `request` spends the ones before. A link and a
+  code are separate: asking for one leaves the other live.
+- **`confirm(token)`** spends the token in one conditional write — of two
+  confirmations at once, one signs in — marks the e-mail verified and opens
+  the session. A link lives `'15m'` (`tokens.magicLink`); there are no
+  attempts, since there is nothing to guess. `TOKEN_STALE`, `USER_INACTIVE`
+  and an active second factor are handled as for a code.
+- **Not ended by a password write, nor limited by the sign-in throttle**:
+  the password proves nothing a link does, and the throttle counts
+  passwords. Rate-limit `request` per address and per client.
+
+[The sign-in link guide](docs/guide/magic-link.md) has the page that
+confirms from a `POST` so mail scanners spend nothing, every error, routes
+and a test.
+
 ### Step-up — `stepUp` and `assertFresh`
 
 ```ts
@@ -699,7 +742,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `type` | Sent by |
 | --- | --- |
 | `user.created` | `create`, `signUp` |
-| `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
+| `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
 | `user.passwordChanged` | `changePassword`, `setPassword` — never a reset, which is `user.passwordReset` alone |
 | `user.emailChanged` | `update`, when it changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
@@ -878,7 +921,7 @@ describeJanusStores({
 });
 ```
 
-There are 54 cases. They cover:
+There are 55 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -891,8 +934,9 @@ There are 54 cases. They cover:
   and never brings back a revoked session, even one revoked at the same
   moment;
 - one-time tokens: a token of every kind the port names is stored, counted
-  and spent — a `CHECK` or an enum that forgot `stepUp` fails here — and a
-  step-up is never counted, spent nor answered as a sign-in code; of twenty
+  and spent — a `CHECK` or an enum that forgot `stepUp` or `magicLink` fails
+  here — and neither a step-up nor a sign-in link is ever counted, spent nor
+  answered as a sign-in code; of twenty
   concurrent redemptions, exactly one succeeds; of twenty concurrent
   `countAttempt` calls, each answers a distinct count, and none is counted
   once a racing redemption spent the token;
@@ -938,9 +982,9 @@ runner-less layer.
 ## Traps
 
 **Once `secondFactor` is configured, switch on `signIn`'s `status`** — and
-on `signInCode.confirm`'s. A user whose factor is active gets
+on `signInCode.confirm`'s and `magicLink.confirm`'s. A user whose factor is active gets
 `{ status: 'secondFactor', challenge, expiresAt, userId }`, with no `token`
-and no `session`: an e-mailed code proves the e-mail, not the factor.
+and no `session`: an e-mailed code or link proves the e-mail, not the factor.
 `userId` is for your logs and rate limits — answer the visitor the
 challenge alone.
 `if (result.status === 'secondFactor') …` before anything reads them.
@@ -972,6 +1016,14 @@ where addresses must stay secret. And rate-limit the request **per
 address**: at most one code is live per user — a new `request` spends the one
 before — so without a limit anyone who knows an address can fill its inbox,
 or cancel its owner's code before they type it.
+
+**Confirm a sign-in link from a `POST`, never from its `GET`.** Mail
+scanners open every link in an e-mail before the user does: a route that
+calls `magicLink.confirm` on the link's `GET` spends it for the scanner, and
+the user's click answers `TOKEN_SPENT`. Link to a page that spends nothing,
+whose button posts the token — and echo into that page only a token of the
+token's shape. Whoever opens the link signs in, on the device that opened it:
+where the sign-in must complete in the browser that asked, send a code.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`
@@ -1065,7 +1117,7 @@ seconds rather than that the password is wrong. `CredentialRefusal` gained
 test that tries more than ten wrong passwords at one login over a
 `fixedClock` is throttled too: advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`. **Somebody who knows a login can keep its
-password sign-in shut**, ten tries a window; a sign-in code, when you wire them, still opens it.
+password sign-in shut**, ten tries a window; a sign-in code or link, when you wire them, still opens it — the throttle counts passwords, never those.
 On PostgreSQL, delete lapsed tokens on a schedule: every login tried adds a
 row per window. One password tried against
 many logins is not counted: rate-limit `signIn` per client address yourself
@@ -1151,7 +1203,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and thirty-seven plausible mistakes, one hundred and thirty-seven refused at compile time — and
+**One hundred and forty-one plausible mistakes, one hundred and forty-one refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1159,9 +1211,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-four, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (fifty, on `janus()`, from the point of view of
+it), `test/types/auth/` (fifty-four, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
-five on user events, four on step-ups, six on the sign-in throttle) and `test/types/permissions/` (forty-eight, on the
+five on user events, four on step-ups, six on the sign-in throttle, four on
+sign-in links) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

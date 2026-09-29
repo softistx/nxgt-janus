@@ -231,13 +231,16 @@ bunx drizzle-kit migrate --config drizzle.janus.config.ts
 The code is `23514`.
 
 **When:** after upgrading to 0.5, on a step-up request — the first write of
-a token of kind `stepUp`. Every other flow still works.
+a token of kind `stepUp`; after upgrading to 0.6, on `magicLink.request` —
+the first write of a token of kind `magicLink`. Every other flow still
+works.
 
 **Why:** the `tokens_kind` check lists the kinds a token may have, and the
-migration that adds `stepUp` to it was not generated, or not applied.
+migration that adds the new kind to it was not generated, or not applied.
 
 **Fix:** generate and apply it. It re-creates the one check, and rewrites no
-row; see [To 0.5](guide/migrations.md#to-05-the-step-up-kind).
+row; see [To 0.5](guide/migrations.md#to-05-the-step-up-kind) and
+[To 0.6](guide/migrations.md#to-06-the-sign-in-link-kind).
 
 ```sh
 bunx drizzle-kit generate --config drizzle.janus.config.ts

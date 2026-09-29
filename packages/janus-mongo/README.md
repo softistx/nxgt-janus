@@ -125,6 +125,10 @@ spend the same one.
   refuses it: until `syncMongoAdapter(db)` has run, every step-up request
   fails with `STORE_FAILED`, caused by `Document failed validation`. No
   document is rewritten.
+- **Upgrading to 0.7: the sync again, for the same reason.** The token kind
+  `magicLink` — `@nxgt/janus` 0.15's sign-in link — is new: until the sync
+  has run, every `magicLink.request` fails with `STORE_FAILED`, caused by
+  `Document failed validation`. No document is rewritten.
 - **The TTL indexes are storage hygiene, not the expiry.** MongoDB's TTL monitor
   runs every sixty seconds, so a lapsed session can stay readable for up to a
   minute. The core compares `expiresAt` on every read, and that is what expires

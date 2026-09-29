@@ -153,9 +153,10 @@ if (issued !== null) {
 
 **No link, and no challenge.** A link carrying the challenge would put it in
 the mailbox beside the code — whoever reads the e-mail would hold both
-halves — and in every server log and proxy the link crosses. A sign-in link
-is not this flow: the code is typed into the page that asked for it, so the
-sign-in completes in the browser that started it.
+halves — and in every server log and proxy the link crosses. A [sign-in link](magic-link.md)
+is another flow, with a token of its own: here the code is typed into the
+page that asked for it, so the sign-in completes in the browser that started
+it.
 
 Send it to `issued.email`, not to what the visitor typed: it is the address
 the user's field holds, as they registered it.
@@ -499,6 +500,7 @@ a `secondFactor`, and `SignedIn<U>` everywhere else. `IssuedCode` and
 ## See also
 
 - [The second factor](second-factor.md) — the challenge `confirm` answers for a user whose factor is active
+- [Sign-in links](magic-link.md) — the same sign-in with a link instead of a code: nothing to type, on whichever device opens it
 - [E-mail verification and password reset](email-flows.md) — the other flows that send an e-mail, and `TOKEN_STALE`
 - [Sessions](sessions.md) — the cookie the session is sent in
 - [Errors](errors.md) — every code and its status

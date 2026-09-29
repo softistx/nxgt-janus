@@ -160,7 +160,7 @@ update. A read followed by a write lets two requests redeem one reset token.
 A token is its hash, never its secret, and what it is for:
 
 ```ts
-type TokenKind = 'verifyEmail' | 'resetPassword' | 'secondFactor' | 'signInCode' | 'stepUp';
+type TokenKind = 'verifyEmail' | 'resetPassword' | 'secondFactor' | 'signInCode' | 'magicLink' | 'stepUp';
 
 interface TokenRecord {
 	readonly tokenHash: string;
@@ -178,9 +178,13 @@ interface TokenRecord {
 A token redeemed for another kind is unknown: every method that takes a
 `kind` matches on it. A `stepUp` token is a signed-in user's confirmation of
 a sensitive action; kept apart from `signInCode`, a sign-in code never
-confirms an action, nor an action's code signs anyone in. A store that lists
-the kinds — a `CHECK`, an enum in a validator — lists `stepUp` too, which
-`tokens.everyKind` proves. A `secondFactor` token is the challenge `signIn`
+confirms an action, nor an action's code signs anyone in. A `magicLink`
+token is a sign-in link's, new in 0.15, kept apart from `signInCode` the same
+way: a sign-in code's challenge is handed to whoever asked for it, and a
+store that redeemed it as a link would sign them in with no code —
+`tokens.magicLinkKind` holds that it does not. A store that lists the
+kinds — a `CHECK`, an enum in a validator — lists `stepUp` and `magicLink`
+too, which `tokens.everyKind` proves. A `secondFactor` token is the challenge `signIn`
 answers — or the count of a user's attempts at `regenerateRecoveryCodes`,
 a token of the same kind whose secret nobody is given, never redeemed and
 only counted — and its `address` is `''`: a column or a validator that refuses an
@@ -282,8 +286,8 @@ driver's error in `StoreFailure` as in [the six rules](#the-six-rules):
 Spends every **unspent** token of one user and one `kind` at `at` — but the
 one whose hash is `except`, when given — and answers how many it spent. The
 core calls it right after issuing a sign-in code, with that code's hash as
-`except`, so only the last code sent works — and so after issuing a step-up
-or a reset link; and after writing a password, for the user's
+`except`, so only the last code sent works — and so after issuing a sign-in
+link, a step-up or a reset link; and after writing a password, for the user's
 `resetPassword` links and `secondFactor` challenges:
 
 | The stored token | Written | Counted |
@@ -403,7 +407,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 54: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fourteen of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 55: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fourteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 16: the relation store, ids of edge characters, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty

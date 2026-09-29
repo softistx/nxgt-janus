@@ -82,7 +82,7 @@ that cuts an emoji in half, say.
 | `password.login` | a field name | — | The field users sign in with: a **top-level, required string** field. A typo is a compile error |
 | `password.normalize` | `'none' \| 'lowercase' \| 'lowercaseTrim' \| 'nfkcLowercaseTrim' \| (value) => string` | `'lowercaseTrim'` | Applied to the login before any store sees it, at sign-up and at sign-in alike |
 | `password.minLength` | integer ≥ 1 | `8` | Below it: `PASSWORD_TOO_SHORT` |
-| `email` | a field name | `'email'` | The field `verifyEmail`, `resetPassword` and `signInCode` send to. Without one, those flows are absent from the type |
+| `email` | a field name | `'email'` | The field `verifyEmail`, `resetPassword`, `signInCode` and `magicLink` send to. Without one, those flows are absent from the type |
 | `session.lifespan` | `Duration` | `'7d'` | How long a session lives |
 | `session.renewAfter` | `Duration \| false` | `'1d'` | When `authenticate` slides the session. `false` for a fixed lifespan |
 | `schemaVersion` | string | `'1'` | Recorded on every user written. Bump it when the schema tightens |
@@ -95,6 +95,7 @@ that cuts an emoji in half, say.
 | `tokens.verifyEmail` | `Duration` | `'24h'` | How long a verification token lives |
 | `tokens.resetPassword` | `Duration` | `'1h'` | How long a reset token lives |
 | `tokens.signInCode` | `Duration` | `'10m'` | How long an e-mailed sign-in code and its challenge live. See [sign-in codes](sign-in-code.md) |
+| `tokens.magicLink` | `Duration` | `'15m'` | How long an e-mailed sign-in link lives. See [sign-in links](magic-link.md) |
 | `tokens.stepUp` | `Duration` | `'10m'` | How long a step-up's challenge — and its e-mailed code — lives. See [step-up](step-up.md) |
 | `signIn.throttle` | `{ attempts?, window? }` or `false` | `{ attempts: 10, window: '15m' }` | Passwords one login may try per window, the right one included, before `signIn` answers `CREDENTIALS_INVALID` with `retryAfter` until the window ends. `false` counts nothing. See [passwords](passwords.md#password-guessing-is-throttled) |
 | `secondFactor` | `{ issuer, keys, challenge? }` | none | A TOTP second factor for every type with a password. Changes what `signIn` answers — see [the second factor](second-factor.md#configuration) |

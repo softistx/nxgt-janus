@@ -40,6 +40,9 @@ Nothing yet.
 
 Each entry names the version it came in; `CHANGELOG.md` holds the rest.
 
+- **The sign-in link kind, v0.7.0** — for `@nxgt/janus` 0.15: the `kind`
+  enum admits `magicLink`, the token of a link that signs a user in, so run
+  the sync before deploying. No document is rewritten.
 - **The step-up kind and `reauthenticateSession`, v0.6.0** — for
   `@nxgt/janus` 0.12: one `findOneAndUpdate` filtered on `revokedAt: null`,
   and the `kind` enum admits `stepUp`, so run the sync before deploying. No
