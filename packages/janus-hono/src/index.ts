@@ -7,8 +7,11 @@
  * - `fresh(maxAge, options?)` — middleware, behind `session(auth)`: the
  *   route runs only for a session that proved who it is less than `maxAge`
  *   ago, `STEP_UP_REQUIRED` otherwise;
- * - `sendSession(c, auth, signedIn)` and `signOut(c, auth)` — the cookie, set
- *   and cleared; `sendSession` answers the user;
+ * - `sendSession(c, auth, signedIn, options?)` and `signOut(c, auth)` — the
+ *   cookie, set and cleared; `sendSession` answers the user, and sets the
+ *   device cookie when the sign-in answered a `deviceToken`;
+ * - `deviceOf(c, options?)` — the device token the request's cookie holds,
+ *   or `null`: what a sign-in takes as `device`;
  * - `permission(access, permission, type, load)` — middleware: the route runs
  *   only if the subject holds the permission on the object `load` answers,
  *   and gets that object as `c.var.object`; `byParam(name, find)` is a `load`
@@ -33,6 +36,7 @@ export {
 	type BoundSession,
 	bindJanus,
 } from './bind';
+export { DEVICE_COOKIE, type DeviceCookieOptions, deviceOf } from './device';
 export {
 	bodyOf,
 	type JanusErrorsOptions,
@@ -48,6 +52,7 @@ export {
 } from './permission';
 export { type Instances, provide } from './provide';
 export {
+	type SendSessionOptions,
 	type SessionEnv,
 	type SessionOptions,
 	sendSession,

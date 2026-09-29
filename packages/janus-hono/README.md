@@ -306,7 +306,7 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 
 ## Type safety, counted
 
-Twenty-six plausible mistakes are refused by the compiler, each with a
+Twenty-eight plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - six in `session.ts`: reading `c.var.user` where it may be `null` (twice,
@@ -323,9 +323,12 @@ Twenty-six plausible mistakes are refused by the compiler, each with a
 - nine in `bind.ts`: the same refusals through `bindJanus()` — a nullable
   user, an unknown user type, a missing `ctx`, a misspelled permission — a
   `permission`, `session`, `sendSession` or `signOut` it was not given the
-  instance for, and an `access` that is no `permissions()` instance.
+  instance for, and an `access` that is no `permissions()` instance;
 - one in `fresh.ts`: a `maxAge` that is no duration — `'10 minutes'` for
-  `'10m'`.
+  `'10m'`;
+- two in `device.ts`: the session cookie's lowercase `sameSite` given to the
+  device cookie, whose `'Lax'` is Hono's, and the device cookie's options
+  given to `sendSession` at the top rather than under `device`.
 
 ## Licence
 
