@@ -41,6 +41,7 @@ export type {
 export type {
 	SecondFactorRequired,
 	SignedIn,
+	SignInOptions,
 	SignInResult,
 } from './sign-in';
 export type { StepUpApi, StepUpByApp, StepUpByEmail } from './step-up';

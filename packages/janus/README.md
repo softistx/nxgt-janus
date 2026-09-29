@@ -732,6 +732,53 @@ session should not do alone.
 [The step-up guide](docs/guide/step-up.md) has the two requests, every
 error, and the codes an app confirms.
 
+### Devices — `devices`
+
+```ts
+import { z } from 'zod';
+import { createMemoryStores, janus, scryptHasher } from '@nxgt/janus';
+
+const auth = janus({
+	user: z.object({ email: z.email() }),
+	password: { login: 'email' },
+	store: createMemoryStores(),
+	hasher: scryptHasher(),
+	devices: { keys: [{ id: '2026-09', key: process.env.DEVICES_KEY ?? '' }] }, // openssl rand -base64 32
+});
+
+// `cookie`: the device cookie the request carries — string | undefined
+const signedIn = await auth.signIn({ email, password }, { device: cookie ?? null });
+// { status: 'signedIn', user, session, token, newDevice, deviceToken }
+// keep signedIn.deviceToken in a long-lived HttpOnly cookie; newDevice: true sent user.newDeviceSignedIn
+```
+
+A sign-in from a device the user had not signed in from is told apart, so
+you can tell the user. **Nothing is stored**: the client keeps a device
+token janus signs, and presents it at its next sign-in.
+
+- **`{ device }` is the last argument** of `signUp`, `signIn`,
+  `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and
+  `magicLink.confirm` — a `SignInOptions`: the token the client holds, or
+  `null` when it holds none. **Absent, the call is not tracked**:
+  `newDevice: false`, `deviceToken: null`, no event.
+- **Every answer that opens a session carries `newDevice` and
+  `deviceToken`.** `signUp` mints the first token and is never new. A
+  malformed, forged or another user's token is a new device, never an error.
+- **`user.newDeviceSignedIn`** is sent for a new device, once the sign-in is
+  complete, with the new session's `sessionId`.
+- **`devices: { keys }`** — a `DevicesConfig` — wires it; the keys take
+  `secondFactor.keys`' format. The first signs,
+  every one checks: a token signed by an older key is known, and handed back
+  signed with the first. **Removing a key is the only way to forget devices,
+  and it forgets every device that key signed.**
+
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s
+`newSignIn` sends the notice, and
+[`@nxgt/janus-hono`](https://www.npmjs.com/package/@nxgt/janus-hono)'s
+`deviceOf` and `sendSession` keep the cookie.
+[The devices guide](docs/guide/devices.md) has the cookie, the second
+factor, the e-mail, key rotation, every error and a test.
+
 ### User events — `events`
 
 ```ts
@@ -765,28 +812,31 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor; `signInCode.confirm` and `magicLink.confirm` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — never for a user who had none, or one still waiting |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes` — not `activate`, whose codes come with `user.secondFactorEnabled` |
 | `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent: a sign-in without the user's phone |
+| `user.newDeviceSignedIn` | `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and `magicLink.confirm`, given a `device` its token did not prove, once the sign-in is complete — carrying `sessionId`, the new session's. Never `signUp`, nor a call given no device |
 | `user.deleted` | `delete`, once — a replay that deletes nobody sends nothing |
 
 - **The user is named by id, and nothing else**: no login, no field, no
   password, no token. Whoever receives the event reads the rest from where it
-  is kept, if they may. One exception: `user.emailChanged` carries
+  is kept, if they may. Two exceptions: `user.emailChanged` carries
   `formerEmail`, which nothing keeps once the write landed, so a notice can
-  reach the inbox the account just left. `@nxgt/janus-webhooks` never posts
-  it.
+  reach the inbox the account just left; and `user.newDeviceSignedIn`
+  carries `sessionId`, the session the new device holds.
+  `@nxgt/janus-webhooks` posts neither.
 - **Each event has an `id` of its own**, a UUIDv7: the key to deliver it once.
 - **The listener runs after the write, and is awaited** before the
   flow answers, so a durable queue has the event by then. `occurredAt` is the
   write's own time. A refused flow sends nothing.
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
-  union of the ten types, so a `switch` on `event.type` is exhaustive — and
-  a new type, like the two recovery-code ones in 0.10 or the two change ones
-  in 0.14, breaks it until handled.
+  union of the eleven types, so a `switch` on `event.type` is exhaustive —
+  and a new type, like the two recovery-code ones in 0.10, the two change
+  ones in 0.14 or `user.newDeviceSignedIn` in 0.17, breaks it until handled.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.
 
 To tell the user their password or e-mail changed, their second factor was
-turned on or off, or that a recovery code was used, send
+turned on or off, that a recovery code was used, or that a new device signed
+in, send
 [`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s notice
 from the listener — or from a queue it feeds:
 
@@ -816,7 +866,7 @@ async events(event) {
 
 To post them as signed webhooks:
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks).
-[The user events guide](docs/guide/events.md) has the listener, the ten
+[The user events guide](docs/guide/events.md) has the listener, the eleven
 types, mail for a recovery code used or a password or e-mail changed, what a failure costs, and a test.
 
 ### Permissions — `@nxgt/janus/permissions`
@@ -1102,6 +1152,43 @@ in again". Two *different* codes typed on one challenge at once are another
 matter: the later one can still be removed from the user before it finds the
 challenge spent, so two codes go for the one session the challenge opens.
 
+**A sign-in given no `device` tracks nothing.** Absent, `newDevice` is
+`false`, `deviceToken` is `null` and no event is sent — not "a new device".
+Pass `{ device: null }` for a client that holds no token yet, or it is never
+given one.
+
+**`undefined` is not `null`.** A cookie read as `string | undefined` and
+passed as `device` is untracked whenever the cookie is missing — a compile
+error under `exactOptionalPropertyTypes`, silent without it. Write
+`{ device: cookie ?? null }`.
+
+**Give the device again to `secondFactor.confirm` and `recover`.** The
+challenge `signIn`, `signInCode.confirm` or `magicLink.confirm` answers
+carries no device, so a confirmation called without `{ device }` is
+untracked, whatever the sign-in was given:
+`auth.secondFactor.confirm(challenge, code, { device: cookie ?? null })`.
+
+**Every `janus()` that signs users in needs the same `devices`.** An instance
+without `devices` throws a `TypeError` for any `device`, and one whose keys
+differ reports every other instance's devices as new.
+
+**One device cookie holds one user's token.** Two people sharing a browser
+who take turns signing in each present the other's token, which proves
+nothing for them: each gets a new token, and a notice, at every turn.
+
+**Removing a device key forgets every device it signed.** Each is reported
+new once, at its next sign-in. It is the only way to forget devices — there
+is no per-device forget — so rotate by putting a new key first and keeping
+the old one.
+
+**A device token is not a credential.** It proves only that this user signed
+in on this device before. Never authenticate a request with it, and never
+let it skip a password or a second factor.
+
+**A `SignedIn` built by hand needs `newDevice` and `deviceToken`** (since
+0.17): a test double that answers `{ status, user, session, token }` no
+longer compiles — add `newDevice: false, deviceToken: null`.
+
 **On a user type, only `setOf` makes a set.** A user passed as it is — or
 `{ type: 'staff', id, relation: 'managers' }` written out — is that one user,
 even with a field named `relation`. The compiler refuses the written-out set
@@ -1234,12 +1321,13 @@ that sends one, since it is awaited: queue the event and return.
 ## Documentation
 
 - [Guides](docs/README.md) — one page per area, every option with an example
+- [Devices](docs/guide/devices.md) — a sign-in from a new device: the token, the cookie, the notice
 - [Troubleshooting](docs/troubleshooting.md) — by the error message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
-**One hundred and forty-one plausible mistakes, one hundred and forty-one refused at compile time — and
+**One hundred and forty-seven plausible mistakes, one hundred and forty-seven refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1247,10 +1335,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-four, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (fifty-four, on `janus()`, from the point of view of
+it), `test/types/auth/` (sixty, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, four on
-sign-in links) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

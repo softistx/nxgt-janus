@@ -15,6 +15,7 @@ import {
 import { provide } from './provide';
 import {
 	type Auth,
+	type SendSessionOptions,
 	type SessionEnv,
 	type SessionOptions,
 	sendSession,
@@ -54,14 +55,16 @@ export type BoundPermission<C extends ModelConfig> = <
 /** The functions of this package that take `auth`, with `auth` bound. */
 export interface BoundAuth<A> {
 	readonly session: BoundSession<A>;
-	/** `sendSession(c, auth, signedIn)`: sets the cookie, answers the user. */
+	/** `sendSession(c, auth, signedIn, options?)`: sets the cookies, answers the user. */
 	readonly sendSession: <U>(
 		c: Context,
 		signedIn: {
 			readonly token: string;
 			readonly session: Session;
 			readonly user: U;
+			readonly deviceToken?: string | null;
 		},
+		options?: SendSessionOptions,
 	) => U;
 	/** `signOut(c, auth)`. */
 	readonly signOut: (c: Context) => Promise<boolean>;
@@ -117,7 +120,8 @@ export function bindJanus<const I extends Bindable>(instances: I): Bound<I> {
 		bound.sendSession = (
 			c: Context,
 			signedIn: Parameters<typeof sendSession>[2],
-		) => sendSession(c, auth, signedIn);
+			options?: SendSessionOptions,
+		) => sendSession(c, auth, signedIn, options);
 		bound.signOut = (c: Context) => signOut(c, auth);
 	}
 	if (access !== undefined) {

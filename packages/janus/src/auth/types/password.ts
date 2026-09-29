@@ -5,7 +5,7 @@
  * Part of what `janus()` hands back; `./index` gathers it.
  */
 
-import type { SignedIn, SignInResult } from './sign-in';
+import type { SignedIn, SignInOptions, SignInResult } from './sign-in';
 import type { UserRef, WriteOptions } from './user';
 
 /**
@@ -25,8 +25,14 @@ export interface PasswordApi<
 	 *
 	 * Rejects with `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN`, or
 	 * `STORE_FAILED`.
+	 *
+	 * Given a `device`, mints the user's first device token: the device they
+	 * signed up on is known from the start, and never reported as new.
 	 */
-	signUp(input: In & { readonly password: string }): Promise<SignedIn<U>>;
+	signUp(
+		input: In & { readonly password: string },
+		options?: SignInOptions,
+	): Promise<SignedIn<U>>;
 
 	/**
 	 * Checks the password and opens a session.
@@ -50,9 +56,14 @@ export interface PasswordApi<
 	 * With a `secondFactor` configured, a user whose factor is active gets no
 	 * session yet: `{ status: 'secondFactor', challenge }`, for
 	 * `secondFactor.confirm`. Switch on `status`.
+	 *
+	 * Given a `device`, answers `newDevice` and `deviceToken`, and sends
+	 * `user.newDeviceSignedIn` for a device new to the user. A challenge
+	 * carries no device: give it again to `secondFactor.confirm`.
 	 */
 	signIn(
 		input: { readonly [K in Login]: string } & { readonly password: string },
+		options?: SignInOptions,
 	): Promise<Answer>;
 
 	/** The user holding this login, normalised as sign-up normalised it, or `null`. */

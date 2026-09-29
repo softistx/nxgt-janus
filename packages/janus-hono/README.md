@@ -47,7 +47,11 @@ declarations import without extensions, so `nodenext` is not supported.
 | Export | What it is |
 | --- | --- |
 | `session(auth, options?)` | Middleware. Reads who the request belongs to — `auth.authenticate(c.req.raw)` — and sets `c.var.user` and `c.var.session`, `null` for an anonymous request. `{ required: true }` answers an anonymous request 401 and types `c.var.user` as never `null`. `{ type: 'staff' }` treats a user of any other type as anonymous. Sends a renewed session's cookie again |
-| `sendSession(c, auth, signedIn)` | Appends the session cookie to the response — after `signUp`, `signIn`, `secondFactor.confirm`, `secondFactor.recover`, or anything that answered `{ token, session, user }` — and answers the user. With a second factor configured, narrow `signIn`'s answer on `status` first |
+| `sendSession(c, auth, signedIn, options?)` | Appends the session cookie to the response — after `signUp`, `signIn`, `secondFactor.confirm`, `secondFactor.recover`, or anything that answered `{ token, session, user }` — and answers the user. When the answer carries a `deviceToken` — the sign-in was given a `device` — it appends the device cookie too, or sets it again for another `maxAge`; `options.device` is its `DeviceCookieOptions`. With a second factor configured, narrow `signIn`'s answer on `status` first |
+| `deviceOf(c, options?)` | The device token the request's device cookie holds, or `null` when there is none or it is empty: what a sign-in takes as `device` — `auth.signIn(input, { device: deviceOf(c) })`. `options` are the `DeviceCookieOptions` given to `sendSession` |
+| `DeviceCookieOptions` | The device cookie: `{ name?, domain?, path?, sameSite?, secure?, maxAge? }` — `'janus-device'`, none, `'/'`, `'Lax'`, `true` and 400 days (`34560000` seconds) by default. Always `HttpOnly`. `sameSite` is Hono's capitalised `'Lax' \| 'Strict' \| 'None'` |
+| `DEVICE_COOKIE` | `'janus-device'`, the device cookie's default name |
+| `SendSessionOptions` | `{ device? }`, the options of `sendSession` — for a wrapper of your own |
 | `fresh(maxAge, { clock? })` | Middleware, after `session()`. The route runs only for a session that proved who it is less than `maxAge` ago — signed in, or confirmed since by `auth.stepUp.confirm`. An older one throws `STEP_UP_REQUIRED`, which `janusErrors()` answers 403; an anonymous request is 401 with no body. `clock` is the one given to `janus()`, in a spec |
 | `signOut(c, auth)` | Revokes the session the request presents and clears the cookie, whatever the answer. `false` when the request presented no session, or an unknown one |
 | `janusErrors({ report?, fallback? })` | An `app.onError` handler: every `JanusError` answered with `statusOf(code)` and `bodyOf(error)` — and a `Retry-After` header when it carries `retryAfter`, a throttled sign-in; anything else to `fallback`, or to Hono's own handling. `report(error, c)` sees every one answered 5xx first — `STORE_FAILED` and the like, for your logs — and cannot change the answer: one that throws or rejects is a warning, and the 503 is sent |
@@ -58,7 +62,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | `UserOfAuth<typeof auth>` | The users an instance knows, as a union narrowed by `user.type` |
 | `permission(access, permission, type, load, options?)` | Middleware. Loads the object with `load(c)`, checks `access.can(c.var.user, permission, object)` with `type` added, and sets `c.var.object` to what `load` answered. Anonymous: 401, before loading. `load` answers `null`: 404. A denial: 403. `{ ctx: (c, object) => … }` is required exactly when the permission reaches a condition; `{ subject: (c) => … }` replaces `c.var.user`. One per route |
 | `byParam(name, find)` | A `load` for `permission()`: `find(c.req.param(name))`, or `null` — a 404 — when the route has no such parameter |
-| `bindJanus({ auth?, access? })` | The functions above with the instances bound: `session(options?)`, `sendSession(c, signedIn)` and `signOut(c)` with `auth`; `permission(permission, type, load, options?)` with `access`; `provide()` always |
+| `bindJanus({ auth?, access? })` | The functions above with the instances bound: `session(options?)`, `sendSession(c, signedIn, options?)` and `signOut(c)` with `auth`; `permission(permission, type, load, options?)` with `access`; `provide()` always |
 | `provide({ auth?, access? })` | Middleware. Sets `c.var.auth` and `c.var.access` to the instances given — only those — for a route that writes users or tuples |
 | `ObjectData<C, Type>`, `PermissionOptions`, `Instances` | The types of `load`'s answer, of `permission()`'s options and of `provide()`'s argument |
 | `FreshOptions` | `{ clock? }`, the options of `fresh()` |
@@ -122,6 +126,33 @@ app.onError(janusErrors()); // a wrong code: 401 { code: 'CODE_INVALID', attempt
 `TOKEN_*` 400 — sign in again — and `SECOND_FACTOR_NOT_ENROLLED` and
 `SECOND_FACTOR_ACTIVE` 409. The enrolment routes and a bearer client's
 sign-in are in [the routes guide](docs/guide/routes.md#a-second-factor).
+
+## Devices
+
+With `janus({ devices })`, a sign-in given the device token the browser
+holds tells a new device from a known one. `deviceOf(c)` reads the device
+cookie, and `sendSession` sets it from the answer's `deviceToken`:
+
+```ts
+import { deviceOf, sendSession } from '@nxgt/janus-hono';
+import { Hono } from 'hono';
+import { auth } from './auth'; // janus({ …, devices: { keys } })
+
+const app = new Hono().post('/sign-in', async (c) => {
+	const { email, password } = await c.req.json();
+	const signedIn = await auth.signIn({ email, password }, { device: deviceOf(c) });
+	const user = sendSession(c, auth, signedIn); // the session cookie, and janus-device for 400 days
+	if (signedIn.newDevice) await tellTheUser(user, c.req.header('user-agent')); // yours — @nxgt/janus-mail's newSignIn
+	return c.json({ id: user.id });
+});
+```
+
+The device cookie is `janus-device`, `HttpOnly`, `Secure`, `SameSite=Lax`,
+`Path=/`, for 400 days; `{ device: { name, domain, path, sameSite, secure,
+maxAge } }` changes it — give `deviceOf` the same options. With a second
+factor, give `deviceOf(c)` again to `secondFactor.confirm` and `recover`:
+the challenge carries no device. [The routes guide](docs/guide/routes.md#the-device-cookie)
+has the second factor's routes and a bearer client.
 
 ## Step-up
 
@@ -295,18 +326,31 @@ passes `{ subject: (c) => … }` to `permission()`; one without permissions uses
 - **`permission()` needs `session()` before it**, or `{ subject }`. Without
   either, it throws a `TypeError` at the first request — a wiring error, not
   an anonymous 401.
+- **Give `deviceOf` and `sendSession` the same options.** A cookie written
+  under one name or path and read under another is never found: every
+  sign-in is then a new device. Keep one `DeviceCookieOptions` and pass it
+  to both.
+- **The device cookie's `sameSite` is Hono's, capitalised.** `'Lax'`, not
+  the `'lax'` of `janus({ cookie })` — a compile error, where a cast would
+  hand Hono a value it does not know.
+- **`signOut` leaves the device cookie.** The device stays known after a
+  sign-out, which is the point: a user who signs out and back in is not
+  told of a new device.
+- **With a second factor, give the device again.** `auth.secondFactor.confirm(challenge,
+  code, { device: deviceOf(c) })`: the challenge carries none, and a
+  confirmation given no device sets no device cookie and reports nothing.
 - **A denial is 403, so it tells that the object exists.** Where that is a
   leak, load only what the user may see and let `load` answer `null` — a 404.
 
 ## Documentation
 
-- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in, of a second factor and of a code or a link sent by e-mail, guarded routes
+- [Guides](docs/README.md) — wiring the middleware, the routes of a sign-in, of a second factor, of a code or a link sent by e-mail and of the device cookie, guarded routes
 - [Troubleshooting](docs/troubleshooting.md) — by the symptom or message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
-Twenty-six plausible mistakes are refused by the compiler, each with a
+Twenty-eight plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - six in `session.ts`: reading `c.var.user` where it may be `null` (twice,
@@ -323,9 +367,12 @@ Twenty-six plausible mistakes are refused by the compiler, each with a
 - nine in `bind.ts`: the same refusals through `bindJanus()` — a nullable
   user, an unknown user type, a missing `ctx`, a misspelled permission — a
   `permission`, `session`, `sendSession` or `signOut` it was not given the
-  instance for, and an `access` that is no `permissions()` instance.
+  instance for, and an `access` that is no `permissions()` instance;
 - one in `fresh.ts`: a `maxAge` that is no duration — `'10 minutes'` for
-  `'10m'`.
+  `'10m'`;
+- two in `device.ts`: the session cookie's lowercase `sameSite` given to the
+  device cookie, whose `'Lax'` is Hono's, and the device cookie's options
+  given to `sendSession` at the top rather than under `device`.
 
 ## Licence
 

@@ -69,10 +69,17 @@ interface SharedConfig {
 	 */
 	readonly secondFactor?: SecondFactorConfig;
 	/**
+	 * Device tokens, for a notice when a user signs in from a device they had
+	 * not signed in from. Absent, no sign-in may be given a `device`, and every
+	 * answer's `newDevice` is `false`.
+	 */
+	readonly devices?: DevicesConfig;
+	/**
 	 * Called with every user event — `user.created`, `user.emailVerified`,
-	 * `user.passwordReset`, `user.secondFactorEnabled`,
-	 * `user.secondFactorDisabled`, `user.recoveryCodesRegenerated`,
-	 * `user.recoveryCodeUsed`, `user.deleted` — once the write landed,
+	 * `user.passwordReset`, `user.passwordChanged`, `user.emailChanged`,
+	 * `user.secondFactorEnabled`, `user.secondFactorDisabled`,
+	 * `user.recoveryCodesRegenerated`, `user.recoveryCodeUsed`,
+	 * `user.newDeviceSignedIn`, `user.deleted` — once the write landed,
 	 * and awaited before the flow answers. Any function will do;
 	 * `webhooks({ … })` from `@nxgt/janus-webhooks` signs and delivers them.
 	 */
@@ -109,6 +116,21 @@ export interface SecondFactorConfig {
 	readonly keys: readonly [SealingKey, ...SealingKey[]];
 	/** How long `signIn`'s challenge waits for a code. `'5m'` when absent. */
 	readonly challenge?: Duration;
+}
+
+/**
+ * The keys device tokens are signed with. **Nothing is stored**: a device
+ * token is the device's id and a keyed hash binding it to the user, kept by
+ * the application in a long-lived cookie.
+ */
+export interface DevicesConfig {
+	/**
+	 * **The first signs, every one checks**: a token signed with an older key
+	 * is known, and answered signed again with the first. A token whose key
+	 * is gone is a new device — so **removing a key is the only way to forget
+	 * devices**, and it forgets every device it signed.
+	 */
+	readonly keys: readonly [SealingKey, ...SealingKey[]];
 }
 
 /** An application with one user type: `user` is its schema. */

@@ -9,9 +9,8 @@ Nothing between releases.
 
 ## Next
 
-- **The other presets** — `new-sign-in` and `invitation` from
-  `@nxgt/mail-presets`, each once `@nxgt/janus` has a flow that sends it: a
-  sign-in from a new device, an invitation to a user type.
+- **The invitation** — `invitation` from `@nxgt/mail-presets`, once
+  `@nxgt/janus` has a flow that sends it: an invitation to a user type.
 - **The other presets of `@nxgt/mail-presets` 0.4.0** — `account-deleted`,
   after a user is deleted, once `@nxgt/janus` has a deletion a link can
   undo; and `invitation-accepted`, once it has invitations.
@@ -46,6 +45,16 @@ Nothing between releases.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The new sign-in notice, v0.9.0.** `newSignIn(to, { device, time,
+  location? })`, built from `@nxgt/mail-presets` 1.1.0's `new-sign-in` in
+  English and French — "New sign-in to your account", which device, where
+  and when, and a **Secure my account** button to `links.secureAccount()`:
+  send it when an `@nxgt/janus` 0.17 sign-in answers `newDevice: true`, or
+  on `user.newDeviceSignedIn`. Every value is your text in the recipient's
+  locale; `@nxgt/janus` sees no IP, so `location` is yours, and `—` without
+  one. Twelve e-mails now, and twelve templates to pass for a locale beyond
+  `en` and `fr`.
 
 - **The step-up's code, v0.8.0.** `stepUp(issued, to, options?)`, built
   from `@nxgt/mail-presets` 1.1.0's `confirm-action` in English and French:
@@ -121,23 +130,3 @@ Newest first; from the first release on, the package's CHANGELOG holds every one
   linking to `links.secureAccount()`: send them on `@nxgt/janus` 0.9's
   `user.secondFactorEnabled` and `user.secondFactorDisabled` events. Seven
   e-mails now, and seven templates to pass for a locale beyond `en` and `fr`.
-- **Dark mode, v0.3.0.** The e-mails follow the reader's dark mode in
-  every client that supports it, Gmail excepted: a dark page, a dark card and
-  light text. Built from `@nxgt/mail-ui` 0.4.0, `@nxgt/mail-presets` 0.4.0
-  and `@nxgt/mail-i18n` 0.5.0; the text parts, subjects and variables are
-  unchanged, the manifest is still format 1, and the `@nxgt/mail` peer stays
-  `>=0.1.0 <1`.
-
-- **The expiry in the e-mail, v0.2.0.** The verification, reset and sign-in
-  code e-mails say how long the link or code lasts — "1 hour", "1 heure" —
-  derived from the flow's `expiresAt` in the recipient's locale, measured
-  against `janusMail({ clock })` (the clock given to `janus()`), or given per
-  send as `{ expiresIn }`. Two breaks: a template called directly takes
-  `expiresIn`, and `signInCode` reads `issued.expiresAt`. Built from
-  `@nxgt/mail-presets` 0.2.0, whose text parts keep each paragraph on one
-  line.
-
-- **The first release, v0.1.0.** The five e-mails of `@nxgt/janus`'s flows,
-  in English and French, over any `@nxgt/mail` transport: `janusMail()` and
-  `janusTemplates()`. Built with Maizzle when the package is built, shipped
-  in `mails/`, and only filled in at send time, every value escaped.

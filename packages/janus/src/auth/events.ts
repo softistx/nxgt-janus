@@ -29,6 +29,11 @@ import type { Context } from './context';
  *   come with `user.secondFactorEnabled`;
  * - `user.recoveryCodeUsed` — by `secondFactor.recover`, once the code is
  *   spent: a sign-in without the user's phone;
+ * - `user.newDeviceSignedIn` — by a sign-in that opened a session from a
+ *   device the user had not signed in from: `signIn`, `secondFactor.confirm`,
+ *   `secondFactor.recover`, `signInCode.confirm` and `magicLink.confirm`, when
+ *   given a `device` its token did not prove. Never by `signUp`, nor without
+ *   a `device`. Carries `sessionId`;
  * - `user.deleted` — by `delete`, once; a replay that finds nobody is none.
  */
 export type UserEventType =
@@ -41,13 +46,16 @@ export type UserEventType =
 	| 'user.secondFactorDisabled'
 	| 'user.recoveryCodesRegenerated'
 	| 'user.recoveryCodeUsed'
+	| 'user.newDeviceSignedIn'
 	| 'user.deleted';
 
 /**
  * A user event: **the user named by id, and nothing else** — no login, no
  * field, no password, no token. Whoever receives it reads the rest from where
- * it is kept, if they may. One exception, `formerEmail` on
- * `user.emailChanged`: once the write landed, the old address is kept nowhere.
+ * it is kept, if they may. Two exceptions: `formerEmail` on
+ * `user.emailChanged` — once the write landed, the old address is kept
+ * nowhere — and `sessionId` on `user.newDeviceSignedIn`, the session the new
+ * device holds.
  */
 export interface UserEvent {
 	/** A UUIDv7 minted for this event: the key to deliver it once. */
@@ -67,10 +75,16 @@ export interface UserEvent {
 	 * from every other type, and from an event a webhook delivered.
 	 */
 	readonly formerEmail?: string | null;
+	/**
+	 * On `user.newDeviceSignedIn` only: the session the new device opened —
+	 * to sign it out from a "this wasn't me" page. Absent from every other
+	 * type, and from an event a webhook delivered.
+	 */
+	readonly sessionId?: string;
 }
 
-/** What an event carries beyond the user, on the one type that does. */
-export type EventExtras = Pick<UserEvent, 'formerEmail'>;
+/** What an event carries beyond the user, on the two types that do. */
+export type EventExtras = Pick<UserEvent, 'formerEmail' | 'sessionId'>;
 
 /**
  * What `janus({ events })` takes: called once per event, **after** the write

@@ -4,6 +4,7 @@
  */
 
 import type { AnyUser } from '../context';
+import type { DeviceHint } from '../devices';
 import type { UserRecord } from '../port/types';
 import type { SignInResult } from '../types';
 
@@ -14,4 +15,5 @@ export type Input = Record<string, unknown>;
 export type Finish = (
 	record: UserRecord,
 	where: string,
+	device: DeviceHint,
 ) => Promise<SignInResult<AnyUser>>;

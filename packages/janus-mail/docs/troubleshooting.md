@@ -34,7 +34,7 @@ How the messages are shaped:
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
 - [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
-- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-magiclink-stepup-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-welcome)
+- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-magiclink-stepup-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-newsignin-welcome)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
@@ -70,11 +70,13 @@ How the messages are shaped:
 - [`TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-recoverycodeused-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2741: Property 'magicLink' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-magiclink-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2741: Property 'stepUp' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-stepup-is-missing-in-type----but-required-in-type-janusmailtemplates)
+- [`TS2741: Property 'newSignIn' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-newsignin-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2345: Argument of type 'StepUpByEmail<…> | StepUpByApp<…>' is not assignable to parameter of type 'Pick<StepUpByEmail<unknown>, …>'.`](#ts2345-argument-of-type-stepupbyemail--stepupbyapp-is-not-assignable-to-parameter-of-type-pickstepupbyemailunknown-)
 - [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
 - [`TS2741: Property 'getStarted' is missing in type '{ … }' but required in type 'JanusMailLinks'.`](#ts2741-property-getstarted-is-missing-in-type----but-required-in-type-janusmaillinks)
 - [`TS2322: Type 'number | null' is not assignable to type 'string | number'.`](#ts2322-type-number--null-is-not-assignable-to-type-string--number)
 - [`TS2322: Type 'Date' is not assignable to type 'string'.`](#ts2322-type-date-is-not-assignable-to-type-string)
+- [`TS2322: Type 'string | null' is not assignable to type 'string'.`, on `location`](#ts2322-type-string--null-is-not-assignable-to-type-string-on-location) — or `… to type 'string | undefined'.`
 
 ---
 
@@ -199,9 +201,9 @@ A `fallbackLocale` the list does not hold — `'de'` with the default
 
 `templates` given as a list or a function. Key each template by its name.
 
-### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, welcome`
+### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome`
 
-A key that is not one of the eleven — `newSignIn`, or the e-mail's file name
+A key that is not one of the twelve — `invitation`, or the e-mail's file name
 `'verify-email'` rather than the template's, `verifyEmail`. Other e-mails are
 on the [roadmap](roadmap.md); send them with `@nxgt/mail` directly meanwhile.
 
@@ -235,7 +237,7 @@ as it is: fields are own properties.
 ### `janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` leaves some
-out: the defaults could not render them in that locale. Pass all eleven — see
+out: the defaults could not render them in that locale. Pass all twelve — see
 [Adding a locale](guide/locales.md#adding-a-locale) — or drop the locale.
 The message lists the templates missing.
 
@@ -339,6 +341,14 @@ if (event.type === 'user.emailChanged' && event.formerEmail != null) {
 	await mail.emailChanged({ name: user.name, locale: user.locale, formerEmail: event.formerEmail, newEmail: user.email });
 }
 ```
+
+`janusMail.newSignIn: device must be a string` and `janusMail.newSignIn:
+time must be a string` are the second argument missing, or its `time` given
+as the session's `Date`: pass the device as you describe it and the time as
+text. `janusMail.newSignIn: location must be a string` is a location lookup's
+`null`: leave `location` out, and the e-mail shows `—`. `janusMail.newSignIn:
+email must be a string` is the `user.newDeviceSignedIn` event itself given
+as the recipient — read the user first.
 
 `janusMail.recoveryCodeUsed: when must be a string` is the second argument
 missing, or its `when` given as the event's `Date`: pass the text to show,
@@ -522,7 +532,7 @@ avoids the read altogether. (In this repository: run `bun run build`.)
 
 The default templates read `mails/` with `node:fs`, through
 `@nxgt/mail/renderer`: Node, Bun or Deno only. On an edge runtime, pass all
-eleven templates yourself; an inlined build is on the [roadmap](roadmap.md).
+twelve templates yourself; an inlined build is on the [roadmap](roadmap.md).
 
 ### An e-mail stays light in dark mode
 
@@ -655,8 +665,9 @@ whole.
 ### `TS2739: Type '{ … }' is missing the following properties from type 'JanusMailTemplates<…>'`
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` does not give
-all eleven. With five or more missing, the code is `TS2740` and the list ends
-`…, and 5 more.` See [Adding a locale](guide/locales.md#adding-a-locale).
+all twelve. With five or more missing, the code is `TS2740` and the list ends
+`…, and <n> more.` — `…, and 7 more.` for a `templates` holding one
+template. See [Adding a locale](guide/locales.md#adding-a-locale).
 
 ### `TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
 
@@ -683,6 +694,16 @@ never send it; in JavaScript the same `templates` is
 yours. Add `stepUp` — it is given `brand`, `name`, `code`, `expiresIn` and
 `link` — even if you never send it; in JavaScript the same `templates` is
 [`janusMail: the default templates are built in en and fr only — …; stepUp missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
+See [Templates](guide/templates.md#what-each-template-is-given).
+
+### `TS2741: Property 'newSignIn' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
+
+`templates` written before 0.9, with a locale beyond `en` and `fr`: since
+0.9.0 there are twelve templates, and with such a locale every one is
+yours. Add `newSignIn` — it is given `brand`, `name`, `device`, `location`,
+`time` and `link` — even if you never send it; in JavaScript the same
+`templates` is
+[`janusMail: the default templates are built in en and fr only — …; newSignIn missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
 See [Templates](guide/templates.md#what-each-template-is-given).
 
 ### `TS2345: Argument of type 'StepUpByEmail<…> | StepUpByApp<…>' is not assignable to parameter of type 'Pick<StepUpByEmail<unknown>, …>'.`
@@ -732,10 +753,24 @@ has no codes to count; check it first, as in
 
 ### `TS2322: Type 'Date' is not assignable to type 'string'.`
 
-On `when`: the event's `occurredAt` passed as it is. `when` is the text the
-e-mail shows — format it in the recipient's locale and time zone first:
+On `when`: the event's `occurredAt` passed as it is — or, on `newSignIn`'s
+`time`, the session's `createdAt`. Both are the text the e-mail shows —
+format the date in the recipient's locale and time zone first:
 
 ```ts
 const when = new Intl.DateTimeFormat(user.locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' })
 	.format(event.occurredAt);
+```
+
+### `TS2322: Type 'string | null' is not assignable to type 'string'.`, on `location`
+
+Also, without `exactOptionalPropertyTypes` in your tsconfig:
+`Type 'string | null' is not assignable to type 'string | undefined'.`
+
+On `newSignIn`'s `location`: a geo-IP lookup's answer, `null` when it found
+nothing, passed as it is. `location` is optional: leave it out, and the
+e-mail shows `—`:
+
+```ts
+await mail.newSignIn(to, { device, time, ...(city === null ? {} : { location: city }) });
 ```

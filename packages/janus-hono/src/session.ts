@@ -1,6 +1,7 @@
 import type { Session, SharedApi } from '@nxgt/janus';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getCookie } from 'hono/cookie';
+import { type DeviceCookieOptions, sendDevice } from './device';
 
 /** Anything `janus()` answered: the part of it this package calls. */
 export type Auth<U extends { readonly type: string }> = Pick<
@@ -109,13 +110,23 @@ export function session(
 	};
 }
 
+/** What `sendSession` takes besides: the device cookie's options. */
+export interface SendSessionOptions {
+	readonly device?: DeviceCookieOptions;
+}
+
 /**
  * Sends the session cookie — after `signUp`, `signIn`, or anything else that
  * answered a session token and its session — and answers the user. Appends: a
  * cookie set before stays.
  *
+ * When the answer carries a `deviceToken` — the sign-in was given a
+ * `device` — the device cookie is set too, or set again so it lasts another
+ * four hundred days.
+ *
  * ```ts
- * const user = sendSession(c, auth, await auth.signIn({ email, password }));
+ * const signedIn = await auth.signIn({ email, password }, { device: deviceOf(c) });
+ * const user = sendSession(c, auth, signedIn);
  * return c.json({ id: user.id }); // the token is in the cookie, never in the body
  * ```
  */
@@ -126,7 +137,9 @@ export function sendSession<U>(
 		readonly token: string;
 		readonly session: Session;
 		readonly user: U;
+		readonly deviceToken?: string | null;
 	},
+	options: SendSessionOptions = {},
 ): U {
 	c.header(
 		'Set-Cookie',
@@ -135,6 +148,9 @@ export function sendSession<U>(
 			append: true,
 		},
 	);
+	if (typeof signedIn.deviceToken === 'string') {
+		sendDevice(c, signedIn.deviceToken, options.device);
+	}
 	return signedIn.user;
 }
 

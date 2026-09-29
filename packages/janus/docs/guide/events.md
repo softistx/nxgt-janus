@@ -2,7 +2,8 @@
 
 This page is for hearing what happens to a user once it is written: created,
 e-mail verified, password reset or changed, e-mail changed, second factor
-turned on or off, recovery codes regenerated or one used, deleted. Another service can then follow
+turned on or off, recovery codes regenerated or one used, a sign-in from a
+new device, deleted. Another service can then follow
 without polling. `janus` hands each event to one function you give it;
 **delivering it is yours** — or
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks)'s:
@@ -38,7 +39,7 @@ received[0];
 The words — **user event**, **listener** — are defined in
 [the vocabulary](vocabulary.md#identities).
 
-## The ten types
+## The eleven types
 
 | `type` | Sent by | Not sent |
 | --- | --- | --- |
@@ -51,16 +52,18 @@ The words — **user event**, **listener** — are defined in
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an **active** factor; `signInCode.confirm` and `magicLink.confirm` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — even if an outage interrupts the sign-outs | for a user who had no factor, a factor still waiting for its first code — it was never asked for — or a second `disable` |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes`: the codes the user held stopped working | for `activate`, whose first codes come with `user.secondFactorEnabled`; for a code refused |
 | `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent — even if opening the session then fails | for a recovery code refused. How many are left is not in the event: `secondFactor.recoveryCodesLeft(event.userId)` reads it |
+| `user.newDeviceSignedIn` | `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and `magicLink.confirm`, given a `device` whose token did not prove this user signed in there — once the sign-in is complete. It carries `sessionId`, the new session's. See [devices](devices.md) | for `signUp`, which mints the first token; for a call given no `device`; for a known device; for a challenge, which opens no session; for a sign-in refused — a wrong password, or a `signIn` refused after its session opened because a password was written meanwhile |
 | `user.deleted` | `delete`, when it deleted the user | for a replay that finds nobody, or an id of another user type |
 
 A reset whose link verifies the e-mail sends both, `user.passwordReset`
 first. **A reset does not also send `user.passwordChanged`**: a listener that
 cares about every new password handles both types, as the `switch` below
 does — one event per write, rather than two a listener would have to tell
-apart. Switch on `type`: the ten are a closed set, and TypeScript refuses an
-eleventh. A new type is a compile error in a `switch` that exhausts them — the
-two recovery-code types, added in 0.10, and the two change types, added in
-0.14, each broke such a `switch` until it handled them.
+apart. Switch on `type`: the eleven are a closed set, and TypeScript refuses a
+twelfth. A new type is a compile error in a `switch` that exhausts them — the
+two recovery-code types, added in 0.10, the two change types, added in
+0.14, and `user.newDeviceSignedIn`, added in 0.17, each broke such a `switch`
+until it handled them.
 
 ```ts
 function onUserEvent(event: UserEvent): void {
@@ -81,6 +84,8 @@ function onUserEvent(event: UserEvent): void {
 			return;
 		case 'user.recoveryCodeUsed':
 			return warnTheUser(event.userId); // a sign-in without their phone — see below
+		case 'user.newDeviceSignedIn':
+			return warnTheUser(event.userId); // @nxgt/janus-mail's newSignIn — see below
 		case 'user.deleted':
 			return forgetEverywhere(event.userId);
 	}
@@ -123,6 +128,37 @@ With several user types, the count is the type's:
 `auth.patient.secondFactor.recoveryCodesLeft(event.userId)`, on
 `event.userType`.
 
+### Telling the user a new device signed in
+
+A sign-in from a device the user had not signed in from is how a stolen
+password shows, so tell the user.
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s
+`newSignIn` is the e-mail — the device, the time and, when you know it, the
+place, each your text in the user's locale:
+
+```ts
+// `mail` is janusMail({ … }), and the user schema holds a name and a locale.
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.newDeviceSignedIn') {
+			const user = await auth.get(event.userId);
+			const time = new Intl.DateTimeFormat(user.locale, {
+				dateStyle: 'long',
+				timeStyle: 'short',
+				timeZone: 'Europe/Paris', // the user's, when you keep it
+			}).format(event.occurredAt); // the new session's createdAt
+			await mail.newSignIn({ name: user.name, locale: user.locale, email: user.email }, { device: 'a new device', time });
+		}
+	},
+});
+```
+
+The event has no request, so it cannot say which device: send from the
+sign-in's answer instead — `if (signedIn.newDevice) …` — to name it from
+the `User-Agent`. [Devices](devices.md#the-e-mail-nxgtjanus-mails-newsignin)
+has both.
+
 ### Telling the user their password or e-mail changed
 
 A password changed by someone else, or an e-mail moved to their inbox, is how
@@ -161,20 +197,25 @@ too, if a reset should be told as well.
 
 ## What an event carries
 
-**The user named by id, and nothing else** — with one exception, below. No
+**The user named by id, and nothing else** — with two exceptions, below. No
 login, no field of the schema, no password or hash, no session or one-time
 token. An event can
 land in a queue, a log or another company's endpoint; whoever receives it
 reads the rest from where it is kept — `auth.get(event.userId)` — if they
 may. A user deleted since is `NOT_FOUND` there, which is the answer.
 
-**The exception is `formerEmail`, on `user.emailChanged` only**: the address
+**The first exception is `formerEmail`, on `user.emailChanged` only**: the address
 the user had before the update, as it was stored, or `null` when they had
 none. Once the write landed it is kept nowhere else, and a notice to the
 inbox the account just left needs it. It is absent from every other type.
 `@nxgt/janus-webhooks` does not carry it: it strips it before the queue, so
 it reaches no endpoint, no queue and no `onGivingUp` report — send the
 notice from the listener, in the process that wrote.
+
+**The second is `sessionId`, on `user.newDeviceSignedIn` only**: the id of
+the session the new device opened, so a "this wasn't me" page can end that
+one. It is absent from every other type, and `@nxgt/janus-webhooks` strips
+it as it strips `formerEmail`.
 
 `id` is minted for the event, a UUIDv7 that sorts by time. Deliver on it:
 a queue job id, a primary key, a webhook's `webhook-id` header. Two events
@@ -207,6 +248,7 @@ Where the listener runs within a flow, and what an outage does to it:
 | `signInCode.confirm`, `magicLink.confirm` | on an e-mail never verified: **after** every session is revoked and the reset links and second-factor challenges left open are spent — before the write and again after it — and **before** the new session or second-factor challenge is opened. `user.passwordChanged` follows `user.emailVerified` when a password was dropped, then `user.secondFactorDisabled` when an active second factor was removed. An e-mail already verified sends nothing | fails the call; the events are sent all the same, from a `finally`. An outage in the sign-outs before the write fails the call with nothing written and nothing sent: the next code or link proves the e-mail again |
 | `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |
 | `secondFactor.recover` | after the recovery code is spent and the session opened — or failed to open | fails the call; the recovery code is spent and the event sent all the same, from a `finally` |
+| `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm`, `magicLink.confirm` — `user.newDeviceSignedIn` | **last**, once the session is open and the sign-in complete: after `user.recoveryCodeUsed`, and after the events of a first proof of the e-mail | fails the call, and `user.newDeviceSignedIn` is not sent: it comes only once the sign-in is complete |
 | `resetPassword.confirm` | **after** the sessions opened with the old password are revoked, and the other reset links and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
 | `delete` | **after** the user's sessions and one-time tokens are removed, and the relation tuples naming them when `relations` is wired | fails the call; the event is sent all the same, from a `finally` |
 
@@ -294,6 +336,7 @@ type UserEventType =
 	| 'user.secondFactorDisabled'
 	| 'user.recoveryCodesRegenerated'
 	| 'user.recoveryCodeUsed'
+	| 'user.newDeviceSignedIn'
 	| 'user.deleted';
 
 interface UserEvent {
@@ -303,6 +346,7 @@ interface UserEvent {
 	readonly userId: Id;
 	readonly userType: string;
 	readonly formerEmail?: string | null; // on user.emailChanged only: the address before, null for none
+	readonly sessionId?: string;          // on user.newDeviceSignedIn only: the session the new device opened
 }
 
 type UserEventListener = (event: UserEvent) => void | Promise<void>;
@@ -317,6 +361,7 @@ see [troubleshooting](../troubleshooting.md#janus-events-must-be-a-function-that
 
 - [E-mail verification and password reset](email-flows.md) — the flows that send `user.emailVerified` and `user.passwordReset`
 - [The second factor](second-factor.md) — `activate` and `disable`, which send `user.secondFactorEnabled` and `user.secondFactorDisabled` — sent too by the first proof of an e-mail by a [code](sign-in-code.md) or a [link](magic-link.md#an-account-someone-else-registered); [recovery codes](second-factor.md#recovery-codes), which send `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`
+- [Devices](devices.md) — the sign-ins that send `user.newDeviceSignedIn`, the device token and the cookie
 - [Users](users.md) — `create`, `signUp`, `update`, `delete`
 - [Passwords](passwords.md) — `changePassword` and `setPassword`, which send `user.passwordChanged`
 - [Troubleshooting](../troubleshooting.md) — `JANUS_EVENT_FAILED`

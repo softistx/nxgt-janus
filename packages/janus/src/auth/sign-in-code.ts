@@ -1,6 +1,7 @@
 import type { At } from './at';
 import type { ResolvedType } from './config';
 import { type AnyUser, type Context, findRecord, toUser } from './context';
+import { deviceHint } from './devices';
 import {
 	type Finish,
 	finishEmailSignIn,
@@ -17,7 +18,12 @@ import {
 	spendOneTime,
 	unknownChallenge,
 } from './one-time';
-import type { IssuedCode, SignInCodeApi, SignInResult } from './types';
+import type {
+	IssuedCode,
+	SignInCodeApi,
+	SignInOptions,
+	SignInResult,
+} from './types';
 
 /**
  * Signing in with a code sent to the user's e-mail: no password, and the
@@ -44,8 +50,14 @@ export function signInCodeFlows(
 			return requestCode(context, type, String(email));
 		},
 
-		async confirm(challenge, code) {
-			return confirmCode(context, type, finish, challenge, code, at);
+		async confirm(challenge, code, options) {
+			return confirmCode(
+				context,
+				type,
+				finish,
+				{ challenge, code, options },
+				at,
+			);
 		},
 	};
 }
@@ -82,12 +94,17 @@ async function confirmCode(
 	context: Context,
 	type: ResolvedType,
 	finish: Finish,
-	challenge: string,
-	code: string,
+	given: {
+		readonly challenge: string;
+		readonly code: string;
+		readonly options: SignInOptions | undefined;
+	},
 	at: At,
 ): Promise<SignInResult<AnyUser>> {
 	const where = at('signInCode.confirm');
-	const secret = String(challenge);
+	const device = deviceHint(context, given.options, where);
+	const secret = String(given.challenge);
+	const code = given.code;
 	const { token, attemptsLeft } = await countCodeAttempt(
 		context,
 		secret,
@@ -118,5 +135,6 @@ async function confirmCode(
 		token,
 		where,
 		noun: 'code',
+		device,
 	});
 }

@@ -1,5 +1,6 @@
 export type {
 	CookieConfig,
+	DevicesConfig,
 	FieldsJson,
 	JanusConfig,
 	MultiTypeConfig,
@@ -67,6 +68,7 @@ export type {
 	SharedApi,
 	SignedIn,
 	SignInCodeApi,
+	SignInOptions,
 	SignInResult,
 	StepUpApi,
 	StepUpByApp,

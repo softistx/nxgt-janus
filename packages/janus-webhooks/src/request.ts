@@ -135,8 +135,9 @@ export function bodyFor(event: UserEvent, where: string): string {
 
 /**
  * What a webhook keeps of an event: the user named by id, and nothing else.
- * `formerEmail`, on `user.emailChanged`, stays in the process that wrote it —
- * past here it would sit in the queue, in every endpoint's logs and in
+ * `formerEmail`, on `user.emailChanged`, and `sessionId`, on
+ * `user.newDeviceSignedIn`, stay in the process that wrote them — past here
+ * they would sit in the queue, in every endpoint's logs and in
  * `onGivingUp`'s reports.
  */
 export function deliverable(event: UserEvent): UserEvent {

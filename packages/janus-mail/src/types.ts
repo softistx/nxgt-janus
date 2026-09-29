@@ -11,9 +11,11 @@ import type {
 } from '@nxgt/janus';
 import type { Address, Mailer, SentMail, WantedLocales } from '@nxgt/mail';
 import type { JanusMailLocale } from './generated/locales';
+import type { JanusMailLinks } from './link-types';
 import type { JanusMailTemplates } from './template-types';
 
 export type { JanusMailLocale } from './generated/locales';
+export type { JanusMailLinks } from './link-types';
 export type {
 	JanusMailTemplate,
 	JanusMailTemplateName,
@@ -30,53 +32,6 @@ export type {
 export interface Recipient {
 	readonly name: string;
 	readonly locale?: WantedLocales;
-}
-
-/**
- * The links of the e-mails, each an absolute `http(s)` URL of your
- * application. Each is called at send time and must answer a string
- * synchronously: an `async` function or a `URL` object is a compile error,
- * and from JavaScript, or through a cast, the send throws a `TypeError`
- * naming the call. A
- * `mailto:` URL is accepted too — `secureAccount: () => 'mailto:security@acme.example'`
- * sends the user to your support desk; any other scheme is refused by the
- * renderer with a `MailRefused`. The functions are copied when `janusMail()`
- * is called: replacing one afterwards changes nothing.
- */
-export interface JanusMailLinks {
-	/** The page that confirms an e-mail, given the one-time token: `(token) => \`https://app.example/verify?token=${token}\`` */
-	readonly verifyEmail: (token: string) => string;
-	/** The page that sets a new password, given the one-time token. */
-	readonly resetPassword: (token: string) => string;
-	/**
-	 * Where a user who did not make a change secures their account — their
-	 * security settings. `passwordChanged`, `emailChanged`, `twoFactorEnabled`
-	 * and `twoFactorDisabled` link to it, and so does `stepUp`, for a user who
-	 * asked for no code.
-	 */
-	readonly secureAccount: () => string;
-	/**
-	 * Where a new user starts — your application's home, or its sign-in page
-	 * for an account someone else created. `welcome` links to it, from its
-	 * "Get started" button.
-	 */
-	readonly getStarted: () => string;
-	/**
-	 * Where a user regenerates their recovery codes — `recoveryCodeUsed`
-	 * links to it, from its "Secure my account" button. **Optional**: without
-	 * it, that e-mail links to `secureAccount`, the security settings where
-	 * the codes usually are.
-	 */
-	readonly recoveryCodes?: () => string;
-	/**
-	 * The page a sign-in link opens, given its one-time token —
-	 * `magicLink` links to it. **Optional**, for an application that sends no
-	 * sign-in link; without it, `magicLink` throws a `TypeError` before
-	 * anything is rendered. That page spends nothing: its button posts the
-	 * token to the route that calls `auth.magicLink.confirm`, so a mail
-	 * scanner that opens the link does not sign in for the user.
-	 */
-	readonly magicLink?: (token: string) => string;
 }
 
 /** The options every locale set shares. */
@@ -236,6 +191,25 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 		used: {
 			readonly when: string;
 			readonly recoveryCodesLeft: number | string;
+		},
+	): Promise<SentMail>;
+	/**
+	 * Tells `to.email` their account was signed in from a device they had
+	 * not signed in from, `time`, on `device` — and `location`, when you know
+	 * it — with a link to secure the account: once a sign-in answered
+	 * `newDevice: true`, or on the `user.newDeviceSignedIn` event.
+	 *
+	 * Every value is your text, in the recipient's locale: `device` described
+	 * from the request (`'Firefox on macOS'`), `time` formatted in their time
+	 * zone. **Janus sees no IP**: `location` is yours to work out, and an
+	 * e-mail without one shows `—` in its place.
+	 */
+	newSignIn(
+		to: Recipient & { readonly email: string },
+		signIn: {
+			readonly device: string;
+			readonly time: string;
+			readonly location?: string;
 		},
 	): Promise<SentMail>;
 	/** The templates in use: the defaults, with `templates` over them. */

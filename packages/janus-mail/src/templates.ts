@@ -8,8 +8,38 @@ import type { Rendered } from '@nxgt/mail';
 import { defaultRenderer } from './mails';
 import type { JanusMailTemplates } from './types';
 
+/** The two whose variables fill a summary, apart to keep the list short. */
+const recoveryCodeUsed: JanusMailTemplates['recoveryCodeUsed'] = ({
+	brand,
+	name,
+	when,
+	recoveryCodesLeft,
+	link,
+	locale,
+}): Rendered =>
+	defaultRenderer().render(
+		'recovery-code-used',
+		{ brand, name, when, recoveryCodesLeft, link },
+		{ locale },
+	);
+
+const newSignIn: JanusMailTemplates['newSignIn'] = ({
+	brand,
+	name,
+	device,
+	location,
+	time,
+	link,
+	locale,
+}): Rendered =>
+	defaultRenderer().render(
+		'new-sign-in',
+		{ brand, name, device, location, time, link },
+		{ locale },
+	);
+
 /**
- * The eleven default templates, in the locales they are built in. The
+ * The twelve default templates, in the locales they are built in. The
  * renderer behind them is created on the first render, not here.
  *
  * ```ts
@@ -76,19 +106,8 @@ export function janusTemplates(): JanusMailTemplates {
 				{ brand, name, link },
 				{ locale },
 			),
-		recoveryCodeUsed: ({
-			brand,
-			name,
-			when,
-			recoveryCodesLeft,
-			link,
-			locale,
-		}): Rendered =>
-			defaultRenderer().render(
-				'recovery-code-used',
-				{ brand, name, when, recoveryCodesLeft, link },
-				{ locale },
-			),
+		recoveryCodeUsed,
+		newSignIn,
 		welcome: ({ brand, name, link, locale }): Rendered =>
 			defaultRenderer().render('welcome', { brand, name, link }, { locale }),
 	});

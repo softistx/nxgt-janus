@@ -12,6 +12,7 @@ import {
 	rehashed,
 	requireHasher,
 } from '../context';
+import { type DeviceHint, reportNewDevice } from '../devices';
 import { heldByPassword } from '../password-written';
 import { isActive } from '../second-factor/factor';
 import { countSignInAttempt, restartSignInCount } from '../sign-in-attempts';
@@ -29,8 +30,9 @@ export async function signIn(
 	type: ResolvedType,
 	finish: Finish,
 	input: Input,
-	where: string,
+	call: { readonly where: string; readonly device: DeviceHint },
 ): Promise<SignInResult<AnyUser>> {
+	const { where, device } = call;
 	const rule = passwordRule(type, where);
 	const hasher = requireHasher(context, where);
 	const login = input?.[rule.login];
@@ -78,7 +80,7 @@ export async function signIn(
 		await restartSignInCount(context, type, record, where);
 	}
 	const verified = await rehashed(context, record, String(password));
-	const result = await finish(verified, where);
+	const result = await finish(verified, where, device);
 	// A password written while this sign-in ran ends it: the password
 	// verified above is no longer the user's.
 	if (
@@ -93,5 +95,7 @@ export async function signIn(
 	) {
 		throw refuse('wrongPassword');
 	}
+	// Complete only now: a sign-in refused above reports no new device.
+	await reportNewDevice(context, result);
 	return result;
 }

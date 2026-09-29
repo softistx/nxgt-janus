@@ -84,19 +84,22 @@ own: one endpoint down never delays another.
 
 `secrets` is a non-empty tuple, so `secrets: []` does not compile, nor does
 `secrets: [process.env.WEBHOOK_SECRET]` — a `string | undefined`. Check the
-variable first, as the first example does. `types` takes the ten
+variable first, as the first example does. `types` takes the eleven
 `UserEventType`s — `'user.created'`, `'user.emailVerified'`,
 `'user.passwordReset'`, `'user.passwordChanged'`, `'user.emailChanged'`,
 `'user.secondFactorEnabled'`,
 `'user.secondFactorDisabled'`, `'user.recoveryCodesRegenerated'`,
-`'user.recoveryCodeUsed'`, `'user.deleted'` — and nothing else.
+`'user.recoveryCodeUsed'`, `'user.newDeviceSignedIn'`, `'user.deleted'` — and nothing
+else.
 
 Every event is posted as the user named by id, and nothing else.
 `user.emailChanged` arrives from `@nxgt/janus` with `formerEmail`, the
 address the user had before; `webhooks()` drops it before the queue, so it
 reaches no endpoint, no queue and no `onGivingUp` report. A notice to that
 address is sent from the `janus({ events })` listener, beside `webhooks()` —
-see [the README](../../README.md#traps).
+see [the README](../../README.md#traps). `user.newDeviceSignedIn` arrives
+with `sessionId`, the session the new device opened, and is posted without
+it too: a session id stays in the process that wrote it.
 
 #### The endpoint's id
 
@@ -138,7 +141,7 @@ webhooks({ endpoints: [{ id: 'crm', url: 'https://crm.example.com/hooks/janus/v2
 | `webhooks: a secret is written whsec_<base64> — make one with mintWebhookSecret()` | a secret without the `whsec_` prefix, or not a string |
 | `webhooks: a secret holds at least 24 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too short, or not base64 |
 | `webhooks: a secret holds at most 64 bytes of base64 after whsec_ — make one with mintWebhookSecret()` | a secret too long: the specification sets 24 to 64 bytes |
-| `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.passwordChanged, user.emailChanged, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.deleted` | a type `janus` never sends, or `types` not a list |
+| `webhooks: an endpoint's types are user event types — user.created, user.emailVerified, user.passwordReset, user.passwordChanged, user.emailChanged, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.newDeviceSignedIn, user.deleted` | a type `janus` never sends, or `types` not a list |
 | `webhooks: retries: …`, `webhooks: timeout: …` | a duration `parseDuration` refuses: `'soon'`, `-1` |
 | `webhooks: retries is a list of durations` | `retries: '5s'`, not `['5s']` |
 | `webhooks: retries wait at most 24 days each` | a delay past 2³¹ − 1 ms, the longest `setTimeout` waits: the retry would be sent early |
@@ -574,5 +577,5 @@ function createMemoryWebhookQueue(): WebhookQueue;
 
 - [Queues](queues.md) — deliveries that outlive the process, and writing an adapter
 - [Receiving webhooks](receiving.md) — the other side of the wire
-- [User events in `@nxgt/janus`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md) — the ten types, and when the listener runs
+- [User events in `@nxgt/janus`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md) — the eleven types, and when the listener runs
 - [Troubleshooting](../troubleshooting.md) — the wiring refusals and the warnings

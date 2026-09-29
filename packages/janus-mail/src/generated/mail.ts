@@ -6,6 +6,7 @@ export interface MailEmails {
 	"confirm-action": { readonly brand: string | number; readonly code: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };
 	"email-changed": { readonly brand: string | number; readonly link: string; readonly name: string | number; readonly newEmail: string | number };
 	"magic-link": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string };
+	"new-sign-in": { readonly brand: string | number; readonly device: string | number; readonly link: string; readonly location: string | number; readonly name: string | number; readonly time: string | number };
 	"password-changed": { readonly brand: string | number; readonly link: string; readonly name: string | number };
 	"recovery-code-used": { readonly brand: string | number; readonly link: string; readonly name: string | number; readonly recoveryCodesLeft: string | number; readonly when: string | number };
 	"reset-password": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };

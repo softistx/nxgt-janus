@@ -286,6 +286,25 @@ a password, in an instance given a `secondFactor` — and reading `token`
 before narrowing on `status` is a compile error there. Anywhere else it
 answers `SignedIn`.
 
+### The device
+
+With [`janus({ devices })`](devices.md), `confirm` takes the device token
+the client holds as its second argument — read from the device cookie of
+the browser that posts the link's page, which is the one the session opens
+in:
+
+```ts
+const signedIn = await auth.magicLink.confirm(token, { device: cookie ?? null });
+// { status: 'signedIn', …, newDevice, deviceToken }: keep deviceToken in the device cookie
+```
+
+A new device sends `user.newDeviceSignedIn` — last, after the events a first
+proof of the e-mail sends. A link opened on a phone the user never signed in
+from is a new device, even when a laptop asked for it. When `confirm`
+answers a second factor's challenge, the challenge carries no device: give
+it again to `secondFactor.confirm`. Without `{ device }`, nothing is
+tracked.
+
 ### What `confirm` refuses
 
 | Rejects with | When | What to do |
@@ -414,14 +433,16 @@ it('signs in with the e-mailed link, once, and not after fifteen minutes', async
 interface MagicLinkApi<U, Answer = SignedIn<U>> {
 	readonly magicLink: {
 		request(email: string): Promise<(IssuedToken & { readonly user: U }) | null>;
-		confirm(token: string): Promise<Answer>;
+		confirm(token: string, options?: SignInOptions): Promise<Answer>;
 	};
 }
 ```
 
 `Answer` is `SignInResult<U>` on a type with a password in an instance given
-a `secondFactor`, and `SignedIn<U>` everywhere else. `MagicLinkApi` and
-`IssuedToken` are exported from `@nxgt/janus`, as types.
+a `secondFactor`, and `SignedIn<U>` everywhere else. `MagicLinkApi`,
+`IssuedToken` and `SignInOptions` are exported from `@nxgt/janus`, as
+types; `SignInOptions` is `{ device?: string | null }` — see
+[devices](devices.md#giving-a-sign-in-the-device).
 
 ## For an adapter
 
@@ -437,6 +458,7 @@ holds that a link and a sign-in code are never redeemed as each other. See
 - [The second factor](second-factor.md) — the challenge `confirm` answers for a user whose factor is active
 - [E-mail verification and password reset](email-flows.md) — the other flows that send a link, and `TOKEN_STALE`
 - [Sessions](sessions.md) — the cookie the session is sent in
+- [Devices](devices.md) — the `device` `confirm` takes, and the notice of a new one
 - [Errors](errors.md) — every code and its status
 - [Troubleshooting](../troubleshooting.md#sign-in-links) — by the message you see
 - [`@nxgt/janus-telemetry`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-telemetry/docs/guide/tracing.md#a-link-sent-by-e-mail) — the events a sign-in by link writes

@@ -5,7 +5,7 @@
  * Part of what `janus()` hands back; `./index` gathers it.
  */
 
-import type { SignedIn, SignInResult } from './sign-in';
+import type { SignedIn, SignInOptions, SignInResult } from './sign-in';
 import type { UserRef } from './user';
 
 /** A one-time token, given to the application once, to send by e-mail. */
@@ -66,7 +66,11 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 		 * or `TOKEN_EXPIRED`; an e-mail the user changed since is `TOKEN_STALE`;
 		 * an inactive user is `USER_INACTIVE`.
 		 */
-		confirm(challenge: string, code: string): Promise<Answer>;
+		confirm(
+			challenge: string,
+			code: string,
+			options?: SignInOptions,
+		): Promise<Answer>;
 	};
 }
 

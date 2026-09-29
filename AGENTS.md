@@ -95,7 +95,8 @@ is a message no template reads, `recovery-code-used.codes-left`, which
 time — held equal to `@nxgt/mail-i18n`'s `createTranslator` by a spec, since
 `createTranslator` is build-only here. The `mails/`
 text parts have paragraph breaks since `@nxgt/mail-config` 0.2.0, and keep
-each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it),
+each paragraph on one line since 0.2.1 (a spec in `render.spec.ts` holds it,
+bar `new-sign-in`'s summary rows, a label line then a value line),
 so `mail/maizzle.config.ts` sets no `plaintext` of its own. Since
 `@nxgt/mail-presets` 0.3.0 the presets' message keys are kebab-case
 (`presets.link-expires`, `verify-email.*`); `@nxgt/mail-i18n` 0.4.0 accepts a
@@ -404,7 +405,7 @@ only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
 `build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
 `@nxgt/mail` 0.1.0 reads and that exactly the
-eleven e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
+twelve e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer. The `maizzle` bin runs on the `node` on the `PATH`, even under
 `bun run`, and Maizzle 6.1.7 needs Node `^22.22.3`, `^24.15.0` or `>=26`

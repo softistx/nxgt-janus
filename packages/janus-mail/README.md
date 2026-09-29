@@ -3,7 +3,7 @@
 The e-mails of [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus)'s
 flows, ready to send: **e-mail verification, password reset, sign-in code,
 sign-in link, a step-up's confirmation code, password changed, e-mail changed, two-factor authentication turned on or
-off, a recovery code used, and a welcome to a new user**, in English and
+off, a recovery code used, a sign-in from a new device, and a welcome to a new user**, in English and
 French, with your brand
 in them. `@nxgt/janus` sends no e-mail — its flows answer what to send — and
 this package turns that answer into an e-mail and hands it to any
@@ -48,7 +48,7 @@ bun add -d typescript
 
 Three peers, all required: `@nxgt/mail` (0.1 or later, below 2 — 1.0 and
 its transports included), which defines the `Mailer` port and the errors;
-`@nxgt/janus` (0.16), whose flows' answers the methods take — types only,
+`@nxgt/janus` (0.17), whose flows' answers the methods take — types only,
 nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
@@ -65,11 +65,11 @@ needs Node `^22.22.3`, `^24.15.0` or `>=26`, for Maizzle — see
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `stepUp`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?` and `magicLink?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The eleven default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `stepUp`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `newSignIn`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?` and `magicLink?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The twelve default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the eleven of them, and their names |
-| `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn`, `newEmail`, `when` or `recoveryCodesLeft` as its e-mail needs |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the twelve of them, and their names |
+| `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn`, `newEmail`, `when`, `recoveryCodesLeft`, or `device`, `time` and `location`, as its e-mail needs |
 | `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
 | `JanusMailLinks`, `Recipient` | The `links` option; who an e-mail is for — `{ name, locale? }` |
@@ -94,6 +94,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `twoFactorEnabled(to)` | A notice: two-factor authentication was turned on, with `links.secureAccount()` | `to.email` |
 | `twoFactorDisabled(to)` | A notice: two-factor authentication was turned off, with `links.secureAccount()` | `to.email` |
 | `recoveryCodeUsed(to, { when, recoveryCodesLeft })` | A notice: a recovery code was used, `when`, and how many are left — "You have 9 recovery codes left." — with `links.recoveryCodes()`, else `links.secureAccount()` | `to.email` |
+| `newSignIn(to, { device, time, location? })` | A notice: the account was signed in from a new device — which device, `time`, and `location`, `—` when left out — with `links.secureAccount()` | `to.email` |
 | `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
 
 The five e-mails of a link or a code say how long it lasts — "This link
@@ -291,6 +292,45 @@ récupération." — or the sentence itself, as text. The button links to
 `links.recoveryCodes()`, where the user regenerates their codes, and to
 `links.secureAccount()` when you give no `recoveryCodes`.
 
+### Telling a user a new device signed in
+
+`@nxgt/janus` 0.17, given `janus({ devices })` and a sign-in's `{ device }`,
+answers `newDevice: true` for a device the user had not signed in from, and
+sends `user.newDeviceSignedIn`. Send the notice from the sign-in's answer,
+where the request is in hand to name the device:
+
+```ts
+const signedIn = await auth.signIn({ email, password }, { device: cookie ?? null });
+if (signedIn.newDevice) {
+	const { name, email, locale } = signedIn.user;
+	const time = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' })
+		.format(signedIn.session.createdAt);
+	await mail.newSignIn({ name, email, locale }, { device: 'Firefox on macOS', time }); // "New sign-in to your account"
+}
+```
+
+or from the event, which names the user by id alone:
+
+```ts
+const auth = janus({
+	...config,
+	async events(event) {
+		if (event.type === 'user.newDeviceSignedIn') {
+			const user = await auth.get(event.userId);
+			const time = new Intl.DateTimeFormat(user.locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' })
+				.format(event.occurredAt);
+			await mail.newSignIn({ name: user.name, email: user.email, locale: user.locale }, { device: 'a new device', time });
+		}
+	},
+});
+```
+
+Every value is your text, in the recipient's locale: `device` described
+from the request's `User-Agent`, `time` formatted in their time zone.
+**`@nxgt/janus` sees no IP**, so `location` is yours to work out — from a
+geo-IP of your own — and an e-mail without one shows `—` in its place. The
+button links to `links.secureAccount()`.
+
 ### Replacing a template
 
 Any template can be your own function — React Email, a string, another
@@ -379,6 +419,12 @@ it.** An application that sends no sign-in link leaves it out; calling
 rendered or sent. Unlike `recoveryCodes`, it has no fallback: no other page
 can carry the token.
 
+**Leave `location` out when you do not know it.** A geo-IP lookup that found
+nothing answers `null`, which is a compile error here and, in JavaScript,
+`janusMail.newSignIn: location must be a string`: spread it in only when it
+is a string — `...(city === null ? {} : { location: city })` — and the
+e-mail shows `—`.
+
 **Check `via` before `stepUp`.** `auth.stepUp.request(user)` answers
 `via: 'secondFactor'` — no code, no address — for a user whose second
 factor is active. Passed un-narrowed it is a compile error; in JavaScript,
@@ -391,9 +437,9 @@ and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all eleven
+built in those two only, so `locales: ['en', 'fr', 'de']` without all twelve
 templates — `recoveryCodeUsed` included, since 0.5, `magicLink`, since
-0.7, and `stepUp`, since 0.8 — is a compile error, and a `TypeError` in JavaScript.
+0.7, `stepUp`, since 0.8, and `newSignIn`, since 0.9 — is a compile error, and a `TypeError` in JavaScript.
 
 **The brand is text only.** `brand: 'Acme'` is written in the header, the
 body and the footer, escaped: no logo, no link, no markup. For those, replace
@@ -450,8 +496,8 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Forty-six plausible mistakes, forty-six refused at compile time.**
-Eight files hold one `@ts-expect-error` per mistake, beside the calls that
+**Fifty plausible mistakes, fifty refused at compile time.**
+Nine files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
@@ -467,10 +513,12 @@ five of the recovery code notice, 30 to 34;
 [`test/types/change-refusals.ts`](test/types/change-refusals.ts) the two of
 the e-mail change notice sent on its event, 35 and 36;
 [`test/types/magic-link-refusals.ts`](test/types/magic-link-refusals.ts) the
-four of the sign-in link, 37 to 40; and
+four of the sign-in link, 37 to 40;
 [`test/types/step-up-refusals.ts`](test/types/step-up-refusals.ts) the six
 of the step-up's code, 41 to 46, beside the names of the templates, held to
-the eleven:
+the twelve; and
+[`test/types/new-sign-in-refusals.ts`](test/types/new-sign-in-refusals.ts)
+the four of the new sign-in notice, 47 to 50:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -518,8 +566,12 @@ the eleven:
 44. A one-time token given to `stepUp`: it has no code.
 45. `stepUp` without the recipient: its e-mail greets the user by name.
 46. The step-up's `user` given as the recipient when the user type has no name.
+47. The `user.newDeviceSignedIn` event itself given to `newSignIn`: it has neither a name nor an address.
+48. `newSignIn` without the device and the time.
+49. `time` given as the session's `Date` rather than the text in the recipient's locale and time zone.
+50. A location lookup's `null` passed as `location`, rather than leaving it out.
 
-In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 46 are a `TypeError` at send
+In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 50 are a `TypeError` at send
 time instead, naming the call or the field, and 25, 29 and 34 one from
 `janusMail()`.
 

@@ -46,7 +46,7 @@ time one is sent, and kept.
 | `brand` | `string` | required | The name the e-mails show, in the header, the body and the footer. Text: escaped in the HTML |
 | `links.verifyEmail` | `(token) => string` | required | The page that confirms an address, given the one-time token |
 | `links.resetPassword` | `(token) => string` | required | The page that sets a new password, given the one-time token |
-| `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it, and so does the step-up's code, for a user who asked for none |
+| `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it — the new sign-in's included — and so does the step-up's code, for a user who asked for none |
 | `links.getStarted` | `() => string` | required | Where a new user starts — your home page, or your sign-in page for an account someone else created: the welcome's **Get started** button links to it |
 | `links.magicLink` | `(token) => string` | none: `magicLink` is a `TypeError` without it | The page a sign-in link opens, given the one-time token. That page spends nothing: its button posts the token to the route that calls `auth.magicLink.confirm` |
 | `links.recoveryCodes` | `() => string` | `links.secureAccount` | Where a user regenerates their recovery codes: the recovery code notice links to it, from its **Secure my account** button |
@@ -349,6 +349,52 @@ when opening the session then fails.
   codes; without it, `links.secureAccount()`. `recoveryCodes` is optional,
   so a `links` written for 0.4 still compiles.
 
+### `newSignIn(to, { device, time, location? })`
+
+```ts
+// From the sign-in's answer, with @nxgt/janus given devices: { keys } and the device cookie:
+const signedIn = await auth.signIn({ email, password }, { device: cookie ?? null });
+if (signedIn.newDevice) {
+	const { name, email, locale } = signedIn.user;
+	await mail.newSignIn(
+		{ name, email, locale },
+		{
+			device: describeDevice(request.headers.get('user-agent')), // yours: 'Firefox on macOS'
+			time: new Intl.DateTimeFormat(locale ?? 'en', {
+				dateStyle: 'long',
+				timeStyle: 'short',
+				timeZone: 'Europe/Paris', // the user's, when you keep it
+			}).format(signedIn.session.createdAt),
+			location: 'Lyon, France', // optional: from a geo-IP of yours
+		},
+	);
+}
+```
+
+A notice for the account at `to.email`: it was signed in from a device the
+user had not signed in from — which device, where and when — with a
+**Secure my account** button to `links.secureAccount()`. Send it when a
+`@nxgt/janus` 0.17 sign-in answers `newDevice: true`, or on the
+`user.newDeviceSignedIn` event it sends then — the event names the user by
+id alone, so read the name, the locale and the address from the user, and
+it carries no request to describe the device from.
+
+- **Every value is your text**, already in the recipient's locale: `device`
+  as you describe the request — "Firefox on macOS", "Firefox sur macOS" —
+  and `time` formatted in their time zone: "29 septembre 2026 à 09:12".
+  The session's `createdAt`, or the event's `occurredAt`, is when it
+  happened.
+- **`location` is optional, and yours.** `@nxgt/janus` sees no IP: a
+  location comes from a geo-IP of your own, if you have one. Left out, the
+  e-mail shows `—` — an em dash, which reads the same in English and
+  French — since every line of the summary is always there. `null` is a
+  compile error, and in JavaScript `janusMail.newSignIn: location must be a
+  string`: spread it in only when you have one,
+  `...(city === null ? {} : { location: city })`.
+- **The text part** gives each line of the summary as its label, then its
+  value on the next line — `Device`, then `Firefox on macOS` — where every
+  other paragraph is one line.
+
 ## The expiry
 
 `verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp` say
@@ -406,6 +452,7 @@ a `TypeError`, and nothing reaches the mailer: revive the date with
 | `emailChanged` | `to.formerEmail` | `to.newEmail` |
 | `twoFactorEnabled`, `twoFactorDisabled` | `to.email` | — |
 | `recoveryCodeUsed` | `to.email` | — |
+| `newSignIn` | `to.email` | — |
 | `welcome` | `to.email` | — |
 
 `issued.email` is the address the user's record holds, as they registered

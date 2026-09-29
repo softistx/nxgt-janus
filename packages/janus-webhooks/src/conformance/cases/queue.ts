@@ -16,6 +16,7 @@ const TYPES: readonly UserEventType[] = [
 	'user.secondFactorDisabled',
 	'user.recoveryCodesRegenerated',
 	'user.recoveryCodeUsed',
+	'user.newDeviceSignedIn',
 	'user.deleted',
 ];
 

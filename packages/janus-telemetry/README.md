@@ -6,9 +6,10 @@ flow and per permission check, and the security events an audit reads — who
 signed up, in and out, who was sent a sign-in code or link, why a sign-in was
 refused, who was asked for a second factor and who enrolled, activated or
 disabled one, which users were deleted
-or deactivated, whose password changed, and who was granted what. **Never a
-login, an e-mail, a password, a session token, a one-time token, a
-challenge, a code, a TOTP secret or a session id.**
+or deactivated, whose password changed, who signed in from a new device, and
+who was granted what. **Never a login, an e-mail, a password, a session
+token, a one-time token, a challenge, a code, a TOTP secret, a device token
+or a session id.**
 
 ```ts
 import { janus } from '@nxgt/janus';
@@ -33,7 +34,7 @@ bun add @nxgt/janus-telemetry @nxgt/janus @nxgt/telemetry
 bun add -d typescript
 ```
 
-Every peer is required: `@nxgt/janus` 0.9 (the exact range is in
+Every peer is required: `@nxgt/janus` 0.17 (the exact range is in
 `peerDependencies`), `@nxgt/telemetry` (`>=0.2.1 <1`, any 0.x from 0.2.1) and
 `typescript` (6). `@nxgt/janus` and `@nxgt/telemetry` are **peers**: one copy of `@nxgt/janus`, so
 `instanceof JanusError` holds, and one of `@nxgt/telemetry`, so there is one
@@ -75,7 +76,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.signUp` | info | a user signed up |
 | `janus.signInCode.sent` | info | `signInCode.request` issued a code, with the `user.id` it is for. A request that answered `null` writes nothing |
 | `janus.magicLink.sent` | info | `magicLink.request` issued a sign-in link, with the `user.id` it is for — never its token. A request that answered `null` writes nothing |
-| `janus.signIn` | info | a user signed in — by `signIn`; by `signInCode.confirm`, which adds `janus.signIn.code: true`; by `magicLink.confirm`, which adds `janus.signIn.magicLink: true`; by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true`; or by `secondFactor.recover`, which adds `janus.signIn.recoveryCode: true` and `janus.secondFactor.recoveryCodesLeft` — a count, never a code |
+| `janus.signIn` | info | a user signed in — by `signIn`; by `signInCode.confirm`, which adds `janus.signIn.code: true`; by `magicLink.confirm`, which adds `janus.signIn.magicLink: true`; by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true`; or by `secondFactor.recover`, which adds `janus.signIn.recoveryCode: true` and `janus.secondFactor.recoveryCodesLeft` — a count, never a code. Any of them adds `janus.signIn.newDevice: true` when `@nxgt/janus` answered `newDevice: true` — a device the user had not signed in from — and never the device token |
 | `janus.signIn.secondFactor` | info | the password, an e-mailed code or a sign-in link was right and a second factor's code was asked for: `signIn`, `signInCode.confirm` or `magicLink.confirm` answered a challenge. `janus.user.type` and the `user.id` the challenge answer carries — never the login typed |
 | `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm` or `signInCode.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft` — the same attribute for both — a `TOKEN_*` code (`TOKEN_STALE` with `user.id`), `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for a write that raced. Every refusal of `signInCode.confirm` adds `janus.signIn.code: true`, every refusal of `magicLink.confirm` — a `TOKEN_*` code, `USER_INACTIVE` or `VERSION_CONFLICT` — adds `janus.signIn.magicLink: true`, and every refusal of `secondFactor.recover` adds `janus.signIn.recoveryCode: true` |
 | `janus.signIn.throttled` | **warn** | `signIn` refused a login past its attempts in the window — `@nxgt/janus`'s throttle, the right password included — with `janus.refusal: CREDENTIALS_INVALID`, `janus.refusal.reason: throttled`, `janus.user.type` and `janus.signIn.retryAfter`, the seconds until the next window. Never the login, never a `user.id`: an unknown login is throttled alike. Written instead of `janus.signIn.refused`, since no password was compared |
@@ -125,13 +126,18 @@ when the flow knows them — `janus.signOut` carries neither:
   `janus.signIn.magicLink: true`. Many `TOKEN_SPENT` on links never
   confirmed twice by your users is the sign of a mail scanner opening them:
   confirm from a `POST`, never from the link's `GET`.
+- **`janus.signIn.newDevice` is only as good as the `device` given.** It is
+  written when the answer says `newDevice: true`, which needs
+  `janus({ devices })` and a sign-in given `{ device }`: a sign-in given no
+  device carries no mark, whatever browser it came from. Absent means *not
+  new, or not tracked* — never "known".
 - **One copy of `@nxgt/janus`.** A refusal is told from a failure by
   `instanceof JanusError`: with a second copy installed, every wrong password
   fails its span.
 
 ## Documentation
 
-- [Tracing Janus](docs/guide/tracing.md) — wiring it with a Hono app, reading the spans and events, the audit trail, a sign-in with a second factor or an e-mailed code
+- [Tracing Janus](docs/guide/tracing.md) — wiring it with a Hono app, reading the spans and events, the audit trail, a sign-in with a second factor, an e-mailed code or from a new device
 - [Troubleshooting](docs/troubleshooting.md) — what you see, why, and the fix
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 

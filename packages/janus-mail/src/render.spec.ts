@@ -43,6 +43,11 @@ const sends: Record<
 			{ name, locale, email: 'ada@example.com' },
 			{ when: '28/09/2026 14:05', recoveryCodesLeft: 9 },
 		),
+	newSignIn: (mail, locale) =>
+		mail.newSignIn(
+			{ name, locale, email: 'ada@example.com' },
+			{ device: 'Firefox on macOS', time: '29/09/2026 09:12' },
+		),
 	welcome: (mail, locale) =>
 		mail.welcome({ name, locale, email: 'ada@example.com' }),
 };
@@ -89,12 +94,26 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 		en: 'A recovery code was used on your account',
 		fr: 'Un code de récupération a été utilisé sur votre compte',
 	},
+	newSignIn: {
+		en: 'New sign-in to your account',
+		fr: 'Nouvelle connexion à votre compte',
+	},
 	// The one subject with a placeholder: the name, written as is.
 	welcome: {
 		en: 'Welcome, Ada <3',
 		fr: 'Bienvenue, Ada <3',
 	},
 };
+
+/** The labels of `newSignIn`'s summary, in `en` and `fr`: each row is two lines. */
+const SUMMARY_LABELS = new Set([
+	'Device',
+	'Location',
+	'Time',
+	'Appareil',
+	'Lieu',
+	'Heure',
+]);
 
 describe('the default e-mails', () => {
 	for (const template of Object.keys(sends) as JanusMailTemplateName[]) {
@@ -119,6 +138,11 @@ describe('the default e-mails', () => {
 				await sends[template](janusMail(options), locale);
 				const text = options.mailer.sent[0]?.text ?? '';
 				for (const paragraph of text.trim().split('\n\n')) {
+					// A summary row is its label, then its value: no sentence to break.
+					if (SUMMARY_LABELS.has(paragraph.split('\n')[0] ?? '')) {
+						expect(paragraph.split('\n')).toHaveLength(2);
+						continue;
+					}
 					expect(paragraph).not.toContain('\n');
 				}
 			}

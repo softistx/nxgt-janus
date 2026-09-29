@@ -312,6 +312,22 @@ a password, in an instance given a `secondFactor` — and reading `token`
 before narrowing on `status` is a compile error there. Anywhere else it
 answers `SignedIn`.
 
+### The device
+
+With [`janus({ devices })`](devices.md), `confirm` takes the device token
+the client holds as its third argument, and tells a sign-in from a new
+device as `signIn` does:
+
+```ts
+const signedIn = await auth.signInCode.confirm(challenge, code, { device: cookie ?? null });
+// { status: 'signedIn', …, newDevice, deviceToken }: keep deviceToken in the device cookie
+```
+
+A new device sends `user.newDeviceSignedIn` — last, after the events a first
+proof of the e-mail sends. When `confirm` answers a second factor's
+challenge, the challenge carries no device: give it again to
+`secondFactor.confirm`. Without `{ device }`, nothing is tracked.
+
 ### What `confirm` refuses
 
 | Rejects with | When | What to do |
@@ -499,14 +515,16 @@ it('signs in with the e-mailed code, and not after ten minutes', async () => {
 interface SignInCodeApi<U, Answer = SignedIn<U>> {
 	readonly signInCode: {
 		request(email: string): Promise<IssuedCode<U> | null>;
-		confirm(challenge: string, code: string): Promise<Answer>;
+		confirm(challenge: string, code: string, options?: SignInOptions): Promise<Answer>;
 	};
 }
 ```
 
 `Answer` is `SignInResult<U>` on a type with a password in an instance given
-a `secondFactor`, and `SignedIn<U>` everywhere else. `IssuedCode` and
-`SignInCodeApi` are exported from `@nxgt/janus`, as types.
+a `secondFactor`, and `SignedIn<U>` everywhere else. `IssuedCode`,
+`SignInCodeApi` and `SignInOptions` are exported from `@nxgt/janus`, as
+types; `SignInOptions` is `{ device?: string | null }` — see
+[devices](devices.md#giving-a-sign-in-the-device).
 
 ## See also
 
@@ -514,6 +532,7 @@ a `secondFactor`, and `SignedIn<U>` everywhere else. `IssuedCode` and
 - [Sign-in links](magic-link.md) — the same sign-in with a link instead of a code: nothing to type, on whichever device opens it
 - [E-mail verification and password reset](email-flows.md) — the other flows that send an e-mail, and `TOKEN_STALE`
 - [Sessions](sessions.md) — the cookie the session is sent in
+- [Devices](devices.md) — the `device` `confirm` takes, and the notice of a new one
 - [Errors](errors.md) — every code and its status
 - [`@nxgt/janus-telemetry`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-telemetry/docs/guide/tracing.md#a-code-sent-by-e-mail) — the events a sign-in by code writes
 - [Troubleshooting](../troubleshooting.md#sign-in-codes) — by the message you see

@@ -6,6 +6,7 @@
 import { mintId } from '../../ids/id';
 import type { ResolvedType } from '../config';
 import { type AnyUser, type Context, toUser } from '../context';
+import { type DeviceHint, deviceOutcome } from '../devices';
 import type { SessionRecord, UserRecord } from '../port/types';
 import { hashSecret, mintSecret } from '../secrets';
 import type { Session, SignedIn } from '../types';
@@ -19,11 +20,18 @@ export function toSession(record: SessionRecord): Session {
 /**
  * Opens a session for a user who just proved who they are. The token is in
  * the answer and nowhere else: the store holds its hash.
+ *
+ * `device` is what the sign-in was told of the device, and the answer says
+ * whether it is new to the user; `signUp` mints a first token and is never
+ * new. Reporting a new device is the caller's, once its sign-in is complete
+ * (`reportNewDevice`).
  */
 export async function openSession(
 	context: Context,
 	type: ResolvedType,
 	user: UserRecord,
+	device: DeviceHint,
+	signUp = false,
 ): Promise<SignedIn<AnyUser>> {
 	const now = context.clock.now();
 	const token = mintSecret();
@@ -43,5 +51,6 @@ export async function openSession(
 		user: toUser(user),
 		session: toSession(record),
 		token,
+		...deviceOutcome(context, user.id, device, signUp),
 	};
 }

@@ -85,6 +85,19 @@ export interface JanusMailVariables {
 		readonly recoveryCodesLeft: string;
 		readonly link: string;
 	};
+	/**
+	 * `device`, `time` and `location` are the sender's text, already in the
+	 * recipient's locale; `location` is `—` when the sender knew none. `link`
+	 * is where the account is secured.
+	 */
+	readonly newSignIn: {
+		readonly brand: string;
+		readonly name: string;
+		readonly device: string;
+		readonly location: string;
+		readonly time: string;
+		readonly link: string;
+	};
 	/** `name` is in the subject too: "Welcome, Ada". */
 	readonly welcome: {
 		readonly brand: string;
@@ -93,7 +106,7 @@ export interface JanusMailVariables {
 	};
 }
 
-/** The name of one of the eleven templates: `verifyEmail`, `resetPassword`, … */
+/** The name of one of the twelve templates: `verifyEmail`, `resetPassword`, … */
 export type JanusMailTemplateName = keyof JanusMailVariables;
 
 /**
@@ -106,7 +119,7 @@ export type JanusMailTemplate<V, L extends string = JanusMailLocale> = (
 	variables: V & { readonly locale: L },
 ) => Rendered | PromiseLike<Rendered>;
 
-/** The eleven templates, each for the locales `L`. */
+/** The twelve templates, each for the locales `L`. */
 export type JanusMailTemplates<L extends string = JanusMailLocale> = {
 	readonly [K in JanusMailTemplateName]: JanusMailTemplate<
 		JanusMailVariables[K],

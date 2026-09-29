@@ -123,6 +123,79 @@ type StaffContext = YogaInitialContext & JanusContext<typeof auth, typeof access
 Without `access`, write `JanusContext<typeof auth>`: `ctx.janus.access` is
 then absent from the type, as it is from the context.
 
+## A sign-in mutation and the device cookie
+
+`@nxgt/janus-graphql` runs no sign-in: a mutation of yours calls
+`auth.signIn`. With `janus({ devices })`, that call takes the **device
+token** the browser holds, as `device`, and answers a `deviceToken` to keep
+in a long-lived cookie of its own — so a sign-in from a device the user had
+not signed in from is told apart
+([`@nxgt/janus`'s devices guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/devices.md)).
+No helper is shipped for it: read the cookie from `ctx.request`, and set it
+back on the response.
+
+With Yoga, [`useCookies()`](https://the-guild.dev/graphql/yoga-server/docs/features/cookies)
+from `@whatwg-node/server-plugin-cookies` — a separate install, not a peer
+of this package: `bun add @whatwg-node/server-plugin-cookies` — gives the
+request a `cookieStore` to read and write through:
+
+```ts
+import { janusMaskError, janusTypeDefs, useJanus } from '@nxgt/janus-graphql';
+import { useCookies } from '@whatwg-node/server-plugin-cookies';
+import { createSchema, createYoga } from 'graphql-yoga';
+
+const DEVICE = 'janus-device';
+const FOUR_HUNDRED_DAYS = 400 * 24 * 60 * 60 * 1000; // the longest a browser keeps a cookie
+
+const resolvers = {
+	Mutation: {
+		signIn: async (_: unknown, args: { email: string; password: string }, ctx: Context) => {
+			const token = (await ctx.request.cookieStore?.get(DEVICE))?.value;
+			const result = await auth.signIn(args, { device: token ?? null });
+			if (result.status === 'secondFactor') return { challenge: result.challenge };
+			// …set the session cookie from result.token, as your sign-in already does
+			if (result.deviceToken !== null) {
+				await ctx.request.cookieStore?.set({
+					name: DEVICE,
+					value: result.deviceToken,
+					expires: Date.now() + FOUR_HUNDRED_DAYS,
+					httpOnly: true,
+					secure: true,
+					sameSite: 'lax',
+					path: '/',
+				});
+			}
+			return { userId: result.user.id, newDevice: result.newDevice };
+		},
+	},
+};
+
+export const yoga = createYoga({
+	schema: createSchema({ typeDefs: [janusTypeDefs, typeDefs], resolvers }),
+	plugins: [useCookies(), useJanus({ auth, access })],
+	maskedErrors: { maskError: janusMaskError() },
+});
+```
+
+Without the plugin, read the device token from the `Cookie` header —
+`ctx.request.headers.get('cookie')` — and set the cookie with a plugin of
+your own that appends a `Set-Cookie` in Yoga's `onResponse`.
+
+- **`token ?? null`, never `token` alone.** A missing cookie is
+  `undefined`, and `undefined` means *not tracked*: that browser would never
+  be given a token, nor reported.
+- **Give the device again to the second factor's mutation.** With an active
+  second factor, `signIn` answers a challenge that carries no device:
+  `auth.secondFactor.confirm(challenge, code, { device: token ?? null })`, and
+  the same for `recover`, `signInCode.confirm` and `magicLink.confirm`.
+- **A cookie of its own, apart from the session's**, `HttpOnly` and
+  `Secure`, and left in place by a sign-out: the device stays known. It
+  holds one user's token — see
+  [devices](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/devices.md#keeping-the-token-the-cookie).
+
+A bearer client has no cookie jar: answer it the `deviceToken` in the
+mutation's result, and take it back as an argument of the next sign-in.
+
 ## Directives
 
 `@authenticated`, `@fresh` and `@permission` guard a field, a type or an interface

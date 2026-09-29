@@ -19,6 +19,8 @@ for what causes each.
 - [`Expected 5 arguments, but got 4`, on `permission()`](#expected-5-arguments-but-got-4-on-permission)
 - [`Type '{ id: string; }' is not assignable to type 'Awaitable<ObjectData<…> | null>'`](#type--id-string--is-not-assignable-to-type-awaitableobjectdata--null)
 - [`Property 'access' does not exist on type 'Readonly<ContextVariableMap & …>'`](#property-access-does-not-exist-on-type-readonlycontextvariablemap--)
+- [`Type '"lax"' is not assignable to type '"Lax" | "Strict" | "None" | undefined'. Did you mean '"Lax"'?`](#type-lax-is-not-assignable-to-type-lax--strict--none--undefined-did-you-mean-lax), on `deviceOf` or `sendSession`
+- [`Object literal may only specify known properties, and 'name' does not exist in type 'SendSessionOptions'.`](#object-literal-may-only-specify-known-properties-and-name-does-not-exist-in-type-sendsessionoptions)
 - [`Argument of type 'SignInResult<…>' is not assignable to parameter of type …`, on `sendSession`](#argument-of-type-signinresult-is-not-assignable-to-parameter-of-type--readonly-token-string-readonly-session-session-readonly-user--)
 
 **Runtime**
@@ -39,6 +41,10 @@ for what causes each.
 - [`409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`](#409-codesecond_factor_active-or-409-codesecond_factor_not_enrolled)
 - [The browser never sends the cookie back](#the-browser-never-sends-the-cookie-back)
 - [A bearer client holds an expiry earlier than the session's](#a-bearer-client-holds-an-expiry-earlier-than-the-sessions)
+- [Every sign-in reports a new device](#every-sign-in-reports-a-new-device)
+- [No device cookie is set](#no-device-cookie-is-set)
+- [`Cookies Max-Age SHOULD NOT be greater than 400 days (34560000 seconds) in duration.`](#cookies-max-age-should-not-be-greater-than-400-days-34560000-seconds-in-duration)
+- [`TypeError: signIn: a device was given, but janus() has no devices — pass devices: { keys }`](#typeerror-signin-a-device-was-given-but-janus-has-no-devices--pass-devices--keys-)
 
 ## Types
 
@@ -152,6 +158,22 @@ that instance: it sets, and types, only what it is given.
 ```ts
 const app = new Hono().use(session(auth), provide({ auth, access }));
 ```
+
+### `Type '"lax"' is not assignable to type '"Lax" | "Strict" | "None" | undefined'. Did you mean '"Lax"'?`
+
+**When:** `tsc`, on `deviceOf(c, { sameSite: 'lax' })` or
+`sendSession(c, auth, signedIn, { device: { sameSite: 'lax' } })` — the
+session cookie's option copied over.
+**Why:** the device cookie is set by Hono's `setCookie`, whose `sameSite` is
+capitalised; `janus({ cookie })`'s is lowercase.
+**Fix:** `{ sameSite: 'Lax' }` — or leave it out: `'Lax'` is the default.
+
+### `Object literal may only specify known properties, and 'name' does not exist in type 'SendSessionOptions'.`
+
+**When:** `tsc`, on `sendSession(c, auth, signedIn, { name: 'device' })`.
+**Why:** `sendSession`'s options hold the device cookie's under `device`.
+**Fix:** `sendSession(c, auth, signedIn, { device: { name: 'device' } })`,
+and the same object to `deviceOf(c, { name: 'device' })`.
 
 ### `Argument of type 'SignInResult<…>' is not assignable to parameter of type '{ readonly token: string; readonly session: Session; readonly user: … }'`
 
@@ -592,3 +614,63 @@ app.get('/session', session(auth, { required: true }), (c) =>
 	c.json({ expiresAt: c.var.session.expiresAt }),
 );
 ```
+
+### Every sign-in reports a new device
+
+**When:** `signedIn.newDevice` is `true` — and a notice sent — at every
+sign-in, from a browser the user always uses.
+**Why:** the token `deviceOf` reads does not prove this user signed in
+there. With this package, most often:
+
+- `deviceOf` and `sendSession` were given different options — another
+  `name`, or a `path` the sign-in route is outside of — so the cookie written
+  is never the one read;
+- the device cookie is `Secure`, and the page is served over plain `http://`
+  on a host other than `localhost`: see
+  [The browser never sends the cookie back](#the-browser-never-sends-the-cookie-back);
+- a confirmation route passes `{ device: null }` rather than
+  `{ device: deviceOf(c) }`.
+
+`@nxgt/janus`'s [troubleshooting](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/troubleshooting.md#every-sign-in-reports-a-new-device)
+has the other causes: a device key removed, two people sharing a browser.
+**Fix:** one `DeviceCookieOptions`, passed to both:
+
+```ts
+const device = { name: 'device' } as const;
+const signedIn = await auth.signIn(input, { device: deviceOf(c, device) });
+sendSession(c, auth, signedIn, { device });
+```
+
+### No device cookie is set
+
+**When:** `sendSession` appends the session cookie and no `janus-device`.
+**Why:** the answer carries no `deviceToken`: the sign-in was given no
+`device` — `{ device: deviceOf(c) }` left out, or a second factor's
+`confirm` called without it, since the challenge carries none. The session
+renewal of `session()` never sets it either.
+**Fix:** give every call that opens a session `{ device: deviceOf(c) }`.
+
+### `Cookies Max-Age SHOULD NOT be greater than 400 days (34560000 seconds) in duration.`
+
+**When:** `sendSession` answers a sign-in that carries a `deviceToken`, with
+`device: { maxAge }` above 34560000 — most often milliseconds given where
+seconds belong. It throws after the sign-in completed: the session exists,
+the response is not sent.
+**Why:** Hono's `setCookie` refuses a `Max-Age` beyond 400 days, the longest
+a browser keeps a cookie.
+**Fix:** give seconds, 400 days at most — or leave `maxAge` out, which is
+400 days.
+
+```ts
+sendSession(c, auth, signedIn, { device: { maxAge: 60 * 60 * 24 * 180 } }); // 180 days
+```
+
+### `TypeError: signIn: a device was given, but janus() has no devices — pass devices: { keys }`
+
+**When:** a route passes `{ device: deviceOf(c) }` — even when it answers
+`null` — to a `janus()` wired without `devices`. It reaches
+`janusErrors()`'s `fallback`, or Hono's 500: a `TypeError` is a wiring
+mistake, not a refusal.
+**Fix:** give that `janus()` `devices: { keys }` — every instance that signs
+users in needs the same — or stop passing `device`. See
+[`@nxgt/janus`'s devices guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/devices.md#wiring).

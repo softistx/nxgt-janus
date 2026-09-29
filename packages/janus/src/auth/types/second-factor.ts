@@ -6,7 +6,7 @@
  * Part of what `janus()` hands back; `./index` gathers it.
  */
 
-import type { SignedIn } from './sign-in';
+import type { SignedIn, SignInOptions } from './sign-in';
 import type { UserRef, WriteOptions } from './user';
 
 /** What `secondFactor.enroll` answers: show both, keep neither. */
@@ -91,8 +91,15 @@ export interface SecondFactorApi<U> {
 		 * A code is accepted once, so a replay is `CODE_INVALID` too. An unknown,
 		 * spent or lapsed challenge is `TOKEN_UNKNOWN`, `TOKEN_SPENT` or
 		 * `TOKEN_EXPIRED`: sign in again.
+		 *
+		 * The `device` given to `signIn` is not carried by the challenge: give
+		 * it here again.
 		 */
-		confirm(challenge: string, code: string): Promise<SignedIn<U>>;
+		confirm(
+			challenge: string,
+			code: string,
+			options?: SignInOptions,
+		): Promise<SignedIn<U>>;
 		/**
 		 * Redeems `signIn`'s challenge with a **recovery code** instead of the
 		 * app's, for a user whose phone is gone, and opens the session. The
@@ -104,7 +111,11 @@ export interface SecondFactorApi<U> {
 		 * two sign-ins at once opens one session, and the other call is
 		 * `VERSION_CONFLICT`.
 		 */
-		recover(challenge: string, code: string): Promise<RecoveredSignIn<U>>;
+		recover(
+			challenge: string,
+			code: string,
+			options?: SignInOptions,
+		): Promise<RecoveredSignIn<U>>;
 		/**
 		 * How many recovery codes the user still holds — what `recover`
 		 * answered as `recoveryCodesLeft`, read again for whoever did not see
