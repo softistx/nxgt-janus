@@ -70,7 +70,7 @@ describe('janusMail().newSignIn', () => {
 		}
 	});
 
-	test('sent on the event, the user read back by id; no location shows —', async () => {
+	test('sent on the event, the user read back by id; no location says so', async () => {
 		const { auth, mail, mailer, heard } = wired();
 		await auth.signUp({ ...ada, password: 'correct horse' }, { device: null });
 		await auth.signIn(
@@ -90,7 +90,42 @@ describe('janusMail().newSignIn', () => {
 		const { sent } = mailer;
 		expect(sent).toHaveLength(1);
 		expect(sent[0]?.subject).toBe('New sign-in to your account');
-		expect(sent[0]?.text).toContain('Location\n—');
+		expect(sent[0]?.text).toContain('Location Unknown\n');
+	});
+
+	describe('without a location, the e-mail says so in the locale sent', () => {
+		const sentWithout = async (locale: string, fallbackLocale?: 'fr') => {
+			const options = baseOptions();
+			const fallback = fallbackLocale === undefined ? {} : { fallbackLocale };
+			await janusMail({ ...options, ...fallback }).newSignIn(
+				{ ...ada, locale },
+				{ device, time },
+			);
+			return options.mailer.sent[0];
+		};
+
+		test('en: Unknown', async () => {
+			const notice = await sentWithout('en');
+			expect(notice?.text).toContain('Location Unknown\n');
+			expect(notice?.html).toContain('>Unknown\n</td>');
+			expect(notice?.html).not.toContain('—');
+		});
+
+		test('fr: Inconnu', async () => {
+			const notice = await sentWithout('fr-FR');
+			expect(notice?.text).toContain('Lieu Inconnu\n');
+			expect(notice?.html).toContain('>Inconnu\n</td>');
+		});
+
+		test("a locale not sent in: the fallback locale's, as the rest of the e-mail", async () => {
+			const english = await sentWithout('de');
+			expect(english?.subject).toBe('New sign-in to your account');
+			expect(english?.text).toContain('Location Unknown\n');
+
+			const french = await sentWithout('de', 'fr');
+			expect(french?.subject).toBe('Nouvelle connexion à votre compte');
+			expect(french?.text).toContain('Lieu Inconnu\n');
+		});
 	});
 
 	test('the values are text: markup in them is escaped in the html', async () => {

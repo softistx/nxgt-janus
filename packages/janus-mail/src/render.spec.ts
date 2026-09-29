@@ -105,15 +105,17 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 	},
 };
 
-/** The labels of `newSignIn`'s summary, in `en` and `fr`: each row is two lines. */
-const SUMMARY_LABELS = new Set([
-	'Device',
-	'Location',
-	'Time',
-	'Appareil',
-	'Lieu',
-	'Heure',
-]);
+/** A line break after a colon, before a line that is an address alone. */
+const ADDRESS_LINE = /:\n(?=(?:https?:\/\/|mailto:)\S+$)/gm;
+
+/**
+ * `newSignIn`'s summary in the text part, as `sends` sends it — no location
+ * given: one row per line, "Label value", no blank line between.
+ */
+const SUMMARY_ROWS = {
+	en: ['Device Firefox on macOS', 'Location Unknown', 'Time 29/09/2026 09:12'],
+	fr: ['Appareil Firefox on macOS', 'Lieu Inconnu', 'Heure 29/09/2026 09:12'],
+} as const;
 
 describe('the default e-mails', () => {
 	for (const template of Object.keys(sends) as JanusMailTemplateName[]) {
@@ -138,15 +140,36 @@ describe('the default e-mails', () => {
 				await sends[template](janusMail(options), locale);
 				const text = options.mailer.sent[0]?.text ?? '';
 				for (const paragraph of text.trim().split('\n\n')) {
-					// A summary row is its label, then its value: no sentence to break.
-					if (SUMMARY_LABELS.has(paragraph.split('\n')[0] ?? '')) {
-						expect(paragraph.split('\n')).toHaveLength(2);
-						continue;
-					}
-					expect(paragraph).not.toContain('\n');
+					// The summary's rows are lines of one paragraph, checked below.
+					if (template === 'newSignIn' && paragraph.includes('\n')) continue;
+					// An address may sit on its own line after its sentence's colon.
+					expect(paragraph.replace(ADDRESS_LINE, ': ')).not.toContain('\n');
 				}
 			}
 		}
+	});
+
+	for (const locale of ['en', 'fr'] as const) {
+		test(`newSignIn in ${locale}: each summary row is its label and its value on one line`, async () => {
+			const options = baseOptions();
+			await sends.newSignIn(janusMail(options), locale);
+			const text = options.mailer.sent[0]?.text ?? '';
+			const multiline = text
+				.trim()
+				.split('\n\n')
+				.filter((paragraph) => paragraph.includes('\n'));
+			expect(multiline).toEqual([SUMMARY_ROWS[locale].join('\n')]);
+		});
+	}
+
+	test('the fallback link is its sentence, then the address after its colon', async () => {
+		const options = baseOptions();
+		await janusMail(options).magicLink(signInLink);
+		const text = options.mailer.sent[0]?.text ?? '';
+		// A space or a line break: upstream keeps an address on its own line.
+		expect(text).toMatch(
+			/If the button does not work, open this link:[ \n]https:\/\/acme\.example\/sign-in\/link\?token=tok-link-789\n/,
+		);
 	});
 
 	test('a value is HTML-escaped in the html, and written as is in the text', async () => {
