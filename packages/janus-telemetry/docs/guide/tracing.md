@@ -310,12 +310,39 @@ session worth looking at — it may not be theirs:
 // name = 'janus.stepUp.refused', grouped by user.id, more than 5 in an hour
 ```
 
+## A new device
+
+With `janus({ devices })`, a sign-in given the device token the client holds
+answers whether the device is new to the user. When it is, the
+`janus.signIn` event says so — on `signIn`, `signInCode.confirm`,
+`magicLink.confirm`, `secondFactor.confirm` and `secondFactor.recover`
+alike, beside their own marks:
+
+```
+POST /sign-in                            server
+└─ janus.signIn                          janus.user.type=user  user.id=0199…  janus.signIn.status=signedIn
+     log  janus.signIn                   user.id=0199…  janus.signIn.newDevice=true
+```
+
+A known device, or a sign-in given no `device`, writes no mark. The device
+token itself is never written, in any span or event. With a second factor,
+the mark is on the `janus.signIn` of the `confirm` or `recover` that opened
+the session: the challenge knows no device.
+
+```ts
+// Sign-ins from new devices, per user, in the last day:
+// name = 'janus.signIn' AND janus.signIn.newDevice = true, grouped by user.id
+```
+
+A burst of them for one user is an account being tried from elsewhere —
+worth an alert beside the notice `@nxgt/janus-mail` sends the user.
+
 ## What is never written
 
 A login, an e-mail, a password, a session token, a one-time token, a
 challenge — a second factor's or a sign-in code's — a code, a sign-in
 link's token, a TOTP secret,
-the `otpauth://` URI that holds it, a session id: nothing a log reader could
+the `otpauth://` URI that holds it, a device token, a session id: nothing a log reader could
 sign in with, or use to tell who holds an account. A refused sign-in by
 an unknown login says `janus.refusal.reason: 'unknownLogin'`, not which login
 was tried; only a refusal after the password was right, or against a

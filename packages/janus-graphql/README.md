@@ -257,6 +257,13 @@ createYoga({
   browser keeps the cookie with its old expiry until the next renewal over
   HTTP, a `renewAfter` later: a browser whose only traffic is the WebSocket
   should renew through an HTTP route of yours.
+- **A sign-in mutation passes the device itself.** `@nxgt/janus-graphql`
+  signs nobody in, and ships no device helper: with `janus({ devices })`,
+  read the device cookie from `ctx.request` — `useCookies()`'s
+  `cookieStore`, or the `Cookie` header — call
+  `auth.signIn(input, { device: token ?? null })`, and set `deviceToken`
+  back as a long-lived `HttpOnly` cookie. See
+  [the context](docs/guide/context.md#a-sign-in-mutation-and-the-device-cookie).
 - **An `auth` of your own needs `cookie` for the renewal.** A wrapper that
   passes on only `authenticate` and `types` sends no renewed cookie; pass
   `cookie: auth.cookie` along.

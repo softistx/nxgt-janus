@@ -9,9 +9,8 @@ Nothing between releases.
 
 ## Next
 
-- **The other presets** — `new-sign-in` and `invitation` from
-  `@nxgt/mail-presets`, each once `@nxgt/janus` has a flow that sends it: a
-  sign-in from a new device, an invitation to a user type.
+- **The invitation** — `invitation` from `@nxgt/mail-presets`, once
+  `@nxgt/janus` has a flow that sends it: an invitation to a user type.
 - **The other presets of `@nxgt/mail-presets` 0.4.0** — `account-deleted`,
   after a user is deleted, once `@nxgt/janus` has a deletion a link can
   undo; and `invitation-accepted`, once it has invitations.
@@ -46,6 +45,16 @@ Nothing between releases.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **The new sign-in notice, v0.9.0.** `newSignIn(to, { device, time,
+  location? })`, built from `@nxgt/mail-presets` 1.1.0's `new-sign-in` in
+  English and French — "New sign-in to your account", which device, where
+  and when, and a **Secure my account** button to `links.secureAccount()`:
+  send it when an `@nxgt/janus` 0.17 sign-in answers `newDevice: true`, or
+  on `user.newDeviceSignedIn`. Every value is your text in the recipient's
+  locale; `@nxgt/janus` sees no IP, so `location` is yours, and `—` without
+  one. Twelve e-mails now, and twelve templates to pass for a locale beyond
+  `en` and `fr`.
 
 - **The step-up's code, v0.8.0.** `stepUp(issued, to, options?)`, built
   from `@nxgt/mail-presets` 1.1.0's `confirm-action` in English and French:

@@ -97,7 +97,9 @@ Every event is posted as the user named by id, and nothing else.
 address the user had before; `webhooks()` drops it before the queue, so it
 reaches no endpoint, no queue and no `onGivingUp` report. A notice to that
 address is sent from the `janus({ events })` listener, beside `webhooks()` —
-see [the README](../../README.md#traps).
+see [the README](../../README.md#traps). `user.newDeviceSignedIn` arrives
+with `sessionId`, the session the new device opened, and is posted without
+it too: a session id stays in the process that wrote it.
 
 #### The endpoint's id
 

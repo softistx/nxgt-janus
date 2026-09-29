@@ -576,6 +576,103 @@ this e-mail with `mail.magicLink(issued)`, building its button with
 For the lifetime and every refusal, see [`@nxgt/janus`'s sign-in link
 guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md).
 
+## The device cookie
+
+With `janus({ devices })`, every sign-in can tell the user it came from a
+device they had not signed in from. The browser keeps a **device token** in
+a long-lived cookie of its own; `deviceOf(c)` reads it for the sign-in's
+`device`, and `sendSession` sets it from the answer's `deviceToken` — the
+first time, and again at every sign-in, so it lasts another 400 days:
+
+```ts
+import { deviceOf, sendSession } from '@nxgt/janus-hono';
+
+app.post('/sign-up', async (c) => {
+	const { email, name, password } = await c.req.json();
+	const signedUp = await auth.signUp({ email, name, password }, { device: deviceOf(c) });
+	return c.json({ id: sendSession(c, auth, signedUp).id }, 201); // the device is known from the start
+});
+
+app.post('/sign-in', async (c) => {
+	const { email, password } = await c.req.json();
+	const signedIn = await auth.signIn({ email, password }, { device: deviceOf(c) });
+	const user = sendSession(c, auth, signedIn);
+	return c.json({ id: user.id, newDevice: signedIn.newDevice });
+});
+```
+
+`deviceOf(c)` answers `null` for a browser with no device cookie, or an
+empty one: the sign-in then mints its first token. A token that proves
+nothing — another user's, a forged one, one whose key was removed — is a
+new device, never an error. A sign-in given no `device` answers no
+`deviceToken`, and `sendSession` sets no device cookie.
+
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `name` | `string` | `'janus-device'` (`DEVICE_COOKIE`) | The cookie's name |
+| `domain` | `string` | none | `Domain=` |
+| `path` | `string` | `'/'` | `Path=`: keep it covering every sign-in route |
+| `sameSite` | `'Lax' \| 'Strict' \| 'None'` | `'Lax'` | `SameSite=` — Hono's capitalised values, unlike `janus({ cookie })`'s `'lax'` |
+| `secure` | `boolean` | `true` | `Secure` |
+| `maxAge` | seconds | `34560000`, 400 days | `Max-Age=` — the longest a browser keeps a cookie |
+
+The cookie is always `HttpOnly`. Give `deviceOf` and `sendSession` the same
+options — one object, passed to both:
+
+```ts
+import { type DeviceCookieOptions, bindJanus, deviceOf } from '@nxgt/janus-hono';
+
+const device: DeviceCookieOptions = { name: 'device', sameSite: 'Strict' };
+const j = bindJanus({ auth });
+
+app.post('/sign-in', async (c) => {
+	const signedIn = await auth.signIn(await c.req.json(), { device: deviceOf(c, device) });
+	j.sendSession(c, signedIn, { device });
+	return c.body(null, 204);
+});
+```
+
+**With a second factor, give the device again.** The challenge `signIn`
+answers carries no device, and sets no device cookie: `confirm` and
+`recover` decide, from what they are given. The device cookie's path is
+`/`, so the code routes read it too:
+
+```ts
+app.post('/sign-in/code', async (c) => {
+	const { code } = await c.req.json();
+	const challenge = getCookie(c, CHALLENGE);
+	if (challenge === undefined) return c.json({ code: 'TOKEN_UNKNOWN' }, 400);
+	const signedIn = await auth.secondFactor.confirm(challenge, code, { device: deviceOf(c) });
+	const user = sendSession(c, auth, signedIn); // and the device cookie
+	deleteCookie(c, CHALLENGE, scope);
+	return c.json({ id: user.id });
+});
+```
+
+The same holds for `/sign-in/recovery`, `signInCode.confirm` and
+`magicLink.confirm`: pass `{ device: deviceOf(c) }` to each.
+
+**A sign-out leaves the device cookie**: `signOut` clears the session
+cookie only, so the device stays known. A browser two people take turns
+signing in on holds one user's token at a time, so each of them is told of
+a new device at every turn.
+
+A bearer client — a mobile app — has no cookie jar to share: answer it the
+`deviceToken` in the body, and take it back as `device`:
+
+```ts
+app.post('/api/sign-in', async (c) => {
+	const { email, password, deviceToken } = await c.req.json();
+	const signedIn = await auth.signIn({ email, password }, { device: deviceToken ?? null });
+	return c.json({ token: signedIn.token, deviceToken: signedIn.deviceToken });
+});
+```
+
+The notice itself — which device, when — is
+[`@nxgt/janus-mail`](https://www.npmjs.com/package/@nxgt/janus-mail)'s
+`newSignIn`, sent when `signedIn.newDevice` is `true`, and everything about
+the token is in [`@nxgt/janus`'s devices guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/devices.md).
+
 ## A step-up
 
 A route a stolen session should not run alone — deleting the account,
@@ -715,6 +812,7 @@ as staff replaces the patient's cookie.
 - [`@nxgt/janus` — sessions](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sessions.md) — lifespans, renewal, the cookie's attributes
 - [`@nxgt/janus` — errors](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) — every code
 - [`@nxgt/janus` — the second factor](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/second-factor.md) — keys, states, attempts
+- [`@nxgt/janus` — devices](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/devices.md) — the device token, the event, rotating the keys
 - [`@nxgt/janus` — sign-in codes](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sign-in-code.md) — requesting, the challenge, attempts, passwordless types
 - [Guarded routes and writing tuples](permissions.md) — `permission()`, `provide()`
 - [Troubleshooting](../troubleshooting.md)

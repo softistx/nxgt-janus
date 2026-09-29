@@ -1,7 +1,7 @@
 # Templates
 
 This page is for changing what an e-mail says or looks like: what a template
-is given and answers, replacing some of the eleven, using the defaults on their
+is given and answers, replacing some of the twelve, using the defaults on their
 own, and what the defaults say.
 
 ```ts
@@ -22,7 +22,7 @@ const mail = janusMail({
 });
 ```
 
-The sign-in code e-mail is now yours; the ten others stay the defaults.
+The sign-in code e-mail is now yours; the eleven others stay the defaults.
 
 ## What a template is
 
@@ -69,14 +69,15 @@ e-mail.
 | `twoFactorEnabled` | `brand`, `name`, `link` | `mail.twoFactorEnabled(to)` |
 | `twoFactorDisabled` | `brand`, `name`, `link` | `mail.twoFactorDisabled(to)` |
 | `recoveryCodeUsed` | `brand`, `name`, `when`, `recoveryCodesLeft`, `link` | `mail.recoveryCodeUsed(to, { when, recoveryCodesLeft })` |
+| `newSignIn` | `brand`, `name`, `device`, `location`, `time`, `link` | `mail.newSignIn(to, { device, time, location? })` |
 | `welcome` | `brand`, `name`, `link` | `mail.welcome(to)` |
 
 Every one also gets `locale`, one of `locales`. Every value is a string:
 `brand` from the options, `name` from the recipient, `link` from `links` —
-`links.secureAccount()` for the four notices and `stepUp`, `links.recoveryCodes()` (else
+`links.secureAccount()` for the four notices, `newSignIn` and `stepUp`, `links.recoveryCodes()` (else
 `links.secureAccount()`) for `recoveryCodeUsed`, `links.getStarted()` for
-`welcome` — `code`, `newEmail` and `when` from the
-call, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
+`welcome` — `code`, `newEmail`, `when`, `device` and `time` from the
+call, `location` from the call or `—` without one, and `expiresIn` derived from the flow's `expiresAt` in the locale, or
 the send's own `expiresIn` ([Sending](sending.md#the-expiry)).
 
 `recoveryCodesLeft` is a **sentence**, not the count: "You have 9 recovery
@@ -126,11 +127,12 @@ methods live on its prototype and are refused — see
 [troubleshooting](../troubleshooting.md#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-).
 
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
-any of the eleven, and the defaults render the rest. Once `locales` holds
-another locale, it takes **all eleven** — `stepUp` included, since 0.8 — see
+any of the twelve, and the defaults render the rest. Once `locales` holds
+another locale, it takes **all twelve** — `stepUp` included, since 0.8, and
+`newSignIn`, since 0.9 — see
 [Adding a locale](locales.md#adding-a-locale).
 
-`mail.templates` answers the eleven in use — yours, and the defaults for the
+`mail.templates` answers the twelve in use — yours, and the defaults for the
 rest — frozen:
 
 ```ts
@@ -152,7 +154,7 @@ const { subject, html, text } = await defaults.resetPassword({
 });
 ```
 
-It answers the eleven defaults, typed for `'en' | 'fr'`, without a mailer:
+It answers the twelve defaults, typed for `'en' | 'fr'`, without a mailer:
 to preview an e-mail, to wrap one — add a line to the default text, say — or
 to send one through something other than `janusMail()`. A default reused for
 a wider set of locales is a compile error: it could not render the one it
@@ -192,6 +194,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 | `twoFactorEnabled` | `two-factor-enabled` | Two-factor authentication was turned on | L'authentification à deux facteurs a été activée |
 | `twoFactorDisabled` | `two-factor-disabled` | Two-factor authentication was turned off | L'authentification à deux facteurs a été désactivée |
 | `recoveryCodeUsed` | `recovery-code-used` | A recovery code was used on your account | Un code de récupération a été utilisé sur votre compte |
+| `newSignIn` | `new-sign-in` | New sign-in to your account | Nouvelle connexion à votre compte |
 | `welcome` | `welcome` | Welcome, `Ada` | Bienvenue, `Ada` |
 
 Each has a header and a footer with the brand, a heading, a greeting by name
@@ -203,7 +206,12 @@ something sensitive on your account* — and warns not to share the code if
 it was not the user, its button saying **Secure my account**. `recoveryCodeUsed` says it
 too, after a warning banner — *a recovery code was used on your account at
 `when`* — the codes left, and a line on generating new ones; its button says
-**Secure my account**. `welcome` has the brand in
+**Secure my account**. `newSignIn` says the account *was signed in from a
+device we had not seen*, then a summary of three lines — **Device**,
+**Location** and **Time**, *Appareil*, *Lieu* and *Heure* in French — then
+*if this was you, there is nothing to do; if this was not you, secure your
+account now*, its button saying **Secure my account**; in the text part each
+line of the summary is its label, then its value on the next line. `welcome` has the brand in
 its heading — "Welcome to Acme" — and the recipient's name in its subject,
 filled at send time like the body; its button says **Get started**.
 

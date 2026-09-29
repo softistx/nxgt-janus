@@ -72,8 +72,9 @@ interface UserEvent {
 ```
 
 It names the user by id, and nothing else — not even on `user.emailChanged`,
-whose `formerEmail` `@nxgt/janus` hands its own listener only: a webhook never
-carries an address. Read the rest from where it is
+whose `formerEmail` `@nxgt/janus` hands its own listener only, nor on
+`user.newDeviceSignedIn`, whose `sessionId` stays there too: a webhook never
+carries an address or a session id. Read the rest from where it is
 kept — an API of the sender's, `auth.get(event.userId)` when you share its
 store — if you may. [The eleven types](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/events.md#the-eleven-types)
 are a closed union, so a `switch` on `event.type` is exhaustive.

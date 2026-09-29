@@ -168,6 +168,13 @@ const { user, session, token } = result; // status 'signedIn': as above
 its session is sent the same way. See
 [the second factor](second-factor.md#signing-in-switch-on-status).
 
+**With `janus({ devices })`, a second cookie rides beside the session's.**
+A sign-in given `{ device }` answers a `deviceToken` for the client to keep
+in a long-lived cookie of its own, apart from the session cookie: it
+outlives every session, and a sign-out leaves it, so the device stays
+known. `auth.cookie` builds only the session cookie — see
+[devices](devices.md#keeping-the-token-the-cookie) for the device cookie.
+
 `signOutEverywhere(user, { except })` revokes every standing session of a
 user, but the one named, and answers how many it revoked — "sign out
 everywhere else". An `except` that names no session of theirs — an unknown
@@ -237,5 +244,6 @@ cannot be replayed. `Session` is the stored record without that hash: `id`,
 - [Users](users.md) — `signUp`, `signIn`, the configuration
 - [The second factor](second-factor.md) — the challenge `signIn` answers instead of a session
 - [Step-up](step-up.md) — proving again who you are, and `assertFresh`
+- [Devices](devices.md) — the device cookie beside the session cookie, and a sign-in from a new device
 - [E-mail flows](email-flows.md) — verification and password reset
 - [Errors](errors.md) — `STORE_FAILED`, `UNSUPPORTED` and the rest

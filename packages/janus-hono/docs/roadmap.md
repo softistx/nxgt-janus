@@ -36,6 +36,12 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **The device cookie, v0.6.0** — `deviceOf(c)` reads the device token a
+  browser holds, for a sign-in's `device`, and `sendSession` sets it — or
+  sets it again for another 400 days — whenever `@nxgt/janus`'s answer
+  carries a `deviceToken`: `janus-device` (`DEVICE_COOKIE`), `HttpOnly`,
+  `Secure`, `SameSite=Lax`, `Path=/`, changed by `DeviceCookieOptions`.
+  `signOut` leaves it. Needs `@nxgt/janus` 0.17.0.
 - **The routes of a sign-in link, v0.5.1** — the routes guide's
   [A link sent by e-mail](guide/routes.md#a-link-sent-by-e-mail): a page
   that spends nothing, a `POST` behind `csrf()` that confirms, and the

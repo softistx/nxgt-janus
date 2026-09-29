@@ -33,6 +33,13 @@ Nothing yet.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A sign-in from a new device, v0.5.0** — a delivery of
+  `user.newDeviceSignedIn`, from `@nxgt/janus` 0.17, is written and read
+  back like the other ten. No session id is stored: `@nxgt/janus-webhooks`
+  drops the event's `sessionId` before the queue. A 0.4.x process sharing
+  the queue cannot read one back: upgrade every process, with each
+  endpoint's `types` limited meanwhile.
+
 - **The change events, v0.4.0** — a delivery of `user.passwordChanged` or
   `user.emailChanged`, from `@nxgt/janus` 0.14, is written and read back like
   the other eight. No address is stored: `@nxgt/janus-webhooks` drops an

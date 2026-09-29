@@ -39,6 +39,7 @@ How the messages are shaped:
 - [`janus: secondFactor.issuer must name your application …`](#janus-secondfactorissuer-must-name-your-application--the-authenticator-app-shows-it-beside-the-account)
 - [`janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 …`](#janus-secondfactorkeys-the-key-id-is-not-32-bytes-in-base64--make-one-with-openssl-rand--base64-32)
 - [`"hasSecondFactor" is a field janus sets itself; rename it`](#hassecondfactor-is-a-field-janus-sets-itself-rename-it)
+- [`janus: devices.keys: …`](#janus-deviceskeys-expected-at-least-one-key---id-key--the-first-seals)
 - [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
 - [`janus: signIn.throttle …` wiring messages](#janus-signinthrottle-wiring-messages)
 - [Other `janus:` wiring messages](#other-janus-wiring-messages)
@@ -97,7 +98,7 @@ How the messages are shaped:
 - [The link signed in another device than the one that asked](#the-link-signed-in-another-device-than-the-one-that-asked)
 - [`magicLink.request` answers `null` for a user who exists](#magiclinkrequest-answers-null-for-a-user-who-exists)
 - [`TS2339: Property 'magicLink' does not exist on type 'TypeApi<…>'.`](#ts2339-property-magiclink-does-not-exist-on-type-typeapi)
-- [`TS2554: Expected 1 arguments, but got 2.`, on `magicLink.confirm`](#ts2554-expected-1-arguments-but-got-2-on-magiclinkconfirm)
+- [`TS2559: Type 'string' has no properties in common with type 'SignInOptions'.`, on `magicLink.confirm`](#ts2559-type-string-has-no-properties-in-common-with-type-signinoptions-on-magiclinkconfirm)
 - `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE`, `USER_INACTIVE` and `VERSION_CONFLICT` from `magicLink.confirm`, and `TS2339` on its `token`: in their entries above.
 
 **Step-up**
@@ -110,6 +111,17 @@ How the messages are shaped:
 - [`NOT_FOUND` — `stepUp.request: the user has no e-mail`](#not_found--stepuprequest-the-user-has-no-e-mail)
 - [`TS2339: Property 'code' does not exist on type 'StepUpByEmail<…> | StepUpByApp<…>'.`](#ts2339-property-code-does-not-exist-on-type-stepupbyemail--stepupbyapp)
 - [`TS2339: Property 'stepUp' does not exist on type 'TypeApi<…>'.`](#ts2339-property-stepup-does-not-exist-on-type-typeapi)
+
+**Devices**
+- [`<call>: a device was given, but janus() has no devices — pass devices: { keys }`](#call-a-device-was-given-but-janus-has-no-devices--pass-devices--keys-)
+- [`<call>: options.device must be the device token the client holds, or null when it holds none`](#call-optionsdevice-must-be-the-device-token-the-client-holds-or-null-when-it-holds-none)
+- [Every sign-in reports a new device](#every-sign-in-reports-a-new-device)
+- [A new device is never reported: `newDevice` is always `false`](#a-new-device-is-never-reported-newdevice-is-always-false)
+- [`TS2379: Argument of type '{ device: string | undefined; }' is not assignable to parameter of type 'SignInOptions' …`](#ts2379-argument-of-type--device-string--undefined--is-not-assignable-to-parameter-of-type-signinoptions-with-exactoptionalpropertytypes-true)
+- [`TS2739: Type '{ … }' is missing the following properties from type 'SignedIn<…>': newDevice, deviceToken`](#ts2739-type----is-missing-the-following-properties-from-type-signedin-newdevice-devicetoken)
+- [`TS2559: Type '"<value>"' has no properties in common with type 'SignInOptions'.`](#ts2559-type-value-has-no-properties-in-common-with-type-signinoptions)
+- [`TS2322: Type 'string | null' is not assignable to type 'string'.`, on `deviceToken`](#ts2322-type-string--null-is-not-assignable-to-type-string-on-devicetoken)
+- `janus: devices.keys: …`: under [Configuring `janus()`](#configuring-janus).
 
 **User events**
 - [`[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`](#janus_event_failed-warning-janus-the-events-listener-failed-on-type-event-id-for-user-user-id-name)
@@ -392,6 +404,33 @@ janus({
     issuer: 'Acme',
     keys: [{ id: 'k2026a', key: process.env.TOTP_KEY_K2026A ?? '' }], // the first key seals
   },
+});
+```
+
+### `janus: devices.keys: expected at least one key — [{ id, key }], the first seals`
+
+Also:
+
+- `janus: devices.keys: every key needs an id of letters, digits, _ and -, at most 64 of them`
+- `janus: devices.keys: two keys have the id "<id>"`
+- `janus: devices.keys: the key "<id>" is not 32 bytes in base64 — make one with openssl rand -base64 32`
+
+**When:** `janus({ ..., devices })`.
+**Why:** device tokens are signed with these keys, in the format of
+`secondFactor.keys`: a list of at least one `{ id, key }`, the key 32 random
+bytes in base64. An empty list, a key from an environment variable that is
+not set, a hex key or a passphrase is refused.
+**Fix:** make a key of its own — not a sealing key of the second factor's —
+and keep it with your other secrets:
+
+```sh
+openssl rand -base64 32
+```
+
+```ts
+janus({
+  ...,
+  devices: { keys: [{ id: '2026-09', key: process.env.DEVICES_KEY_2026_09 ?? '' }] }, // the first signs
 });
 ```
 
@@ -1289,12 +1328,17 @@ Or `@nxgt/janus` is older than 0.15, which brought `magicLink`.
 **Fix:** name the field that holds the e-mail with the type's `email`
 option, or upgrade `@nxgt/janus`.
 
-### `TS2554: Expected 1 arguments, but got 2.`, on `magicLink.confirm`
+### `TS2559: Type 'string' has no properties in common with type 'SignInOptions'.`, on `magicLink.confirm`
+
+Before 0.17: `TS2554: Expected 1 arguments, but got 2.`
 
 **When:** `tsc`, on `magicLink.confirm(challenge, code)` — a sign-in code's
 route copied for a link.
-**Why:** a link carries no code: its token is the whole secret.
-**Fix:** `magicLink.confirm(token)`, with the token the link's page posted.
+**Why:** a link carries no code: its token is the whole secret. The second
+argument is `SignInOptions`, `{ device }`, which a string is not.
+**Fix:** `magicLink.confirm(token)`, with the token the link's page posted —
+and `magicLink.confirm(token, { device: cookie ?? null })` with
+[devices](guide/devices.md).
 
 ---
 
@@ -1432,6 +1476,146 @@ a code has nowhere to be sent.
 
 ---
 
+## Devices
+
+The two messages below are bare `TypeError`s, thrown by a sign-in before
+anything is written — a `signUp` creates no user. `<call>` is the call you
+wrote: `signIn`, `secondFactor.recover`, `patient.magicLink.confirm`. A
+device token itself is never refused: one that proves nothing is a new
+device. [The devices guide](guide/devices.md) has the whole flow.
+
+### `<call>: a device was given, but janus() has no devices — pass devices: { keys }`
+
+**When:** a sign-in given `{ device }` — `{ device: null }` included — on a
+`janus()` wired without `devices`. Most often one instance of several: the
+one that serves another route — the second factor's code, a sign-in link —
+was built from another configuration.
+**Why:** a device token is signed and checked with `devices.keys`; without
+keys there is nothing to sign it with, and answering `newDevice: false` would
+hide a notice you meant to send.
+**Fix:** give every `janus()` that signs users in the same `devices` — build
+the configuration once and import it:
+
+```ts
+export const devices = { keys: [{ id: '2026-09', key: process.env.DEVICES_KEY_2026_09 ?? '' }] } as const;
+janus({ ...config, devices });
+```
+
+Or stop passing `{ device }` where devices are not wanted.
+
+### `<call>: options.device must be the device token the client holds, or null when it holds none`
+
+**When:** from JavaScript, or through a cast, a `device` that is neither a
+string nor `null`: a number, an object — the cookie jar, a parsed cookie, the
+previous `SignedIn` instead of its `deviceToken`. `undefined` is not refused:
+it means "not tracked".
+**Why:** `device` is the token the client holds, as a string, or `null` when
+it holds none.
+**Fix:**
+
+```ts
+await auth.signIn(credentials, { device: previous.deviceToken }); // the string, or null
+```
+
+### Every sign-in reports a new device
+
+**When:** `newDevice` is `true` — and `user.newDeviceSignedIn` sent, and a
+notice e-mailed — at every sign-in of a user who always uses the same
+browser.
+**Why:** the token the sign-in is given does not prove this user signed in
+there. In order of likelihood:
+
+- **the device cookie is not kept.** It was never set from `deviceToken`;
+  it was set without `Max-Age` or `Expires`, so the browser drops it when it
+  closes; it is `Secure` on a plain `http://` origin other than
+  `localhost`; its `Path` or `Domain` leaves out a sign-in route; or it is
+  written under one name and read under another;
+- **a confirmation is given `null`** rather than the cookie — a
+  `{ device: null }` written in the second factor's route — so each
+  confirmation is a device holding no token;
+- **a device key was removed**, or two instances hold different keys: each
+  device is new once after a removal, and at every sign-in that reaches the
+  other instance;
+- **two people share the browser** and take turns: one cookie holds one
+  user's token, and the other's proves nothing.
+
+**Fix:** set the cookie from every answer's `deviceToken`, long-lived and
+sent to every sign-in route, and read it under the same name:
+
+```ts
+headers.append('Set-Cookie', `device=${signedIn.deviceToken}; Max-Age=34560000; Path=/; HttpOnly; Secure; SameSite=Lax`);
+```
+
+Give the confirmations the cookie too, and every `janus()` the same
+`devices`. The shared browser is not a bug: it is the price of storing
+nothing.
+
+### A new device is never reported: `newDevice` is always `false`
+
+**When:** a user signs in from a browser that never saw them, and nothing is
+reported: `newDevice: false`, `deviceToken: null`, no event.
+**Why:**
+
+- **no `device` was given** — absent, or `undefined`: a cookie read as
+  `string | undefined` passed as it is, which compiles unless your tsconfig
+  has `exactOptionalPropertyTypes`. Absent means *not tracked*, not *new*;
+- **the device was not given again** to `secondFactor.confirm` or `recover`:
+  for a user with an active second factor, the challenge `signIn` answered
+  carries none, and the confirmation decides alone;
+- `newDevice` read on `signUp`'s answer, which is never new.
+
+**Fix:** pass `null` for a client with no token, and the device to every
+call that opens a session:
+
+```ts
+const device = cookie ?? null;
+const result = await auth.signIn(credentials, { device });
+if (result.status === 'secondFactor') await auth.secondFactor.confirm(result.challenge, code, { device });
+```
+
+### `TS2379: Argument of type '{ device: string | undefined; }' is not assignable to parameter of type 'SignInOptions' with 'exactOptionalPropertyTypes: true'.`
+
+It goes on: `Type 'string | undefined' is not assignable to type 'string | null'.`
+
+**When:** `tsc`, with `exactOptionalPropertyTypes`, on a sign-in given a
+cookie read as `string | undefined`.
+**Why:** `undefined` would mean *not tracked*: a browser without a cookie
+would never be given a token, and never reported. `null` says the client
+holds none.
+**Fix:** `{ device: cookie ?? null }`. Without that compiler option, the same
+line compiles and tracks nothing — write `?? null` there too.
+
+### `TS2739: Type '{ … }' is missing the following properties from type 'SignedIn<…>': newDevice, deviceToken`
+
+**When:** `tsc`, on a `SignedIn` built by hand — a test double of `signIn`,
+a stub of `auth` — after upgrading to 0.17.
+**Why:** every answer that opens a session now carries `newDevice` and
+`deviceToken`.
+**Fix:**
+
+```ts
+const signedIn: SignedIn<User> = { status: 'signedIn', user, session, token, newDevice: false, deviceToken: null };
+```
+
+### `TS2559: Type '"<value>"' has no properties in common with type 'SignInOptions'.`
+
+**When:** `tsc`, on `secondFactor.confirm(challenge, code, token)` or
+`signInCode.confirm(challenge, code, token)` — the device token given as a
+bare string.
+**Why:** the options come last, as an object: `{ device }`.
+**Fix:** `secondFactor.confirm(challenge, code, { device: token })`.
+
+### `TS2322: Type 'string | null' is not assignable to type 'string'.`, on `deviceToken`
+
+**When:** `tsc`, reading `signedIn.deviceToken` as a `string` — to set a
+cookie.
+**Why:** it is `null` when the sign-in was given no `device`: nothing was
+minted then.
+**Fix:** set the cookie only for a token — `if (signedIn.deviceToken !==
+null) …` — or give every sign-in a `device`.
+
+---
+
 ## User events
 
 ### `[JANUS_EVENT_FAILED] Warning: janus: the events listener failed on <type> <event id> for user <user id>: <name>`
@@ -1454,6 +1638,9 @@ process.on('warning', (warning) => {
 **Why:** one of these, in order of likelihood:
 - the e-mail was already verified: nothing changed, so nothing is sent;
 - `delete` deleted nobody — a replay, or an id of another user type;
+- a `user.newDeviceSignedIn` for a sign-in given no `device`, from a known
+  device, or confirmed without the device given again — see
+  [A new device is never reported](#a-new-device-is-never-reported-newdevice-is-always-false);
 - the flow was refused, or the store failed during the write itself — the call threw, and nothing was written or sent;
 - the process stopped between the write and the listener — events are sent at most once, from memory;
 - the listener threw: look for `JANUS_EVENT_FAILED` in the process's warnings.

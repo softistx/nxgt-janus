@@ -213,6 +213,8 @@ interface SignedIn<U> {
 	readonly user: U;
 	readonly session: Session;
 	readonly token: string;
+	readonly newDevice: boolean;         // with janus({ devices }): see devices.md
+	readonly deviceToken: string | null;
 }
 
 interface SecondFactorRequired {
@@ -283,6 +285,26 @@ const signedIn = await auth.secondFactor.confirm(challenge, code);
 | `TOKEN_EXPIRED` | `expiresAt` has passed | sign in again |
 | `USER_INACTIVE` | the user was deactivated since `signIn`. The challenge is spent | answer 403, as `signIn` would |
 | `SECOND_FACTOR_NOT_ENROLLED` | the factor was disabled since `signIn`. The challenge is spent | sign in again: the password alone now opens a session |
+
+### Giving the device again
+
+With [`janus({ devices })`](devices.md), the challenge carries **no
+device**: whatever `signIn` was given, `confirm` — and `recover` — decide
+whether the device is new only from what they are given themselves. Pass
+the same `{ device }` again, from the same cookie:
+
+```ts
+const result = await auth.signIn({ email, password }, { device: cookie ?? null });
+if (result.status === 'secondFactor') {
+	// the next request, with the code — and the device cookie again
+	const signedIn = await auth.secondFactor.confirm(challenge, code, { device: cookie ?? null });
+	// { status: 'signedIn', …, newDevice, deviceToken }: user.newDeviceSignedIn sent for a new one
+}
+```
+
+A confirmation given no device is untracked: `newDevice: false`,
+`deviceToken: null`, no event. The challenge answer itself has neither
+field, and sends nothing.
 
 ### Attempts
 
@@ -392,7 +414,7 @@ and `recoveryCodesLeft` says how many remain.
 type RecoveredSignIn<U> = SignedIn<U> & { readonly recoveryCodesLeft: number };
 
 const signedIn = await auth.secondFactor.recover(challenge, ' 7K2MQ X9D4C ');
-// { status: 'signedIn', user, session, token, recoveryCodesLeft: 9 }
+// { status: 'signedIn', user, session, token, newDevice, deviceToken, recoveryCodesLeft: 9 }
 ```
 
 - **Read as the user may type it**: case, spaces and dashes are ignored, `o`
@@ -421,7 +443,8 @@ at the same moment, exactly one gets a session.
 `recover` sends a [`user.recoveryCodeUsed` event](events.md) once the code is
 spent — even if opening the session then fails. It is the one to tell the
 user about: a recovery code used by someone else is a sign-in without their
-phone.
+phone. Given a [`device`](devices.md) that is new, it sends
+`user.newDeviceSignedIn` after it.
 
 ### Counting what is left
 
@@ -875,8 +898,8 @@ interface SecondFactorApi<U> {
 		activate(user: UserRef, code: string, options?: WriteOptions): Promise<RecoveryCodesIssued<U>>;
 		regenerateRecoveryCodes(user: UserRef, code: string, options?: WriteOptions): Promise<RecoveryCodesIssued<U>>;
 		disable(user: UserRef, options?: WriteOptions): Promise<U>;
-		confirm(challenge: string, code: string): Promise<SignedIn<U>>;
-		recover(challenge: string, code: string): Promise<RecoveredSignIn<U>>; // code: a recovery code
+		confirm(challenge: string, code: string, options?: SignInOptions): Promise<SignedIn<U>>;
+		recover(challenge: string, code: string, options?: SignInOptions): Promise<RecoveredSignIn<U>>; // code: a recovery code
 		recoveryCodesLeft(user: UserRef): Promise<number | null>; // null: no active factor
 	};
 }
@@ -890,7 +913,8 @@ type RecoveredSignIn<U> = SignedIn<U> & { readonly recoveryCodesLeft: number };
 ```
 
 `RecoveryCodesIssued` and `RecoveredSignIn` are exported types of
-`@nxgt/janus`.
+`@nxgt/janus`. `SignInOptions` is `{ device?: string | null }` — see
+[devices](devices.md#giving-a-sign-in-the-device).
 
 `UserRef` is a user or its id; `WriteOptions` is `{ ifVersion? }`, as on
 every write — see [Users](users.md#ifversion). Every call may also reject
@@ -901,6 +925,7 @@ with `STORE_FAILED`.
 - [Sign-in codes](sign-in-code.md) — a sign-in by e-mailed code, which still asks for an active factor, with the same challenge
 - [Sign-in links](magic-link.md) — a sign-in by e-mailed link, which does the same
 - [Sessions](sessions.md) — the cookie `confirm`'s session is sent in, and `authenticatedAt`
+- [Devices](devices.md) — the `device` `confirm` and `recover` are given again, and the notice of a new one
 - [User events](events.md) — `user.secondFactorEnabled`, `user.secondFactorDisabled`, `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`
 - [Errors](errors.md) — `CODE_INVALID`, `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` and their statuses
 - [Writing an adapter](adapters.md#a-users-password-and-second-factor) — what a store keeps of a factor and its recovery codes

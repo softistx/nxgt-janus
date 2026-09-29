@@ -31,6 +31,12 @@ Nothing queued.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A sign-in from a new device, v0.7.0** — `user.newDeviceSignedIn`, from
+  `@nxgt/janus` 0.17, is signed, posted and verified like the other ten, and
+  an endpoint's `types` may name it. It is posted without its `sessionId`:
+  no session id reaches an endpoint, a queue or an `onGivingUp` report.
+  Upgrade the receivers first: one on 0.6.x answers `null` for the type.
+
 - **The change events, v0.6.0** — `user.passwordChanged` and
   `user.emailChanged`, from `@nxgt/janus` 0.14, are signed, posted and
   verified like the other eight, and an endpoint's `types` may name them.

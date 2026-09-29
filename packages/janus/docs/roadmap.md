@@ -9,16 +9,7 @@ Nothing between releases.
 
 ## Next
 
-- **A notice when a new device signs in** — a sign-in by password, sign-in
-  code, sign-in link, second factor or recovery code, from a device this user
-  has not recently signed in from, is reported: by the sign-in's answer, a
-  user event, or both. A sign-up or a step-up never counts. A *new sign-in*
-  e-mail with the device and the time — next on `@nxgt/janus-mail`'s roadmap —
-  can then tell the user. You pass what identifies the device — a long-lived
-  cookie of your own, say — and nothing more than a hash of it is kept. How
-  Janus remembers a device is still being decided: on the sessions, which
-  would change the `SessionStore` port, or in a signed cookie you keep, which
-  would not.
+Nothing yet.
 
 ## Later
 
@@ -79,6 +70,18 @@ Nothing between releases.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **A sign-in from a new device, v0.17.0** — `janus({ devices: { keys } })`,
+  and `{ device }` as the last argument of `signUp`, `signIn`,
+  `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and
+  `magicLink.confirm`: the device token the client holds, or `null`. Every
+  answer that opens a session says `newDevice` and hands back a
+  `deviceToken` for a long-lived cookie, and a new device sends
+  `user.newDeviceSignedIn`, with the new session's `sessionId`, once the
+  sign-in is complete. Nothing is stored: the token is a device id signed
+  for the user, so the store ports are unchanged. A sign-up is never new, a
+  call given no device is not tracked, and removing a key forgets every
+  device it signed. Breaking for a `switch` that exhausts `UserEventType`,
+  and for a `SignedIn` built by hand. See [devices](guide/devices.md).
 - **The first sign-in by link or code ends a squatter's password and second
   factor, v0.16.0** — when `signInCode.confirm` or `magicLink.confirm`
   proves an e-mail never verified, the password and the second factor with
@@ -161,11 +164,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   Maizzle when the package is built, and only filled in at send time, every
   value escaped: no template engine in your server. A transport that fails
   throws, like a store.
-- **A permission id no store can keep is held by nobody** — an object or
-  subject id holding a NUL character or a lone surrogate answers `false` from
-  `can()` and an empty page from `list()`, before any store call, and a
-  `fromField` holding one names nobody, nor does a `lookup` answering one;
-  `grant()` and `revoke()` refuse it with a `TypeError` rather than
-  `STORE_FAILED` on PostgreSQL alone. The relation store suite holds every
-  adapter to reading back every other character in an id exactly as written.
-  — v0.8.3

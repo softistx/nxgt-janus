@@ -24,8 +24,8 @@ Nothing yet.
 - **An OpenTelemetry SDK** — like `@nxgt/telemetry`, it speaks OTLP through its
   exporters and depends on no `@opentelemetry/*` package.
 - **Writing a login, an e-mail, a password, a session token, a one-time token,
-  a one-time code, a challenge or a session id** — in any span or event, on
-  any setting.
+  a one-time code, a challenge, a device token or a session id** — in any
+  span or event, on any setting.
 - **`moduleResolution: "nodenext"`** — like `@nxgt/janus`, the package imports
   without extensions. Use `"moduleResolution": "bundler"`.
 
@@ -33,6 +33,11 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **A sign-in from a new device, marked, v0.8.0** — `janus.signIn` carries
+  `janus.signIn.newDevice: true` when `@nxgt/janus` 0.17 answered
+  `newDevice: true`, on `signIn`, `signInCode.confirm`, `magicLink.confirm`,
+  `secondFactor.confirm` and `secondFactor.recover`. The device token is
+  never written.
 - **Sign-in links in the audit trail, v0.7.0** — `janus.magicLink.sent`
   when `magicLink.request` issued a link, never its token nor the address;
   a sign-in by link is `janus.signIn` with `janus.signIn.magicLink: true`,
