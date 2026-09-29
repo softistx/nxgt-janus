@@ -319,7 +319,7 @@ export async function requestLink(request: Request): Promise<Response> {
 	const issued = await auth.magicLink.request(email);
 	if (issued !== null) {
 		const link = `${ORIGIN}/sign-in/link?token=${issued.token}`;
-		void sendMail(issued.email, 'Your sign-in link', link); // not awaited
+		void sendMail(issued.email, 'Your sign-in link', link); // not awaited, so the answer's time tells nothing; in production, a queue that awaits and retries
 	}
 	return new Response(null, { status: 202 }); // the same answer either way
 }

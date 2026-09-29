@@ -631,12 +631,12 @@ whole.
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` does not give
 all ten. With five or more missing, the code is `TS2740` and the list ends
-`…, and 4 more.` See [Adding a locale](guide/locales.md#adding-a-locale).
+`…, and 5 more.` See [Adding a locale](guide/locales.md#adding-a-locale).
 
 ### `TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
 
 `templates` written for 0.4, with a locale beyond `en` and `fr`: since
-0.5.0 there are nine templates, and with such a locale every one is yours.
+0.5.0 `recoveryCodeUsed` is one of the templates, and with such a locale every one is yours.
 Add `recoveryCodeUsed` — it is given `brand`, `name`, `when`,
 `recoveryCodesLeft` (a sentence) and `link` — even if you never send it; in
 JavaScript the same `templates` is

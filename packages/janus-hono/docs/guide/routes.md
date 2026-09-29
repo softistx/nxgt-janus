@@ -487,7 +487,7 @@ app.post('/sign-in/email/link', async (c) => {
 	const { email } = await c.req.json();
 	const issued = await auth.magicLink.request(email);
 	if (issued !== null) {
-		void mailer.send(issued.email, `${ORIGIN}/sign-in/link?token=${issued.token}`); // not awaited
+		void mailer.send(issued.email, `${ORIGIN}/sign-in/link?token=${issued.token}`); // not awaited, so the answer's time tells nothing; in production, a queue that awaits and retries
 	}
 	return c.body(null, 202); // the same answer either way: nothing of a link reaches the visitor
 });
@@ -556,7 +556,7 @@ app.post('/sign-in/link', csrf({ origin: ORIGIN }), async (c) => {
 	const result = await auth.magicLink.confirm(token);
 	if (result.status === 'secondFactor') {
 		setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
-		return c.redirect('/sign-in/code', 303); // your page asking for the app's code
+		return c.redirect('/sign-in/second-factor', 303); // a page of yours whose form posts the app's code to /sign-in/code
 	}
 	sendSession(c, auth, result);
 	return c.redirect('/', 303);
