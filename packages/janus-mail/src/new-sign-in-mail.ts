@@ -4,8 +4,9 @@
  * where the account is secured.
  *
  * Apart from the other notices because of its optional `location`: Janus
- * sees no IP, so the sender may know none, and the e-mail then shows `—`,
- * which reads the same in every locale.
+ * sees no IP, so the sender may know none, and the e-mail then says so in
+ * the send's locale — "Unknown location", "Lieu inconnu"
+ * (`./no-location`).
  */
 
 import { noLocationText } from './no-location';

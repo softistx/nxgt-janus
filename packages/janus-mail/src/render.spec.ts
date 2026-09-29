@@ -105,13 +105,13 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 	},
 };
 
-/**
- * `newSignIn`'s summary in the text part, as the test above sends it — no
- * location given: one row per line, "Label value", no blank line between.
- */
 /** A line break after a colon, before a line that is an address alone. */
 const ADDRESS_LINE = /:\n(?=(?:https?:\/\/|mailto:)\S+$)/gm;
 
+/**
+ * `newSignIn`'s summary in the text part, as `sends` sends it — no location
+ * given: one row per line, "Label value", no blank line between.
+ */
 const SUMMARY_ROWS = {
 	en: [
 		'Device Firefox on macOS',

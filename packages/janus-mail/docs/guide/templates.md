@@ -79,8 +79,8 @@ for `stepUp`, `links.recoveryCodes()` (else
 `links.secureAccount()`) for `recoveryCodeUsed`, `links.getStarted()` for
 `welcome` — `code`, `newEmail`, `when`, `device` and `time` from the
 call, `location` from the call or, without one, "Unknown location" in the
-send's locale — "Lieu inconnu" in `fr`, `en`'s text for a locale beyond
-the two — and `expiresIn` derived from the flow's `expiresAt` in the locale, or
+send's locale — "Lieu inconnu" in `fr`; for another locale, its
+language's text when it is `en` or `fr` (`fr-CA`), else `en`'s — and `expiresIn` derived from the flow's `expiresAt` in the locale, or
 the send's own `expiresIn` ([Sending](sending.md#the-expiry)).
 
 `recoveryCodesLeft` is a **sentence**, not the count: "You have 9 recovery

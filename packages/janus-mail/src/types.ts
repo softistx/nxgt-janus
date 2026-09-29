@@ -202,7 +202,8 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 	 * Every value is your text, in the recipient's locale: `device` described
 	 * from the request (`'Firefox on macOS'`), `time` formatted in their time
 	 * zone. **Janus sees no IP**: `location` is yours to work out, and an
-	 * e-mail without one shows `—` in its place.
+	 * e-mail without one says "Unknown location" in its place — "Lieu
+	 * inconnu" in French.
 	 */
 	newSignIn(
 		to: Recipient & { readonly email: string },

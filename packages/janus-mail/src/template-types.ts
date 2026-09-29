@@ -87,8 +87,10 @@ export interface JanusMailVariables {
 	};
 	/**
 	 * `device`, `time` and `location` are the sender's text, already in the
-	 * recipient's locale; `location` is `—` when the sender knew none. `link`
-	 * is where the account is secured.
+	 * recipient's locale. Without a `location` from the sender, it is
+	 * "Unknown location" in the send's locale — "Lieu inconnu" in `fr`, the
+	 * language's text for a regional `en` or `fr` tag, `en`'s for any other.
+	 * `link` is where the account is secured.
 	 */
 	readonly newSignIn: {
 		readonly brand: string;
