@@ -127,5 +127,8 @@ describe('declarationsEmit', () => {
 		expect(printed).toContain(
 			"1 package(s)' fixtures do not emit their declarations.",
 		);
+		expect(printed).toContain(
+			'any other\nerror is a fixture that no longer compiles',
+		);
 	});
 });
