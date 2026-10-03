@@ -107,6 +107,18 @@ app.onError(janusErrors());
 export const j = bindJanus({ auth, access });
 
 export const bound = new Hono()
+	.use(j.session(), j.provide())
+	.post('/sign-in', async (c) => {
+		const signedIn = await auth.patient.signIn({
+			email: 'ada@example.test',
+			password: 'pw',
+		});
+		return c.json({ id: j.sendSession(c, signedIn).id });
+	})
+	.post('/sign-out', async (c) => {
+		await j.signOut(c);
+		return c.body(null, 204);
+	})
 	.get('/me', j.session({ required: true }), (c) =>
 		c.json({ id: c.var.user.id }),
 	)
