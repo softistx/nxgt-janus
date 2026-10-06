@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import { accessProblems, manifestShapeProblems } from './manifest';
 
 describe('manifestShapeProblems', () => {
-	const versions = { '@nxgt/janus': '0.2.0', '@nxgt/janus-mongo': '0.1.0' };
 	const adapter = (
 		peerDependencies: Record<string, string>,
 		name = '@nxgt/janus-mongo',
@@ -11,56 +10,59 @@ describe('manifestShapeProblems', () => {
 		peerDependencies,
 	});
 
-	test('accepts a caret range on a sibling that includes it', () => {
+	test('accepts a caret range on a sibling', () => {
 		expect(
-			manifestShapeProblems(
-				[{ name: '@nxgt/janus' }, adapter({ '@nxgt/janus': '^0.2.0' })],
-				versions,
-			),
+			manifestShapeProblems([
+				{ name: '@nxgt/janus' },
+				adapter({ '@nxgt/janus': '^0.2.0' }),
+			]),
 		).toEqual([]);
 	});
 
 	test('refuses an exact pin on a sibling: two copies, two StoreFailure classes', () => {
-		const problems = manifestShapeProblems(
-			[{ name: '@nxgt/janus' }, adapter({ '@nxgt/janus': '0.2.0' })],
-			versions,
-		);
+		const problems = manifestShapeProblems([
+			{ name: '@nxgt/janus' },
+			adapter({ '@nxgt/janus': '0.2.0' }),
+		]);
 		expect(problems).toEqual([
 			expect.stringContaining('pins a sibling exactly'),
 		]);
 	});
 
-	test('refuses a sibling range that leaves out the sibling beside it', () => {
-		const problems = manifestShapeProblems(
-			[{ name: '@nxgt/janus' }, adapter({ '@nxgt/janus': '^0.1.0' })],
-			versions,
-		);
-		expect(problems).toEqual([
-			expect.stringContaining('leaves out @nxgt/janus@0.2.0'),
+	test('refuses a package that lists itself', () => {
+		const problems = manifestShapeProblems([
+			{ name: '@nxgt/janus', dependencies: { '@nxgt/janus': '.' } },
 		]);
+		expect(problems).toEqual([expect.stringContaining('lists itself')]);
 	});
 
-	test('refuses a package that lists itself', () => {
-		const problems = manifestShapeProblems(
-			[{ name: '@nxgt/janus', dependencies: { '@nxgt/janus': '.' } }],
-			{},
-		);
-		expect(problems).toEqual([expect.stringContaining('lists itself')]);
+	/** `bun pm pack` resolves every `workspace:`; one left means it did not. */
+	test('refuses a workspace: left in a field a consumer installs, and not in devDependencies', () => {
+		expect(
+			manifestShapeProblems([
+				{ name: '@nxgt/janus' },
+				{
+					name: '@nxgt/janus-mongo',
+					peerDependencies: { '@nxgt/janus': 'workspace:^' },
+					devDependencies: { '@nxgt/janus': 'workspace:^' },
+				},
+			]),
+		).toEqual([
+			'@nxgt/janus-mongo: peerDependencies.@nxgt/janus = workspace:^, ' +
+				'which `bun pm pack` should have resolved',
+		]);
 	});
 
 	test('refuses link: and file: where a consumer installs, and not in devDependencies', () => {
 		expect(
-			manifestShapeProblems(
-				[
-					{
-						name: '@nxgt/janus',
-						dependencies: { a: 'link:../a' },
-						optionalDependencies: { b: 'file:../b' },
-						devDependencies: { c: 'link:../c' },
-					},
-				],
-				{},
-			),
+			manifestShapeProblems([
+				{
+					name: '@nxgt/janus',
+					dependencies: { a: 'link:../a' },
+					optionalDependencies: { b: 'file:../b' },
+					devDependencies: { c: 'link:../c' },
+				},
+			]),
 		).toEqual([
 			'@nxgt/janus: dependencies.a = link:../a',
 			'@nxgt/janus: optionalDependencies.b = file:../b',
