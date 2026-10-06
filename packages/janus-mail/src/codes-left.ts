@@ -25,7 +25,7 @@ export function codesLeftText(
 	const branch =
 		branches[`=${count}`] ??
 		branches[new Intl.PluralRules(locale).select(count)] ??
-		branches.other;
+		branches['other'];
 	const digits = new Intl.NumberFormat(locale).format(count);
 	return (branch ?? []).map((part) => part ?? digits).join('');
 }

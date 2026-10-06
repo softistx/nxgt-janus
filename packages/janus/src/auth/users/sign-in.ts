@@ -36,7 +36,7 @@ export async function signIn(
 	const rule = passwordRule(type, where);
 	const hasher = requireHasher(context, where);
 	const login = input?.[rule.login];
-	const password = input?.password;
+	const password = input?.['password'];
 
 	const normalized = typeof login === 'string' ? rule.normalize(login) : null;
 	// Counted before the login is looked up, so the count says nothing of

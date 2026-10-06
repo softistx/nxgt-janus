@@ -56,7 +56,7 @@ export type Table = 'users' | 'sessions' | 'tokens' | 'relations';
 export async function openTestDb(
 	options: JanusTablesOptions = {},
 ): Promise<TestDatabase> {
-	const server = process.env.JANUS_POSTGRES_URL;
+	const server = process.env['JANUS_POSTGRES_URL'];
 	return server === undefined
 		? openPglite(options)
 		: openServer(server, options);
@@ -136,7 +136,7 @@ async function openServer(
 async function driven(
 	url: string,
 ): Promise<{ readonly db: PgDatabase; close(): Promise<void> }> {
-	const driver = process.env.JANUS_DRIVER ?? 'bun-sql';
+	const driver = process.env['JANUS_DRIVER'] ?? 'bun-sql';
 	switch (driver) {
 		case 'bun-sql': {
 			const client = new SQL(url);

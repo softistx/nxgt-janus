@@ -45,6 +45,6 @@ describe('@fresh refused when the schema is built', () => {
 		const schema = build(
 			'type Query { email: String @fresh(maxAge: 600) open: String }',
 		);
-		expect(schema.getQueryType()?.getFields().open?.resolve).toBeUndefined();
+		expect(schema.getQueryType()?.getFields()['open']?.resolve).toBeUndefined();
 	});
 });

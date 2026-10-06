@@ -59,7 +59,9 @@ describe('requireUser()', () => {
 
 	it('refuses an anonymous request UNAUTHENTICATED', async () => {
 		const refused = await rejection(requireUser(contextOf(setup())));
-		expect((refused as GraphQLError).extensions?.code).toBe('UNAUTHENTICATED');
+		expect((refused as GraphQLError).extensions?.['code']).toBe(
+			'UNAUTHENTICATED',
+		);
 	});
 
 	it('refuses with a TypeError a context useJanus() did not build', async () => {

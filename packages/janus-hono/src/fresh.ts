@@ -59,5 +59,6 @@ export function fresh(
 			);
 		}
 		await next();
+		return undefined;
 	};
 }

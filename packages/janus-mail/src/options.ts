@@ -55,16 +55,16 @@ function isAddress(value: unknown): value is Address {
 	if (typeof value === 'string') return value.trim() !== '';
 	return (
 		isObject(value) &&
-		typeof value.name === 'string' &&
-		typeof value.address === 'string' &&
-		value.address.trim() !== ''
+		typeof value['name'] === 'string' &&
+		typeof value['address'] === 'string' &&
+		value['address'].trim() !== ''
 	);
 }
 
 /** `mailer`, `from`, `replyTo`, `brand` and `links` (`./links`). */
 function checkSending(options: Record<string, unknown>): void {
 	const { mailer, from, replyTo, brand, links } = options;
-	if (!isObject(mailer) || typeof mailer.send !== 'function') {
+	if (!isObject(mailer) || typeof mailer['send'] !== 'function') {
 		refuse('mailer must be a Mailer — an object with a send function');
 	}
 	if (!isAddress(from)) {
@@ -86,10 +86,10 @@ function checkSending(options: Record<string, unknown>): void {
 /** `clock`, bound to the caller's object, or the system clock. */
 function resolveClock(clock: unknown): Clock {
 	if (clock === undefined) return SYSTEM_CLOCK;
-	if (!isObject(clock) || typeof clock.now !== 'function') {
+	if (!isObject(clock) || typeof clock['now'] !== 'function') {
 		refuse('clock must be a Clock — an object with a now function');
 	}
-	return Object.freeze({ now: (clock.now as () => Date).bind(clock) });
+	return Object.freeze({ now: (clock['now'] as () => Date).bind(clock) });
 }
 
 /** Whether `Intl` takes the locale — the expiry is formatted in it — as `fr-CA`, not `fr_CA`. */
@@ -107,7 +107,7 @@ function resolveLocales(options: Record<string, unknown>): {
 	locales: readonly string[];
 	fallbackLocale: string;
 } {
-	const wanted = options.locales ?? LOCALES;
+	const wanted = options['locales'] ?? LOCALES;
 	if (
 		!Array.isArray(wanted) ||
 		wanted.length === 0 ||
@@ -123,7 +123,7 @@ function resolveLocales(options: Record<string, unknown>): {
 		refuse('locales holds the same locale twice');
 	}
 	const fallbackLocale =
-		options.fallbackLocale ??
+		options['fallbackLocale'] ??
 		(locales.includes('en') ? 'en' : (locales[0] as string));
 	if (typeof fallbackLocale !== 'string' || !locales.includes(fallbackLocale)) {
 		refuse('fallbackLocale must be one of locales');
@@ -136,7 +136,7 @@ function resolveTemplates(
 	options: Record<string, unknown>,
 	locales: readonly string[],
 ): JanusMailTemplates<string> {
-	const given = options.templates ?? {};
+	const given = options['templates'] ?? {};
 	if (!isObject(given)) {
 		refuse(
 			'templates must be an object of functions, as { verifyEmail: (variables) => rendered }',
@@ -199,17 +199,17 @@ export function resolveOptions(options: unknown): ResolvedOptions {
 	checkSending(options);
 	const { locales, fallbackLocale } = resolveLocales(options);
 	return Object.freeze({
-		mailer: options.mailer as Mailer,
-		from: frozenAddress(options.from as Address),
+		mailer: options['mailer'] as Mailer,
+		from: frozenAddress(options['from'] as Address),
 		replyTo:
-			options.replyTo === undefined
+			options['replyTo'] === undefined
 				? undefined
-				: frozenAddress(options.replyTo as Address),
-		brand: options.brand as string,
-		links: frozenLinks(options.links as unknown as JanusMailLinks),
+				: frozenAddress(options['replyTo'] as Address),
+		brand: options['brand'] as string,
+		links: frozenLinks(options['links'] as unknown as JanusMailLinks),
 		locales,
 		fallbackLocale,
 		templates: resolveTemplates(options, locales),
-		clock: resolveClock(options.clock),
+		clock: resolveClock(options['clock']),
 	});
 }

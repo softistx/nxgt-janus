@@ -60,7 +60,7 @@ describe('@fresh, then a step-up', () => {
 		expect(codes(refused.body)).toEqual(['STEP_UP_REQUIRED']);
 
 		const requested = await ask(yoga, 'mutation { requestStepUp }', ada.token);
-		const challenge = requested.body.data?.requestStepUp as string;
+		const challenge = requested.body.data?.['requestStepUp'] as string;
 		const [code] = outbox;
 		const confirmed = await ask(
 			yoga,
@@ -85,7 +85,7 @@ describe('@fresh, then a step-up', () => {
 		const yoga = server(context, typeDefs, resolversOf(context, outbox));
 		context.clock.advance(3_600_000);
 		const requested = await ask(yoga, 'mutation { requestStepUp }', ada.token);
-		const challenge = requested.body.data?.requestStepUp as string;
+		const challenge = requested.body.data?.['requestStepUp'] as string;
 		const wrong = outbox[0] === '000000' ? '111111' : '000000';
 		const confirmed = await ask(
 			yoga,

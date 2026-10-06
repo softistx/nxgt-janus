@@ -43,12 +43,12 @@ async function optionalPeersOf({
 	const peers: Record<string, string> = {};
 	for (const { manifest } of tarballs) {
 		const meta =
-			(manifest.peerDependenciesMeta as Record<
+			(manifest['peerDependenciesMeta'] as Record<
 				string,
 				{ optional?: boolean }
 			>) ?? {};
 		for (const [peer, range] of Object.entries<string>(
-			(manifest.peerDependencies as Record<string, string>) ?? {},
+			(manifest['peerDependencies'] as Record<string, string>) ?? {},
 		)) {
 			if (!meta[peer]?.optional || peer in overrides || peer in peers) {
 				continue;

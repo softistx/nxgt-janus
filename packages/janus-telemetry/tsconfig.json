@@ -2,8 +2,6 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"rootDirs": ["src"],
-		"outDir": "dist",
-		"noImplicitAny": true,
-		"exactOptionalPropertyTypes": true
+		"outDir": "dist"
 	}
 }

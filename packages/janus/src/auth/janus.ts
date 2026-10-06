@@ -100,7 +100,7 @@ export function janus<const C extends JanusConfig>(
 	// The one cast at the boundary: every field was validated against its
 	// type's schema before any of these answers was built.
 	const surface = resolved.single
-		? { ...shared, ...types.user }
+		? { ...shared, ...types['user'] }
 		: { ...shared, ...types };
 	return surface as unknown as Janus<C>;
 }

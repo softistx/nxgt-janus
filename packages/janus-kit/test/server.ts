@@ -18,7 +18,7 @@ import { underBuildLock } from './build-lock';
  * folder of the cache: that job runs the floor the READMEs promise, 7.0, with
  * it.
  */
-export const REDIS_VERSION = process.env.JANUS_REDIS_VERSION || '7.4.1';
+export const REDIS_VERSION = process.env['JANUS_REDIS_VERSION'] || '7.4.1';
 
 const REDIS_CACHE = join(
 	new URL('../../..', import.meta.url).pathname,
@@ -28,7 +28,7 @@ const REDIS_CACHE = join(
 
 /** The `redis-server` the specs run, built first if it is not cached yet. */
 export async function redisBinary(): Promise<string> {
-	const given = process.env.REDIS_BIN;
+	const given = process.env['REDIS_BIN'];
 	if (given) return given;
 	return await underBuildLock(REDIS_CACHE, REDIS_VERSION, () =>
 		RedisBinary.getPath({ version: REDIS_VERSION, downloadDir: REDIS_CACHE }),

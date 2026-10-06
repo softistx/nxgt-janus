@@ -34,7 +34,7 @@ export function passwordFlows(
 			const where = at('signUp');
 			const device = deviceHint(context, options, where);
 			passwordRule(type, where);
-			if ((input as Input)?.password === undefined) {
+			if ((input as Input)?.['password'] === undefined) {
 				checkPassword(type, undefined as unknown as string, where);
 			}
 			const record = await insert(context, type, input as Input, where);

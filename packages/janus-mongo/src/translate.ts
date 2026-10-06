@@ -89,8 +89,8 @@ export interface TypedLogin {
  * a failure.
  */
 export function takenLogin(duplicate: DuplicateKey): TypedLogin | null {
-	const type = duplicate.keyValue?.type;
-	const login = duplicate.keyValue?.logins;
+	const type = duplicate.keyValue?.['type'];
+	const login = duplicate.keyValue?.['logins'];
 	if (typeof type !== 'string' || typeof login !== 'string') return null;
 	return { type, login };
 }

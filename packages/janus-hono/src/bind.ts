@@ -115,21 +115,21 @@ export function bindJanus<const I extends Bindable>(instances: I): Bound<I> {
 		provide: () => provide(instances),
 	};
 	if (auth !== undefined) {
-		bound.session = (options: SessionOptions<string> = {}) =>
+		bound['session'] = (options: SessionOptions<string> = {}) =>
 			session(auth, options);
-		bound.sendSession = (
+		bound['sendSession'] = (
 			c: Context,
 			signedIn: Parameters<typeof sendSession>[2],
 			options?: SendSessionOptions,
 		) => sendSession(c, auth, signedIn, options);
-		bound.signOut = (c: Context) => signOut(c, auth);
+		bound['signOut'] = (c: Context) => signOut(c, auth);
 	}
 	if (access !== undefined) {
 		const guard = permission as unknown as (
 			access: object,
 			...rest: unknown[]
 		) => MiddlewareHandler;
-		bound.permission = (...rest: unknown[]) => guard(access, ...rest);
+		bound['permission'] = (...rest: unknown[]) => guard(access, ...rest);
 	}
 	return bound as Bound<I>;
 }

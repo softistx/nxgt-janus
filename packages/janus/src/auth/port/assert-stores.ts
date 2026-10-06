@@ -74,7 +74,7 @@ export function assertStores(
 	}
 
 	const sessions = (stores as { sessions: Record<string, unknown> }).sessions;
-	const collect = sessions.deleteExpiredSessions;
+	const collect = sessions['deleteExpiredSessions'];
 
 	// Present but not a function is a wiring mistake, not an absent capability:
 	// reporting it as "unsupported" would send the reader to the wrong fix.

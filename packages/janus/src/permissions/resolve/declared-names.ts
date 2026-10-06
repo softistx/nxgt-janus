@@ -85,8 +85,8 @@ export function collectNames(
 					: `${at}.${key} is not a key of an object type: related or permits`,
 			);
 		}
-		const relations = namesIn(def.related, `${at}.related`, refuse);
-		const permissions = namesIn(def.permits, `${at}.permits`, refuse);
+		const relations = namesIn(def['related'], `${at}.related`, refuse);
+		const permissions = namesIn(def['permits'], `${at}.permits`, refuse);
 		for (const permission of permissions) {
 			if (relations.has(permission)) {
 				throw refuse(

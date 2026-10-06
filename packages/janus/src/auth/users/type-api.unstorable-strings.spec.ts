@@ -127,7 +127,7 @@ describe('strings no store can keep', () => {
 			password,
 		});
 
-		expect((await store.users.findUser(user.id))?.fields.name).toBe(
+		expect((await store.users.findUser(user.id))?.fields['name']).toBe(
 			'Ada\u0001\u001f\uFFFF 😀',
 		);
 	});

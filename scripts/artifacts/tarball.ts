@@ -31,11 +31,13 @@ export function licenseProblems(
 	entries: readonly string[],
 ): string[] {
 	const problems: string[] = [];
-	if (manifest.license !== 'MIT') {
-		problems.push(`${manifest.name}: license is ${manifest.license}, not MIT`);
+	if (manifest['license'] !== 'MIT') {
+		problems.push(
+			`${manifest['name']}: license is ${manifest['license']}, not MIT`,
+		);
 	}
 	if (!entries.includes('package/LICENSE')) {
-		problems.push(`${manifest.name}: the tarball has no LICENSE`);
+		problems.push(`${manifest['name']}: the tarball has no LICENSE`);
 	}
 	return problems;
 }
@@ -48,7 +50,9 @@ export function missingFiles(
 	manifest: Record<string, unknown>,
 	entries: readonly string[],
 ): string[] {
-	const files: unknown[] = Array.isArray(manifest.files) ? manifest.files : [];
+	const files: unknown[] = Array.isArray(manifest['files'])
+		? manifest['files']
+		: [];
 	return files
 		.filter((entry): entry is string => typeof entry === 'string')
 		.filter((entry) => !/[*?[{!]/.test(entry))
@@ -62,7 +66,7 @@ export function missingFiles(
 		)
 		.map(
 			(entry) =>
-				`${manifest.name}: files lists ${entry}, which the tarball does not hold — build it first, or drop it from files`,
+				`${manifest['name']}: files lists ${entry}, which the tarball does not hold — build it first, or drop it from files`,
 		);
 }
 
@@ -89,5 +93,5 @@ export function testCodeProblems(
 	return entries
 		.map((path) => path.replace(/^package\//, ''))
 		.filter((path) => TEST_CODE.test(path))
-		.map((path) => `${manifest.name}: the tarball ships test code: ${path}`);
+		.map((path) => `${manifest['name']}: the tarball ships test code: ${path}`);
 }
