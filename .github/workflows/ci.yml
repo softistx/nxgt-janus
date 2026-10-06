@@ -171,6 +171,76 @@ jobs:
           github.head_ref != 'changeset-release/develop'
         run: bun run changeset:status
 
+  # The job above runs the lockfile's toolchain: the exact versions each
+  # package pins as a devDependency, the oldest end of each peer range. This
+  # one runs the newest end — the latest hono, mongodb, drizzle-orm, graphql
+  # and `@nxgt/*` library each range accepts, and TypeScript within `^6.0.3` —
+  # so a range stays true after the release that would break it. It resolves
+  # without a lockfile, so an upstream release can turn it red with no change
+  # here: read it, do not make it a required check.
+  #
+  # It leaves out what is about the code and not about the peers: Biome, the
+  # changeset checks, the committed-generated-code check, and the two extra
+  # PostgreSQL runs (node-postgres and postgres.js, PGlite), which the job
+  # above runs on the same suites. The `floors` job below is the other end of
+  # the servers and of the library peers; this one runs PostgreSQL 17 and the
+  # pinned Redis, as the first does.
+  newest-peers:
+    name: Newest peers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The same PostgreSQL as the `ci` job: @nxgt/janus-drizzle's specs run on
+    # it when JANUS_POSTGRES_URL names one.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: janus
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup
+        uses: ./.github/actions/setup
+      # Rewrites the manifests in this checkout only, then installs what they
+      # now name. The lockfile goes: its versions satisfy the rewritten
+      # ranges, so an install that kept it would test the oldest end again.
+      # The setup action's install skips Redis's postinstall; this one must too.
+      - name: Use the newest peers
+        run: bun scripts/newest-peers.ts && rm bun.lock && bun install
+        env:
+          REDISMS_DISABLE_POSTINSTALL: '1'
+      - name: Build packages
+        run: bun run build
+      - name: Type checking
+        run: bun run typecheck
+      # The same mongod and Redis builds, from the same caches and under the
+      # same keys, as the `ci` job. Nothing in the key hashes bun.lock, which
+      # this job deletes.
+      - name: Cache the mongod binary
+        uses: actions/cache@v4
+        with:
+          path: .cache/mongodb
+          key: mongod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-mongo/test/server.ts', 'packages/janus-kit/test/mongo.ts') }}
+      - name: Cache the Redis build
+        uses: actions/cache@v4
+        with:
+          path: .cache/redis
+          key: redis-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/janus-redis/test/server.ts', 'packages/janus-kit/test/server.ts', 'packages/janus-webhooks-redis/test/server.ts') }}
+      - name: Build Redis
+        run: bun -e "const { redisBinary } = await import('./packages/janus-redis/test/server.ts'); console.log(await redisBinary())"
+      - name: Run tests
+        run: bun run test
+        env:
+          JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
+      - name: Verify the built artifacts load
+        run: bun run verify:artifacts
+
   # The minimum versions the READMEs promise — PostgreSQL 15, Redis 7.0, and
   # Valkey — measured rather than claimed: the job above runs PostgreSQL 17 and
   # Redis 7.4.1 only. It runs beside it, so the pull request waits for the
@@ -274,10 +344,13 @@ jobs:
           (cd packages/janus-redis && bun test src)
           (cd packages/janus-webhooks-redis && bun test src)
       # The library floors. Every `@nxgt/*` peer is `>=<floor> <1`, and the
-      # job above runs the version bun.lock holds, npm's latest. Two floors sit
-      # below it — `@nxgt/mail` 0.1.0 and `@nxgt/mongo` 0.17.0 — while
-      # `@nxgt/redis`, `@nxgt/drizzle` and `@nxgt/telemetry` are locked at
-      # their floors, so the job above already runs those. The script points
+      # job above runs the version bun.lock holds, which is not always npm's
+      # latest: `@nxgt/redis` is locked at 0.3.1, its floor, while npm has
+      # 0.7.0 inside `>=0.3.1 <1`, and the newest end is the `Newest peers`
+      # job's. Two floors sit below the lock — `@nxgt/mail` 0.1.0 and
+      # `@nxgt/mongo` 0.17.0 — while `@nxgt/redis`, `@nxgt/drizzle` and
+      # `@nxgt/telemetry` are locked at their floors, so the job above already
+      # runs those. The script points
       # the named packages' link to the peer at the floor's tarball, fetched
       # from npm outside the lock, runs the command, and puts the links back;
       # package.json and bun.lock are never touched. Typecheck too: a floor
