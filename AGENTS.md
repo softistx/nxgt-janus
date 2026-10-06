@@ -363,11 +363,12 @@ The detail lives in the package's `docs/` — `guide/`, `troubleshooting.md`,
 
 The repository skeleton (`build.ts`, `scripts/verify-artifacts.ts`,
 `scripts/publish.ts`, the workflows, `bunfig.toml`, the tsconfigs) is **copied
-from nxgt-data, never shared**. That is the fourth copy, beside nxgt-http and
-nxgt-core, and nxgt-data's AGENTS.md, in its table of what is kept twice, says
-to change both when the reason holds for both. `verify-artifacts.ts` is split
-into `scripts/artifacts/` in all four copies, which hold the same checks apart
-from nxgt-core's `browser.ts`; where they differ is in *Deliberate duplications*.
+from nxgt-data, never shared**, as in nxgt-core, nxgt-http, nxgt-telemetry and
+nxgt-di, and nxgt-data's AGENTS.md, in its table of what is kept twice, says
+to change every copy when the reason holds for all. `verify-artifacts.ts` is
+split into `scripts/artifacts/` in all six repositories, which hold the same
+checks apart from nxgt-core's `browser.ts`; where they differ is in *Deliberate
+duplications*.
 
 **Imports carry no extension**: `from './engine'`, not `'./engine.js'` — in
 the sources, and in what the build emits, the `.d.ts` files included.
