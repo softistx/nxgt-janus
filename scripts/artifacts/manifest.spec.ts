@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { manifestShapeProblems } from './manifest';
+import { accessProblems, manifestShapeProblems } from './manifest';
 
 describe('manifestShapeProblems', () => {
 	const versions = { '@nxgt/janus': '0.2.0', '@nxgt/janus-mongo': '0.1.0' };
@@ -64,6 +64,23 @@ describe('manifestShapeProblems', () => {
 		).toEqual([
 			'@nxgt/janus: dependencies.a = link:../a',
 			'@nxgt/janus: optionalDependencies.b = file:../b',
+		]);
+	});
+});
+
+describe('accessProblems', () => {
+	test('accepts a scoped package published as public', () => {
+		expect(
+			accessProblems({
+				name: '@nxgt/janus',
+				publishConfig: { access: 'public' },
+			}),
+		).toEqual([]);
+	});
+
+	test('refuses a scoped package with no publishConfig', () => {
+		expect(accessProblems({ name: '@nxgt/janus' })).toEqual([
+			'@nxgt/janus: publishConfig.access is not "public"; bun publish would publish this scoped package as restricted',
 		]);
 	});
 });

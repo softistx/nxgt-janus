@@ -33,6 +33,11 @@ import { type Tarball, tarballProblems } from './tarball';
  *     `.gitignore` keeps out of the repository: an unbuilt folder, or a packer
  *     that honours that `.gitignore`, would publish a package whose every
  *     default e-mail fails.
+ *   - a **scoped package without `publishConfig.access: "public"`**.
+ *     `scripts/publish.ts` runs `bun publish`, which never reads the
+ *     changeset config's `access`, and npm publishes a scoped package as
+ *     restricted by default: refused on a free organisation, private on a
+ *     paid one.
  *   - **test code**: a `*.spec.*` or `*.test.*` file, a snapshot, or a
  *     `<subject>.fixtures.*` file.
  */
@@ -66,6 +71,20 @@ export async function manifestProblems(
 	}
 
 	return problems;
+}
+
+/** A scoped package that `bun publish` would publish as restricted. */
+export function accessProblems(manifest: Record<string, unknown>): string[] {
+	const name = manifest['name'] as string;
+	const access = (
+		manifest['publishConfig'] as Record<string, unknown> | undefined
+	)?.['access'];
+	return name.startsWith('@') && access !== 'public'
+		? [
+				`${name}: publishConfig.access is not "public"; bun publish would ` +
+					'publish this scoped package as restricted',
+			]
+		: [];
 }
 
 /**
