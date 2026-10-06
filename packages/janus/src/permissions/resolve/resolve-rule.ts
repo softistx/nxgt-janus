@@ -17,12 +17,12 @@ export function resolveRule(
 ): ResolvedRule {
 	const { refuse } = context;
 
-	if (isRecord(value) && value.kind === 'when') {
-		if (typeof value.test !== 'function') {
+	if (isRecord(value) && value['kind'] === 'when') {
+		if (typeof value['test'] !== 'function') {
 			throw refuse(`${here}: when() takes a function as its test`);
 		}
-		const inner = resolveRule(value.rule, here, context);
-		return { ...inner, test: value.test as (ctx: never) => boolean };
+		const inner = resolveRule(value['rule'], here, context);
+		return { ...inner, test: value['test'] as (ctx: never) => boolean };
 	}
 	if (typeof value !== 'string') {
 		throw refuse(`${here}: a rule is a name, an arrow, or when()`);

@@ -107,20 +107,20 @@ export function readField(
 		typeName,
 	)) {
 		for (const args of getDirective(schema, node, 'authenticated') ?? []) {
-			const types = args.type as readonly string[] | null | undefined;
+			const types = args['type'] as readonly string[] | null | undefined;
 			authenticated.push({ where, types: types ?? null });
 		}
 		for (const args of getDirective(schema, node, 'fresh') ?? []) {
-			fresh.push({ where, maxAge: args.maxAge as number });
+			fresh.push({ where, maxAge: args['maxAge'] as number });
 		}
 		for (const args of getDirective(schema, node, 'permission') ?? []) {
 			permission.push({
 				where,
 				onType,
-				name: args.name as string,
-				type: args.type as string,
-				id: (args.id as string | null | undefined) ?? null,
-				onDeny: args.onDeny === 'FORBIDDEN' ? 'FORBIDDEN' : 'NOT_FOUND',
+				name: args['name'] as string,
+				type: args['type'] as string,
+				id: (args['id'] as string | null | undefined) ?? null,
+				onDeny: args['onDeny'] === 'FORBIDDEN' ? 'FORBIDDEN' : 'NOT_FOUND',
 			});
 		}
 	}

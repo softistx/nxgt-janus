@@ -5,7 +5,6 @@
 		"target": "ESNext",
 		"module": "ESNext",
 		"moduleDetection": "force",
-		"allowJs": true,
 		"moduleResolution": "bundler",
 		"verbatimModuleSyntax": true,
 		"declaration": true,
@@ -14,16 +13,16 @@
 		"skipLibCheck": true,
 		"noFallthroughCasesInSwitch": true,
 		"forceConsistentCasingInFileNames": true,
-		"noImplicitAny": false,
-		"noUnusedLocals": false,
-		"noUnusedParameters": false,
-		"noPropertyAccessFromIndexSignature": false,
+		"noImplicitAny": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noPropertyAccessFromIndexSignature": true,
 		"resolveJsonModule": true,
-		"experimentalDecorators": true,
-		"emitDecoratorMetadata": true,
-		"strictPropertyInitialization": false,
-		"useDefineForClassFields": false,
-		"noUncheckedIndexedAccess": true
+		"useDefineForClassFields": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noImplicitReturns": true,
+		"exactOptionalPropertyTypes": true
 	},
 	"exclude": ["node_modules", "dist", "build", "coverage"]
 }

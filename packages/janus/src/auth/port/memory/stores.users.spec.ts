@@ -17,9 +17,9 @@ describe('users', () => {
 		await users.insertUser(record);
 
 		expect(await users.findUser(record.id)).toEqual(record);
-		expect((await users.findUserByLogin('user', 'a@b.test'))?.fields.age).toBe(
-			1,
-		);
+		expect(
+			(await users.findUserByLogin('user', 'a@b.test'))?.fields['age'],
+		).toBe(1);
 	});
 
 	it('answers null for an absence, never undefined', async () => {
@@ -34,10 +34,10 @@ describe('users', () => {
 		const record = user();
 		const inserted = await users.insertUser(record);
 
-		(record.fields as Record<string, unknown>).email = 'mutated-before';
-		(inserted.fields as Record<string, unknown>).email = 'mutated-after';
+		(record.fields as Record<string, unknown>)['email'] = 'mutated-before';
+		(inserted.fields as Record<string, unknown>)['email'] = 'mutated-after';
 
-		expect((await users.findUser(record.id))?.fields.email).toBe('a@b.test');
+		expect((await users.findUser(record.id))?.fields['email']).toBe('a@b.test');
 	});
 
 	it('compares logins as bytes, and within one type', async () => {

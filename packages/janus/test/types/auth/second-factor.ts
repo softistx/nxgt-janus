@@ -58,12 +58,12 @@ async function signingIn() {
 		password: { login: 'email' },
 		store,
 		hasher,
-		...(process.env.TOTP_KEY === undefined
+		...(process.env['TOTP_KEY'] === undefined
 			? {}
 			: {
 					secondFactor: {
 						issuer: 'Clinic',
-						keys: [{ id: 'k1', key: process.env.TOTP_KEY }] as const,
+						keys: [{ id: 'k1', key: process.env['TOTP_KEY'] }] as const,
 					},
 				}),
 	});

@@ -83,13 +83,13 @@ export function workspacePerCase(): Workspace {
 				tmp: tmp(),
 				seen: () => seen,
 				pack: async (dir, names) => {
-					seen.packed = names;
+					seen['packed'] = names;
 					return Object.fromEntries(
 						names.map((name) => [name, `file:${dir}/${name}.tgz`]),
 					);
 				},
 				install: async (dir) => {
-					seen.manifest = await Bun.file(join(dir, 'package.json')).json();
+					seen['manifest'] = await Bun.file(join(dir, 'package.json')).json();
 					const p = join(dir, 'node_modules/@x/p');
 					await write(join(p, 'package.json'), {
 						name: '@x/p',

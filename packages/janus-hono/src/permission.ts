@@ -175,6 +175,7 @@ export function permission(
 
 		c.set('object', object);
 		await next();
+		return undefined;
 	};
 }
 

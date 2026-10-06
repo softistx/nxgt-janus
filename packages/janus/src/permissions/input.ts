@@ -46,15 +46,15 @@ export function objectOf(
 	readonly id: string;
 	readonly data: Readonly<Record<string, unknown>>;
 } {
-	if (!isRecord(value) || typeof value.type !== 'string') {
+	if (!isRecord(value) || typeof value['type'] !== 'string') {
 		throw new TypeError(
 			`${where}: the object must be { type, id, …its fields }`,
 		);
 	}
-	typeOf(model, value.type, where);
+	typeOf(model, value['type'], where);
 	return {
-		type: value.type,
-		id: idOf(value.id, 'the object id', where),
+		type: value['type'],
+		id: idOf(value['id'], 'the object id', where),
 		data: value,
 	};
 }
@@ -74,29 +74,29 @@ export function subjectOf(
 	value: unknown,
 	where: string,
 ): Subject {
-	if (!isRecord(value) || typeof value.type !== 'string') {
+	if (!isRecord(value) || typeof value['type'] !== 'string') {
 		throw new TypeError(
 			`${where}: the subject must be a user, or { type, id }`,
 		);
 	}
-	const id = idOf(value.id, 'the subject id', where);
-	const isUserType = model.subjects.has(value.type);
+	const id = idOf(value['id'], 'the subject id', where);
+	const isUserType = model.subjects.has(value['type']);
 	const isSet = isSetOf(value);
-	if (isUserType && !isSet) return { type: value.type, id };
+	if (isUserType && !isSet) return { type: value['type'], id };
 	if (isUserType && isSet && !model.types.has(value.type)) {
 		throw new TypeError(
 			`${where}: ${value.type} is a user type the model does not declare as an object type, so ${value.type}#${String(value.relation)} is no subject set`,
 		);
 	}
 
-	const type = typeOf(model, value.type, where);
-	if (typeof value.relation !== 'string') return { type: type.name, id };
-	if (!type.relations.has(value.relation)) {
+	const type = typeOf(model, value['type'], where);
+	if (typeof value['relation'] !== 'string') return { type: type.name, id };
+	if (!type.relations.has(value['relation'])) {
 		throw new TypeError(
-			`${where}: "${value.relation}" is not a relation of ${type.name}, so ${type.name}#${value.relation} is no subject set`,
+			`${where}: "${value['relation']}" is not a relation of ${type.name}, so ${type.name}#${value['relation']} is no subject set`,
 		);
 	}
-	return { type: type.name, id, relation: value.relation };
+	return { type: type.name, id, relation: value['relation'] };
 }
 
 /** A tuple `grant` or `revoke` may write: a stored relation, and a holder it admits. */

@@ -96,7 +96,7 @@ export function branchesOf(locale: string, message: string): Branches {
 		plural.value !== 'recoveryCodesLeft' ||
 		plural.pluralType !== 'cardinal' ||
 		plural.offset !== 0 ||
-		plural.options.other === undefined
+		plural.options['other'] === undefined
 	) {
 		throw new Error(
 			`build-mail: ${locale}'s recovery-code-used.codes-left must be one plural on recoveryCodesLeft, with an other branch and no offset`,

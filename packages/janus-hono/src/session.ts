@@ -107,6 +107,7 @@ export function session(
 		) {
 			sendSession(c, auth, current);
 		}
+		return undefined;
 	};
 }
 

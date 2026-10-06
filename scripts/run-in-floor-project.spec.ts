@@ -19,8 +19,8 @@ describe('runInFloorProject', () => {
 			options,
 		);
 		expect(code).toBe(3);
-		expect(options.seen().packed).toEqual(['@x/p', '@x/sib']);
-		expect(options.seen().manifest).toMatchObject({
+		expect(options.seen()['packed']).toEqual(['@x/p', '@x/sib']);
+		expect(options.seen()['manifest']).toMatchObject({
 			dependencies: { dep: '1.2.3', lib: '1.0.0' },
 			overrides: { lib: '1.0.0' },
 		});

@@ -45,21 +45,21 @@ export async function manifestProblems(
 		...tarballs.flatMap(tarballProblems),
 		...manifestShapeProblems(manifests, versions),
 	];
-	const own = new Set(manifests.map((m) => m.name as string));
+	const own = new Set(manifests.map((m) => m['name'] as string));
 
 	for (const manifest of manifests) {
 		const meta =
-			(manifest.peerDependenciesMeta as Record<
+			(manifest['peerDependenciesMeta'] as Record<
 				string,
 				{ optional?: boolean }
 			>) ?? {};
 		for (const peer of Object.keys(
-			(manifest.peerDependencies as Record<string, string>) ?? {},
+			(manifest['peerDependencies'] as Record<string, string>) ?? {},
 		)) {
 			if (meta[peer]?.optional || own.has(peer)) continue;
 			if (!(await onRegistry(peer))) {
 				problems.push(
-					`${manifest.name}: peerDependencies.${peer} is required but is on no registry`,
+					`${manifest['name']}: peerDependencies.${peer} is required but is on no registry`,
 				);
 			}
 		}
@@ -77,7 +77,7 @@ export function manifestShapeProblems(
 	manifests: readonly Record<string, unknown>[],
 	versions: Record<string, string>,
 ): string[] {
-	const own = new Set(manifests.map((m) => m.name as string));
+	const own = new Set(manifests.map((m) => m['name'] as string));
 	return manifests.flatMap((manifest) =>
 		['dependencies', 'peerDependencies', 'optionalDependencies'].flatMap(
 			(field) =>
@@ -85,7 +85,7 @@ export function manifestShapeProblems(
 					(manifest[field] as Record<string, string>) ?? {},
 				).flatMap(([dep, range]) =>
 					dependencyProblems(
-						manifest.name as string,
+						manifest['name'] as string,
 						field,
 						dep,
 						String(range),

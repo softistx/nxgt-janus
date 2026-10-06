@@ -143,7 +143,7 @@ describe('connectKit()', () => {
 });
 
 describe('connectKit() over a PostgreSQL URL', () => {
-	const url = process.env.JANUS_POSTGRES_URL;
+	const url = process.env['JANUS_POSTGRES_URL'];
 
 	it.skipIf(url === undefined)(
 		'opens the database, and closes it with the kit',

@@ -112,7 +112,7 @@ describe('janusMaskError()', () => {
 		});
 		const masked = mask(thrown, 'Unexpected error.') as GraphQLError;
 		expect(masked.path).toEqual(['record']);
-		expect(masked.extensions.code).toBe('SERVICE_UNAVAILABLE');
+		expect(masked.extensions['code']).toBe('SERVICE_UNAVAILABLE');
 	});
 
 	it('keeps a GraphQLError of its own, and masks anything else', () => {
@@ -124,7 +124,7 @@ describe('janusMaskError()', () => {
 		});
 		const masked = mask(bug, 'Unexpected error.') as GraphQLError;
 		expect(masked.message).toBe('Unexpected error.');
-		expect(masked.extensions.code).toBe('INTERNAL_SERVER_ERROR');
+		expect(masked.extensions['code']).toBe('INTERNAL_SERVER_ERROR');
 	});
 
 	it('hands anything but a JanusError to the fallback it was given', () => {
@@ -133,7 +133,7 @@ describe('janusMaskError()', () => {
 		expect(masking(new Error('x'), 'Unexpected error.')).toBe(fallback);
 		expect(
 			(masking(new StoreFailure('down'), 'Unexpected error.') as GraphQLError)
-				.extensions.code,
+				.extensions['code'],
 		).toBe('SERVICE_UNAVAILABLE');
 	});
 

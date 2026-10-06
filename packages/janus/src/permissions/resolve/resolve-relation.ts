@@ -19,7 +19,7 @@ export function resolveRelation(
 		relationNames: ReadonlyMap<string, ReadonlySet<string>>;
 	},
 ): ResolvedRelation {
-	if (isRecord(value) && value.kind === 'fromField') {
+	if (isRecord(value) && value['kind'] === 'fromField') {
 		const { field, subject, lookup } = value;
 		if (typeof field !== 'string' || !FIELD.test(field)) {
 			throw refuse(`${here}: fromField must name a top-level field`);

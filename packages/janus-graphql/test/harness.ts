@@ -203,5 +203,5 @@ export interface GraphQLBody {
 
 /** The codes of a body's errors, in order. */
 export function codes(body: GraphQLBody): unknown[] {
-	return (body.errors ?? []).map((error) => error.extensions?.code);
+	return (body.errors ?? []).map((error) => error.extensions?.['code']);
 }
