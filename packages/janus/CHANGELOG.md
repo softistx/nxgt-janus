@@ -1,5 +1,15 @@
 # @nxgt/janus
 
+## 0.17.2
+
+### Patch Changes
+
+- [#188](https://github.com/softistx/nxgt-janus/pull/188) [`d8d74ee`](https://github.com/softistx/nxgt-janus/commit/d8d74ee917731e3d5adc781bdd85ba91e084e086) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The exported error classes now define their fields as class fields (`useDefineForClassFields`, aligned with nxgt-data). Instances are otherwise identical, with the same own keys in the same order.
+  
+  One edge changes: a consumer subclass that declares an accessor for `name`, `code` or an option field such as `userId` or `slot` now has that accessor shadowed by an own data property on the instance. Before, the accessor threw `Attempted to assign to readonly property` (getter only) or was called with the base value (setter). Declare such a field as a class field in the subclass instead.
+  
+  The JS of `@nxgt/janus-hono`, `@nxgt/janus-mail`, `@nxgt/janus-mongo` and `@nxgt/janus-graphql` also changed (bracket access and an explicit `return;`), with identical behaviour, so they are not bumped.
+
 ## 0.17.1
 
 ### Patch Changes
