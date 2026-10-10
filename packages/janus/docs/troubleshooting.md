@@ -9,8 +9,9 @@ How the messages are shaped:
   `resetPassword.confirm: …`, `can: …`. With several user types, that call is
   prefixed by the type: `staff.signIn: …`. Below, `<call>` stands for it.
 - **A `TypeError` is a wiring mistake**: it comes from how the application was
-  put together — a configuration, a store, a model — and never from a request.
-  Fix the code; no handler should answer one.
+  put together — a configuration, a store, a model, a prepared request sent
+  twice — and never from a request. Fix the code; no handler should answer
+  one.
 - **A `JanusError` is a refusal at call time**, on a value that could have come
   from a request. It carries a `code` you can `switch` on; the heading of each
   entry below names it.
@@ -60,6 +61,8 @@ How the messages are shaped:
 - [`CREDENTIALS_INVALID` — `<call>: the login and the password do not match`](#credentials_invalid--call-the-login-and-the-password-do-not-match)
 - [`CREDENTIALS_INVALID` — `<call>: too many passwords tried at this login …`](#credentials_invalid--call-too-many-passwords-tried-at-this-login--wait-for-the-next-window)
 - [`MAIL_THROTTLED` — `<call>: too many e-mails asked for this address …`, or `… for this user …`](#mail_throttled--call-too-many-e-mails-asked-for-this-address--the-last-one-sent-still-works-use-it-or-wait-for-the-next-window)
+- [`MAIL_THROTTLED` never reaches the visitor: `request` runs in the background](#mail_throttled-never-reaches-the-visitor-request-runs-in-the-background)
+- [`<flow>.prepare(…).send: already called — …`](#flowpreparesend-already-called--a-prepared-request-sends-once-call-flowprepare-again-for-another)
 - [`STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`](#store_failed--call-the-store-dropped-the-attempts-it-had-just-stored)
 - [`HASH_UNSUPPORTED` — `<call>: no wired verifier claims the prefix "<prefix>"`](#hash_unsupported--call-no-wired-verifier-claims-the-prefix-prefix)
 - [`scryptHasher: the stored hash has the $scrypt$ prefix and not its format`](#scrypthasher-the-stored-hash-has-the-scrypt-prefix-and-not-its-format)
@@ -758,6 +761,54 @@ if (error instanceof MailThrottledError) {
 }
 
 janus({ ..., mail: { throttle: { attempts: 10, window: '10m' } } });
+```
+
+### `MAIL_THROTTLED` never reaches the visitor: `request` runs in the background
+
+**When:** the application runs `magicLink.request`, `signInCode.request` or
+`resetPassword.request` off the visitor's request — a queue, a promise it
+does not await — so that the time of the answer does not tell whether the
+address has an account. Past the limit, the refusal is thrown there, and
+nobody tells the visitor to use the last e-mail they received.
+**Why:** `request` counts, then looks the address up and issues: its
+`MAIL_THROTTLED` comes from the same call whose time must be hidden.
+**Fix:** call `prepare(email)` in the visitor's request — validated and
+counted, nobody looked up, the same store calls for any address — and
+answer its `MAIL_THROTTLED` with 429; call `send()` on what it answered in the
+background. `send()` counts nothing and answers what `request` would have.
+
+```ts
+const pending = await auth.magicLink.prepare(email); // MAIL_THROTTLED here, in the visitor's request
+void pending.send().then(mailIt).catch(reportError); // looked up and issued off it
+return new Response(null, { status: 202 });
+```
+
+See [requests in two steps](guide/email-flows.md#requests-in-two-steps).
+
+### `<flow>.prepare(…).send: already called — a prepared request sends once; call <flow>.prepare again for another`
+
+A `TypeError`, such as `magicLink.prepare(…).send: already called — a
+prepared request sends once; call magicLink.prepare again for another`, or
+`patient.signInCode.prepare(…)…` with several user types.
+**When:** `send()` was called a second time on what one `prepare` answered —
+after it issued, after it answered `null`, after it threw (`STORE_FAILED`),
+or while the first call was still running.
+**Why:** `prepare` counted one request against the mail throttle, and that
+count pays for one issue. A `send()` that could run again would issue
+uncounted, so a loop could mail an address past the limit; nothing a caller
+passes skips the count. It is a bug in the calling code, never a value from
+a request, so it is a `TypeError` with no `code`.
+**Fix:** call `send()` once per `prepare`. To retry — after a failure, in a
+queue that retries — `prepare` again, which counts again (and, for a sign-in
+code, mints another challenge: give the visitor the new one):
+
+```ts
+async function sendLink(email: string): Promise<void> {
+	const pending = await auth.magicLink.prepare(email); // one count…
+	const issued = await pending.send();                 // …one issue
+	if (issued !== null) await mailer.send(issued.email, linkTo(issued.token));
+}
+// a retry calls sendLink again: never pending.send() twice
 ```
 
 ### `STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`

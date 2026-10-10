@@ -58,6 +58,8 @@ export type {
 	LoginOf,
 	MagicLinkApi,
 	PasswordApi,
+	PreparedCode,
+	PreparedRequest,
 	RecoveredSignIn,
 	RecoveryCodesIssued,
 	RequestLike,

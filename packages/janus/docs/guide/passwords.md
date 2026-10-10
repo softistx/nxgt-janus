@@ -234,7 +234,7 @@ The throttle counts per login. It does not see:
 - `changePassword`, which compares the current password too: limit it per
   user.
 - `resetPassword.request`, `signInCode.request` and `magicLink.request`,
-  which send e-mail: [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
+  which send e-mail — and their `prepare`: [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
   counts them per address, but not per client. Limit them per client.
 
 ```ts
@@ -250,7 +250,10 @@ const signedIn = await auth.signIn({ email, password });
 - The hash never reaches a `User` — `hasPassword` says whether there is one.
 - `signIn` compares against a dummy hash when nobody holds the login, so the
   time taken does not reveal which users exist. The store's own latency
-  still can, and that limit is stated rather than denied.
+  still can, and that limit is stated rather than denied. For a reset, a
+  sign-in code or a link, `prepare` takes that latency off the visitor's
+  request: it counts and looks nobody up, and `send()` does the rest in the
+  background ([requests in two steps](email-flows.md#requests-in-two-steps)).
 
 ## See also
 

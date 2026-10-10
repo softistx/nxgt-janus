@@ -135,6 +135,7 @@ factor, and signs out every session](magic-link.md#an-account-someone-else-regis
 ```ts
 readonly resetPassword: {
 	request(email: string): Promise<(IssuedToken & { user: User }) | null>;
+	prepare(email: string): Promise<PreparedRequest<IssuedToken & { user: User }>>; // { send() }, below
 	confirm(token: string, password: string): Promise<User>;
 };
 ```
@@ -178,6 +179,12 @@ the limit still answers `null`. Somebody who knows an address can fill its
 inbox with at most five reset e-mails a window, but cannot shut the reset:
 the last one sent still works. Limit the route per client yourself too, and
 see [the mail throttle](#requests-that-send-e-mail-are-throttled).
+
+`request`'s time still tells an account from nobody — a lookup, then a link
+written and the earlier ones spent, against a lookup alone. To keep that off
+the visitor's request and still answer them `MAIL_THROTTLED`, call
+`resetPassword.prepare(email)` there and its `send()` in the background:
+[requests in two steps](#requests-in-two-steps).
 
 **Writing a password spends every reset link still live.** A `confirm`,
 `changePassword` and `setPassword` each do, so a link sent before the
@@ -280,6 +287,11 @@ janus: tokens.signInCode is 5m, shorter than mail.throttle.window, 10m — past 
 Shorten `mail.throttle.window`, or raise the lifetime. Nothing is refused, so
 a window you chose on purpose only costs the warning.
 
+**`prepare` counts as `request` does**, in the same window: see
+[requests in two steps](#requests-in-two-steps), for an application that
+sends the e-mail off the visitor's request and still wants to tell them
+they are throttled.
+
 **Each flow counts on its own**: a loop on `magicLink.request` never shuts
 `signInCode.request`. The address is normalised (trimmed, lowercased) and is
 the same count whatever the user type.
@@ -381,6 +393,99 @@ bounds sign-ins), not a request to mail an address:
 `retryAfter` in the body (or the extensions) and a `Retry-After` header;
 `@nxgt/janus-telemetry` writes a `janus.mail.throttled` warning with
 `janus.mail.flow` and `janus.mail.retryAfter`, never the address.
+
+## Requests in two steps
+
+`request(email)` counts the address, then looks it up and issues. Its time
+tells what its answer does not: an address with an account costs a lookup,
+a token written and the earlier ones spent; one nobody holds stops at the
+lookup. So an application that must not tell the two apart runs `request`
+**off the visitor's request** — and there, a `MAIL_THROTTLED` reaches
+nobody: the visitor is never told to use the last e-mail they received.
+
+`prepare(email)` cuts `request` in two at the count, on the three flows
+counted per address:
+
+| Call | Does | Answers |
+| --- | --- | --- |
+| `magicLink.prepare(email)` | validates, counts the address, looks nobody up | `PreparedRequest<IssuedToken & { user }>`: `{ send() }` |
+| `signInCode.prepare(email)` | the same, and mints the challenge | `PreparedCode<User>`: `{ challenge, send() }` |
+| `resetPassword.prepare(email)` | the same, refusing a type with no password as `request` does | `PreparedRequest<IssuedToken & { user }>`: `{ send() }` |
+| `send()`, on any of them | the rest of `request` — the lookup, the token issued, the earlier ones spent — **once**, and counts nothing | what `request` answers: the token or code, or `null` for nobody |
+
+Call `prepare` in the visitor's request, where its `MailThrottledError` can be
+answered; call `send()` off it:
+
+```ts
+import { Hono } from 'hono';
+import { janusErrors } from '@nxgt/janus-hono';
+
+const app = new Hono();
+app.onError(janusErrors()); // MAIL_THROTTLED → 429, Retry-After and retryAfter in the body
+
+app.post('/reset-password', async (c) => {
+	const { email } = await c.req.json();
+	const pending = await auth.resetPassword.prepare(email); // counted: throws MAIL_THROTTLED past the limit
+	void mailOff(async () => {
+		const issued = await pending.send(); // looked up and issued, off the visitor's request
+		if (issued !== null) {
+			await mailer.send(issued.email, `https://app.example/reset?token=${issued.token}`);
+		}
+	});
+	return c.body(null, 202); // the same answer either way
+});
+
+/** Runs `work` off the request, and reports what it throws: nobody else will see it. */
+function mailOff(work: () => Promise<void>): Promise<void> {
+	return work().catch((error: unknown) => console.error(error));
+}
+```
+
+The visitor sees `429` with `retryAfter` past the limit — "use the last
+e-mail you received, or wait" — and `202` otherwise, in the same time whether
+the address has an account or not. In production, `send()` belongs in the
+queue that sends the e-mail, so a failure is retried by preparing again.
+
+**What `prepare` does is the same for every address.** It looks nobody up:
+the store calls are the count's, the same calls whoever holds the address,
+and none at all with `mail: { throttle: false }`, where `prepare` still
+validates and answers a pending request. `prepare` and `request` share one
+count: three `prepare` and two `request` of one flow for one address fill
+the window.
+
+**`send()` runs once.** The count `prepare` made pays for one issue, and
+nothing a caller passes can skip it — there is no option to say "already
+counted". A second `send()` is a `TypeError`:
+
+```
+magicLink.prepare(…).send: already called — a prepared request sends once; call magicLink.prepare again for another
+```
+
+A `send()` that failed — `STORE_FAILED` — is spent too: prepare again, which
+counts again. Two `send()` at once issue one token; the other is the
+`TypeError`.
+
+**A sign-in code's challenge comes with `prepare`.** The visitor keeps the
+challenge, and the code goes to the inbox, so a code requested in the
+background still needs its challenge in the foreground answer.
+`signInCode.prepare` mints it before the lookup, so it is in the visitor's
+cookie whoever holds the address — the decoy an unknown address needed is
+no longer yours to make. For an address nobody holds, `send()` answers
+`null` and the challenge is `TOKEN_UNKNOWN`; otherwise the code `send()`
+issues is checked against it. See
+[the sign-in code guide](sign-in-code.md#requesting-a-code-in-two-steps).
+
+**`verifyEmail.send` and `stepUp.request` have no `prepare`.** They are
+counted per user, and called for a user the application already holds — the
+session's, or one it just created — so their time tells nothing about who
+has an account, and their `MAIL_THROTTLED` already reaches the visitor in
+the request that asked.
+
+**`@nxgt/janus-telemetry`** traces `prepare` as
+`janus.magicLink.prepare` and its `send()` as `janus.magicLink.prepare.send`;
+`janus.mail.throttled` names `janus.mail.flow: magicLink.prepare`, and
+`janus.magicLink.sent` and `janus.signInCode.sent` are written by `send()`,
+as by `request`.
 
 ## What a token refusal means
 

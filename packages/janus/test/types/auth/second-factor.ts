@@ -3,7 +3,7 @@
  * session read before narrowing, a factor on a type with no password, a
  * confirmation without its code, an activation read as the user, a recovery
  * without its code, a regeneration without its code, the codes left read
- * without their `null`. Cases 21–28 and 35–38 of the sixty-seven — see
+ * without their `null`. Cases 21–28 and 35–38 of the seventy-two — see
  * `fixtures.ts`; case 30, a code that may still ask for the factor, is in
  * `sign-in-codes.ts`.
  */

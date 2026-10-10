@@ -6,6 +6,7 @@
  */
 
 import type { IssuedToken } from './email-flows';
+import type { PreparedRequest } from './prepared';
 import type { SignedIn, SignInOptions } from './sign-in';
 
 /**
@@ -33,6 +34,16 @@ export interface MagicLinkApi<U, Answer = SignedIn<U>> {
 		request(
 			email: string,
 		): Promise<(IssuedToken & { readonly user: U }) | null>;
+		/**
+		 * `request` in two steps, for an application that sends the link off
+		 * the visitor's request: counts the address — `MAIL_THROTTLED` with
+		 * `retryAfter` past the limit, to show the visitor now — and looks
+		 * nobody up, so it takes the same time for any address. `send()` on
+		 * the answer does the rest, once, and answers what `request` does.
+		 */
+		prepare(
+			email: string,
+		): Promise<PreparedRequest<IssuedToken & { readonly user: U }>>;
 		/**
 		 * Spends the link's token, marks the e-mail verified — the link reached
 		 * the inbox — and signs the user in. **An e-mail proved for the first

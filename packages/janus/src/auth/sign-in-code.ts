@@ -19,8 +19,11 @@ import {
 	spendOneTime,
 	unknownChallenge,
 } from './one-time';
+import { sendOnce } from './prepared';
+import { mintSecret } from './secrets';
 import type {
 	IssuedCode,
+	PreparedCode,
 	SignInCodeApi,
 	SignInOptions,
 	SignInResult,
@@ -40,6 +43,10 @@ import type {
  * address (`mail-requests.ts`), and the application rate-limits it per
  * client. The code's hash is keyed by the challenge, so the
  * tokens alone do not reveal it.
+ *
+ * `request` is `prepare`, then `send` (`prepared.ts`): counted, the
+ * challenge minted — before anybody is looked up, so the visitor gets one
+ * whoever holds the address — then looked up and issued under it.
  */
 export function signInCodeFlows(
 	context: Context,
@@ -49,12 +56,13 @@ export function signInCodeFlows(
 ): SignInCodeApi<AnyUser, SignInResult<AnyUser>>['signInCode'] {
 	return {
 		async request(email) {
-			return requestCode(
-				context,
-				type,
-				String(email),
-				at('signInCode.request'),
-			);
+			const where = at('signInCode.request');
+			return (await prepareCode(context, type, String(email), where)).send();
+		},
+
+		async prepare(email) {
+			const where = at('signInCode.prepare');
+			return prepareCode(context, type, String(email), where);
 		},
 
 		async confirm(challenge, code, options) {
@@ -69,32 +77,52 @@ export function signInCodeFlows(
 	};
 }
 
-/** Issues a code for the holder of `email`, and spends every other they had. */
-async function requestCode(
+/**
+ * Counts a code asked for `email` — before it is looked up: past the limit,
+ * nobody and somebody are refused alike — mints its challenge, and answers
+ * the `send` that issues it, once.
+ */
+async function prepareCode(
 	context: Context,
 	type: ResolvedType,
 	email: string,
 	where: string,
-): Promise<IssuedCode<AnyUser> | null> {
-	// Counted before the address is looked up: past the limit, nobody and
-	// somebody are refused alike.
+): Promise<PreparedCode<AnyUser>> {
 	await countMailByAddress(context, type, 'signInCode', email, where);
+	const challenge = mintSecret();
+	return Object.freeze({
+		challenge,
+		send: sendOnce(where, () =>
+			issueSignInCode(context, type, email, challenge),
+		),
+	});
+}
+
+/** Issues a code under `challenge` for the holder of `email`, and spends every other they had. */
+async function issueSignInCode(
+	context: Context,
+	type: ResolvedType,
+	email: string,
+	challenge: string,
+): Promise<IssuedCode<AnyUser> | null> {
 	// Nobody, and an inactive user, get the same answer: no code.
 	const record = await signInHolder(context, type, email);
 	if (record === null) return null;
 
+	const address = String(record.fields[type.email]);
 	const { secret, code, expiresAt } = await issueCode(context, {
 		kind: 'signInCode',
 		userId: record.id,
-		address: String(record.fields[type.email]),
+		address,
 		ttlMs: context.config.tokenTtlMs.signInCode,
+		secret: challenge,
 	});
 	// One live code per user: the ones sent before stop working.
 	await keepOnlyLatest(context, record.id, 'signInCode', secret);
 	return {
 		code,
 		challenge: secret,
-		email: String(record.fields[type.email]),
+		email: address,
 		expiresAt,
 		user: toUser(record),
 	};

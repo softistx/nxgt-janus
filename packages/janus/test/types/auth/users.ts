@@ -1,7 +1,7 @@
 /**
  * Reading and writing users: a field off the wrong type, the password hash, a
  * type that does not exist, a write that bypasses `update`, `findMany` given
- * one id or read as another type. Cases 16–20, 66 and 67 of the sixty-seven —
+ * one id or read as another type. Cases 16–20, 66 and 67 of the seventy-two —
  * see `fixtures.ts`.
  */
 

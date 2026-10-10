@@ -1,6 +1,6 @@
 /**
  * The mail throttle: what `mail.throttle` takes, and what a throttled
- * request's refusal carries. Cases 61–65 of the sixty-seven — see
+ * request's refusal carries. Cases 61–65 of the seventy-two — see
  * `fixtures.ts`. The shapes that must keep compiling are at the end of this
  * file.
  */
