@@ -1,6 +1,7 @@
 import { guardRelations } from '../stores/guard';
 import { systemClock } from '../time/clock';
 import { type JanusConfig, resolveConfig } from './config';
+import { warnThrottleWindow } from './config/warn-throttle-window';
 import { createContext } from './context';
 import { resolveEvents } from './events';
 import { guardStores } from './outage';
@@ -48,6 +49,7 @@ export function janus<const C extends JanusConfig>(
 ): Janus<C> {
 	const where = 'janus';
 	const resolved = resolveConfig(config, where);
+	warnThrottleWindow(resolved, where);
 	const capabilities = assertStores(config.store, where);
 
 	const hasher = config.hasher ?? null;

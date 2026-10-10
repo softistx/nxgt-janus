@@ -27,6 +27,13 @@ describe('mail.throttle', () => {
 	it('takes its own limit and window', async () => {
 		const context = mailing({
 			mail: { throttle: { attempts: 2, window: '1h' } },
+			tokens: {
+				magicLink: '1h',
+				signInCode: '1h',
+				resetPassword: '1h',
+				verifyEmail: '1h',
+				stepUp: '1h',
+			},
 		});
 		const { auth, clock } = context;
 		await signedUp(context);

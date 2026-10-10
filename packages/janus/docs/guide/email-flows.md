@@ -266,6 +266,20 @@ try {
 | `verifyEmail.send(user)` | user | The application calls it for a user it knows: an unauthenticated loop on the address cannot spend this count, so it never blocks the user's own verification, and a user changing e-mail buys no extra sends |
 | `stepUp.request(user)`, when it e-mails a code (`via: 'email'`) | user | The same. A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is not counted |
 
+**Keep the window no longer than the shortest token lifetime you set.** A
+refused request spends nothing, but the last link or code sent still has to be
+alive. With `tokens.signInCode: '5m'` and the 10-minute window, a code can lapse
+while the visitor is still refused. `janus()` warns for it, once per call, with
+`process.emitWarning` and the code `JANUS_THROTTLE_WINDOW`, naming each flow
+whose lifetime is shorter than the window:
+
+```
+janus: tokens.signInCode is 5m, shorter than mail.throttle.window, 10m — past the limit the last token sent can expire before the refusal ends. Set mail.throttle.window to 5m or less, or raise tokens.signInCode to 10m or more.
+```
+
+Shorten `mail.throttle.window`, or raise the lifetime. Nothing is refused, so
+a window you chose on purpose only costs the warning.
+
 **Each flow counts on its own**: a loop on `magicLink.request` never shuts
 `signInCode.request`. The address is normalised (trimmed, lowercased) and is
 the same count whatever the user type.

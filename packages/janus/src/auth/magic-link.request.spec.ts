@@ -41,6 +41,7 @@ describe('magicLink.request', () => {
 			store: createMemoryStores(),
 			clock,
 			tokens: { magicLink: '5m' },
+			mail: { throttle: { window: '5m' } },
 		});
 		await auth.create({ email: ada.email });
 
