@@ -36,8 +36,8 @@ export interface SignedIn<U> {
 
 /**
  * What a sign-in takes besides its credentials: `signUp`, `signIn`,
- * `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and
- * `magicLink.confirm`.
+ * `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm`,
+ * `magicLink.confirm` and `signInProven`.
  */
 export interface SignInOptions {
 	/**

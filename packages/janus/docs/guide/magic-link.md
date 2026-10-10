@@ -53,6 +53,15 @@ clinic.member.magicLink.request;  // exists: a passwordless type signs in by lin
 clinic.staff.magicLink;
 ```
 
+**Accepting an invitation? Use `signInProven` instead of `request` +
+`confirm`.** When your server already verified the person — the invitation
+token it issued and they followed — call
+[`auth.signInProven(userId)`](sessions.md#signing-in-on-your-own-proof--signinproven):
+the same sign-in, second factor included, with no e-mail sent, no mail
+throttle counted and no earlier link spent. A `request` made only to be
+confirmed at once is counted per address, so five anonymous requests for the
+invitee's address would make the acceptance answer `MAIL_THROTTLED`.
+
 ## Requesting a link
 
 ```ts

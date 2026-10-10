@@ -61,6 +61,7 @@ How the messages are shaped:
 - [`CREDENTIALS_INVALID` — `<call>: the login and the password do not match`](#credentials_invalid--call-the-login-and-the-password-do-not-match)
 - [`CREDENTIALS_INVALID` — `<call>: too many passwords tried at this login …`](#credentials_invalid--call-too-many-passwords-tried-at-this-login--wait-for-the-next-window)
 - [`MAIL_THROTTLED` — `<call>: too many e-mails asked for this address …`, or `… for this user …`](#mail_throttled--call-too-many-e-mails-asked-for-this-address--the-last-one-sent-still-works-use-it-or-wait-for-the-next-window)
+- [Accepting an invitation answers `MAIL_THROTTLED`](#accepting-an-invitation-answers-mail_throttled)
 - [`MAIL_THROTTLED` never reaches the visitor: `request` runs in the background](#mail_throttled-never-reaches-the-visitor-request-runs-in-the-background)
 - [`<flow>.prepare(…).send: already called — …`](#flowpreparesend-already-called--a-prepared-request-sends-once-call-flowprepare-again-for-another)
 - [`STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`](#store_failed--call-the-store-dropped-the-attempts-it-had-just-stored)
@@ -585,10 +586,10 @@ const member = byId.get(row.staffId); // undefined: nobody of this type holds it
 
 ### `NOT_FOUND` — `<call>: no <type> has this id`
 
-`NotFoundError`, from `get`, `getUser`, `update`, `setActive`, `setPassword`, `verifyEmail.send`, `secondFactor.recoveryCodesLeft`. Also `<call>: the user has no e-mail`.
+`NotFoundError`, from `get`, `getUser`, `update`, `setActive`, `setPassword`, `signInProven`, `verifyEmail.send`, `secondFactor.recoveryCodesLeft`. Also `<call>: the user has no e-mail`.
 
 **When:** the id names nobody, names a user of another type (`auth.staff.get(patientId)`), or is not an id at all.
-**Why:** `get*` calls turn an absence into `NOT_FOUND`; `find*` calls answer `null` instead.
+**Why:** `get*` calls turn an absence into `NOT_FOUND`; `find*` calls answer `null` instead. `signInProven` is a `get`: a sign-in that found nobody throws, and on it `NOT_FOUND` means the proof you verified names a user deleted since, or you passed the id of another type's user — or a value that is not the proof's id at all.
 **Fix:** answer 404, or use `find` when absence is an ordinary outcome:
 
 ```ts
@@ -763,6 +764,30 @@ if (error instanceof MailThrottledError) {
 janus({ ..., mail: { throttle: { attempts: 10, window: '10m' } } });
 ```
 
+### Accepting an invitation answers `MAIL_THROTTLED`
+
+**When:** the application signs an invitee in by calling
+`magicLink.request(email)` and confirming the token at once, and somebody
+asked for links to that address five times in the window — the default mail
+throttle. The acceptance answers 429, and the message says the last link
+sent still works, though the invitee was sent none.
+**Why:** `request` is counted per address, whoever asks: that is what stops a
+loop from filling an inbox. A sign-in your server already proved — the
+invitation token it issued — does not need an e-mailed link, and should not
+share its count.
+**Fix:** call `signInProven` with the id from the invitation's record, after
+verifying the token yourself. It counts nothing, sends nothing, spends no
+link already sent, and answers what `signIn` answers.
+
+```ts
+const invitation = await invitations.spend(hash(token), new Date()); // yours: once, unexpired
+if (invitation === null) return new Response(null, { status: 404 });
+const result = await auth.signInProven(invitation.userId, { device: deviceOf(request) });
+```
+
+Never pass it an id the request carries: it checks no credential. See
+[sessions](guide/sessions.md#signing-in-on-your-own-proof--signinproven).
+
 ### `MAIL_THROTTLED` never reaches the visitor: `request` runs in the background
 
 **When:** the application runs `magicLink.request`, `signInCode.request` or
@@ -842,7 +867,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven`, for an inactive user: the application's proof does not reactivate anybody.
 **Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it. `magicLink.confirm` checks after spending the link, which is spent too, and `magicLink.request` answers `null` for an inactive user.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 

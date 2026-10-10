@@ -2,7 +2,9 @@
 
 This page is for everything after a user has signed in: finding who a request
 belongs to, the session cookie, renewal, signing out, and testing expiry.
-Signing up and signing in are on the [users](users.md) page.
+Signing up and signing in are on the [users](users.md) page; signing in a
+user your application proved itself — accepting an invitation — is
+[below](#signing-in-on-your-own-proof--signinproven).
 
 ```ts
 import { z } from 'zod';
@@ -194,6 +196,96 @@ do `signInCode.confirm` and `magicLink.confirm` when they prove an e-mail
 never verified, before opening their own session
 ([why](magic-link.md#an-account-someone-else-registered)).
 
+## Signing in on your own proof — `signInProven`
+
+Some sign-ins are proved by the application, not by janus: a person accepts
+an invitation your server issued, and the token they followed is the proof.
+`auth.<type>.signInProven(user, options?)` signs that user in and answers
+what every other sign-in answers — a `SignedIn`, or a challenge when their
+second factor is active.
+
+```ts
+signInProven(user: UserRef, options?: SignInOptions): Promise<SignInResult<User>>
+// SignedIn<User> on a type that cannot have a second factor
+```
+
+**It checks no credential: your server carries the proof.** It is a
+privileged call, like `setPassword`. Call it only right after verifying a
+proof your server issued, and take the id from that proof's own record —
+never from the request body, a query string, or a cookie the client wrote.
+An id a visitor can choose signs that visitor in as anybody.
+
+### Accepting an invitation
+
+The recipe the call is made for. The invitation is yours: a random token,
+stored hashed, used once, with an expiry — the same rules janus applies to
+its own links.
+
+```ts
+import { createHash, randomBytes } from 'node:crypto';
+
+const hash = (token: string) => createHash('sha256').update(token).digest('base64url');
+
+// Inviting: create the user, then mail a link of yours — nothing of janus's is sent.
+export async function invite(email: string) {
+	const user = await auth.create({ email, name: '' }); // no password: they will never need one
+	const token = randomBytes(32).toString('base64url');
+	await invitations.insert({ hash: hash(token), userId: user.id, expiresAt: inSevenDays() });
+	await sendMail(email, `Join us: https://app.example/invitation?token=${token}`);
+}
+
+// Accepting — from the page's POST, never from the link's GET, which a mail scanner follows.
+export async function accept(request: Request): Promise<Response> {
+	const { token } = (await request.json()) as { token: string };
+	// One conditional write: spent once, and only while it has not expired.
+	const invitation = await invitations.spend(hash(String(token)), new Date());
+	if (invitation === null) return Response.json({ code: 'INVITATION_INVALID' }, { status: 404 });
+
+	const result = await auth.signInProven(invitation.userId, { device: deviceOf(request) });
+	if (result.status === 'secondFactor') {
+		// keep result.challenge for the next request — never in a URL — and ask for a code
+		return Response.json({ next: 'code' });
+	}
+	return Response.json(
+		{ id: result.user.id },
+		{ headers: { 'Set-Cookie': auth.cookie.serialize(result.token, result.session) } },
+	);
+}
+```
+
+**Before 0.20 this was `magicLink.request(email)` then `magicLink.confirm`,
+at once — use `signInProven` instead.** `request` is counted against the
+mail throttle per address, five per 10 minutes by default: anybody asking
+five links for the invitee's address made the real acceptance answer
+`MAIL_THROTTLED`, with a message about "the last one sent" when nothing had
+been sent. `signInProven` counts nothing, sends nothing, and spends nothing:
+a link or a code already in the person's inbox still works afterwards.
+
+### What it does, and what it does not
+
+- **The same ending as every sign-in.** A user whose second factor is active
+  gets `{ status: 'secondFactor', challenge }` — the application's proof is
+  a first factor — and `secondFactor.confirm` opens the session. Given a
+  `device`, it answers `newDevice` and `deviceToken`, and sends
+  `user.newDeviceSignedIn` for a device new to the user
+  ([devices](devices.md)). `@nxgt/janus-telemetry` traces it as
+  `janus.<type>.signInProven` and writes `janus.signIn` with
+  `janus.signIn.proven: true`.
+- **Refused as every sign-in refuses.** An inactive user is `USER_INACTIVE`;
+  a malformed id, an unknown one, a deleted user or a user of another type
+  is `NOT_FOUND`, as for `get` — never `null`, since a sign-in that found
+  nobody must not be read past. Options that are not `{ device }` are a
+  `TypeError`, as on every sign-in.
+- **No e-mail proved.** `emailVerified` stays as it was: the call does not
+  know your proof reached the inbox. Nothing is dropped either — unlike a
+  first proof by link or code, the password and second factor stay.
+- **No throttle.** Neither the mail throttle nor the sign-in throttle counts
+  it, and it restarts neither: a login past its password attempts is still
+  throttled for `signIn`. Limit your own acceptance route per client, as
+  any route that redeems a token.
+- **No route.** `@nxgt/janus-hono` and `@nxgt/janus-graphql` expose nothing
+  for it: the proof is yours, so the route is yours.
+
 ## `collectExpired`
 
 ```ts
@@ -242,6 +334,7 @@ cannot be replayed. `Session` is the stored record without that hash: `id`,
 ## See also
 
 - [Users](users.md) — `signUp`, `signIn`, the configuration
+- [Signing in with an e-mailed link](magic-link.md) — when janus, not your application, proves the person
 - [The second factor](second-factor.md) — the challenge `signIn` answers instead of a session
 - [Step-up](step-up.md) — proving again who you are, and `assertFresh`
 - [Devices](devices.md) — the device cookie beside the session cookie, and a sign-in from a new device

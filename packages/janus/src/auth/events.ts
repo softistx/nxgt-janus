@@ -31,9 +31,9 @@ import type { Context } from './context';
  *   spent: a sign-in without the user's phone;
  * - `user.newDeviceSignedIn` — by a sign-in that opened a session from a
  *   device the user had not signed in from: `signIn`, `secondFactor.confirm`,
- *   `secondFactor.recover`, `signInCode.confirm` and `magicLink.confirm`, when
- *   given a `device` its token did not prove. Never by `signUp`, nor without
- *   a `device`. Carries `sessionId`;
+ *   `secondFactor.recover`, `signInCode.confirm`, `magicLink.confirm` and
+ *   `signInProven`, when given a `device` its token did not prove. Never by
+ *   `signUp`, nor without a `device`. Carries `sessionId`;
  * - `user.deleted` — by `delete`, once; a replay that finds nobody is none.
  */
 export type UserEventType =

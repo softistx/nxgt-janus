@@ -76,6 +76,14 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Signing in on the application's own proof, v0.20.0** —
+  `auth.<type>.signInProven(user, { device })` signs in a user the
+  application proved itself — an invitation token it issued — and answers
+  what every sign-in answers: a session, or a second-factor challenge, with
+  the device and `USER_INACTIVE` handled alike. It sends no e-mail, counts
+  in no throttle and spends no link already sent, so accepting an
+  invitation no longer goes through `magicLink.request` and its mail
+  throttle. Privileged: never with an id a request supplied.
 - **E-mail requests in two steps, v0.20.0** — `magicLink.prepare(email)`,
   `signInCode.prepare(email)` and `resetPassword.prepare(email)` count the
   address and look nobody up — the same work for any address — so
@@ -158,18 +166,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   replace the new password. Both answer `TOKEN_SPENT`; an outage spending
   them fails the call with `STORE_FAILED`. No change for adapters: the
   existing `TokenStore.spendUserTokens` does it.
-- **Confirm an action with a code (step-up), v0.12.0** —
-  `auth.stepUp.request(user)` and `stepUp.confirm(request, challenge, code)`:
-  a signed-in user proves again who they are before a sensitive action, with
-  a six-digit code sent by e-mail — or, when their second factor is active,
-  the code from their app. The confirmation moves the session's
-  `authenticatedAt` and opens no session, and `assertFresh(session, maxAge)`
-  refuses an older one with `STEP_UP_REQUIRED` (403). A token kind of its
-  own, `stepUp`, and `SessionStore.reauthenticateSession`, in the three
-  adapters and the conformance suite.
-- **The recovery codes left, read again, v0.11.0** —
-  `secondFactor.recoveryCodesLeft(user)` answers the count `recover`
-  answered, for a `user.recoveryCodeUsed` listener — the event names the
-  user only — or a security settings page; `null` for a user with no active
-  factor. The listener can now tell the user how many codes remain, as
-  `@nxgt/janus-mail`'s `recoveryCodeUsed` e-mail does.

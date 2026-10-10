@@ -603,6 +603,36 @@ this e-mail with `mail.magicLink(issued)`, building its button with
 For the lifetime and every refusal, see [`@nxgt/janus`'s sign-in link
 guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md).
 
+## Accepting an invitation
+
+An invitation is the application's own proof: it issued the token, and the
+person followed it. `auth.signInProven(userId)` signs them in on that proof
+— no e-mail, no mail-throttle count, no link spent — and answers what
+`signIn` answers, so `sendSession` and the second factor work as above.
+There is no route of this package for it: the proof is yours to check, and
+the id must come from your invitation's record, **never from the request**.
+
+```ts
+app.post('/invitation/accept', csrf({ origin: ORIGIN }), async (c) => {
+	const token = String((await c.req.parseBody()).token ?? '');
+	const invitation = await invitations.spend(hash(token), new Date()); // yours: once, unexpired
+	if (invitation === null) return c.json({ code: 'INVITATION_INVALID' }, 404);
+
+	const result = await auth.signInProven(invitation.userId, { device: deviceOf(c) });
+	if (result.status === 'secondFactor') {
+		setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
+		return c.redirect('/sign-in/second-factor', 303);
+	}
+	sendSession(c, auth, result);
+	return c.redirect('/', 303);
+});
+```
+
+Not `magicLink.request` then `confirm` at once: `request` counts against
+the mail throttle per address, so five anonymous requests for the invitee's
+address would answer this route 429. See [`@nxgt/janus`'s
+sessions guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/sessions.md#signing-in-on-your-own-proof--signinproven).
+
 ## The device cookie
 
 With `janus({ devices })`, every sign-in can tell the user it came from a
