@@ -22,7 +22,8 @@ export function statusOf(code: JanusErrorCode): ContentfulStatusCode {
 /**
  * The body a refusal is answered with: its `code`, and only what the client
  * can act on — the fields that failed the schema, the policy's minimum, the
- * attempts a challenge has left, the seconds a throttled sign-in waits.
+ * attempts a challenge has left, the seconds a throttled sign-in or a
+ * throttled request for an e-mail waits.
  * Never `reason`, `login`, a hash prefix or a cause: those are for your logs.
  */
 export function bodyOf(error: JanusError): {
@@ -44,6 +45,7 @@ export function bodyOf(error: JanusError): {
 				? { code: error.code }
 				: { code: error.code, attemptsLeft: error.attemptsLeft };
 		case 'CREDENTIALS_INVALID':
+		case 'MAIL_THROTTLED':
 			return error.retryAfter === undefined
 				? { code: error.code }
 				: { code: error.code, retryAfter: error.retryAfter };
@@ -84,8 +86,9 @@ export interface JanusErrorsOptions {
 
 /**
  * An `app.onError` handler: every `JanusError` answered with its status and
- * `bodyOf(error)` — and a throttled sign-in with a `Retry-After` header, its
- * `retryAfter` in seconds; anything else handed to `fallback` — Hono's own
+ * `bodyOf(error)` — and a throttled sign-in, or a request past its e-mails
+ * (`MAIL_THROTTLED`, 429), with a `Retry-After` header, its `retryAfter` in
+ * seconds; anything else handed to `fallback` — Hono's own
  * behaviour when absent.
  *
  * Works for either side of `@nxgt/janus`: `can()`'s `STORE_FAILED` is a 503

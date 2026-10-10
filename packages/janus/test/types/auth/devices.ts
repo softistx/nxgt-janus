@@ -2,7 +2,7 @@
  * Device tokens: wired with no key, a device that is not a token, a cookie
  * that may be missing handed over as it is, a misspelled option, a token
  * read without its `null`, and a device given to a confirmation as a third
- * string. Cases 55–60 of the sixty — see `fixtures.ts`. The shapes that must
+ * string. Cases 55–60 of the sixty-five — see `fixtures.ts`. The shapes that must
  * keep compiling follow the refusals.
  */
 

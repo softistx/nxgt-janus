@@ -177,6 +177,19 @@ retryAfter }` with a `Retry-After` header, the seconds until the next
 window; the route needs no code of its own. `janus({ signIn: { throttle } })`
 changes the limit ([passwords](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/passwords.md#password-guessing-is-throttled)).
 
+**The requests that send an e-mail are throttled too.** Past five requests
+for one address (or one user, for `verifyEmail.send` and an e-mailed
+`stepUp.request`) in a 10-minute window, `@nxgt/janus` throws
+`MAIL_THROTTLED` and sends nothing; `janusErrors()` answers it
+`429 { code: 'MAIL_THROTTLED', retryAfter }` with a `Retry-After` header.
+**A refused request spends and rotates nothing**: the last link or code sent
+still works, so tell the visitor to use the last e-mail they received, or to
+wait `retryAfter` seconds. `janus({ mail: { throttle } })` changes the limit;
+keep its `window` no longer than the shortest `tokens.*` lifetime you use.
+`@nxgt/janus` never sees IP addresses, so add a per-IP ceiling in front of
+these routes with `@nxgt/redis` rate limits
+([example](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)).
+
 What the throttle does not see is one password tried against many logins:
 limit the route **per client address** as well, with the limiter you already
 run, and a `changePassword` route per user — it compares the current
@@ -210,6 +223,7 @@ The refusals need no `try`: `janusErrors()` answers them.
 | `PASSWORD_TOO_SHORT` | 400 `{ code, minLength }` |
 | `LOGIN_TAKEN` | 409 `{ code }` |
 | `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password; `{ code, retryAfter }` and a `Retry-After` header once the login is throttled |
+| `MAIL_THROTTLED` | 429 `{ code, retryAfter }` and a `Retry-After` header — a request that sends an e-mail, past its attempts in the window |
 | `USER_INACTIVE` | 403 `{ code }` — only told to somebody who gave the right password |
 
 A bearer client — a mobile app — keeps its session token itself and sends it
@@ -401,8 +415,11 @@ cookie, would tell anyone which addresses have an account. The decoy is 32
 random bytes, the shape of a real challenge; confirming it is
 `TOKEN_UNKNOWN`. `maxAge: 600` is the default ten minutes of
 `tokens.signInCode`, written out so both cookies match. Not awaiting the
-mailer keeps the answer's time from telling either. Rate-limit this route
-per address and per client: every call sends an e-mail.
+mailer keeps the answer's time from telling either. `@nxgt/janus` throttles
+each address — five requests per 10 minutes, then `MAIL_THROTTLED`, which
+`janusErrors()` answers 429 with `Retry-After` (the last code sent still
+works); rate-limit the route per client yourself, since one client can ask for
+many addresses.
 
 The code route still tells a decoy apart: a wrong code against it is 400
 `TOKEN_UNKNOWN`, against a real challenge 401 `CODE_INVALID` with
@@ -523,9 +540,9 @@ app.post('/sign-in/link', csrf({ origin: ORIGIN }), async (c) => {
 - **The request route answers `202` whoever asked.** `magicLink.request`
   answers `null` for an address nobody holds and for an inactive user. With
   a code, the route needs a decoy challenge. Nothing of a link reaches the
-  visitor, so here there is no decoy to forge. Rate-limit the route per
-  address and per client: every call sends an e-mail and cancels the link
-  sent before it.
+  visitor, so here there is no decoy to forge. Every call sends an e-mail
+  and cancels the link sent before it: `@nxgt/janus` throttles each address
+  (`MAIL_THROTTLED`, 429 with `Retry-After`), and per client stays yours.
 - **The page echoes only a token of the token's shape.** Anything else
   written into the HTML is a cross-site scripting hole. Use a button, not a
   script that submits the form by itself: a scanner that runs scripts would

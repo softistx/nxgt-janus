@@ -64,6 +64,15 @@ interface SharedConfig {
 	 */
 	readonly signIn?: SignInConfig;
 	/**
+	 * How the requests that hand out something to e-mail answer a loop. **On
+	 * by default**: past five requests of one flow for one address — or one
+	 * user, once signed in — in a 10-minute window, the request answers
+	 * `MAIL_THROTTLED` with `retryAfter`, and issues nothing, until the next
+	 * window. A refused request spends nothing: the last link or code sent
+	 * still works.
+	 */
+	readonly mail?: MailConfig;
+	/**
 	 * A TOTP second factor, for every user type with a password. Absent, no
 	 * `secondFactor` flows exist and `signIn` answers a session directly.
 	 */
@@ -101,6 +110,30 @@ export interface SignInThrottleConfig {
 	/** Passwords tried per login and per window, the right one included. `10` when absent. */
 	readonly attempts?: number;
 	/** How long one window lasts. `'15m'` when absent. */
+	readonly window?: Duration;
+}
+
+/** What the requests that hand out something to e-mail do with a loop. */
+export interface MailConfig {
+	/**
+	 * The requests one address — or one user — may make per flow and per
+	 * window: `magicLink.request`, `signInCode.request` and
+	 * `resetPassword.request` per address, `verifyEmail.send` and an e-mailed
+	 * `stepUp.request` per user. `{ attempts: 5, window: '10m' }` when absent;
+	 * `false` counts nothing — rate-limit those requests yourself then.
+	 */
+	readonly throttle?: MailThrottleConfig | false;
+}
+
+/** How many requests of one flow one address or user may make, and per how long. */
+export interface MailThrottleConfig {
+	/** Requests per flow, per address or user, and per window. `5` when absent. */
+	readonly attempts?: number;
+	/**
+	 * How long one window lasts. `'10m'` when absent: no longer than the
+	 * shortest default token lifetime, so the last link or code sent outlives
+	 * the refusal. A window longer than a token's lifetime leaves a gap.
+	 */
 	readonly window?: Duration;
 }
 

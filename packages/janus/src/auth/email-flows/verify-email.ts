@@ -14,6 +14,7 @@ import {
 	writeUser,
 } from '../context';
 import { emit } from '../events';
+import { countMailByUser } from '../mail-requests';
 import { refuseStale } from '../one-time';
 import type { VerifyEmailApi } from '../types';
 import { issueEmailToken, redeemEmailToken } from './email-token';
@@ -28,6 +29,8 @@ export function verifyEmailFlows(
 		async send(user) {
 			const where = at('verifyEmail.send');
 			const record = await getRecord(context, idOf(user), type.name, where);
+			// Counted per user: the application asks for a user it knows.
+			await countMailByUser(context, type, 'verifyEmail', record.id, where);
 			return issueEmailToken(context, type, 'verifyEmail', record, where);
 		},
 

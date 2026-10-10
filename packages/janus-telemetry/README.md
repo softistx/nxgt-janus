@@ -80,6 +80,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.signIn.secondFactor` | info | the password, an e-mailed code or a sign-in link was right and a second factor's code was asked for: `signIn`, `signInCode.confirm` or `magicLink.confirm` answered a challenge. `janus.user.type` and the `user.id` the challenge answer carries — never the login typed |
 | `janus.signIn.refused` | **warn** | a sign-in was refused, with `janus.refusal` — `CREDENTIALS_INVALID` with `janus.refusal.reason` (`unknownLogin`, `noPassword`, `wrongPassword`), `USER_INACTIVE` with the `user.id` of the deactivated user, or a refused `secondFactor.confirm` or `signInCode.confirm`: `CODE_INVALID` with `user.id` and `janus.secondFactor.attemptsLeft` — the same attribute for both — a `TOKEN_*` code (`TOKEN_STALE` with `user.id`), `SECOND_FACTOR_NOT_ENROLLED`, or `VERSION_CONFLICT` for a write that raced. Every refusal of `signInCode.confirm` adds `janus.signIn.code: true`, every refusal of `magicLink.confirm` — a `TOKEN_*` code, `USER_INACTIVE` or `VERSION_CONFLICT` — adds `janus.signIn.magicLink: true`, and every refusal of `secondFactor.recover` adds `janus.signIn.recoveryCode: true` |
 | `janus.signIn.throttled` | **warn** | `signIn` refused a login past its attempts in the window — `@nxgt/janus`'s throttle, the right password included — with `janus.refusal: CREDENTIALS_INVALID`, `janus.refusal.reason: throttled`, `janus.user.type` and `janus.signIn.retryAfter`, the seconds until the next window. Never the login, never a `user.id`: an unknown login is throttled alike. Written instead of `janus.signIn.refused`, since no password was compared |
+| `janus.mail.throttled` | **warn** | `magicLink.request`, `signInCode.request`, `resetPassword.request`, `verifyEmail.send` or `stepUp.request` was refused past its attempts in the window — `@nxgt/janus`'s mail throttle — with `janus.refusal: MAIL_THROTTLED`, `janus.user.type`, `user.id` (the per-user flows only), `janus.mail.flow` (e.g. `magicLink.request`) and `janus.mail.retryAfter`, the seconds until the window ends (the last link or code sent still works). Never the address: an unknown address is throttled alike. The span stays ok |
 | `janus.secondFactor.enrolled`, `janus.secondFactor.activated`, `janus.secondFactor.disabled` | info | `enroll`, `activate` and `disable`, with the `user.id` they were called for |
 | `janus.secondFactor.recoveryCodesRegenerated` | info | `regenerateRecoveryCodes`, with the `user.id` it was called for — never a code |
 | `janus.stepUp.asked` | info | `stepUp.request` issued a challenge, with the `user.id` and `janus.stepUp.via` — `email` when a code is to be sent, `secondFactor` when the user's app confirms it |
@@ -111,7 +112,8 @@ when the flow knows them — `janus.signOut` carries neither:
   challenge, carries `user.id`: `USER_INACTIVE`, a `CODE_INVALID`,
   `TOKEN_STALE` or `SECOND_FACTOR_NOT_ENROLLED`. Nor does
   `janus.signInCode.sent` or `janus.magicLink.sent` name the address: a
-  request for nobody writes nothing at all.
+  request for nobody writes nothing at all — until the mail throttle refuses it,
+  and `janus.mail.throttled` carries no address either.
 - **A wrong code is a warning, not a failure.** `CODE_INVALID` leaves the
   `janus.secondFactor.confirm`, `janus.secondFactor.recover` or
   `janus.signInCode.confirm` span `ok`, and

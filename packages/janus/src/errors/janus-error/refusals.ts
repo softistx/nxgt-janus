@@ -84,6 +84,15 @@ export class StepUpRequiredError extends JanusError {
 	override readonly code = 'STEP_UP_REQUIRED' as const;
 }
 
+/**
+ * Too many e-mails asked for one address, or one user, in this window:
+ * nothing was issued. Wait `retryAfter` seconds, then ask again.
+ */
+export class MailThrottledError extends JanusError {
+	override name = 'MailThrottledError';
+	override readonly code = 'MAIL_THROTTLED' as const;
+}
+
 /** A cursor this store did not mint, or one for another ordering. */
 export class InvalidCursorError extends JanusError {
 	override name = 'InvalidCursorError';

@@ -203,12 +203,12 @@ every one carries a `code` and the HTTP status Yoga answers with:
 | `STEP_UP_REQUIRED` | 403 | A session older than `@fresh(maxAge)` or `requireFresh()` allows: ask for a step-up, then send the request again |
 | `NOT_FOUND` | 404 | A `@permission` denied — its default — or a loader answered `null`; `denial('NOT_FOUND')` |
 | `SERVICE_UNAVAILABLE` | 503 | A store could not answer — `STORE_FAILED`. **Never a denial** |
-| any other `JanusErrorCode` | its [`statusOf`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) | A `JanusError` a resolver let through: `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, … |
+| any other `JanusErrorCode` | its [`statusOf`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/errors.md) | A `JanusError` a resolver let through: `CREDENTIALS_INVALID` 401, `MAIL_THROTTLED` 429, `LOGIN_TAKEN` 409, … |
 
 The status sits in `extensions.http.status`, which Yoga reads to answer the
 HTTP response and strips from the body. `USER_INVALID` adds `issues`,
 `PASSWORD_TOO_SHORT` `minLength`, `CODE_INVALID` `attemptsLeft`, and a
-throttled `CREDENTIALS_INVALID` `retryAfter` — with a `Retry-After` header in
+throttled `CREDENTIALS_INVALID` or `MAIL_THROTTLED` `retryAfter` — with a `Retry-After` header in
 `extensions.http.headers`, which Yoga answers with; nothing
 else — never `reason`, `login`, a hash prefix or a cause. The message is a
 fixed one per status, never the core's: read `code`. Detail, and the status of a

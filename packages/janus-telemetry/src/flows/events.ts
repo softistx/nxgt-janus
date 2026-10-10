@@ -12,6 +12,7 @@ import {
 	userFields,
 	viaOf,
 } from './fields';
+import { mailRequest } from './mail';
 
 const log = createLogger('@nxgt/janus');
 
@@ -103,21 +104,21 @@ export const WRITTEN: Readonly<
 			log.info(events.signedIn(signedInFields(call, outcome.value)));
 		}
 	},
-	'signInCode.request': (call, outcome) => {
+	'signInCode.request': mailRequest((call, outcome) => {
 		// Only when a code was issued: `null` is nobody, and says nothing.
 		if (outcome.ok && outcome.value !== null) {
 			log.info(events.signInCodeSent(userFields(call, outcome.value)));
 		}
-	},
+	}),
 	'signInCode.confirm': emailedSignIn('janus.signIn.code'),
-	'magicLink.request': (call, outcome) => {
+	'magicLink.request': mailRequest((call, outcome) => {
 		// Only when a link was issued: `null` is nobody, and says nothing.
 		if (outcome.ok && outcome.value !== null) {
 			log.info(events.magicLinkSent(userFields(call, outcome.value)));
 		}
-	},
+	}),
 	'magicLink.confirm': emailedSignIn('janus.signIn.magicLink'),
-	'stepUp.request': (call, outcome) => {
+	'stepUp.request': mailRequest((call, outcome) => {
 		// Which code confirms it — e-mailed, or from the app — never the code.
 		if (outcome.ok) {
 			log.info(
@@ -127,7 +128,7 @@ export const WRITTEN: Readonly<
 				}),
 			);
 		}
-	},
+	}),
 	'stepUp.confirm': (call, outcome) => {
 		if (outcome.ok) {
 			log.info(events.stepUpConfirmed(sessionUserFields(call, outcome.value)));
@@ -205,6 +206,8 @@ export const WRITTEN: Readonly<
 	setPassword: (call, outcome) => {
 		if (outcome.ok) log.info(events.passwordSet(argumentUser(call)));
 	},
+	'resetPassword.request': mailRequest(),
+	'verifyEmail.send': mailRequest(),
 	'resetPassword.confirm': (call, outcome) => {
 		if (outcome.ok)
 			log.info(events.passwordReset(userFields(call, outcome.value)));

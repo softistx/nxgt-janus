@@ -4,6 +4,7 @@ import {
 	InvalidCursorError,
 	JanusError,
 	type JanusErrorCode,
+	MailThrottledError,
 	NotFoundError,
 	PermissionDepthError,
 	StoreConflict,
@@ -40,6 +41,11 @@ describe('JanusError', () => {
 		expect(new UserInactiveError('x').name).toBe('UserInactiveError');
 		expect(new PermissionDepthError('x').name).toBe('PermissionDepthError');
 		expect(new PermissionDepthError('x').code).toBe('PERMISSION_DEPTH');
+		expect(new MailThrottledError('x').name).toBe('MailThrottledError');
+		expect(new MailThrottledError('x', { retryAfter: 60 })).toMatchObject({
+			code: 'MAIL_THROTTLED',
+			retryAfter: 60,
+		});
 	});
 });
 
@@ -95,6 +101,8 @@ describe('the codes a caller switches on', () => {
 				case 'USER_INACTIVE':
 				case 'STEP_UP_REQUIRED':
 					return 403;
+				case 'MAIL_THROTTLED':
+					return 429;
 				case 'UNSUPPORTED':
 					return 501;
 				case 'PERMISSION_DEPTH':

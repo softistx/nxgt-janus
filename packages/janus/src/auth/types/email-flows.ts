@@ -47,10 +47,12 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 		 * the visitor which**: answer the same page either way, and in the same
 		 * time — send the e-mail off the request's path.
 		 *
-		 * **Rate-limit it, per e-mail and per client.** Every call issues a new
-		 * challenge with five attempts of its own, and spends the earlier ones:
-		 * only the last code sent works, and a new `request` is five guesses
-		 * more — the five attempts bound one challenge, not one account.
+		 * Every call issues a new challenge with five attempts of its own, and
+		 * spends the earlier ones: only the last code sent works, and a new
+		 * `request` is five guesses more. **Throttled per address**, whether
+		 * anybody holds it or not: past five requests in 10 minutes
+		 * (`janus({ mail: { throttle } })`), `MAIL_THROTTLED` with
+		 * `retryAfter`, and no code. Rate-limit it per client too.
 		 */
 		request(email: string): Promise<IssuedCode<U> | null>;
 		/**
@@ -77,7 +79,12 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 /** What a user type with an e-mail answers besides. */
 export interface VerifyEmailApi<U> {
 	readonly verifyEmail: {
-		/** Issues a token for the user's current e-mail. Sending it is yours. */
+		/**
+		 * Issues a token for the user's current e-mail. Sending it is yours.
+		 * **Throttled per user**: past five in 10 minutes
+		 * (`janus({ mail: { throttle } })`), `MAIL_THROTTLED` with
+		 * `retryAfter`, and no token.
+		 */
 		send(user: UserRef): Promise<IssuedToken>;
 		/**
 		 * Redeems a token and marks the e-mail verified. A token sent to an
@@ -94,7 +101,10 @@ export interface ResetPasswordApi<U> {
 		 * Issues a reset token for the user of this type holding this e-mail, or
 		 * answers `null` when there is none. **Never tell the visitor which**:
 		 * answer the same page either way. The user's earlier reset tokens are
-		 * spent: only the last one sent works.
+		 * spent: only the last one sent works. **Throttled per address**,
+		 * whether anybody holds it or not: past five requests in 10 minutes
+		 * (`janus({ mail: { throttle } })`), `MAIL_THROTTLED` with
+		 * `retryAfter`, and no token.
 		 */
 		request(
 			email: string,

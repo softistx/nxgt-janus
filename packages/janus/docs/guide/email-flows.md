@@ -114,7 +114,11 @@ readonly verifyEmail: {
 };
 ```
 
-`send` issues a token for the user's **current** e-mail. `confirm` redeems it
+`send` issues a token for the user's **current** e-mail. It is throttled
+**per user**, five per 10-minute window: past it, `MailThrottledError`
+(`MAIL_THROTTLED`, with `userId`) and no token. The application calls it for a
+user it knows, so an unauthenticated loop on the address cannot spend the
+count, and a user who changes e-mail buys no extra sends. `confirm` redeems it
 and sets `emailVerified`. A token sent to an e-mail the user has since changed
 is `TOKEN_STALE`: confirming it would verify an address nobody holds any more.
 The address is checked again on the very record the write replaces, so an
@@ -165,9 +169,15 @@ if (first !== null && second !== null) {
 
 Requests that arrive at once cannot each keep a link: each spends the
 others' once it issued its own, so at most one survives — sometimes none, and
-the visitor asks again. **Rate-limit `request` per address**, as for sign-in
-codes: each one sends an e-mail and cancels the link before it, so without a
-limit anyone who knows an address can keep its owner from ever using a link.
+the visitor asks again. **`request` is throttled per address**, as for
+sign-in codes: each one sends an e-mail and cancels the link before it, so
+past five requests for one address in a 10-minute window it throws
+`MailThrottledError` (`MAIL_THROTTLED`) and issues nothing; the link last sent
+still works. An address nobody holds is counted and refused alike, and under
+the limit still answers `null`. Somebody who knows an address can fill its
+inbox with at most five reset e-mails a window, but cannot shut the reset:
+the last one sent still works. Limit the route per client yourself too, and
+see [the mail throttle](#requests-that-send-e-mail-are-throttled).
 
 **Writing a password spends every reset link still live.** A `confirm`,
 `changePassword` and `setPassword` each do, so a link sent before the
@@ -221,6 +231,142 @@ export async function resetPassword(request: Request): Promise<Response> {
 	}
 }
 ```
+
+## Requests that send e-mail are throttled
+
+**Every request that hands out something to e-mail is counted**, on by default:
+five per 10 minutes, per flow. Past the limit the request throws
+`MailThrottledError` (`MAIL_THROTTLED`, 429) with `retryAfter` — the whole
+seconds to the end of the window, at least 1 — and **a refused request spends,
+invalidates and rotates nothing**: no token, code or challenge is minted, and
+nothing earlier is spent, so **the last link or code sent still confirms until
+it expires**, whoever asked for it. The count comes before anything is issued,
+and the earlier tokens are spent only after a new one is issued.
+
+```ts
+import { MailThrottledError } from '@nxgt/janus';
+
+try {
+	await auth.resetPassword.request(email);
+} catch (error) {
+	if (error instanceof MailThrottledError) {
+		// 429 and Retry-After: error.retryAfter — safe to show, it reveals nothing about accounts.
+		// Tell the visitor: "Check your inbox: the last e-mail we sent still works.
+		// You can ask for a new one in N minutes."
+	}
+	throw error;
+}
+```
+
+| Flow | Counted per | Why |
+| --- | --- | --- |
+| `magicLink.request(email)` | address | Anybody can call it with any address. Counted before the address is looked up, so an address nobody holds is refused like a registered one |
+| `signInCode.request(email)` | address | The same |
+| `resetPassword.request(email)` | address | The same |
+| `verifyEmail.send(user)` | user | The application calls it for a user it knows: an unauthenticated loop on the address cannot spend this count, so it never blocks the user's own verification, and a user changing e-mail buys no extra sends |
+| `stepUp.request(user)`, when it e-mails a code (`via: 'email'`) | user | The same. A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is not counted |
+
+**Each flow counts on its own**: a loop on `magicLink.request` never shuts
+`signInCode.request`. The address is normalised (trimmed, lowercased) and is
+the same count whatever the user type.
+
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `mail.throttle.attempts` | whole number above zero | `5` | Requests per flow, per address or user, per window |
+| `mail.throttle.window` | `Duration` | `'10m'` | How long a window lasts |
+| `mail.throttle` | `false` | | Counts nothing: limit those requests yourself |
+
+```ts
+janus({ user, store, mail: { throttle: { attempts: 3, window: '1h' } } });
+janus({ user, store, mail: { throttle: false } });
+```
+
+```ts
+export interface MailConfig {
+	readonly throttle?: MailThrottleConfig | false;
+}
+export interface MailThrottleConfig {
+	readonly attempts?: number;
+	readonly window?: Duration;
+}
+```
+
+Five per ten minutes is no longer than the shortest default token lifetime
+(`signInCode` and `stepUp` `'10m'`; `magicLink` `'15m'`, `resetPassword` `'1h'`,
+`verifyEmail` `'24h'`), so under the defaults the last link or code sent —
+issued inside the window — is still live for the whole refusal. It leaves room
+for a visitor who asks again, and holds a loop to thirty e-mails an hour per
+flow and address. A wrong value is refused when `janus()` is called, with
+a `TypeError`: `janus: mail must be an object — { throttle }`, `janus:
+mail.throttle must be { attempts, window }, or false to count nothing`,
+`janus: mail.throttle.attempts must be a whole number above zero`, or a
+`janus: mail.throttle.window` duration message.
+
+**Fixed windows, and nothing locks.** The window is a fixed slice of the
+clock, as the sign-in throttle's. Requests at once are counted in one store
+write each: of twenty at once, exactly five are issued. The next window
+answers again. A refused request is counted too but cannot extend the wait.
+
+**Where the counts live.** In the tokens store, as `secondFactor` tokens named
+by a keyed hash of the flow and the address or user id: no port change, no new
+infrastructure, and never the address. That is one row per flow per address or
+user per window. On PostgreSQL, `collectExpired()` does not collect lapsed
+ones: schedule the delete, as for the sign-in throttle. A flushed or evicting
+Redis forgets the counts, and a tokens store that cannot count throws
+`STORE_FAILED` with nothing issued: it fails closed.
+
+**What it does not do.**
+
+- **It cannot lock somebody out.** Somebody who asks for an address in a loop
+  can fill its inbox with at most five e-mails per window per flow, but the
+  last e-mail they caused to be sent was a real e-mail to the real owner and
+  still works until it expires. The password sign-in is untouched.
+- **A lifetime shorter than the window breaks that.** With
+  `tokens.signInCode: '5m'` and the default window, the last code can expire
+  before the window ends and the visitor has no live code until it does. Keep
+  `mail.throttle.window` no longer than the shortest of the `tokens.*`
+  lifetimes you use.
+- **It is not per client.** `janus` never sees IP addresses, so one client
+  asking for many addresses is not counted. Add a per-IP ceiling in front of
+  the routes: `@nxgt/redis` (0.5.0 and later) has rate limits for it.
+
+```ts
+import { bindRateLimit, defineRateLimit, GuardError } from '@nxgt/redis';
+
+export const mailRequests = defineRateLimit({
+	name: 'mail-requests',
+	key: (p: { ip: string }) => p.ip,
+	limit: 20,
+	per: 3_600_000,
+});
+const perIp = bindRateLimit(client, mailRequests); // or redis.limits.<name> when wired
+
+try {
+	await perIp.enforce({ ip }); // before auth.magicLink.request(email)
+} catch (error) {
+	if (error instanceof GuardError && error.code === 'RATE_LIMITED') {
+		// error.retryAfter is in MILLISECONDS: Math.ceil(error.retryAfter / 1000) for Retry-After
+	}
+	throw error;
+}
+```
+- **A test suite** that requests more than five of one flow for one address or
+  user over a `fixedClock` is throttled: advance the clock past `retryAfter`,
+  or wire `mail: { throttle: false }`.
+
+**Not throttled**, because they follow a write or a sign-in, which are bounded
+elsewhere (the [sign-in throttle](passwords.md#password-guessing-is-throttled)
+bounds sign-ins), not a request to mail an address:
+
+- `update` changing the e-mail: an application write. Its notice to the former
+  address is sent from the `user.emailChanged` event.
+- The notices sent from [events](events.md): a new device, a password changed,
+  a recovery code used, and the like.
+
+`@nxgt/janus-hono` and `@nxgt/janus-graphql` answer `MAIL_THROTTLED` with 429,
+`retryAfter` in the body (or the extensions) and a `Retry-After` header;
+`@nxgt/janus-telemetry` writes a `janus.mail.throttled` warning with
+`janus.mail.flow` and `janus.mail.retryAfter`, never the address.
 
 ## What a token refusal means
 

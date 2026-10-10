@@ -9,6 +9,7 @@ import {
 	keepOnlyLatest,
 	signInHolder,
 } from './email-sign-in';
+import { countMailByAddress } from './mail-requests';
 import { issueOneTime } from './one-time';
 import type { IssuedToken, MagicLinkApi, SignInResult } from './types';
 
@@ -35,7 +36,7 @@ export function magicLinkFlows(
 ): MagicLinkApi<AnyUser, SignInResult<AnyUser>>['magicLink'] {
 	return {
 		async request(email) {
-			return requestLink(context, type, String(email));
+			return requestLink(context, type, String(email), at('magicLink.request'));
 		},
 
 		async confirm(token, options) {
@@ -51,7 +52,11 @@ async function requestLink(
 	context: Context,
 	type: ResolvedType,
 	email: string,
+	where: string,
 ): Promise<(IssuedToken & { readonly user: AnyUser }) | null> {
+	// Counted before the address is looked up: past the limit, nobody and
+	// somebody are refused alike.
+	await countMailByAddress(context, type, 'magicLink', email, where);
 	// Nobody, and an inactive user, get the same answer: no link.
 	const record = await signInHolder(context, type, email);
 	if (record === null) return null;

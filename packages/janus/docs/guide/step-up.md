@@ -181,13 +181,44 @@ counted **per user**, five per 15-minute window, in the same count as
 challenge still gets five guesses per window, not five per challenge. The
 app's code accepted is spent, as at a sign-in: it confirms nothing else.
 
-**Rate-limit `request` per user.** An e-mailed code has no such window:
-five guesses per challenge, and a new challenge takes only a new `request`.
-A stolen session could ask again and again — each request also sends an
-e-mail and cancels the code before it. Limit `stepUp.request` per user —
-a few an hour is plenty for a person — as you limit `signInCode.request`
-per address; the `janus.stepUp.asked` event of `@nxgt/janus-telemetry` is
-the signal to alert on.
+**`request` is throttled per user, when it e-mails.** An e-mailed code has no
+such window: five guesses per challenge, and a new challenge takes only a new
+`request`. A stolen session could ask again and again — each request also
+sends an e-mail and cancels the code before it. So `stepUp.request` counts
+the user, five per 10-minute window (`mail: { throttle }`), and past it throws
+`MailThrottledError` (`MAIL_THROTTLED`, with `userId`) and issues nothing: a
+refused request spends nothing, so the code last sent still works until it
+expires. Tell the user to use the last e-mail they received, or to wait
+`retryAfter` seconds.
+It counts **only** `via: 'email'`: a step-up confirmed with the app
+(`via: 'secondFactor'`) sends nothing and is not counted.
+
+It is per user rather than per address because the application calls it for a
+user it knows: nobody without their session can spend the count, so an
+unauthenticated loop on their address never blocks their own step-up, and a
+user who changes e-mail buys no extra sends. Answer it with a 429 and
+`Retry-After`:
+
+```ts
+import { MailThrottledError } from '@nxgt/janus';
+
+try {
+	const issued = await auth.stepUp.request(current.user);
+	// …send the e-mail from `issued`, whether or not there is one to send
+} catch (error) {
+	if (error instanceof MailThrottledError) {
+		return Response.json(
+			{ error: 'too many e-mails', retryAfter: error.retryAfter },
+			{ status: 429, headers: { 'retry-after': String(error.retryAfter) } },
+		);
+	}
+	throw error;
+}
+```
+
+The `janus.stepUp.asked` event of `@nxgt/janus-telemetry` is the signal to
+alert on; it also writes a `janus.mail.throttled` warning when the throttle
+refuses. See [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled).
 
 A step-up and a sign-in code are **two kinds of token**: a sign-in code's
 challenge confirms no action, and a step-up's code signs nobody in.

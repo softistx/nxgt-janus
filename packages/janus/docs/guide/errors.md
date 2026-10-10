@@ -17,11 +17,11 @@ export function toResponse(error: unknown): Response {
 
 `statusOf(code)` is the table under [The codes](#the-codes), exported so every
 integration answers a code the same way — `@nxgt/janus-hono`'s `statusOf` is
-this one. It answers `JanusErrorStatus`, a union of the eight statuses it can
-give (`400 | 401 | 403 | 404 | 409 | 500 | 501 | 503`), so a framework whose
+this one. It answers `JanusErrorStatus`, a union of the nine statuses it can
+give (`400 | 401 | 403 | 404 | 409 | 429 | 500 | 501 | 503`), so a framework whose
 response takes a narrower type than `number` accepts it as it is.
 
-`JanusErrorCode` is a union of nineteen string literals, and `statusOf` is a
+`JanusErrorCode` is a union of twenty-one string literals, and `statusOf` is a
 `switch` over it that is exhaustive: when a code is added, it stops compiling
 instead of answering `undefined` — and so does a `switch` of your own.
 
@@ -56,6 +56,7 @@ that wired the library, so no handler needs to tell it apart.
 | `PASSWORD_TOO_SHORT` | `CredentialError` | 400 | Below `password.minLength` | `minLength` — never the password |
 | `CREDENTIALS_INVALID` | `CredentialError` | 401 | Unknown login, no password, or the wrong one — **one code for the three** — and any password, the right one included, at a login past its attempts in the window — see [throttling](passwords.md#password-guessing-is-throttled) | `reason`, for your logs only; `retryAfter`, the seconds until the next window, when throttled |
 | `HASH_UNSUPPORTED` | `CredentialError` | 400 | A stored hash no wired hasher reads | `hashPrefix` — never the hash |
+| `MAIL_THROTTLED` | `MailThrottledError` | 429 | A request that sends e-mail was made too often for one address or one user in the window — see [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled). **Nothing was issued, spent or rotated**: the last link or code sent still works | `retryAfter`, the whole seconds to the end of the window, at least 1; `userType`; `userId` only for the per-user flows. No `reason` |
 | `USER_INACTIVE` | `UserInactiveError` | 403 | Deactivated; told only to someone who gave the right password, the right code, or a live sign-in link | `userId` |
 | `STEP_UP_REQUIRED` | `StepUpRequiredError` | 403 | `assertFresh`: the session proved who it is `maxAge` ago or more. Not a denial of the action — ask for a [step-up](step-up.md), then send the request again | `userId` |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | `TokenError` | 400 | See [e-mail flows](email-flows.md#what-a-token-refusal-means). For a second factor's challenge: sign in again; for a sign-in code's: request a new code — see [sign-in codes](sign-in-code.md#what-confirm-refuses); for a sign-in link: ask for a new link — see [sign-in links](magic-link.md#what-confirm-refuses) | `userId` on `TOKEN_STALE` |
@@ -104,6 +105,14 @@ async function signIn(email: string, password: string): Promise<Response> {
   `Retry-After` header: the login is throttled, and the right password is
   refused too until then. It says nothing of whether the login exists — an
   unknown one is throttled alike.
+- **`MAIL_THROTTLED`'s `retryAfter`** belongs in the body and a `Retry-After`
+  header with a 429. Unlike `reason`, it is **safe to show the visitor**: an
+  address nobody holds is counted and refused alike, so it reveals nothing
+  about accounts. Its message names the call and whether the address or the
+  user was counted: `magicLink.request: too many e-mails asked for this
+  address — the last one sent still works; use it, or wait for the next window`,
+  or `… for this user …`. Tell the visitor to use the last e-mail they received,
+  or to wait `retryAfter` seconds.
 - **`CODE_INVALID`'s `attemptsLeft`** belongs in the body — the form can say
   how many attempts are left. `0` means the challenge is spent: send the visitor
   back to the password.

@@ -90,9 +90,45 @@ once cannot each keep a link: at most one survives, sometimes none, and the
 visitor asks again. A link and a [sign-in code](sign-in-code.md) are
 separate kinds: asking for one leaves the other live.
 
-**Rate-limit the request route**, per address and per client, as you would a
-password reset: every call sends an e-mail, and cancels the link before it.
-Without a limit, anyone who knows an address can fill its inbox.
+**`request` is throttled per address**: every call sends an e-mail and
+cancels the link before it, so past five requests for one address in a
+10-minute window, `request` throws `MailThrottledError` (`MAIL_THROTTLED`)
+and issues nothing: **a refused request spends and rotates nothing, so the
+link last sent still works** until it expires, even when somebody else's
+request caused it. The address is counted
+before anything is looked up, so an address nobody holds is counted and
+refused alike, and under the limit it still answers `null`. Sign-in codes and
+password resets count on their own: a loop on this route never shuts them.
+Answer it with a 429 and `Retry-After`:
+
+```ts
+import { MailThrottledError } from '@nxgt/janus';
+
+try {
+	const issued = await auth.magicLink.request(email);
+	// …send the e-mail from `issued`, whether or not there is one to send
+} catch (error) {
+	if (error instanceof MailThrottledError) {
+		return Response.json(
+			{
+				error: 'too many e-mails — the last one we sent still works; use it, or wait',
+				retryAfter: error.retryAfter,
+			},
+			{ status: 429, headers: { 'retry-after': String(error.retryAfter) } },
+		);
+	}
+	throw error;
+}
+```
+
+Tell the visitor to use the last e-mail they received, or to wait
+`retryAfter` seconds: "Check your inbox: the last e-mail we sent still works.
+You can ask for a new one in N minutes." The throttle is per address, not per
+client: `janus` never sees IP addresses, so one client asking for many
+addresses is not counted. Add a per-IP ceiling with `@nxgt/redis` rate limits
+([example](email-flows.md#requests-that-send-e-mail-are-throttled)). See
+[the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
+for the options.
 
 ## Building the link
 
@@ -332,8 +368,8 @@ has each message with its cause.
   for sign-in codes.
 - **Signing out everywhere.** It revokes sessions; a link opens a new one.
 - **The sign-in throttle.** `signIn.throttle` counts passwords tried at one
-  login; a link is not a password, and its token cannot be guessed. Limit
-  `magicLink.request` yourself, as above.
+  login; a link is not a password, and its token cannot be guessed. The
+  [mail throttle](#requesting-a-link) counts its requests instead.
 
 What does: its own redemption, a newer `request`, its fifteen minutes, an
 e-mail changed since (`TOKEN_STALE`), the user deactivated

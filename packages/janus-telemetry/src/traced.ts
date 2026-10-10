@@ -27,6 +27,7 @@ function kindOf(code: JanusErrorCode): 'failure' | 'refusal' {
 		case 'TOKEN_EXPIRED':
 		case 'TOKEN_STALE':
 		case 'CODE_INVALID':
+		case 'MAIL_THROTTLED':
 		case 'SECOND_FACTOR_NOT_ENROLLED':
 		case 'SECOND_FACTOR_ACTIVE':
 		case 'INVALID_CURSOR':

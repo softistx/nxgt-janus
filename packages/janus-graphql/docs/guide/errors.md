@@ -44,7 +44,7 @@ the table `@nxgt/janus-hono` answers with too.
 What a refusal carries beyond `code` is only what the client can act on:
 `issues` for `USER_INVALID`, `minLength` for `PASSWORD_TOO_SHORT`,
 `attemptsLeft` for `CODE_INVALID`, `retryAfter` for a throttled
-`CREDENTIALS_INVALID` — with its `Retry-After` header. **Never** `reason`, `login`, `slot`,
+`CREDENTIALS_INVALID` or `MAIL_THROTTLED` — with its `Retry-After` header. **Never** `reason`, `login`, `slot`,
 `operation`, a hash prefix or a cause — those are for your logs. **The
 message is never the core's**: `@nxgt/janus`'s messages name a hash prefix or
 a record's versions, so every `JanusError` gets the fixed message of its
@@ -167,6 +167,25 @@ in `extensions.http.headers`, which Yoga answers with and strips from the
 body. `retryAfter` is the seconds until the login's next window.
 `janus({ signIn: { throttle } })` changes the limit
 ([passwords](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/passwords.md#password-guessing-is-throttled)).
+
+**The requests that send an e-mail are throttled too.** Past five requests
+for one address (one user, for `verifyEmail.send` and an e-mailed
+`stepUp.request`) in a 10-minute window, `@nxgt/janus` throws `MAIL_THROTTLED`
+and sends nothing; a refused request spends and rotates nothing, so the last
+link or code sent still works. Tell the visitor to use the last e-mail they
+received, or to wait `retryAfter` seconds. `janusGraphQLError()` answers it with the fixed message
+`Too many requests, retry later`:
+
+```json
+{
+	"errors": [{ "message": "Too many requests, retry later", "extensions": { "code": "MAIL_THROTTLED", "retryAfter": 840 } }]
+}
+```
+
+with a 429 and a `Retry-After: 840` header, as above. `janus({ mail: { throttle } })`
+changes the limit; keep its `window` no longer than the shortest `tokens.*`
+lifetime you use. `@nxgt/janus` never sees IP addresses: add a per-IP ceiling
+with `@nxgt/redis` rate limits.
 
 What the throttle does not see is one password tried against many logins:
 limit a sign-in mutation **per client address** as well, in the resolver,

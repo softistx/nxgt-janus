@@ -41,6 +41,7 @@ for what causes each.
 
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
+- [`MAIL_THROTTLED`, 429, `Too many requests, retry later`](#mail_throttled-429-too-many-requests-retry-later)
 - [`CREDENTIALS_INVALID` with `retryAfter`, 401, for the right password](#credentials_invalid-with-retryafter-401-for-the-right-password)
 - [`FORBIDDEN` where the user should be allowed](#forbidden-where-the-user-should-be-allowed)
 - [`STEP_UP_REQUIRED`, 403](#step_up_required-403)
@@ -368,6 +369,25 @@ was revoked; or `useJanus({ type })` treats this user's type as anonymous.
 
 **Fix:** send `Authorization: Bearer <token>`, `X-Session-Token`, or the
 session cookie; check `useJanus()`'s `type`.
+
+### `MAIL_THROTTLED`, 429, `Too many requests, retry later`
+
+With `extensions.retryAfter` and a `Retry-After` header.
+
+**Why:** `@nxgt/janus` throttles the requests that hand out something to
+e-mail, on by default: past five for one address (one user, for
+`verifyEmail.send` and an e-mailed `stepUp.request`) in a 10-minute window it
+throws `MAIL_THROTTLED` and issues nothing: a refused request spends and
+rotates nothing, and the last link or code sent still works. An unknown address is counted and
+refused alike. `retryAfter` is the seconds until the window ends.
+
+**Fix:** read `extensions.retryAfter` in the client and tell the visitor to use
+the last e-mail they received (it still works), or to wait that many seconds.
+`@nxgt/janus` never sees IP addresses: add a per-IP ceiling with `@nxgt/redis`
+rate limits. To change
+the limit, `janus({ mail: { throttle: { attempts, window } } })`; in a test
+over a `fixedClock`, advance the clock past `retryAfter`, or wire
+`mail: { throttle: false }`.
 
 ### `CREDENTIALS_INVALID` with `retryAfter`, 401, for the right password
 

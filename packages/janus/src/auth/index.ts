@@ -3,6 +3,8 @@ export type {
 	DevicesConfig,
 	FieldsJson,
 	JanusConfig,
+	MailConfig,
+	MailThrottleConfig,
 	MultiTypeConfig,
 	Normalize,
 	PasswordConfig,

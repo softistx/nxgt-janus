@@ -57,7 +57,10 @@ export interface StepUpApi<U, Issued = StepUpByEmail<U>> {
 		 * step-up is live per user**: the ones issued before stop working.
 		 *
 		 * `NOT_FOUND` for no such user of this type, or one with no e-mail;
-		 * `USER_INACTIVE` for an inactive one.
+		 * `USER_INACTIVE` for an inactive one. A code to e-mail is **throttled
+		 * per user**: past five in 10 minutes (`janus({ mail: { throttle } })`),
+		 * `MAIL_THROTTLED` with `retryAfter`, and no challenge. A challenge for
+		 * the app sends nothing, and is not counted.
 		 */
 		request(user: UserRef): Promise<Issued>;
 		/**

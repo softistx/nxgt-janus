@@ -4,7 +4,16 @@ import type { JanusErrorCode } from './codes';
  * Every HTTP status `statusOf` answers: a union of literals, so a framework
  * whose response takes a narrower type than `number` accepts it as it is.
  */
-export type JanusErrorStatus = 400 | 401 | 403 | 404 | 409 | 500 | 501 | 503;
+export type JanusErrorStatus =
+	| 400
+	| 401
+	| 403
+	| 404
+	| 409
+	| 429
+	| 500
+	| 501
+	| 503;
 
 /**
  * The HTTP status each code deserves — the one table the integrations share,
@@ -45,6 +54,8 @@ export function statusOf(code: JanusErrorCode): JanusErrorStatus {
 		case 'USER_INACTIVE':
 		case 'STEP_UP_REQUIRED':
 			return 403;
+		case 'MAIL_THROTTLED':
+			return 429;
 		case 'UNSUPPORTED':
 			return 501;
 		case 'PERMISSION_DEPTH':

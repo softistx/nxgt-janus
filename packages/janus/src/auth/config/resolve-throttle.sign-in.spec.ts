@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { resolveSignInThrottle } from './resolve-sign-in';
+import { resolveSignInThrottle } from './resolve-throttle';
 
 /** Resolves from JavaScript: the types would refuse most of these first. */
 const resolve = (config: unknown) => () =>

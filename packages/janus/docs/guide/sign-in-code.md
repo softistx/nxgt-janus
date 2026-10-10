@@ -130,9 +130,9 @@ patient observer; that limit is stated rather than denied.
 
 Every `request` issues a **new** code with its own challenge, and spends the
 earlier ones: only the last code sent works — see
-[attempts](#attempts). `janus` does not limit how often a code is asked for: **rate-limit the request route** per address
-and per client, as you would a password reset, or anyone can fill a user's
-inbox.
+[attempts](#attempts). How often a code is asked for is limited per address by [the mail
+throttle](email-flows.md#requests-that-send-e-mail-are-throttled); limit the
+route per client yourself too.
 
 ## Sending the code by e-mail
 
@@ -252,10 +252,46 @@ Requests that arrive at once cannot each keep a code: each spends the others'
 once it issued its own, so at most one survives — sometimes none, and the
 visitor asks again. Guesses therefore never run against two live challenges.
 
-**Rate-limit `request` per address.** A new challenge takes only a new
-`request`, and each one sends an e-mail and cancels the code before it:
-without a limit, anyone who knows an address can fill its inbox, or keep
-its owner from ever typing a code in time.
+**`request` is throttled per address.** A new challenge takes only a new
+`request`, and each one sends an e-mail and cancels the code before it, so
+past five requests for one address in a 10-minute window `request` throws
+`MailThrottledError` (`MAIL_THROTTLED`) and issues nothing — no challenge is
+minted, a refused request spends and rotates nothing, and the code last sent
+still works until it expires, even when somebody else's request caused it. The address is counted before
+anything is looked up, so an address nobody holds is counted and refused
+alike; under the limit it still answers `null`. This flow counts on its own:
+a loop on `magicLink.request` never shuts it. Answer it with a 429 and
+`Retry-After`:
+
+```ts
+import { MailThrottledError } from '@nxgt/janus';
+
+try {
+	const issued = await auth.signInCode.request(email);
+	// …send the e-mail from `issued`, whether or not there is one to send
+} catch (error) {
+	if (error instanceof MailThrottledError) {
+		return Response.json(
+			{
+				error: 'too many e-mails — the last one we sent still works; use it, or wait',
+				retryAfter: error.retryAfter,
+			},
+			{ status: 429, headers: { 'retry-after': String(error.retryAfter) } },
+		);
+	}
+	throw error;
+}
+```
+
+With several user types the message is prefixed with the type, as in
+`patient.signInCode.request: too many e-mails asked for this address — the last
+one sent still works; use it, or wait for the next window`. Somebody who knows
+an address cannot shut its e-mailed sign-in: the last code they caused to be
+sent still works, and they can only fill the inbox, five per window. Tell the
+visitor to use the last e-mail they received, or to wait `retryAfter` seconds.
+`janus` never sees IP addresses, so one client asking for many addresses is
+not counted: add a per-IP ceiling with `@nxgt/redis` rate limits
+([example](email-flows.md#requests-that-send-e-mail-are-throttled)).
 
 ### Lifetime
 
@@ -267,6 +303,9 @@ arrive and be read; a longer window is a longer life for a stolen challenge.
 janus({ ..., tokens: { signInCode: '15m' } });
 ```
 
+Keep the mail window (`mail.throttle.window`, `'10m'` by default) no longer
+than the lifetime: with `tokens.signInCode: '5m'` the last code can expire
+before the window ends, and the visitor has none live until it does.
 ### The e-mail is verified
 
 A user whose `emailVerified` was `false` has it `true` once `confirm`

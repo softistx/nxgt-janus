@@ -93,6 +93,24 @@ janus.patient.signIn   ok   janus.refusal=CREDENTIALS_INVALID
 // name = 'janus.signIn.throttled' AND at > now() - 1h
 ```
 
+A request that sends an e-mail past its attempts — `@nxgt/janus` throttles
+`magicLink.request`, `signInCode.request`, `resetPassword.request`,
+`verifyEmail.send` and an e-mailed `stepUp.request` — is a
+`janus.mail.throttled` warning. The span stays ok with `janus.refusal` set;
+the event names the flow and the seconds until the window ends, and never the
+address. `user.id` is there for the per-user flows (`verifyEmail.send`,
+`stepUp.request`) only:
+
+```
+janus.magicLink.request   ok   janus.refusal=MAIL_THROTTLED
+     log  janus.mail.throttled   janus.mail.flow=magicLink.request  janus.mail.retryAfter=840  janus.user.type=user
+```
+
+```ts
+// Somebody asking for e-mails: throttled requests of the last hour, in a collector that stores logs.
+// name = 'janus.mail.throttled' AND at > now() - 1h, grouped by janus.mail.flow
+```
+
 `janus.tuple.granted` and `janus.tuple.revoked` are the record of who was
 given what:
 
