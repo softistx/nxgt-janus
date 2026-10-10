@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus-mongo",
-	"version": "0.7.3",
+	"version": "0.8.0",
 	"description": "The MongoDB adapter for @nxgt/janus: users, sessions, one-time tokens and permission tuples",
 	"license": "MIT",
 	"type": "module",
