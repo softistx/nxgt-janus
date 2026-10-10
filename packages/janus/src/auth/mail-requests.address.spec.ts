@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { ada } from '../../test/auth';
+import { ada, hasher, person } from '../../test/auth';
 import { rejection } from '../../test/rejection';
+import { fixedClock } from '../time/clock';
+import { janus } from './janus';
 import {
 	byAddress,
 	type Mailing,
@@ -9,6 +11,7 @@ import {
 	times,
 	WINDOW_MS,
 } from './mail-requests.fixtures';
+import { createMemoryStores } from './port/memory';
 
 type Auth = Mailing['auth'];
 type Request = (auth: Auth, email: string) => Promise<unknown>;
@@ -159,5 +162,28 @@ describe('the requests by address, together', () => {
 		const last = links[4] as { readonly token: string };
 		const signedIn = await auth.magicLink.confirm(last.token);
 		expect(signedIn.status).toBe('signedIn');
+	});
+});
+
+describe('the count per address, across user types', () => {
+	it('is one count: asking through another type buys no more e-mails', async () => {
+		const auth = janus({
+			users: {
+				patient: { schema: person, password: { login: 'email' } },
+				staff: { schema: person, password: { login: 'email' } },
+			},
+			store: createMemoryStores(),
+			hasher,
+			clock: fixedClock(Date.UTC(2026, 8, 23)),
+		});
+		await times(5, () => auth.patient.magicLink.request(ada.email));
+
+		expect(
+			await rejection(auth.staff.magicLink.request(ada.email)),
+		).toMatchObject({
+			code: 'MAIL_THROTTLED',
+			userType: 'staff',
+			message: byAddress('staff.magicLink.request'),
+		});
 	});
 });
