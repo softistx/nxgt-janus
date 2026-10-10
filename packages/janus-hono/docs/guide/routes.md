@@ -494,6 +494,8 @@ A sign-in by e-mailed link takes three routes. The first asks for a link.
 The link then opens **a page that spends nothing**, and that page's button
 posts the token back to the third route, which signs the user in.
 
+`offRequest` is the helper of [a code sent by e-mail](#a-code-sent-by-e-mail).
+
 Never sign in on the link's `GET`. Mail scanners open every link in an
 e-mail and would spend the token before the user clicks. Sending the e-mail
 is your job.
@@ -509,7 +511,7 @@ const TOKEN = /^[A-Za-z0-9_-]{43}$/; // 32 bytes, base64url: the only thing echo
 app.post('/sign-in/email/link', async (c) => {
 	const { email } = await c.req.json();
 	const pending = await auth.magicLink.prepare(email); // counted, nobody looked up: MAIL_THROTTLED → 429
-	offRequest(async () => { // as in A code sent by e-mail
+	offRequest(async () => { // offRequest: see A code sent by e-mail (#a-code-sent-by-e-mail)
 		// the lookup and the token, after the answer, so its time tells nothing; in production, a queue
 		const issued = await pending.send();
 		if (issued !== null) await mailer.send(issued.email, `${ORIGIN}/sign-in/link?token=${issued.token}`);
@@ -779,7 +781,8 @@ cookie drops it too.
 
 ## E-mail verification and password reset
 
-Sending the e-mail is yours; the one-time token goes in a link.
+Sending the e-mail is yours; the one-time token goes in a link. `offRequest`
+is the helper of [a code sent by e-mail](#a-code-sent-by-e-mail).
 
 ```ts
 app.post('/verify-email', session(auth, { required: true }), async (c) => {
@@ -797,7 +800,7 @@ app.post('/verify-email/confirm', async (c) => {
 app.post('/reset-password', async (c) => {
 	const { email } = await c.req.json();
 	const pending = await auth.resetPassword.prepare(email); // counted, nobody looked up: MAIL_THROTTLED → 429
-	offRequest(async () => { // as in A code sent by e-mail
+	offRequest(async () => { // offRequest: see A code sent by e-mail (#a-code-sent-by-e-mail)
 		const issued = await pending.send(); // the lookup and the link, off the visitor's request
 		if (issued !== null) await mailer.send(issued.email, `https://app.test/reset?token=${issued.token}`);
 	});
