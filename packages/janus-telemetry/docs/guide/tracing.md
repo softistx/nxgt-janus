@@ -293,6 +293,28 @@ route that confirms on the link's `GET`:
 // name = 'janus.signIn.refused' and janus.signIn.magicLink = true and janus.refusal = 'TOKEN_SPENT', more than 5 in an hour
 ```
 
+### In two steps
+
+An application that sends the link off the visitor's request calls
+`magicLink.prepare(email)` in it, and the `send()` of what it answered
+later. Each is a span, and the event is written by `send()`, the call that
+issued:
+
+```
+POST /sign-in/email/link                 server
+└─ janus.magicLink.prepare               janus.user.type=user
+
+(a queue, after the answer)
+janus.magicLink.prepare.send             janus.user.type=user  user.id=0199…
+  log  janus.magicLink.sent              janus.user.type=user  user.id=0199…
+```
+
+`signInCode.prepare` and `resetPassword.prepare` are traced the same way.
+Past the limit, `prepare` writes `janus.mail.throttled` with
+`janus.mail.flow=magicLink.prepare`, and the span stays ok. `send()` runs on
+whatever span is current when it is called — none in a queue, so it starts
+a trace of its own.
+
 ## A step-up
 
 A step-up — a signed-in user proving again who they are before a

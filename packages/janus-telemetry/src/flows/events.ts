@@ -75,6 +75,20 @@ function emailedSignIn(mark: string): (call: Call, outcome: Outcome) => void {
 }
 
 /**
+ * What a sign-in code or link issued writes: `sent`, with its user — only
+ * when one was issued, since `null` is nobody and says nothing.
+ */
+function issued(
+	sent: typeof events.signInCodeSent,
+): (call: Call, outcome: Outcome) => void {
+	return (call, outcome) => {
+		if (outcome.ok && outcome.value !== null) {
+			log.info(sent(userFields(call, outcome.value)));
+		}
+	};
+}
+
+/**
  * What each flow writes once it answered. Nothing here reads a login, an
  * e-mail, a password or a token: only user types, ids, codes and reasons.
  */
@@ -104,19 +118,14 @@ export const WRITTEN: Readonly<
 			log.info(events.signedIn(signedInFields(call, outcome.value)));
 		}
 	},
-	'signInCode.request': mailRequest((call, outcome) => {
-		// Only when a code was issued: `null` is nobody, and says nothing.
-		if (outcome.ok && outcome.value !== null) {
-			log.info(events.signInCodeSent(userFields(call, outcome.value)));
-		}
-	}),
+	'signInCode.request': mailRequest(issued(events.signInCodeSent)),
+	// In two steps: prepare is counted, and send issues — what request writes.
+	'signInCode.prepare': mailRequest(),
+	'signInCode.prepare.send': issued(events.signInCodeSent),
 	'signInCode.confirm': emailedSignIn('janus.signIn.code'),
-	'magicLink.request': mailRequest((call, outcome) => {
-		// Only when a link was issued: `null` is nobody, and says nothing.
-		if (outcome.ok && outcome.value !== null) {
-			log.info(events.magicLinkSent(userFields(call, outcome.value)));
-		}
-	}),
+	'magicLink.request': mailRequest(issued(events.magicLinkSent)),
+	'magicLink.prepare': mailRequest(),
+	'magicLink.prepare.send': issued(events.magicLinkSent),
 	'magicLink.confirm': emailedSignIn('janus.signIn.magicLink'),
 	'stepUp.request': mailRequest((call, outcome) => {
 		// Which code confirms it — e-mailed, or from the app — never the code.
@@ -207,6 +216,7 @@ export const WRITTEN: Readonly<
 		if (outcome.ok) log.info(events.passwordSet(argumentUser(call)));
 	},
 	'resetPassword.request': mailRequest(),
+	'resetPassword.prepare': mailRequest(),
 	'verifyEmail.send': mailRequest(),
 	'resetPassword.confirm': (call, outcome) => {
 		if (outcome.ok)

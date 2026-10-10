@@ -81,11 +81,30 @@ function traceFunction(
 	const fields = fieldsOf({ 'janus.user.type': userType });
 	return (...args) => {
 		const call: Call = { flow: flow.join('.'), userType, args };
-		return traced(
+		const answer = traced(
 			name,
 			fields,
 			() => Promise.resolve(fn.apply(self, args)),
 			(scope, outcome) => answered(scope, call, outcome),
 		);
+		return path.at(-1) === 'prepare'
+			? answer.then((value) => tracePrepared(value, path, split))
+			: answer;
 	};
+}
+
+/**
+ * What `prepare` answers — `magicLink.prepare(email)` — traced in turn, so
+ * its `send()` is a span of its own, `janus.magicLink.prepare.send`, and
+ * writes what `request` writes once it issued. Anything else is answered
+ * as it came.
+ */
+function tracePrepared(
+	value: unknown,
+	path: readonly string[],
+	split: Split,
+): unknown {
+	return typeof value === 'object' && value !== null
+		? traceObject(value, path, split)
+		: value;
 }

@@ -33,6 +33,12 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Requests in two steps, traced, v0.10.0** — `magicLink.prepare`,
+  `signInCode.prepare` and `resetPassword.prepare` are spans like any flow,
+  and write `janus.mail.throttled` past their limit; the `send()` of what
+  they answer is traced too, `janus.magicLink.prepare.send`, and writes
+  `janus.magicLink.sent` or `janus.signInCode.sent` as `request` does. Needs
+  `@nxgt/janus` 0.20.0.
 - **Throttled e-mail requests in the audit trail, v0.9.0** —
   `janus.mail.throttled`, a warning with `janus.mail.flow` and
   `janus.mail.retryAfter`, when `@nxgt/janus` refuses `magicLink.request`,
