@@ -409,9 +409,10 @@ cookie, would tell anyone which addresses have an account. The decoy is 32
 random bytes, the shape of a real challenge; confirming it is
 `TOKEN_UNKNOWN`. `maxAge: 600` is the default ten minutes of
 `tokens.signInCode`, written out so both cookies match. Not awaiting the
-mailer keeps the answer's time from telling either. Rate-limit this route
-per address and per client: every call sends an e-mail. `@nxgt/janus` already
-throttles each address (`MAIL_THROTTLED`, 429); per client stays yours.
+mailer keeps the answer's time from telling either. `@nxgt/janus` throttles
+each address — five requests per 15 minutes, then `MAIL_THROTTLED`, which
+`janusErrors()` answers 429 with `Retry-After`; rate-limit the route per
+client yourself, since one client can ask for many addresses.
 
 The code route still tells a decoy apart: a wrong code against it is 400
 `TOKEN_UNKNOWN`, against a real challenge 401 `CODE_INVALID` with
@@ -532,9 +533,9 @@ app.post('/sign-in/link', csrf({ origin: ORIGIN }), async (c) => {
 - **The request route answers `202` whoever asked.** `magicLink.request`
   answers `null` for an address nobody holds and for an inactive user. With
   a code, the route needs a decoy challenge. Nothing of a link reaches the
-  visitor, so here there is no decoy to forge. Rate-limit the route per
-  address and per client: every call sends an e-mail and cancels the link
-  sent before it.
+  visitor, so here there is no decoy to forge. Every call sends an e-mail
+  and cancels the link sent before it: `@nxgt/janus` throttles each address
+  (`MAIL_THROTTLED`, 429 with `Retry-After`), and per client stays yours.
 - **The page echoes only a token of the token's shape.** Anything else
   written into the HTML is a cross-site scripting hole. Use a button, not a
   script that submits the form by itself: a scanner that runs scripts would
