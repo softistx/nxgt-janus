@@ -21,8 +21,7 @@ reason most of this file exists: a published entry point is a promise, and
 than claimed.
 
 The owner's global rules in `~/.claude/CLAUDE.md` apply here: worktrees,
-integration branches, merges and releases (a merge into `develop` and every
-publish wait for the owner's explicit yes), and questions to the owner. This
+integration branches, merges and releases, and questions to the owner. This
 file states only what is this repository's own and declares no departure from
 them.
 
