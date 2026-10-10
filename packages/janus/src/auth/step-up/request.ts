@@ -13,6 +13,7 @@ import {
 	idOf,
 	toUser,
 } from '../context';
+import { countMailByUser } from '../mail-requests';
 import { issueCode, issueOneTime } from '../one-time';
 import type { UserRecord } from '../port/types';
 import { isActive, requireSettings } from '../second-factor/factor';
@@ -87,6 +88,9 @@ async function byEmail(
 			operation: where,
 		});
 	}
+	// Counted per user, and only when a code is e-mailed: an app's challenge
+	// sends nothing.
+	await countMailByUser(context, type, 'stepUp', record.id, where);
 	const { secret, code, expiresAt } = await issueCode(context, {
 		kind: 'stepUp',
 		userId: record.id,

@@ -54,9 +54,10 @@ export interface JanusErrorOptions {
 	 */
 	readonly attemptsLeft?: number;
 	/**
-	 * Seconds until a throttled sign-in may be tried again: the end of the
-	 * login's window, rounded up. A client may read it; the `Retry-After`
-	 * header takes it as it is.
+	 * Seconds until a throttled request may be made again — a sign-in past
+	 * its passwords, or a request past its e-mails: the end of the window,
+	 * rounded up. A client may read it; the `Retry-After` header takes it as
+	 * it is.
 	 */
 	readonly retryAfter?: number;
 	readonly cause?: unknown;

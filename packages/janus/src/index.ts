@@ -31,6 +31,7 @@ export {
 	type JanusErrorCode,
 	type JanusErrorOptions,
 	type JanusErrorStatus,
+	MailThrottledError,
 	NotFoundError,
 	PermissionDepthError,
 	SecondFactorError,

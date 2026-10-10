@@ -15,6 +15,7 @@ export type { CredentialRefusal, Issue, JanusErrorOptions } from './options';
 export {
 	CredentialError,
 	InvalidCursorError,
+	MailThrottledError,
 	PermissionDepthError,
 	SecondFactorError,
 	StepUpRequiredError,

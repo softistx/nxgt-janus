@@ -36,6 +36,11 @@ export interface ResolvedConfig {
 		readonly attempts: number;
 		readonly windowMs: number;
 	} | null;
+	/** `null` when `mail.throttle` is `false`. */
+	readonly mailThrottle: {
+		readonly attempts: number;
+		readonly windowMs: number;
+	} | null;
 	readonly secondFactor: {
 		readonly issuer: string;
 		readonly sealer: Sealer;

@@ -8,6 +8,7 @@ import {
 	keepOnlyLatest,
 	signInHolder,
 } from './email-sign-in';
+import { countMailByAddress } from './mail-requests';
 import {
 	burnOneTime,
 	CODE_ATTEMPTS,
@@ -35,8 +36,9 @@ import type {
  * spends the challenge. **At most one code is live per user**: `request`
  * spends every other once it issued its own, so concurrent requests cannot
  * each keep one. Yet anybody who knows an e-mail can ask for another — and
- * each request cancels the code before — so the application rate-limits
- * `request`, per address. The code's hash is keyed by the challenge, so the
+ * each request cancels the code before — so `request` is counted per
+ * address (`mail-requests.ts`), and the application rate-limits it per
+ * client. The code's hash is keyed by the challenge, so the
  * tokens alone do not reveal it.
  */
 export function signInCodeFlows(
@@ -47,7 +49,12 @@ export function signInCodeFlows(
 ): SignInCodeApi<AnyUser, SignInResult<AnyUser>>['signInCode'] {
 	return {
 		async request(email) {
-			return requestCode(context, type, String(email));
+			return requestCode(
+				context,
+				type,
+				String(email),
+				at('signInCode.request'),
+			);
 		},
 
 		async confirm(challenge, code, options) {
@@ -67,7 +74,11 @@ async function requestCode(
 	context: Context,
 	type: ResolvedType,
 	email: string,
+	where: string,
 ): Promise<IssuedCode<AnyUser> | null> {
+	// Counted before the address is looked up: past the limit, nobody and
+	// somebody are refused alike.
+	await countMailByAddress(context, type, 'signInCode', email, where);
 	// Nobody, and an inactive user, get the same answer: no code.
 	const record = await signInHolder(context, type, email);
 	if (record === null) return null;

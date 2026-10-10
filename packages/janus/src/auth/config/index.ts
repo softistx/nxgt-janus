@@ -14,6 +14,8 @@ export type {
 	CookieConfig,
 	DevicesConfig,
 	JanusConfig,
+	MailConfig,
+	MailThrottleConfig,
 	MultiTypeConfig,
 	SecondFactorConfig,
 	SignInConfig,

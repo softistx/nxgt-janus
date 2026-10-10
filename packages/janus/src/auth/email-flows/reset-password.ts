@@ -17,6 +17,7 @@ import {
 	writeUser,
 } from '../context';
 import { emit } from '../events';
+import { countMailByAddress } from '../mail-requests';
 import { refuseStale } from '../one-time';
 import { endWhatThePasswordOpened } from '../password-written';
 import { hashSecret } from '../secrets';
@@ -38,6 +39,15 @@ export function resetPasswordFlows(
 		async request(email) {
 			const where = at('resetPassword.request');
 			passwordRule(type, where);
+			// Counted before the address is looked up: past the limit,
+			// nobody and somebody are refused alike.
+			await countMailByAddress(
+				context,
+				type,
+				'resetPassword',
+				String(email),
+				where,
+			);
 			const record = await holderOfEmail(context, type, String(email));
 			if (record === null) return null;
 

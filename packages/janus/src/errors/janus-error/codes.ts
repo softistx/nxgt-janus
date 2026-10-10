@@ -104,6 +104,16 @@ export type JanusErrorCode =
 	 * user's five, and `0` past them, when no code is compared at all.
 	 */
 	| 'CODE_INVALID'
+	/**
+	 * Too many e-mails asked for one address — or for one user, once signed
+	 * in — in this window: `magicLink.request`, `signInCode.request`,
+	 * `resetPassword.request`, `verifyEmail.send`, or `stepUp.request` by
+	 * e-mail. Nothing was issued, so there is nothing to send. Carries
+	 * `retryAfter`, the seconds until the next window. An address nobody
+	 * holds is refused alike, so a response may carry it without telling who
+	 * has an account.
+	 */
+	| 'MAIL_THROTTLED'
 	/** `activate` before `enroll`: the user has no second factor waiting. */
 	| 'SECOND_FACTOR_NOT_ENROLLED'
 	/**
