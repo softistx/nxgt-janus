@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus-mail",
-	"version": "0.9.1",
+	"version": "0.9.2",
 	"description": "The e-mails of @nxgt/janus's flows — e-mail verification, password reset, sign-in code, sign-in link, step-up code, password changed, e-mail changed, two-factor enabled and disabled, recovery code used, new sign-in, welcome — rendered in English and French from a prebuilt Maizzle build, with your brand, sent through any @nxgt/mail transport",
 	"license": "MIT",
 	"type": "module",

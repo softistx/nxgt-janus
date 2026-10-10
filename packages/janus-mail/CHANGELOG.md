@@ -1,5 +1,13 @@
 # @nxgt/janus-mail
 
+## 0.9.2
+
+### Patch Changes
+
+- [#198](https://github.com/softistx/nxgt-janus/pull/198) [`62a838f`](https://github.com/softistx/nxgt-janus/commit/62a838fe2bbb25743c556c80e7c3bd4bc8a49232) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Docs: the sending guide says `@nxgt/janus` 0.18 throttles the requests whose e-mails this package renders — `MAIL_THROTTLED` means there is nothing to send — and that a per-client limit stays the application's.
+- Updated dependencies [[`62a838f`](https://github.com/softistx/nxgt-janus/commit/62a838fe2bbb25743c556c80e7c3bd4bc8a49232), [`9fd9e98`](https://github.com/softistx/nxgt-janus/commit/9fd9e987226994c551ae49b27277f52eba605f03)]:
+  - @nxgt/janus@0.18.0
+
 ## 0.9.1
 
 ### Patch Changes
