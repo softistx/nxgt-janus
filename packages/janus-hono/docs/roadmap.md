@@ -36,6 +36,9 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **A throttled e-mail request's `retryAfter`, v0.7.0** — `janusErrors()`
+  and `bodyOf()` answer `@nxgt/janus`'s `MAIL_THROTTLED` with 429, `retryAfter`
+  in the body and a `Retry-After` header. Needs `@nxgt/janus` 0.18.0.
 - **The device cookie, v0.6.0** — `deviceOf(c)` reads the device token a
   browser holds, for a sign-in's `device`, and `sendSession` sets it — or
   sets it again for another 400 days — whenever `@nxgt/janus`'s answer

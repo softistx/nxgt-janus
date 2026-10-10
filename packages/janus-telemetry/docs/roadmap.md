@@ -33,6 +33,13 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Throttled e-mail requests in the audit trail, v0.9.0** —
+  `janus.mail.throttled`, a warning with `janus.mail.flow` and
+  `janus.mail.retryAfter`, when `@nxgt/janus` refuses `magicLink.request`,
+  `signInCode.request`, `resetPassword.request`, `verifyEmail.send` or
+  `stepUp.request` past its attempts; never the address. The span stays ok.
+  `resetPassword.request` and `verifyEmail.send` wrote nothing before. Needs
+  `@nxgt/janus` 0.18.0.
 - **A sign-in from a new device, marked, v0.8.0** — `janus.signIn` carries
   `janus.signIn.newDevice: true` when `@nxgt/janus` 0.17 answered
   `newDevice: true`, on `signIn`, `signInCode.confirm`, `magicLink.confirm`,

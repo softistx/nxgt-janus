@@ -40,6 +40,12 @@ Nothing yet.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A throttled e-mail request's `retryAfter`, v0.6.0.**
+  `janusGraphQLError()` answers `@nxgt/janus`'s `MAIL_THROTTLED` with 429,
+  `retryAfter` in `extensions`, a `Retry-After` header in
+  `extensions.http.headers` and the message `Too many requests, retry later`.
+  Needs `@nxgt/janus` 0.18.0.
+
 - **A throttled sign-in's `retryAfter`, v0.5.0.** `janusGraphQLError()`
   answers `@nxgt/janus`'s throttled `CREDENTIALS_INVALID` with `retryAfter`
   in `extensions` and a `Retry-After` header in `extensions.http.headers`,

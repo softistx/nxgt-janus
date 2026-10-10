@@ -90,9 +90,36 @@ once cannot each keep a link: at most one survives, sometimes none, and the
 visitor asks again. A link and a [sign-in code](sign-in-code.md) are
 separate kinds: asking for one leaves the other live.
 
-**Rate-limit the request route**, per address and per client, as you would a
-password reset: every call sends an e-mail, and cancels the link before it.
-Without a limit, anyone who knows an address can fill its inbox.
+**`request` is throttled per address**: every call sends an e-mail and
+cancels the link before it, so past five requests for one address in a
+15-minute window, `request` throws `MailThrottledError` (`MAIL_THROTTLED`)
+and issues nothing — the link last sent still works. The address is counted
+before anything is looked up, so an address nobody holds is counted and
+refused alike, and under the limit it still answers `null`. Sign-in codes and
+password resets count on their own: a loop on this route never shuts them.
+Answer it with a 429 and `Retry-After`:
+
+```ts
+import { MailThrottledError } from '@nxgt/janus';
+
+try {
+	const issued = await auth.magicLink.request(email);
+	// …send the e-mail from `issued`, whether or not there is one to send
+} catch (error) {
+	if (error instanceof MailThrottledError) {
+		return Response.json(
+			{ error: 'too many e-mails', retryAfter: error.retryAfter },
+			{ status: 429, headers: { 'retry-after': String(error.retryAfter) } },
+		);
+	}
+	throw error;
+}
+```
+
+The throttle is per address, not per client: one client asking for many
+addresses is not counted, so limit the route per client yourself too. See
+[the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
+for the options.
 
 ## Building the link
 
@@ -332,8 +359,8 @@ has each message with its cause.
   for sign-in codes.
 - **Signing out everywhere.** It revokes sessions; a link opens a new one.
 - **The sign-in throttle.** `signIn.throttle` counts passwords tried at one
-  login; a link is not a password, and its token cannot be guessed. Limit
-  `magicLink.request` yourself, as above.
+  login; a link is not a password, and its token cannot be guessed. The
+  [mail throttle](#requesting-a-link) counts its requests instead.
 
 What does: its own redemption, a newer `request`, its fifteen minutes, an
 e-mail changed since (`TOKEN_STALE`), the user deactivated

@@ -37,6 +37,7 @@ for what causes each.
 - [`400 {"code":"HASH_UNSUPPORTED"}` on sign-in](#400-codehash_unsupported-on-sign-in)
 - [`401 {"code":"CODE_INVALID","attemptsLeft":<n>}` on the code form](#401-codecode_invalidattemptsleftn-on-the-code-form) — a second factor's, or the code sent by e-mail
 - [`401 {"code":"CREDENTIALS_INVALID","retryAfter":<n>}` with the right password](#401-codecredentials_invalidretryaftern-with-the-right-password)
+- [`429 {"code":"MAIL_THROTTLED","retryAfter":<n>}` on a request for an e-mail](#429-codemail_throttledretryaftern-on-a-request-for-an-e-mail)
 - [`403 Forbidden` on `POST /sign-in/link`](#403-forbidden-on-post-sign-inlink) — Hono's `csrf()`, not `janusErrors()`
 - [`409 {"code":"SECOND_FACTOR_ACTIVE"}` or `409 {"code":"SECOND_FACTOR_NOT_ENROLLED"}`](#409-codesecond_factor_active-or-409-codesecond_factor_not_enrolled)
 - [The browser never sends the cookie back](#the-browser-never-sends-the-cookie-back)
@@ -495,6 +496,34 @@ if (response.status === 401) {
 To change the limit, `janus({ signIn: { throttle: { attempts, window } } })`;
 in a test, advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`.
+
+### `429 {"code":"MAIL_THROTTLED","retryAfter":<n>}` on a request for an e-mail
+
+With a `Retry-After: <n>` header.
+
+**When:** a route that asks for an e-mail — a sign-in link or code, a
+password reset, an address check, an e-mailed step-up — after five requests
+for the same address (the same user, for the last two) in the current
+15-minute window.
+
+**Why:** `@nxgt/janus` throttles the requests that hand out something to
+e-mail, on by default, each flow on its own; an unknown address is counted
+and refused alike, so nothing is revealed. `retryAfter` is the seconds until
+the window ends; nothing was sent or issued.
+
+**Fix:** show the wait, not a failure:
+
+```ts
+const response = await fetch('/sign-in/email', { method: 'POST', body });
+if (response.status === 429) {
+	const { retryAfter } = await response.json();
+	showWait(`Too many e-mails asked for — try again in ${Math.ceil(retryAfter / 60)} min`);
+}
+```
+
+To change the limit, `janus({ mail: { throttle: { attempts, window } } })`;
+in a test, advance the clock past `retryAfter`, or wire
+`mail: { throttle: false }`.
 
 ### `403 Forbidden` on `POST /sign-in/link`
 

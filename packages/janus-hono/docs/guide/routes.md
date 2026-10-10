@@ -177,6 +177,13 @@ retryAfter }` with a `Retry-After` header, the seconds until the next
 window; the route needs no code of its own. `janus({ signIn: { throttle } })`
 changes the limit ([passwords](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/passwords.md#password-guessing-is-throttled)).
 
+**The requests that send an e-mail are throttled too.** Past five requests
+for one address (or one user, for `verifyEmail.send` and an e-mailed
+`stepUp.request`) in a 15-minute window, `@nxgt/janus` throws
+`MAIL_THROTTLED` and sends nothing; `janusErrors()` answers it
+`429 { code: 'MAIL_THROTTLED', retryAfter }` with a `Retry-After` header.
+`janus({ mail: { throttle } })` changes the limit.
+
 What the throttle does not see is one password tried against many logins:
 limit the route **per client address** as well, with the limiter you already
 run, and a `changePassword` route per user — it compares the current
@@ -210,6 +217,7 @@ The refusals need no `try`: `janusErrors()` answers them.
 | `PASSWORD_TOO_SHORT` | 400 `{ code, minLength }` |
 | `LOGIN_TAKEN` | 409 `{ code }` |
 | `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password; `{ code, retryAfter }` and a `Retry-After` header once the login is throttled |
+| `MAIL_THROTTLED` | 429 `{ code, retryAfter }` and a `Retry-After` header — a request that sends an e-mail, past its attempts in the window |
 | `USER_INACTIVE` | 403 `{ code }` — only told to somebody who gave the right password |
 
 A bearer client — a mobile app — keeps its session token itself and sends it
@@ -402,7 +410,8 @@ random bytes, the shape of a real challenge; confirming it is
 `TOKEN_UNKNOWN`. `maxAge: 600` is the default ten minutes of
 `tokens.signInCode`, written out so both cookies match. Not awaiting the
 mailer keeps the answer's time from telling either. Rate-limit this route
-per address and per client: every call sends an e-mail.
+per address and per client: every call sends an e-mail. `@nxgt/janus` already
+throttles each address (`MAIL_THROTTLED`, 429); per client stays yours.
 
 The code route still tells a decoy apart: a wrong code against it is 400
 `TOKEN_UNKNOWN`, against a real challenge 401 `CODE_INVALID` with

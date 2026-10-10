@@ -42,6 +42,7 @@ How the messages are shaped:
 - [`janus: devices.keys: …`](#janus-deviceskeys-expected-at-least-one-key---id-key--the-first-seals)
 - [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
 - [`janus: signIn.throttle …` wiring messages](#janus-signinthrottle-wiring-messages)
+- [`janus: mail.throttle …` wiring messages](#janus-mailthrottle-wiring-messages)
 - [Other `janus:` wiring messages](#other-janus-wiring-messages)
 
 **Users, sessions and tokens**
@@ -54,6 +55,7 @@ How the messages are shaped:
 - [`PASSWORD_TOO_SHORT` — `<call>: the password is shorter than the policy's <n> characters`](#password_too_short--call-the-password-is-shorter-than-the-policys-n-characters)
 - [`CREDENTIALS_INVALID` — `<call>: the login and the password do not match`](#credentials_invalid--call-the-login-and-the-password-do-not-match)
 - [`CREDENTIALS_INVALID` — `<call>: too many passwords tried at this login …`](#credentials_invalid--call-too-many-passwords-tried-at-this-login--wait-for-the-next-window)
+- [`MAIL_THROTTLED` — `<call>: too many e-mails asked for this address …`, or `… for this user …`](#mail_throttled--call-too-many-e-mails-asked-for-this-address--wait-for-the-next-window)
 - [`STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`](#store_failed--call-the-store-dropped-the-attempts-it-had-just-stored)
 - [`HASH_UNSUPPORTED` — `<call>: no wired verifier claims the prefix "<prefix>"`](#hash_unsupported--call-no-wired-verifier-claims-the-prefix-prefix)
 - [`scryptHasher: the stored hash has the $scrypt$ prefix and not its format`](#scrypthasher-the-stored-hash-has-the-scrypt-prefix-and-not-its-format)
@@ -465,6 +467,15 @@ zero`, and a `janus: signIn.throttle.window` that is not a duration.
 **Fix:** `signIn: { throttle: { attempts: 10, window: '15m' } }` — the
 defaults — or `signIn: { throttle: false }` to count nothing.
 
+### `janus: mail.throttle` wiring messages
+
+`TypeError`, at `janus()`: `janus: mail must be an object — { throttle }`,
+`janus: mail.throttle must be { attempts, window }, or false to count
+nothing`, `janus: mail.throttle.attempts must be a whole number above zero`,
+and a `janus: mail.throttle.window` that is not a duration.
+**Fix:** `mail: { throttle: { attempts: 5, window: '15m' } }` — the defaults —
+or `mail: { throttle: false }` to count nothing.
+
 ### Other `janus:` wiring messages
 
 | Message | Fix |
@@ -639,6 +650,40 @@ if (error instanceof JanusError && error.retryAfter !== undefined) {
 }
 
 janus({ ..., signIn: { throttle: { attempts: 20, window: '15m' } } });
+```
+
+### `MAIL_THROTTLED` — `<call>: too many e-mails asked for this address — wait for the next window`
+
+`MailThrottledError`, with `retryAfter` and `userType`. The per-user flows say
+`… too many e-mails asked for this user — wait for the next window` and carry
+`userId`.
+
+**When:** `magicLink.request`, `signInCode.request` or
+`resetPassword.request` (per address), or `verifyEmail.send` and an e-mailed
+`stepUp.request` (per user), past five requests of that flow in the current
+15-minute window — whether or not anybody holds the address. `<call>` is the
+call, such as `magicLink.request` or `patient.signInCode.request`.
+**Why:** requests that send e-mail are throttled, on by default, so a loop
+cannot fill an inbox or cancel its owner's link or code. Each flow counts on
+its own, in fixed windows of the clock, by the store. Nothing was issued: no
+token, code or challenge, and the last link sent still works. Nothing locks:
+the next window answers again. In tests with `fixedClock`, the window never
+ends.
+**Fix:** answer 429 with a `Retry-After` header, and tell the visitor to wait
+`retryAfter` seconds; it reveals nothing about accounts, so it is safe to show.
+In tests, advance the clock past `retryAfter`, or wire `mail: { throttle:
+false }`. If nobody you know asked five times, somebody is looping on the
+route: limit it per client, which the throttle does not.
+
+```ts
+import { MailThrottledError } from '@nxgt/janus';
+
+if (error instanceof MailThrottledError) {
+	const headers = { 'retry-after': String(error.retryAfter) };
+	return Response.json({ code: error.code, retryAfter: error.retryAfter }, { status: 429, headers });
+}
+
+janus({ ..., mail: { throttle: { attempts: 10, window: '15m' } } });
 ```
 
 ### `STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`
@@ -1153,7 +1198,9 @@ A `TypeError`.
 
 The messages start with `signInCode.confirm` — prefixed by the type with
 several user types: `patient.signInCode.confirm: …`. `signInCode.request`
-throws nothing but `STORE_FAILED`: an e-mail it cannot sign in is `null`.
+throws nothing but `STORE_FAILED` and
+[`MAIL_THROTTLED`](#mail_throttled--call-too-many-e-mails-asked-for-this-address--wait-for-the-next-window):
+an e-mail it cannot sign in is `null`.
 `signInCode.confirm` also rejects with
 [`CODE_INVALID`](#code_invalid--call-the-code-does-not-match-or-was-already-used),
 [`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
@@ -1236,8 +1283,9 @@ janus({
 
 `magicLink.confirm`'s messages start with `magicLink.confirm` — prefixed by
 the type with several user types: `patient.magicLink.confirm: …`.
-`magicLink.request` throws nothing but `STORE_FAILED`: an e-mail it cannot
-sign in is `null`. `magicLink.confirm` rejects with
+`magicLink.request` throws nothing but `STORE_FAILED` and
+[`MAIL_THROTTLED`](#mail_throttled--call-too-many-e-mails-asked-for-this-address--wait-for-the-next-window):
+an e-mail it cannot sign in is `null`. `magicLink.confirm` rejects with
 [`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired),
 [`TOKEN_STALE`](#token_stale--call-the-token-was-sent-to-an-e-mail-the-user-no-longer-has),
 [`USER_INACTIVE`](#user_inactive--call-the-user-is-inactive) and

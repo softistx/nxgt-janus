@@ -16,7 +16,8 @@ Nothing yet.
 - **Collecting lapsed one-time tokens** — `collectExpired()` deletes lapsed
   sessions only. On a store with no TTL (PostgreSQL), lapsed tokens stay
   until you delete them, and the sign-in throttle adds one per login tried
-  per window. A port method to collect them, as sessions are, would let the
+  per window, and the mail throttle one per flow per address or user per
+  window. A port method to collect them, as sessions are, would let the
   core do it.
 
 - **More official adapters** — the ports are cut where atomicity is not
@@ -70,6 +71,15 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Requests that send e-mail are throttled, v0.18.0** —
+  `janus({ mail: { throttle: { attempts, window } } })`, five per fifteen
+  minutes by default and `false` to turn it off. `magicLink.request`,
+  `signInCode.request` and `resetPassword.request` count per address;
+  `verifyEmail.send` and an e-mailed `stepUp.request` count per user; each
+  flow on its own. Past the limit a request throws `MailThrottledError`
+  (`MAIL_THROTTLED`, 429) with `retryAfter` and issues nothing. The counts
+  live in the tokens store, with no port change. `MailConfig` and
+  `MailThrottleConfig` are exported.
 - **A sign-in from a new device, v0.17.0** — `janus({ devices: { keys } })`,
   and `{ device }` as the last argument of `signUp`, `signIn`,
   `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and

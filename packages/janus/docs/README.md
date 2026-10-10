@@ -13,7 +13,7 @@ below are defined once, in [Words](guide/vocabulary.md#words).
 | --- | --- |
 | [Users](guide/users.md) | You are wiring `janus()`, declaring one or several user types, or calling `create`, `update`, `list`, `delete` |
 | [Sessions](guide/sessions.md) | You need to know who a request belongs to, set or clear the cookie, renew, sign out, or test expiry |
-| [E-mail verification and password reset](guide/email-flows.md) | You are sending a verification or reset link, and handling what comes back |
+| [E-mail verification and password reset](guide/email-flows.md) | You are sending a verification or reset link, and handling what comes back — and how requests that send e-mail are throttled per address or user |
 | [Signing in with an e-mailed link](guide/magic-link.md) | You are signing users in with a link sent by e-mail — a magic link: the page that confirms it from a `POST` so mail scanners spend nothing, the lifetime, the errors, and what ends a link |
 | [Signing in with an e-mailed code](guide/sign-in-code.md) | You are signing users in with a six-digit code sent by e-mail — with no password, or beside one: requesting it without telling who exists, keeping the challenge, the attempts and the errors |
 | [The second factor](guide/second-factor.md) | You are turning on TOTP codes: making and rotating the sealing keys, the QR code, `signIn`'s `status`, confirming a challenge, recovery codes for a lost phone, disabling |

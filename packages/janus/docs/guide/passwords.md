@@ -234,7 +234,8 @@ The throttle counts per login. It does not see:
 - `changePassword`, which compares the current password too: limit it per
   user.
 - `resetPassword.request`, `signInCode.request` and `magicLink.request`,
-  which send e-mail: limit them per address.
+  which send e-mail: [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
+  counts them per address, but not per client. Limit them per client.
 
 ```ts
 if (!(await limiter.consume(`sign-in:${clientAddress}`))) {

@@ -168,7 +168,7 @@ a code, in the order written; no codes are `null`, read as `[]`.
   core still refuses them on every read. **Lapsed tokens stay too**, and
   `collectExpired()` does not delete them: `@nxgt/janus`'s sign-in throttle
   adds a row per login tried and per 15-minute window — a login nobody holds
-  included — so schedule `delete from tokens where expires_at < now() - interval '1 hour';` beside it — `<schema>.tokens` when the tables have a schema of their own. `tokens` has no index on `expires_at`, so the delete scans the table: add `create index on tokens (expires_at)` in a migration of yours if it grows.
+  included — and its mail throttle one per flow, address or user and window, so schedule `delete from tokens where expires_at < now() - interval '1 hour';` beside it — `<schema>.tokens` when the tables have a schema of their own. `tokens` has no index on `expires_at`, so the delete scans the table: add `create index on tokens (expires_at)` in a migration of yours if it grows.
 - **A unique violation on anything but a login is a `StoreFailure`, not
   `LOGIN_TAKEN`.** Such a violation is an adapter bug. Reporting it as a taken
   login would tell somebody their e-mail is in use when it is not.

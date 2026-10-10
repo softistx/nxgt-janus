@@ -110,8 +110,10 @@ Yoga answers it as a 500.
 user, and `NOT_FOUND`, 404, for a user with no e-mail to send a code to
 — an optional e-mail left empty.
 
-**Rate-limit `requestStepUp` per user.** A new challenge takes only a new
-request, and each one sends an e-mail: a few an hour is plenty for a person.
+**`@nxgt/janus` throttles an e-mailed `stepUp.request` per user** (five in 15
+minutes by default): past that it throws `MAIL_THROTTLED`, answered 429 with a
+`Retry-After` header, and sends nothing. Limiting per client address stays
+yours.
 
 ## In a resolver: `requireFresh(ctx, maxAge)`
 

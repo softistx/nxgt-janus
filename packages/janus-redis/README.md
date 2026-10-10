@@ -127,7 +127,8 @@ a restart, a failover or a `SCRIPT FLUSH`.
   sessions from "sign out everywhere". `volatile-*` policies are no safer:
   every key this adapter writes has an expiry, so every one is a candidate.
   An evicted or flushed token store also forgets `signIn`'s password
-  counts, and every login may try its ten passwords again.
+  counts and the mail throttle's, and every login may try its ten passwords
+  again, every address ask for five e-mails.
   Run this on a Redis with `noeviction`, or on one of its own.
 - **Redis Cluster is not supported.** A script reads keys it finds on the way,
   a session's token key or a user's sessions, which may live in different

@@ -165,10 +165,10 @@ async function signIn(email: string, password: string): Promise<Response> {
 ```
 
 `JanusError` is the base of everything thrown at call time. It extends `Error`,
-so no consumer has to order their `catch` blocks. `code` is a union of twenty
+so no consumer has to order their `catch` blocks. `code` is a union of twenty-one
 string literals, so a `switch` over it is exhaustive and adding a code breaks the
 compilation of callers that exhaust it. `statusOf(code)` answers the status
-below, as `JanusErrorStatus` — a union of the eight literals, which a
+below, as `JanusErrorStatus` — a union of the nine literals, which a
 framework's own status type accepts:
 
 ```ts
@@ -190,6 +190,7 @@ if (error instanceof JanusError) {
 | `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
 | `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` | 409 — the factor is not in the state the call needs |
 | `USER_INACTIVE` | 403 |
+| `MAIL_THROTTLED` | 429 — too many e-mails asked for one address or one user in the window; `retryAfter` belongs in the body and a `Retry-After` header. Safe to show the visitor: it reveals nothing about accounts |
 | `STEP_UP_REQUIRED` | 403 — the session proved who it is too long ago for this action: ask for a step-up, then send the request again |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
@@ -198,7 +199,7 @@ if (error instanceof JanusError) {
 
 Each code has its class, all exported: `StoreFailure`, `StoreConflict` (`on:
 'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `CredentialError`,
-`UserInactiveError`, `StepUpRequiredError`, `TokenError` (the `TOKEN_*` codes and `CODE_INVALID`),
+`UserInactiveError`, `StepUpRequiredError`, `MailThrottledError`, `TokenError` (the `TOKEN_*` codes and `CODE_INVALID`),
 `SecondFactorError`, `InvalidCursorError`, `UnsupportedError` and
 `PermissionDepthError`. `StoreFailure` and `StoreConflict` are exported
 **because an adapter throws them**. An adapter defines no error class of its own, so `instanceof` holds
@@ -399,6 +400,21 @@ else reaches the store and is asynchronous.
 
   ```ts
   janus({ user, password: { login: 'email' }, store, hasher, signIn: { throttle: { attempts: 5, window: '1h' } } });
+  ```
+- **Requests that send e-mail are throttled**, on by default: past five
+  e-mails asked in a 15-minute window, a request refuses with
+  `MailThrottledError` (`MAIL_THROTTLED`, 429) and `retryAfter`, and issues
+  nothing. **Each flow counts on its own**: per address for
+  `magicLink.request`, `signInCode.request` and `resetPassword.request` — an
+  address nobody holds is counted and refused alike — and per user for
+  `verifyEmail.send` and for `stepUp.request` when it e-mails a code.
+  `mail: { throttle: { attempts, window } }` changes it, `mail: { throttle:
+  false }` turns it off; a store that cannot count throws `STORE_FAILED` and
+  nothing is issued
+  ([e-mail flows](docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)).
+
+  ```ts
+  janus({ user, store, mail: { throttle: { attempts: 3, window: '1h' } } });
   ```
 - **Sessions** last `'7d'` and slide: `authenticate` renews one once `renewAfter`
   (`'1d'`) has passed, writing at most once per period, and says so with
@@ -685,8 +701,9 @@ to type.
   password and the second factor dropped, every session signed out** — are
   handled as for a code.
 - **Not ended by a password write, nor limited by the sign-in throttle**:
-  the password proves nothing a link does, and the throttle counts
-  passwords. Rate-limit `request` per address and per client.
+  the password proves nothing a link does, and that throttle counts
+  passwords. The mail throttle counts `request` per address, five per
+  15 minutes (`MAIL_THROTTLED`); limit it per client yourself.
 
 [The sign-in link guide](docs/guide/magic-link.md) has the page that
 confirms from a `POST` so mail scanners spend nothing, every error, routes
@@ -1067,20 +1084,24 @@ after a sign-out, is `TOKEN_UNKNOWN`. Its challenge is a secret like
 `signInCode`'s — and check freshness on the server with `assertFresh`, never
 from a flag the client keeps.
 
-**Rate-limit `stepUp.request` per user.** An app's codes are counted per
-user and window, but an e-mailed code gets five guesses per challenge and a
-new challenge takes only a new `request`: without a limit, a stolen session
-can keep asking — and fill the user's inbox while it does.
+**`stepUp.request` is throttled per user, only when it e-mails.** An
+e-mailed code gets five guesses per challenge and a new challenge takes only
+a new `request`, so a stolen session could keep asking and fill the user's
+inbox: the mail throttle refuses the sixth in a window with `MAIL_THROTTLED`.
+A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is
+not counted.
 
 **Answer `signInCode.request` the same whether it issued a code or not** —
 the same status, body and cookie: set a random challenge when it answered
 `null`. The code route then still tells a decoy (`TOKEN_UNKNOWN`) from a
 real challenge (`CODE_INVALID`, `attemptsLeft`, or `TOKEN_SPENT` once a later
 request spent it): answer its refusals alike
-where addresses must stay secret. And rate-limit the request **per
-address**: at most one code is live per user — a new `request` spends the one
-before — so without a limit anyone who knows an address can fill its inbox,
-or cancel its owner's code before they type it.
+where addresses must stay secret. The request is throttled **per
+address**, counted before anything is looked up, so an unknown address is
+refused past the limit as a registered one is. At most one code is live per
+user — a new `request` spends the one before — so the throttle bounds how
+often anyone who knows an address can fill its inbox or cancel its owner's
+code; it does not stop it.
 
 **Confirm a sign-in link from a `POST`, never from its `GET`.** Mail
 scanners open every link in an e-mail before the user does: a route that
@@ -1229,8 +1250,9 @@ your policy. A password refused for its length does not spend the token.
 `resetPassword.request` spends the user's earlier links, and any password
 written — by a link, `changePassword` or `setPassword` — spends every link
 still live, so an older e-mail's link answers `TOKEN_SPENT`. Tell the visitor
-to use the latest e-mail, and rate-limit `resetPassword.request` per address:
-each request cancels the link before it.
+to use the latest e-mail. Each request cancels the link before it, so the
+mail throttle bounds `resetPassword.request` per address, five per 15
+minutes.
 
 **`signIn` throttles each login, not each client.** Ten passwords per login
 per 15 minutes, then `CREDENTIALS_INVALID` with `retryAfter` until the window
@@ -1248,6 +1270,24 @@ many logins is not counted: rate-limit `signIn` per client address yourself
 counts live in the tokens store: a flushed or evicting Redis forgets them,
 and a tokens store that cannot answer fails every password sign-in with
 `STORE_FAILED`.
+
+**The mail throttle counts each flow on its own, and it is not a per-client
+limit.** Five requests per window for one address (`magicLink.request`,
+`signInCode.request`, `resetPassword.request`) or one user
+(`verifyEmail.send`, and `stepUp.request` when it e-mails), then
+`MailThrottledError`: answer 429 with `Retry-After: retryAfter`. It is safe to
+show the visitor — it reveals nothing about accounts, unlike `reason`. A refused
+request is counted too, but the window is fixed and cannot be extended.
+**Somebody who knows an address can keep its e-mailed sign-in (link and code)
+and its reset shut for a window** by asking five times; the password sign-in
+still opens it. One client asking for many addresses is not counted: limit
+that per client address yourself. A test suite that requests more than five of
+one flow for one address or user over a `fixedClock` is throttled: advance the
+clock past `retryAfter`, or wire `mail: { throttle: false }`. The counts live
+in the tokens store, so on PostgreSQL schedule the delete of lapsed tokens, a
+flushed or evicting Redis forgets them, and a tokens store that cannot count
+throws `STORE_FAILED` with nothing issued
+([e-mail flows](docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)).
 
 **A sign-in can move a user's `version`.** Rewriting a stale hash is a write. A
 user object read before that sign-in, and then passed as `ifVersion`, gets
@@ -1327,7 +1367,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and forty-seven plausible mistakes, one hundred and forty-seven refused at compile time — and
+**One hundred and fifty-two plausible mistakes, one hundred and fifty-two refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1335,9 +1375,9 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-four, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (sixty, on `janus()`, from the point of view of
+it), `test/types/auth/` (sixty-five, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
-five on user events, four on step-ups, six on the sign-in throttle, four on
+five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
 sign-in links, six on devices) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
