@@ -95,6 +95,12 @@ interface DescribedCase {
 	readonly needs?: string | readonly string[];
 }
 
+/** What a described case needs, as a list, whether it named one thing or several. */
+function needsList(described: DescribedCase): readonly string[] {
+	const { needs } = described;
+	return needs === undefined ? [] : typeof needs === 'string' ? [needs] : needs;
+}
+
 /**
  * Describes one suite's cases, grouped, under a runner, so a skip, an
  * unproven outage and a missing runner read the same as in `@nxgt/janus`'s
@@ -131,7 +137,7 @@ function describeSuite<C extends DescribedCase>(options: {
 						continue;
 					}
 					if (
-						[conformanceCase.needs].flat().includes('faults') &&
+						needsList(conformanceCase).includes('faults') &&
 						options.faults === false
 					) {
 						runner.it.skip(

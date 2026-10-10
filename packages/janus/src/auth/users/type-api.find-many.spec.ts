@@ -37,6 +37,15 @@ describe('findMany', () => {
 		expect(found.map((user) => user.id)).toEqual([a, b]);
 	});
 
+	it('leaves out an element that is no string, as find answers null for it', async () => {
+		const { auth } = setup();
+		const [a] = await three(auth);
+
+		const found = await auth.findMany([123, null, a, { id: a }] as never);
+
+		expect(found.map((user) => user.id)).toEqual([a]);
+	});
+
 	it('answers a repeated id once, at its first place', async () => {
 		const { auth } = setup();
 		const [a, b] = await three(auth);
@@ -104,6 +113,29 @@ describe('findMany over a store with findUsers', () => {
 
 		expect(calls.batches).toEqual([100, 100, 50]);
 		expect(found.map((user) => user.id)).toEqual([a]);
+	});
+});
+
+describe('findMany over a store whose findUsers answers too much', () => {
+	it('keeps only the users asked for, so a stray record never reaches the caller', async () => {
+		const { store } = countingStores({ batch: true });
+		const { findUsers } = store.users;
+		const { auth } = setup({
+			store: {
+				...store,
+				users: {
+					...store.users,
+					// A buggy adapter: every stored user, whatever was asked.
+					findUsers: async () =>
+						(findUsers?.call(store.users, everyone) ?? []) as never,
+				},
+			},
+		});
+		const everyone = await three(auth);
+
+		const found = await auth.findMany([everyone[1]]);
+
+		expect(found.map((user) => user.id)).toEqual([everyone[1]]);
 	});
 });
 

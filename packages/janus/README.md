@@ -1052,7 +1052,7 @@ There are 58 cases. They cover:
 
 **An optional method a store lacks skips its cases, with the reason** — a
 store without `sessions.deleteExpiredSessions` or `users.findUsers` passes the
-suite. A case's `needs` names what it cannot run without, one thing or a list
+suite. A case's `needs` names what it cannot run without, one `CaseNeed` or a list
 (`outage.findUsers` needs `['faults', 'findUsers']`).
 
 The suite imports no test framework and no assertion library. It runs under
