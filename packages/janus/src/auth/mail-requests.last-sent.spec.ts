@@ -6,7 +6,6 @@ import {
 	mailing,
 	signedUp,
 	times,
-	WINDOW_MS,
 } from './mail-requests.fixtures';
 
 /**
@@ -17,15 +16,27 @@ import {
  * lifetimes, none shorter than the default window.
  */
 
-/** Five sent at the window's start, then one refused at its last second. */
+/**
+ * Five sent at the window's start, then refused at once and again at the
+ * window's last instant — the refusal's own `retryAfter`, less a millisecond.
+ */
 async function lastOfFive<T>(
 	{ clock }: Mailing,
 	request: () => Promise<T>,
 ): Promise<T> {
 	const sent = await times(5, request);
-	clock.advance(WINDOW_MS - 1_000);
+	const first = (await rejection(request())) as { retryAfter?: number };
+	expect(first).toMatchObject({ code: 'MAIL_THROTTLED' });
+	clock.advance((first.retryAfter ?? 0) * 1_000 - 1);
 	expect(await rejection(request())).toMatchObject({ code: 'MAIL_THROTTLED' });
-	return sent[4] as T;
+	const last = sent[4];
+	if (
+		last === undefined ||
+		(typeof last === 'object' && last !== null && 'refused' in last)
+	) {
+		throw new Error('the fifth request was refused');
+	}
+	return last as T;
 }
 
 describe('past the limit, the last one sent still confirms', () => {
