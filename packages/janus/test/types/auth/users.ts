@@ -1,7 +1,8 @@
 /**
  * Reading and writing users: a field off the wrong type, the password hash, a
- * type that does not exist, a write that bypasses `update`. Cases 16–20 of
- * the sixty-five — see `fixtures.ts`.
+ * type that does not exist, a write that bypasses `update`, `findMany` given
+ * one id or read as another type. Cases 16–20, 66 and 67 of the sixty-seven —
+ * see `fixtures.ts`.
  */
 
 import { clinic, request } from './fixtures';
@@ -35,6 +36,17 @@ async function readingAndWriting() {
 	// A mutation would not reach the store: `update` is the only write.
 	// @ts-expect-error a user is readonly
 	user.service = 'surgery';
+
+	// ── 66. findMany given one id ─────────────────────────────────────────
+	// One id is `find`; `findMany` takes a list, and answers one.
+	// @ts-expect-error findMany takes an array of ids
+	await clinic.staff.findMany(user.id);
+
+	// ── 67. Reading another type's field off findMany ─────────────────────
+	// `auth.staff.findMany` answers staff users only.
+	const [first] = await clinic.staff.findMany([user.id]);
+	// @ts-expect-error a staff user has no birthDate
+	first?.birthDate;
 }
 
 export const checked = { readingAndWriting };

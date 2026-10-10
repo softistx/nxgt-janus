@@ -41,6 +41,13 @@ export function memoryUserStore(): UserStore {
 			return stored === undefined ? null : copy(stored);
 		},
 
+		async findUsers(ids) {
+			return [...new Set(ids)].flatMap((id) => {
+				const stored = byId.get(id);
+				return stored === undefined ? [] : [copy(stored)];
+			});
+		},
+
 		async findUserByLogin(type, login) {
 			const id = byLogin.get(keyOf(type, login));
 			const stored = id === undefined ? undefined : byId.get(id);

@@ -92,7 +92,7 @@ interface DescribedCase {
 	readonly id: string;
 	readonly group: string;
 	readonly name: string;
-	readonly needs?: string;
+	readonly needs?: string | readonly string[];
 }
 
 /**
@@ -130,7 +130,10 @@ function describeSuite<C extends DescribedCase>(options: {
 						);
 						continue;
 					}
-					if (conformanceCase.needs === 'faults' && options.faults === false) {
+					if (
+						[conformanceCase.needs].flat().includes('faults') &&
+						options.faults === false
+					) {
 						runner.it.skip(
 							`${conformanceCase.name} — skipped: ${SKIP_REASONS.faults}`,
 							async () => {},

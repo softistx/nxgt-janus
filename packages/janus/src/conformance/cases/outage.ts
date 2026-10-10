@@ -5,9 +5,10 @@ import { at, sessionRecord, tokenRecord, userRecord } from '../fixtures';
 import type { CaseContext, ConformanceCase, PortMethod } from '../types';
 
 /**
- * **The invariant, as cases.** For each of the fourteen methods whose honest
- * answer can be "nothing" — `null`, `false`, `0`, an empty page — a store that
- * cannot answer must **reject**, and the rejection must not be `NOT_FOUND`.
+ * **The invariant, as cases.** For each of the fifteen methods whose honest
+ * answer can be "nothing" — `null`, `false`, `0`, an empty page or list — a
+ * store that cannot answer must **reject**, and the rejection must not be
+ * `NOT_FOUND`.
  *
  * Every case seeds a record first, so a store that swallows its failure into an
  * absence answers something *false* rather than something merely empty.
@@ -74,6 +75,18 @@ export const outageCases: readonly ConformanceCase[] = [
 		({ stores }) => stores.users.findUser(user.id),
 		seed,
 	),
+	{
+		// Optional: a store without it is read with findUser, whose outage is
+		// the case above.
+		...outage(
+			'users',
+			'findUsers',
+			async ({ stores }) =>
+				stores.users.findUsers?.call(stores.users, [user.id]),
+			seed,
+		),
+		needs: ['faults', 'findUsers'],
+	},
 	outage(
 		'users',
 		'findUserByLogin',

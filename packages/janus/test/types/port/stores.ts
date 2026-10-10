@@ -1,7 +1,7 @@
 /**
  * The stores and what their methods answer: a missing method, an absence as
  * undefined, answers too poor to act on, the wrong store in a slot. Cases
- * 1–5, 16 and 24 of the twenty-four — see `fixtures.ts`.
+ * 1–5, 16, 24 and 25 of the twenty-five — see `fixtures.ts`.
  */
 
 import { createMemoryStores } from '../../../src/auth/port/memory';
@@ -77,15 +77,26 @@ const booleanReauth: SessionStore = {
 	reauthenticateSession: async () => true,
 };
 
+// ── 25. findUsers answering null for ids nobody holds ─────────────────────
+// An absence there is a shorter list. A `null` would be one more answer the
+// core must tell from a failure, on the one method that reads many users.
+const nullBatch: UserStore = {
+	...users,
+	// @ts-expect-error findUsers answers a list, empty when nobody holds the ids
+	findUsers: async () => null,
+};
+
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
 
 // A step-up's write answers the record, or null once revoked.
 const reauthenticated: Promise<SessionRecord | null> =
 	sessions.reauthenticateSession('id', new Date());
 
-// The optional capability may be absent.
+// The optional capabilities may be absent.
 const { deleteExpiredSessions: _, ...withoutCollect } = sessions;
 const minimalSessions: SessionStore = withoutCollect;
+const { findUsers: __, ...withoutBatch } = users;
+const minimalUsers: UserStore = withoutBatch;
 
 // The reference store is a complete set.
 const reference: JanusStores = createMemoryStores();
@@ -116,6 +127,13 @@ export const checked = {
 		swapped,
 		numberCount,
 		booleanReauth,
+		nullBatch,
 	],
-	allowed: [minimalSessions, reference, ClassStore, reauthenticated],
+	allowed: [
+		minimalSessions,
+		minimalUsers,
+		reference,
+		ClassStore,
+		reauthenticated,
+	],
 };

@@ -25,6 +25,22 @@ export interface UserTypeApi<U, In> {
 	/** The user of this type, or `null` — for a malformed id, an unknown one, or one of another type. */
 	find(id: string): Promise<U | null>;
 
+	/**
+	 * The users of this type holding these ids, **in the order the ids were
+	 * given** — one query when the users store implements `findUsers`, a few
+	 * `find`s at a time when it does not. For a list of rows, where one `find`
+	 * per row would fill the connection pool.
+	 *
+	 * An id `find` answers `null` for — malformed, unknown, or another type's —
+	 * is **left out**, so the answer may be shorter than `ids`: match by
+	 * `user.id`, never by position. A repeated id is answered once, at its
+	 * first place. An empty list answers `[]` without reaching the store. Any
+	 * length is read, 100 ids per query.
+	 *
+	 * Rejects with `STORE_FAILED` only: an absence is never an error here.
+	 */
+	findMany(ids: readonly string[]): Promise<U[]>;
+
 	/** The user of this type, or `NOT_FOUND`. */
 	get(id: string): Promise<U>;
 

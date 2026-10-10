@@ -3,9 +3,10 @@ import { assertStores } from './assert-stores';
 import { createMemoryStores } from './memory';
 
 describe('assertStores', () => {
-	it('accepts a complete set of stores, and reports the optional capability', () => {
+	it('accepts a complete set of stores, and reports the optional capabilities', () => {
 		expect(assertStores(createMemoryStores(), 'janus')).toEqual({
 			collectExpired: true,
+			findUsers: true,
 		});
 	});
 
@@ -15,6 +16,17 @@ describe('assertStores', () => {
 
 		expect(assertStores({ ...stores, sessions }, 'janus')).toEqual({
 			collectExpired: false,
+			findUsers: true,
+		});
+	});
+
+	it('reports a users store without findUsers as reading one by one, not as broken', () => {
+		const stores = createMemoryStores();
+		const { findUsers: _, ...users } = stores.users;
+
+		expect(assertStores({ ...stores, users }, 'janus')).toEqual({
+			collectExpired: true,
+			findUsers: false,
 		});
 	});
 
@@ -55,5 +67,16 @@ describe('assertStores', () => {
 		).toThrow(
 			'janus: store.sessions.deleteExpiredSessions must be a function or absent',
 		);
+	});
+
+	it('refuses a findUsers that is present but not a function', () => {
+		const stores = createMemoryStores();
+
+		expect(() =>
+			assertStores(
+				{ ...stores, users: { ...stores.users, findUsers: [] } },
+				'janus',
+			),
+		).toThrow('janus: store.users.findUsers must be a function or absent');
 	});
 });
