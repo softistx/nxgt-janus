@@ -35,7 +35,8 @@ function denialOf(code: DenialCode): readonly [number, string] {
  * A `JanusError` as the client may read it: its code and status, and only
  * what the client can act on — `issues`, `minLength`, `attemptsLeft`,
  * `retryAfter`. Never `reason`, `login`, `slot` or a cause: those are for
- * your logs. A throttled sign-in also carries its `Retry-After` header in
+ * your logs. A throttled sign-in, and a request past its e-mails
+ * (`MAIL_THROTTLED`, 429), also carry their `Retry-After` header in
  * `http.headers`, which Yoga answers with.
  *
  * `STORE_FAILED` is `SERVICE_UNAVAILABLE` 503 — **an outage is never a
@@ -67,6 +68,8 @@ function messageOf(status: JanusErrorStatus): string {
 			return 'Not found';
 		case 409:
 			return 'Conflict';
+		case 429:
+			return 'Too many requests, retry later';
 		case 503:
 			return 'The service is unavailable, retry later';
 		case 500:
@@ -75,7 +78,7 @@ function messageOf(status: JanusErrorStatus): string {
 	}
 }
 
-/** The status, and the `Retry-After` of a throttled sign-in. */
+/** The status, and the `Retry-After` of a throttled sign-in or request. */
 function httpOf(
 	error: JanusError,
 	status: JanusErrorStatus,
@@ -99,6 +102,7 @@ function actionable(error: JanusError): Record<string, unknown> {
 				? {}
 				: { attemptsLeft: error.attemptsLeft };
 		case 'CREDENTIALS_INVALID':
+		case 'MAIL_THROTTLED':
 			return error.retryAfter === undefined
 				? {}
 				: { retryAfter: error.retryAfter };
