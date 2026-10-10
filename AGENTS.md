@@ -183,6 +183,10 @@ Declared here so the review agent does not flag them on every pass.
   surrogate — is a `TypeError`. A grant writes the application's own ids, so a
   bad one is its bug; the reads a request reaches, `can()` and `list()`, answer
   such an id as an absence instead, and never throw on it.
+  A second, decided by the owner on 2026-10-10 for the requests in two steps:
+  a second `send()` on what one `prepare` answered is a `TypeError`. The
+  count `prepare` made pays for one issue, and a call made twice is the
+  application's bug, never a value from a request.
 - A message reports a **shape and never a value**, names the call the consumer
   wrote, and **never contains a URI** — a connection string holds a password.
 - `process.emitWarning` is the only logging channel. A library does not own
