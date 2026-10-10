@@ -10,6 +10,7 @@ import {
 	signedUp,
 	times,
 } from './mail-requests.fixtures';
+import { createMemoryStores } from './port/memory';
 
 const nobody = 'nobody@example.test';
 
@@ -152,3 +153,38 @@ describe('resetPassword.prepare on a type without a password', () => {
 		expect(calls).toEqual([]);
 	});
 });
+
+describe.each([...preparedFlows])(
+	'$flow.prepare, a send that fails',
+	({ prepare }) => {
+		it('rejects with STORE_FAILED, and is spent all the same: prepare again', async () => {
+			const memory = createMemoryStores();
+			const outage = { on: false };
+			const find = memory.users.findUserByLogin.bind(memory.users);
+			const store = {
+				...memory,
+				users: {
+					...memory.users,
+					findUserByLogin: (...args: Parameters<typeof find>) => {
+						if (outage.on) throw new Error('connection refused');
+						return find(...args);
+					},
+				},
+			};
+			const context = mailing({ store });
+			await signedUp(context);
+			const pending = await prepare(context.auth, ada.email);
+
+			outage.on = true;
+			expect(await rejection(pending.send())).toMatchObject({
+				code: 'STORE_FAILED',
+			});
+			outage.on = false;
+
+			expect(await rejection(pending.send())).toBeInstanceOf(TypeError);
+			expect(context.issued).toEqual([]);
+			const again = await prepare(context.auth, ada.email);
+			expect(await again.send()).toMatchObject({ email: ada.email });
+		});
+	},
+);
