@@ -72,12 +72,14 @@ The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
 - **Requests that send e-mail are throttled, v0.18.0** —
-  `janus({ mail: { throttle: { attempts, window } } })`, five per fifteen
+  `janus({ mail: { throttle: { attempts, window } } })`, five per ten
   minutes by default and `false` to turn it off. `magicLink.request`,
   `signInCode.request` and `resetPassword.request` count per address;
   `verifyEmail.send` and an e-mailed `stepUp.request` count per user; each
   flow on its own. Past the limit a request throws `MailThrottledError`
-  (`MAIL_THROTTLED`, 429) with `retryAfter` and issues nothing. The counts
+  (`MAIL_THROTTLED`, 429) with `retryAfter` and issues, spends and rotates nothing: the last link or
+  code sent still works, so a loop on an address cannot lock its owner out.
+  The window is no longer than the shortest default token lifetime. The counts
   live in the tokens store, with no port change. `MailConfig` and
   `MailThrottleConfig` are exported.
 - **A sign-in from a new device, v0.17.0** — `janus({ devices: { keys } })`,

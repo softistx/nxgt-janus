@@ -254,9 +254,10 @@ visitor asks again. Guesses therefore never run against two live challenges.
 
 **`request` is throttled per address.** A new challenge takes only a new
 `request`, and each one sends an e-mail and cancels the code before it, so
-past five requests for one address in a 15-minute window `request` throws
+past five requests for one address in a 10-minute window `request` throws
 `MailThrottledError` (`MAIL_THROTTLED`) and issues nothing — no challenge is
-minted, and the code last sent still works. The address is counted before
+minted, a refused request spends and rotates nothing, and the code last sent
+still works until it expires, even when somebody else's request caused it. The address is counted before
 anything is looked up, so an address nobody holds is counted and refused
 alike; under the limit it still answers `null`. This flow counts on its own:
 a loop on `magicLink.request` never shuts it. Answer it with a 429 and
@@ -271,7 +272,10 @@ try {
 } catch (error) {
 	if (error instanceof MailThrottledError) {
 		return Response.json(
-			{ error: 'too many e-mails', retryAfter: error.retryAfter },
+			{
+				error: 'too many e-mails — the last one we sent still works; use it, or wait',
+				retryAfter: error.retryAfter,
+			},
 			{ status: 429, headers: { 'retry-after': String(error.retryAfter) } },
 		);
 	}
@@ -280,11 +284,14 @@ try {
 ```
 
 With several user types the message is prefixed with the type, as in
-`patient.signInCode.request: too many e-mails asked for this address — wait for
-the next window`. Somebody who knows an address can still keep its e-mailed
-sign-in shut for a window by asking five times; the password sign-in opens it.
-One client asking for many addresses is not counted: limit that per client
-yourself.
+`patient.signInCode.request: too many e-mails asked for this address — the last
+one sent still works; use it, or wait for the next window`. Somebody who knows
+an address cannot shut its e-mailed sign-in: the last code they caused to be
+sent still works, and they can only fill the inbox, five per window. Tell the
+visitor to use the last e-mail they received, or to wait `retryAfter` seconds.
+`janus` never sees IP addresses, so one client asking for many addresses is
+not counted: add a per-IP ceiling with `@nxgt/redis` rate limits
+([example](email-flows.md#requests-that-send-e-mail-are-throttled)).
 
 ### Lifetime
 
@@ -296,6 +303,9 @@ arrive and be read; a longer window is a longer life for a stolen challenge.
 janus({ ..., tokens: { signInCode: '15m' } });
 ```
 
+Keep the mail window (`mail.throttle.window`, `'10m'` by default) no longer
+than the lifetime: with `tokens.signInCode: '5m'` the last code can expire
+before the window ends, and the visitor has none live until it does.
 ### The e-mail is verified
 
 A user whose `emailVerified` was `false` has it `true` once `confirm`

@@ -115,7 +115,7 @@ readonly verifyEmail: {
 ```
 
 `send` issues a token for the user's **current** e-mail. It is throttled
-**per user**, five per 15-minute window: past it, `MailThrottledError`
+**per user**, five per 10-minute window: past it, `MailThrottledError`
 (`MAIL_THROTTLED`, with `userId`) and no token. The application calls it for a
 user it knows, so an unauthenticated loop on the address cannot spend the
 count, and a user who changes e-mail buys no extra sends. `confirm` redeems it
@@ -171,12 +171,13 @@ Requests that arrive at once cannot each keep a link: each spends the
 others' once it issued its own, so at most one survives — sometimes none, and
 the visitor asks again. **`request` is throttled per address**, as for
 sign-in codes: each one sends an e-mail and cancels the link before it, so
-past five requests for one address in a 15-minute window it throws
+past five requests for one address in a 10-minute window it throws
 `MailThrottledError` (`MAIL_THROTTLED`) and issues nothing; the link last sent
 still works. An address nobody holds is counted and refused alike, and under
-the limit still answers `null`. Somebody who knows an address can keep its
-reset shut for a window by asking five times — limit the route per client
-yourself too, and see [the mail throttle](#requests-that-send-e-mail-are-throttled).
+the limit still answers `null`. Somebody who knows an address can fill its
+inbox with at most five reset e-mails a window, but cannot shut the reset:
+the last one sent still works. Limit the route per client yourself too, and
+see [the mail throttle](#requests-that-send-e-mail-are-throttled).
 
 **Writing a password spends every reset link still live.** A `confirm`,
 `changePassword` and `setPassword` each do, so a link sent before the
@@ -234,11 +235,13 @@ export async function resetPassword(request: Request): Promise<Response> {
 ## Requests that send e-mail are throttled
 
 **Every request that hands out something to e-mail is counted**, on by default:
-five per 15 minutes, per flow. Past the limit the request throws
+five per 10 minutes, per flow. Past the limit the request throws
 `MailThrottledError` (`MAIL_THROTTLED`, 429) with `retryAfter` — the whole
-seconds to the end of the window, at least 1 — and **issues nothing**: no
-token, code or challenge is minted, and nothing earlier is spent, so the last
-link sent still works.
+seconds to the end of the window, at least 1 — and **a refused request spends,
+invalidates and rotates nothing**: no token, code or challenge is minted, and
+nothing earlier is spent, so **the last link or code sent still confirms until
+it expires**, whoever asked for it. The count comes before anything is issued,
+and the earlier tokens are spent only after a new one is issued.
 
 ```ts
 import { MailThrottledError } from '@nxgt/janus';
@@ -247,7 +250,9 @@ try {
 	await auth.resetPassword.request(email);
 } catch (error) {
 	if (error instanceof MailThrottledError) {
-		// 429 and Retry-After: error.retryAfter — safe to show, it reveals nothing about accounts
+		// 429 and Retry-After: error.retryAfter — safe to show, it reveals nothing about accounts.
+		// Tell the visitor: "Check your inbox: the last e-mail we sent still works.
+		// You can ask for a new one in N minutes."
 	}
 	throw error;
 }
@@ -268,7 +273,7 @@ the same count whatever the user type.
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `mail.throttle.attempts` | whole number above zero | `5` | Requests per flow, per address or user, per window |
-| `mail.throttle.window` | `Duration` | `'15m'` | How long a window lasts |
+| `mail.throttle.window` | `Duration` | `'10m'` | How long a window lasts |
 | `mail.throttle` | `false` | | Counts nothing: limit those requests yourself |
 
 ```ts
@@ -286,9 +291,12 @@ export interface MailThrottleConfig {
 }
 ```
 
-Five per fifteen minutes matches a sign-in link's lifetime (`'15m'`), leaves
-room for a visitor who asks again, and holds a loop to twenty e-mails an hour
-per flow and address. A wrong value is refused when `janus()` is called, with
+Five per ten minutes is no longer than the shortest default token lifetime
+(`signInCode` and `stepUp` `'10m'`; `magicLink` `'15m'`, `resetPassword` `'1h'`,
+`verifyEmail` `'24h'`), so under the defaults the last link or code sent —
+issued inside the window — is still live for the whole refusal. It leaves room
+for a visitor who asks again, and holds a loop to thirty e-mails an hour per
+flow and address. A wrong value is refused when `janus()` is called, with
 a `TypeError`: `janus: mail must be an object — { throttle }`, `janus:
 mail.throttle must be { attempts, window }, or false to count nothing`,
 `janus: mail.throttle.attempts must be a whole number above zero`, or a
@@ -309,11 +317,39 @@ Redis forgets the counts, and a tokens store that cannot count throws
 
 **What it does not do.**
 
-- **Somebody who knows an address can keep its e-mailed sign-in (link and
-  code) and its reset shut for a window** by asking five times. The password
-  sign-in still opens the account.
-- **It is not per client.** One client asking for many addresses is not
-  counted: limit the routes per client with the limiter you already run.
+- **It cannot lock somebody out.** Somebody who asks for an address in a loop
+  can fill its inbox with at most five e-mails per window per flow, but the
+  last e-mail they caused to be sent was a real e-mail to the real owner and
+  still works until it expires. The password sign-in is untouched.
+- **A lifetime shorter than the window breaks that.** With
+  `tokens.signInCode: '5m'` and the default window, the last code can expire
+  before the window ends and the visitor has no live code until it does. Keep
+  `mail.throttle.window` no longer than the shortest of the `tokens.*`
+  lifetimes you use.
+- **It is not per client.** `janus` never sees IP addresses, so one client
+  asking for many addresses is not counted. Add a per-IP ceiling in front of
+  the routes: `@nxgt/redis` (0.5.0 and later) has rate limits for it.
+
+```ts
+import { bindRateLimit, defineRateLimit, GuardError } from '@nxgt/redis';
+
+export const mailRequests = defineRateLimit({
+	name: 'mail-requests',
+	key: (p: { ip: string }) => p.ip,
+	limit: 20,
+	per: 3_600_000,
+});
+const perIp = bindRateLimit(client, mailRequests); // or redis.limits.<name> when wired
+
+try {
+	await perIp.enforce({ ip }); // before auth.magicLink.request(email)
+} catch (error) {
+	if (error instanceof GuardError && error.code === 'RATE_LIMITED') {
+		// error.retryAfter is in MILLISECONDS: Math.ceil(error.retryAfter / 1000) for Retry-After
+	}
+	throw error;
+}
+```
 - **A test suite** that requests more than five of one flow for one address or
   user over a `fixedClock` is throttled: advance the clock past `retryAfter`,
   or wire `mail: { throttle: false }`.

@@ -504,25 +504,29 @@ With a `Retry-After: <n>` header.
 **When:** a route that asks for an e-mail — a sign-in link or code, a
 password reset, an address check, an e-mailed step-up — after five requests
 for the same address (the same user, for the last two) in the current
-15-minute window.
+10-minute window.
 
 **Why:** `@nxgt/janus` throttles the requests that hand out something to
 e-mail, on by default, each flow on its own; an unknown address is counted
 and refused alike, so nothing is revealed. `retryAfter` is the seconds until
-the window ends; nothing was sent or issued.
+the window ends. **A refused request spends and rotates nothing**: nothing was
+sent or issued, and the last link or code sent, by anyone's request, still
+works until it expires.
 
-**Fix:** show the wait, not a failure:
+**Fix:** tell the visitor to use the last e-mail they received, or to wait:
 
 ```ts
 const response = await fetch('/sign-in/email', { method: 'POST', body });
 if (response.status === 429) {
 	const { retryAfter } = await response.json();
-	showWait(`Too many e-mails asked for — try again in ${Math.ceil(retryAfter / 60)} min`);
+	showWait(`Check your inbox: the last e-mail we sent still works. You can ask for a new one in ${Math.ceil(retryAfter / 60)} min.`);
 }
 ```
 
-To change the limit, `janus({ mail: { throttle: { attempts, window } } })`;
-in a test, advance the clock past `retryAfter`, or wire
+To change the limit, `janus({ mail: { throttle: { attempts, window } } })`
+(keep `window` no longer than the shortest `tokens.*` lifetime you use, or the
+last code can expire first); `@nxgt/janus` never sees IP addresses, so add a
+per-IP ceiling with `@nxgt/redis` rate limits. In a test, advance the clock past `retryAfter`, or wire
 `mail: { throttle: false }`.
 
 ### `403 Forbidden` on `POST /sign-in/link`

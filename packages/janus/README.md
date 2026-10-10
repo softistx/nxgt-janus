@@ -190,7 +190,7 @@ if (error instanceof JanusError) {
 | `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
 | `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` | 409 — the factor is not in the state the call needs |
 | `USER_INACTIVE` | 403 |
-| `MAIL_THROTTLED` | 429 — too many e-mails asked for one address or one user in the window; `retryAfter` belongs in the body and a `Retry-After` header. Safe to show the visitor: it reveals nothing about accounts |
+| `MAIL_THROTTLED` | 429 — too many e-mails asked for one address or one user in the window; `retryAfter` belongs in the body and a `Retry-After` header. Tell the visitor to use the last e-mail they received (it still works) or to wait. Safe to show: it reveals nothing about accounts |
 | `STEP_UP_REQUIRED` | 403 — the session proved who it is too long ago for this action: ask for a step-up, then send the request again |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
 | `INVALID_CURSOR` | 400 |
@@ -402,9 +402,9 @@ else reaches the store and is asynchronous.
   janus({ user, password: { login: 'email' }, store, hasher, signIn: { throttle: { attempts: 5, window: '1h' } } });
   ```
 - **Requests that send e-mail are throttled**, on by default: past five
-  e-mails asked in a 15-minute window, a request refuses with
-  `MailThrottledError` (`MAIL_THROTTLED`, 429) and `retryAfter`, and issues
-  nothing. **Each flow counts on its own**: per address for
+  e-mails asked in a 10-minute window, a request refuses with
+  `MailThrottledError` (`MAIL_THROTTLED`, 429) and `retryAfter`, and issues,
+  spends and rotates nothing: the last link or code sent still works. **Each flow counts on its own**: per address for
   `magicLink.request`, `signInCode.request` and `resetPassword.request` — an
   address nobody holds is counted and refused alike — and per user for
   `verifyEmail.send` and for `stepUp.request` when it e-mails a code.
@@ -703,7 +703,8 @@ to type.
 - **Not ended by a password write, nor limited by the sign-in throttle**:
   the password proves nothing a link does, and that throttle counts
   passwords. The mail throttle counts `request` per address, five per
-  15 minutes (`MAIL_THROTTLED`); limit it per client yourself.
+  10 minutes (`MAIL_THROTTLED`); the last link sent still works. Limit it per
+  client yourself.
 
 [The sign-in link guide](docs/guide/magic-link.md) has the page that
 confirms from a `POST` so mail scanners spend nothing, every error, routes
@@ -1087,7 +1088,8 @@ from a flag the client keeps.
 **`stepUp.request` is throttled per user, only when it e-mails.** An
 e-mailed code gets five guesses per challenge and a new challenge takes only
 a new `request`, so a stolen session could keep asking and fill the user's
-inbox: the mail throttle refuses the sixth in a window with `MAIL_THROTTLED`.
+inbox: the mail throttle refuses the sixth in a window with `MAIL_THROTTLED`; the code
+last sent still works.
 A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is
 not counted.
 
@@ -1251,7 +1253,7 @@ your policy. A password refused for its length does not spend the token.
 written — by a link, `changePassword` or `setPassword` — spends every link
 still live, so an older e-mail's link answers `TOKEN_SPENT`. Tell the visitor
 to use the latest e-mail. Each request cancels the link before it, so the
-mail throttle bounds `resetPassword.request` per address, five per 15
+mail throttle bounds `resetPassword.request` per address, five per 10
 minutes.
 
 **`signIn` throttles each login, not each client.** Ten passwords per login
@@ -1278,10 +1280,19 @@ limit.** Five requests per window for one address (`magicLink.request`,
 `MailThrottledError`: answer 429 with `Retry-After: retryAfter`. It is safe to
 show the visitor — it reveals nothing about accounts, unlike `reason`. A refused
 request is counted too, but the window is fixed and cannot be extended.
-**Somebody who knows an address can keep its e-mailed sign-in (link and code)
-and its reset shut for a window** by asking five times; the password sign-in
-still opens it. One client asking for many addresses is not counted: limit
-that per client address yourself. A test suite that requests more than five of
+**A refused request spends, invalidates and rotates nothing**: the last link or
+code sent, by anyone's request, still confirms until it expires, so somebody
+who knows an address cannot shut its e-mailed sign-in or reset — at most they
+fill the inbox, five e-mails per window per flow. Tell the visitor to use the
+last e-mail they received, or to wait `retryAfter` seconds. The default window
+(`'10m'`) is no longer than the shortest default token lifetime; if you set a
+`tokens.*` lifetime shorter than `mail.throttle.window`, the last code can
+expire first, so keep the window no longer than the shortest you use. `janus`
+never sees IP addresses, so one client asking for many addresses is not
+counted: add a per-IP ceiling with `@nxgt/redis` rate limits
+(`defineRateLimit`, `bindRateLimit`; `enforce()` throws `GuardError`
+`RATE_LIMITED`, `retryAfter` in milliseconds —
+[example](docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)). A test suite that requests more than five of
 one flow for one address or user over a `fixedClock` is throttled: advance the
 clock past `retryAfter`, or wire `mail: { throttle: false }`. The counts live
 in the tokens store, so on PostgreSQL schedule the delete of lapsed tokens, a

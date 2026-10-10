@@ -179,10 +179,16 @@ changes the limit ([passwords](https://github.com/softistx/nxgt-janus/blob/devel
 
 **The requests that send an e-mail are throttled too.** Past five requests
 for one address (or one user, for `verifyEmail.send` and an e-mailed
-`stepUp.request`) in a 15-minute window, `@nxgt/janus` throws
+`stepUp.request`) in a 10-minute window, `@nxgt/janus` throws
 `MAIL_THROTTLED` and sends nothing; `janusErrors()` answers it
 `429 { code: 'MAIL_THROTTLED', retryAfter }` with a `Retry-After` header.
-`janus({ mail: { throttle } })` changes the limit.
+**A refused request spends and rotates nothing**: the last link or code sent
+still works, so tell the visitor to use the last e-mail they received, or to
+wait `retryAfter` seconds. `janus({ mail: { throttle } })` changes the limit;
+keep its `window` no longer than the shortest `tokens.*` lifetime you use.
+`@nxgt/janus` never sees IP addresses, so add a per-IP ceiling in front of
+these routes with `@nxgt/redis` rate limits
+([example](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)).
 
 What the throttle does not see is one password tried against many logins:
 limit the route **per client address** as well, with the limiter you already
@@ -410,9 +416,10 @@ random bytes, the shape of a real challenge; confirming it is
 `TOKEN_UNKNOWN`. `maxAge: 600` is the default ten minutes of
 `tokens.signInCode`, written out so both cookies match. Not awaiting the
 mailer keeps the answer's time from telling either. `@nxgt/janus` throttles
-each address — five requests per 15 minutes, then `MAIL_THROTTLED`, which
-`janusErrors()` answers 429 with `Retry-After`; rate-limit the route per
-client yourself, since one client can ask for many addresses.
+each address — five requests per 10 minutes, then `MAIL_THROTTLED`, which
+`janusErrors()` answers 429 with `Retry-After` (the last code sent still
+works); rate-limit the route per client yourself, since one client can ask for
+many addresses.
 
 The code route still tells a decoy apart: a wrong code against it is 400
 `TOKEN_UNKNOWN`, against a real challenge 401 `CODE_INVALID` with

@@ -92,8 +92,10 @@ separate kinds: asking for one leaves the other live.
 
 **`request` is throttled per address**: every call sends an e-mail and
 cancels the link before it, so past five requests for one address in a
-15-minute window, `request` throws `MailThrottledError` (`MAIL_THROTTLED`)
-and issues nothing — the link last sent still works. The address is counted
+10-minute window, `request` throws `MailThrottledError` (`MAIL_THROTTLED`)
+and issues nothing: **a refused request spends and rotates nothing, so the
+link last sent still works** until it expires, even when somebody else's
+request caused it. The address is counted
 before anything is looked up, so an address nobody holds is counted and
 refused alike, and under the limit it still answers `null`. Sign-in codes and
 password resets count on their own: a loop on this route never shuts them.
@@ -108,7 +110,10 @@ try {
 } catch (error) {
 	if (error instanceof MailThrottledError) {
 		return Response.json(
-			{ error: 'too many e-mails', retryAfter: error.retryAfter },
+			{
+				error: 'too many e-mails — the last one we sent still works; use it, or wait',
+				retryAfter: error.retryAfter,
+			},
 			{ status: 429, headers: { 'retry-after': String(error.retryAfter) } },
 		);
 	}
@@ -116,8 +121,12 @@ try {
 }
 ```
 
-The throttle is per address, not per client: one client asking for many
-addresses is not counted, so limit the route per client yourself too. See
+Tell the visitor to use the last e-mail they received, or to wait
+`retryAfter` seconds: "Check your inbox: the last e-mail we sent still works.
+You can ask for a new one in N minutes." The throttle is per address, not per
+client: `janus` never sees IP addresses, so one client asking for many
+addresses is not counted. Add a per-IP ceiling with `@nxgt/redis` rate limits
+([example](email-flows.md#requests-that-send-e-mail-are-throttled)). See
 [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
 for the options.
 

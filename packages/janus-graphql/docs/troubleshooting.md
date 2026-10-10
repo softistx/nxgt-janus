@@ -376,11 +376,15 @@ With `extensions.retryAfter` and a `Retry-After` header.
 
 **Why:** `@nxgt/janus` throttles the requests that hand out something to
 e-mail, on by default: past five for one address (one user, for
-`verifyEmail.send` and an e-mailed `stepUp.request`) in a 15-minute window it
-throws `MAIL_THROTTLED` and issues nothing. An unknown address is counted and
+`verifyEmail.send` and an e-mailed `stepUp.request`) in a 10-minute window it
+throws `MAIL_THROTTLED` and issues nothing: a refused request spends and
+rotates nothing, and the last link or code sent still works. An unknown address is counted and
 refused alike. `retryAfter` is the seconds until the window ends.
 
-**Fix:** show the wait: read `extensions.retryAfter` in the client. To change
+**Fix:** read `extensions.retryAfter` in the client and tell the visitor to use
+the last e-mail they received (it still works), or to wait that many seconds.
+`@nxgt/janus` never sees IP addresses: add a per-IP ceiling with `@nxgt/redis`
+rate limits. To change
 the limit, `janus({ mail: { throttle: { attempts, window } } })`; in a test
 over a `fixedClock`, advance the clock past `retryAfter`, or wire
 `mail: { throttle: false }`.

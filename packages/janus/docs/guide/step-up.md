@@ -185,8 +185,11 @@ app's code accepted is spent, as at a sign-in: it confirms nothing else.
 such window: five guesses per challenge, and a new challenge takes only a new
 `request`. A stolen session could ask again and again — each request also
 sends an e-mail and cancels the code before it. So `stepUp.request` counts
-the user, five per 15-minute window (`mail: { throttle }`), and past it throws
-`MailThrottledError` (`MAIL_THROTTLED`, with `userId`) and issues nothing.
+the user, five per 10-minute window (`mail: { throttle }`), and past it throws
+`MailThrottledError` (`MAIL_THROTTLED`, with `userId`) and issues nothing: a
+refused request spends nothing, so the code last sent still works until it
+expires. Tell the user to use the last e-mail they received, or to wait
+`retryAfter` seconds.
 It counts **only** `via: 'email'`: a step-up confirmed with the app
 (`via: 'secondFactor'`) sends nothing and is not counted.
 

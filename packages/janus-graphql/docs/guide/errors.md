@@ -170,8 +170,10 @@ body. `retryAfter` is the seconds until the login's next window.
 
 **The requests that send an e-mail are throttled too.** Past five requests
 for one address (one user, for `verifyEmail.send` and an e-mailed
-`stepUp.request`) in a 15-minute window, `@nxgt/janus` throws `MAIL_THROTTLED`
-and sends nothing. `janusGraphQLError()` answers it with the fixed message
+`stepUp.request`) in a 10-minute window, `@nxgt/janus` throws `MAIL_THROTTLED`
+and sends nothing; a refused request spends and rotates nothing, so the last
+link or code sent still works. Tell the visitor to use the last e-mail they
+received, or to wait `retryAfter` seconds. `janusGraphQLError()` answers it with the fixed message
 `Too many requests, retry later`:
 
 ```json
@@ -181,7 +183,9 @@ and sends nothing. `janusGraphQLError()` answers it with the fixed message
 ```
 
 with a 429 and a `Retry-After: 840` header, as above. `janus({ mail: { throttle } })`
-changes the limit.
+changes the limit; keep its `window` no longer than the shortest `tokens.*`
+lifetime you use. `@nxgt/janus` never sees IP addresses: add a per-IP ceiling
+with `@nxgt/redis` rate limits.
 
 What the throttle does not see is one password tried against many logins:
 limit a sign-in mutation **per client address** as well, in the resolver,

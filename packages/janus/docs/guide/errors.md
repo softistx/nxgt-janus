@@ -56,7 +56,7 @@ that wired the library, so no handler needs to tell it apart.
 | `PASSWORD_TOO_SHORT` | `CredentialError` | 400 | Below `password.minLength` | `minLength` — never the password |
 | `CREDENTIALS_INVALID` | `CredentialError` | 401 | Unknown login, no password, or the wrong one — **one code for the three** — and any password, the right one included, at a login past its attempts in the window — see [throttling](passwords.md#password-guessing-is-throttled) | `reason`, for your logs only; `retryAfter`, the seconds until the next window, when throttled |
 | `HASH_UNSUPPORTED` | `CredentialError` | 400 | A stored hash no wired hasher reads | `hashPrefix` — never the hash |
-| `MAIL_THROTTLED` | `MailThrottledError` | 429 | A request that sends e-mail was made too often for one address or one user in the window — see [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled). **Nothing was issued** | `retryAfter`, the whole seconds to the end of the window, at least 1; `userType`; `userId` only for the per-user flows. No `reason` |
+| `MAIL_THROTTLED` | `MailThrottledError` | 429 | A request that sends e-mail was made too often for one address or one user in the window — see [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled). **Nothing was issued, spent or rotated**: the last link or code sent still works | `retryAfter`, the whole seconds to the end of the window, at least 1; `userType`; `userId` only for the per-user flows. No `reason` |
 | `USER_INACTIVE` | `UserInactiveError` | 403 | Deactivated; told only to someone who gave the right password, the right code, or a live sign-in link | `userId` |
 | `STEP_UP_REQUIRED` | `StepUpRequiredError` | 403 | `assertFresh`: the session proved who it is `maxAge` ago or more. Not a denial of the action — ask for a [step-up](step-up.md), then send the request again | `userId` |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | `TokenError` | 400 | See [e-mail flows](email-flows.md#what-a-token-refusal-means). For a second factor's challenge: sign in again; for a sign-in code's: request a new code — see [sign-in codes](sign-in-code.md#what-confirm-refuses); for a sign-in link: ask for a new link — see [sign-in links](magic-link.md#what-confirm-refuses) | `userId` on `TOKEN_STALE` |
@@ -110,7 +110,9 @@ async function signIn(email: string, password: string): Promise<Response> {
   address nobody holds is counted and refused alike, so it reveals nothing
   about accounts. Its message names the call and whether the address or the
   user was counted: `magicLink.request: too many e-mails asked for this
-  address — wait for the next window`, or `… for this user …`.
+  address — the last one sent still works; use it, or wait for the next window`,
+  or `… for this user …`. Tell the visitor to use the last e-mail they received,
+  or to wait `retryAfter` seconds.
 - **`CODE_INVALID`'s `attemptsLeft`** belongs in the body — the form can say
   how many attempts are left. `0` means the challenge is spent: send the visitor
   back to the password.

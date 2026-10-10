@@ -180,8 +180,9 @@ no action: it says "something sensitive", whatever the route guards.
   template.
 - **The link has no fallback, and needs none.** `links.secureAccount` is
   required by `janusMail()`: the notices link to it too.
-- **`@nxgt/janus` throttles `stepUp.request` per user** (five in 15 minutes by
-  default): past that it throws `MAIL_THROTTLED` and there is nothing to send.
+- **`@nxgt/janus` throttles `stepUp.request` per user** (five in 10 minutes by
+  default): past that it throws `MAIL_THROTTLED` and there is nothing to send;
+  the code last sent still works.
   Limiting per client stays the application's.
 
 ### `passwordChanged(to)`
