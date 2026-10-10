@@ -31,6 +31,42 @@ describe('instrumentJanus(), a request past its e-mails', () => {
 		expect(JSON.stringify(throttled)).not.toContain(email);
 	});
 
+	it.each([
+		'magicLink.request',
+		'signInCode.request',
+		'resetPassword.request',
+		'verifyEmail.send',
+		'stepUp.request',
+	] as const)('warns for %s, naming the flow', async (flow) => {
+		const { auth } = setup();
+		const { user } = await auth.patient.signUp({ email, password });
+		const ask = (): Promise<unknown> => {
+			switch (flow) {
+				case 'magicLink.request':
+					return auth.patient.magicLink.request(email);
+				case 'signInCode.request':
+					return auth.patient.signInCode.request(email);
+				case 'resetPassword.request':
+					return auth.patient.resetPassword.request(email);
+				case 'verifyEmail.send':
+					return auth.patient.verifyEmail.send(user);
+				case 'stepUp.request':
+					return auth.patient.stepUp.request(user);
+			}
+		};
+		for (let at = 0; at < 5; at += 1) await ask();
+		const { logs } = await collect(async () => {
+			await rejection(ask());
+		});
+
+		const throttled = logs.filter((log) => log.name === 'janus.mail.throttled');
+		expect(throttled).toHaveLength(1);
+		expect(throttled[0]?.attributes).toMatchObject({
+			'janus.refusal': 'MAIL_THROTTLED',
+			'janus.mail.flow': flow,
+		});
+	});
+
 	it('names the user of a request made for one: verifyEmail.send', async () => {
 		const { auth } = setup();
 		const { user } = await auth.patient.signUp({ email, password });
