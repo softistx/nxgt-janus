@@ -2,6 +2,7 @@ import type { AnyUser } from '../context';
 import type {
 	MagicLinkApi,
 	PasswordApi,
+	ProvenSignInApi,
 	ResetPasswordApi,
 	SecondFactorApi,
 	SignInCodeApi,
@@ -18,6 +19,7 @@ import type { Input } from './flow-types';
 export type AnyTypeApi = UserTypeApi<AnyUser, Input> &
 	PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> &
 	SecondFactorApi<AnyUser> &
+	ProvenSignInApi<AnyUser, SignInResult<AnyUser>> &
 	SignInCodeApi<AnyUser, SignInResult<AnyUser>> &
 	MagicLinkApi<AnyUser, SignInResult<AnyUser>> &
 	StepUpApi<AnyUser, StepUpByEmail<AnyUser> | StepUpByApp<AnyUser>> &

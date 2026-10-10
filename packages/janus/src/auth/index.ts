@@ -60,6 +60,7 @@ export type {
 	PasswordApi,
 	PreparedCode,
 	PreparedRequest,
+	ProvenSignInApi,
 	RecoveredSignIn,
 	RecoveryCodesIssued,
 	RequestLike,

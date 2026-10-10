@@ -21,6 +21,7 @@ import type {
 } from './inference';
 import type { MagicLinkApi } from './magic-link';
 import type { PasswordApi } from './password';
+import type { ProvenSignInApi } from './proven-sign-in';
 import type { SecondFactorApi } from './second-factor';
 import type { Authenticated, RequestLike, Session } from './session';
 import type { SignedIn, SignInResult } from './sign-in';
@@ -29,11 +30,12 @@ import type { UserRef } from './user';
 import type { UserTypeApi } from './user-type';
 
 /**
- * What a sign-in by e-mail — a code or a link — answers: a session, or a
- * challenge when the type has a password in an instance given a
- * `secondFactor`, since the e-mail proves the address and not the factor.
+ * What a sign-in other than the password's answers — a code, a link, or
+ * the application's own proof: a session, or a challenge when the type has
+ * a password in an instance given a `secondFactor`, since none of them
+ * proves the factor.
  */
-type EmailSignInAnswer<
+type SignInAnswer<
 	Name extends string,
 	Def,
 	TwoFactor extends boolean,
@@ -52,6 +54,7 @@ export type TypeApi<
 	Def,
 	TwoFactor extends boolean = false,
 > = UserTypeApi<UserOfType<Name, Def>, FieldsInput<Def>> &
+	ProvenSignInApi<UserOfType<Name, Def>, SignInAnswer<Name, Def, TwoFactor>> &
 	([LoginOf<Def>] extends [never]
 		? unknown
 		: TwoFactor extends true
@@ -68,11 +71,11 @@ export type TypeApi<
 		: VerifyEmailApi<UserOfType<Name, Def>> &
 				SignInCodeApi<
 					UserOfType<Name, Def>,
-					EmailSignInAnswer<Name, Def, TwoFactor>
+					SignInAnswer<Name, Def, TwoFactor>
 				> &
 				MagicLinkApi<
 					UserOfType<Name, Def>,
-					EmailSignInAnswer<Name, Def, TwoFactor>
+					SignInAnswer<Name, Def, TwoFactor>
 				> &
 				StepUpApi<
 					UserOfType<Name, Def>,
