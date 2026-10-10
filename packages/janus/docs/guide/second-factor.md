@@ -406,7 +406,7 @@ is as good as the user's phone.
 ### Signing in with one
 
 `recover(challenge, code)` redeems the challenge `signIn` answered — or
-`signInCode.confirm`'s, or `magicLink.confirm`'s — with a recovery code instead of the app's code, and
+`signInCode.confirm`'s, `magicLink.confirm`'s or `signInProven`'s — with a recovery code instead of the app's code, and
 opens the session. The recovery code is **spent**: its hash leaves the store,
 and `recoveryCodesLeft` says how many remain.
 
