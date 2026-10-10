@@ -404,7 +404,8 @@ else reaches the store and is asynchronous.
 - **Requests that send e-mail are throttled**, on by default: past five
   e-mails asked in a 10-minute window, a request refuses with
   `MailThrottledError` (`MAIL_THROTTLED`, 429) and `retryAfter`, and issues,
-  spends and rotates nothing: the last link or code sent still works. **Each flow counts on its own**: per address for
+  spends and rotates nothing: the last link or code sent still works.
+  **Each flow counts on its own**: per address for
   `magicLink.request`, `signInCode.request` and `resetPassword.request` — an
   address nobody holds is counted and refused alike — and per user for
   `verifyEmail.send` and for `stepUp.request` when it e-mails a code.

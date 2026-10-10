@@ -77,8 +77,9 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `signInCode.request` and `resetPassword.request` count per address;
   `verifyEmail.send` and an e-mailed `stepUp.request` count per user; each
   flow on its own. Past the limit a request throws `MailThrottledError`
-  (`MAIL_THROTTLED`, 429) with `retryAfter` and issues, spends and rotates nothing: the last link or
-  code sent still works, so a loop on an address cannot lock its owner out.
+  (`MAIL_THROTTLED`, 429) with `retryAfter` and issues, spends and rotates
+  nothing: the last link or code sent still works, so a loop on an address
+  cannot lock its owner out.
   The window is no longer than the shortest default token lifetime. The counts
   live in the tokens store, with no port change. `MailConfig` and
   `MailThrottleConfig` are exported.
