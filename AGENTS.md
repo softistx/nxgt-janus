@@ -20,6 +20,11 @@ reason most of this file exists: a published entry point is a promise, and
 **type safety is the selling point**, which means it has to be measured rather
 than claimed.
 
+The owner's global rules in `~/.claude/CLAUDE.md` apply here: worktrees,
+integration branches, merges and releases, and questions to the owner. This
+file states only what is this repository's own and declares no departure from
+them.
+
 Read this file, then the README of the package you touch —
 `packages/<name>/README.md`, starting with `packages/janus/README.md`.
 
