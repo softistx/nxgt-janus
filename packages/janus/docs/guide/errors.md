@@ -17,11 +17,11 @@ export function toResponse(error: unknown): Response {
 
 `statusOf(code)` is the table under [The codes](#the-codes), exported so every
 integration answers a code the same way — `@nxgt/janus-hono`'s `statusOf` is
-this one. It answers `JanusErrorStatus`, a union of the eight statuses it can
-give (`400 | 401 | 403 | 404 | 409 | 500 | 501 | 503`), so a framework whose
+this one. It answers `JanusErrorStatus`, a union of the nine statuses it can
+give (`400 | 401 | 403 | 404 | 409 | 429 | 500 | 501 | 503`), so a framework whose
 response takes a narrower type than `number` accepts it as it is.
 
-`JanusErrorCode` is a union of nineteen string literals, and `statusOf` is a
+`JanusErrorCode` is a union of twenty-one string literals, and `statusOf` is a
 `switch` over it that is exhaustive: when a code is added, it stops compiling
 instead of answering `undefined` — and so does a `switch` of your own.
 
