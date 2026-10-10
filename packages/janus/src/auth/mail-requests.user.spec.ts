@@ -21,7 +21,7 @@ describe('verifyEmail.send, throttled per user', () => {
 
 		expect(refused).toMatchObject({
 			code: 'MAIL_THROTTLED',
-			retryAfter: 900,
+			retryAfter: 600,
 			userId: user.id,
 			userType: 'user',
 			message: byUser('verifyEmail.send'),
@@ -75,7 +75,7 @@ describe('stepUp.request, throttled per user', () => {
 
 		expect(refused).toMatchObject({
 			code: 'MAIL_THROTTLED',
-			retryAfter: 900,
+			retryAfter: 600,
 			userId: user.id,
 			message: byUser('stepUp.request'),
 		});

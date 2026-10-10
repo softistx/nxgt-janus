@@ -5,7 +5,7 @@ import { bodyOf, janusErrors, statusOf } from './errors';
 
 const throttled = () =>
 	new MailThrottledError(
-		'magicLink.request: too many e-mails asked for this address — wait for the next window',
+		'magicLink.request: too many e-mails asked for this address — the last one sent still works; use it, or wait for the next window',
 		{ userType: 'user', retryAfter: 840 },
 	);
 

@@ -26,7 +26,7 @@ export interface MagicLinkApi<U, Answer = SignedIn<U>> {
 		 * Put `token` in a link to a page of yours, and **only in the e-mail**.
 		 * The user's earlier links are spent: only the last one sent works.
 		 * **Throttled per address**, whether anybody holds it or not: past
-		 * five requests in 15 minutes (`janus({ mail: { throttle } })`),
+		 * five requests in 10 minutes (`janus({ mail: { throttle } })`),
 		 * `MAIL_THROTTLED` with `retryAfter`, and no token. Rate-limit it per
 		 * client too: one client can ask for many addresses.
 		 */

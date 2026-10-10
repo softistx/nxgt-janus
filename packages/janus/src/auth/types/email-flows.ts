@@ -50,7 +50,7 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 		 * Every call issues a new challenge with five attempts of its own, and
 		 * spends the earlier ones: only the last code sent works, and a new
 		 * `request` is five guesses more. **Throttled per address**, whether
-		 * anybody holds it or not: past five requests in 15 minutes
+		 * anybody holds it or not: past five requests in 10 minutes
 		 * (`janus({ mail: { throttle } })`), `MAIL_THROTTLED` with
 		 * `retryAfter`, and no code. Rate-limit it per client too.
 		 */
@@ -81,7 +81,7 @@ export interface VerifyEmailApi<U> {
 	readonly verifyEmail: {
 		/**
 		 * Issues a token for the user's current e-mail. Sending it is yours.
-		 * **Throttled per user**: past five in 15 minutes
+		 * **Throttled per user**: past five in 10 minutes
 		 * (`janus({ mail: { throttle } })`), `MAIL_THROTTLED` with
 		 * `retryAfter`, and no token.
 		 */
@@ -102,7 +102,7 @@ export interface ResetPasswordApi<U> {
 		 * answers `null` when there is none. **Never tell the visitor which**:
 		 * answer the same page either way. The user's earlier reset tokens are
 		 * spent: only the last one sent works. **Throttled per address**,
-		 * whether anybody holds it or not: past five requests in 15 minutes
+		 * whether anybody holds it or not: past five requests in 10 minutes
 		 * (`janus({ mail: { throttle } })`), `MAIL_THROTTLED` with
 		 * `retryAfter`, and no token.
 		 */

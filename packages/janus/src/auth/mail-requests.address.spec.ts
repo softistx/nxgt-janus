@@ -54,7 +54,7 @@ describe.each(flows)('%s, throttled per address', (where, kind, request) => {
 		expect(refused).toMatchObject({
 			name: 'MailThrottledError',
 			code: 'MAIL_THROTTLED',
-			retryAfter: 840,
+			retryAfter: 540,
 			userType: 'user',
 			message: byAddress(where),
 		});

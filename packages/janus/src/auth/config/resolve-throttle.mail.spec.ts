@@ -9,12 +9,12 @@ const resolve = (config: unknown) => () =>
 	);
 
 describe('mail.throttle', () => {
-	it('is on by default: five requests per flow and address per fifteen minutes', () => {
-		expect(resolve(undefined)()).toEqual({ attempts: 5, windowMs: 900_000 });
-		expect(resolve({})()).toEqual({ attempts: 5, windowMs: 900_000 });
+	it('is on by default: five requests per flow and address per ten minutes', () => {
+		expect(resolve(undefined)()).toEqual({ attempts: 5, windowMs: 600_000 });
+		expect(resolve({})()).toEqual({ attempts: 5, windowMs: 600_000 });
 		expect(resolve({ throttle: {} })()).toEqual({
 			attempts: 5,
-			windowMs: 900_000,
+			windowMs: 600_000,
 		});
 	});
 

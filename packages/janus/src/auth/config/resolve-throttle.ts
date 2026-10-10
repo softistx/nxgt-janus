@@ -2,7 +2,7 @@
  * Resolves the two `{ throttle }` options, which take the same shape and
  * differ in their defaults: `signIn.throttle`, ten passwords per login per
  * fifteen minutes, and `mail.throttle`, five requests per flow, per address
- * or user, per fifteen minutes. Each is on unless `false`.
+ * or user, per ten minutes. Each is on unless `false`.
  */
 
 import { type Duration, parseDuration } from '../../time/duration';
@@ -39,8 +39,11 @@ export function resolveSignInThrottle(
 
 /**
  * Resolves `mail.throttle`: on unless `false`, five requests per flow, per
- * address or user, per fifteen minutes — a sign-in link's lifetime, room for
- * a visitor who asks again, and a loop held to twenty e-mails an hour.
+ * address or user, per ten minutes — room for a visitor who asks again, a
+ * loop held to thirty e-mails an hour, and a window **no longer than the
+ * shortest default lifetime** (a sign-in code's and a step-up's, `'10m'`):
+ * the last link or code sent, issued in the window, still works until the
+ * refusal ends.
  */
 export function resolveMailThrottle(
 	config: ThrottleOption | undefined,
@@ -48,7 +51,7 @@ export function resolveMailThrottle(
 ): ResolvedThrottle {
 	return resolveThrottle(
 		config,
-		{ option: 'mail', attempts: 5, window: '15m' },
+		{ option: 'mail', attempts: 5, window: '10m' },
 		where,
 	);
 }

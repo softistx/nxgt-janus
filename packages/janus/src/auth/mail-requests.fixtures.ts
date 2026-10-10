@@ -10,16 +10,16 @@ import { janus } from './janus';
 import { createMemoryStores } from './port/memory';
 import type { JanusStores, TokenKind } from './port/types';
 
-/** Fifteen minutes: the default window. */
-export const WINDOW_MS = 15 * 60_000;
+/** Ten minutes: the default window. */
+export const WINDOW_MS = 10 * 60_000;
 
 /** The message past the limit, for a request that names an address. */
 export const byAddress = (where: string) =>
-	`${where}: too many e-mails asked for this address — wait for the next window`;
+	`${where}: too many e-mails asked for this address — the last one sent still works; use it, or wait for the next window`;
 
 /** The message past the limit, for a request made for a user. */
 export const byUser = (where: string) =>
-	`${where}: too many e-mails asked for this user — wait for the next window`;
+	`${where}: too many e-mails asked for this user — the last one sent still works; use it, or wait for the next window`;
 
 export function mailing(
 	options: { readonly mail?: MailConfig; readonly store?: JanusStores } = {},

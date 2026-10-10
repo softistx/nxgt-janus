@@ -1,9 +1,15 @@
 /**
  * The requests that hand out something to e-mail, counted by the store per
- * window — `janus({ mail: { throttle } })`, five per fifteen minutes by
+ * window — `janus({ mail: { throttle } })`, five per ten minutes by
  * default. Past the last one, the request answers `MAIL_THROTTLED` with
  * `retryAfter`, and **issues nothing**: no token is minted, so there is
- * nothing to send. Nothing locks past a window.
+ * nothing to send — and **nothing is spent**: counted before anything is
+ * issued, a refused request never reaches the step that spends the earlier
+ * tokens, so the last link or code sent still works. Nothing locks past a
+ * window. With the default lifetimes, the window (`'10m'`) is no longer than
+ * any token's, so the last one sent — issued in the window — outlives the
+ * refusal: somebody who asks for an address in a loop mails its owner real
+ * links, and the last of them signs in.
  *
  * **Each flow counts on its own**, so a loop on one — a sign-in link asked
  * for again and again — never shuts another, and what one address can be
@@ -116,7 +122,7 @@ async function countMail(
 	const now = context.clock.now().getTime();
 	const byUser = 'userId' in counted;
 	throw new MailThrottledError(
-		`${where}: too many e-mails asked for this ${byUser ? 'user' : 'address'} — wait for the next window`,
+		`${where}: too many e-mails asked for this ${byUser ? 'user' : 'address'} — the last one sent still works; use it, or wait for the next window`,
 		{
 			userType: type.name,
 			...(byUser ? { userId: counted.userId } : {}),
