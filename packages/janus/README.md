@@ -348,6 +348,11 @@ await clinic.staff.signIn({ username, password });
 const current = await clinic.authenticate(request);
 if (current?.user.type === 'staff') current.user.service; // narrowed by type
 await clinic.authenticate(request, { type: 'staff' });  // a patient's session → null
+
+// Several users by id, in one query: a 100-row staff list, one round trip
+const members = await clinic.staff.findMany(rows.map((row) => row.staffId));
+const byId = new Map(members.map((member) => [member.id, member]));
+const shown = rows.map((row) => ({ ...row, active: byId.get(row.staffId)?.active ?? false }));
 ```
 
 `janus()` assembles **synchronously and with no I/O**: it checks that every
@@ -372,11 +377,19 @@ else reaches the store and is asynchronous.
   `verifyEmail`, no `resetPassword`, no `signInCode` and no `magicLink` — they
   are absent from its type, not failing at run time. Changing the e-mail sets `emailVerified`
   back to `false`.
-- **Per type**: `create`, `find` (or `null`), `get` (or `NOT_FOUND`), `list`,
-  `update(user, patch)` — merged over the stored fields, then validated whole —
-  `setActive` and `delete`; with a password, `signUp`, `signIn`, `findByLogin`,
-  `setPassword` and `changePassword`. Every write but `delete` takes an
-  optional `ifVersion`.
+- **Per type**: `create`, `find` (or `null`), `findMany`, `get` (or
+  `NOT_FOUND`), `list`, `update(user, patch)` — merged over the stored fields,
+  then validated whole — `setActive` and `delete`; with a password, `signUp`,
+  `signIn`, `findByLogin`, `setPassword` and `changePassword`. Every write but
+  `delete` takes an optional `ifVersion`.
+- **`findMany(ids)`** answers the type's users **in the order the ids were
+  given**, each once — a repeated id at its first place. An id `find` answers
+  `null` for — malformed, unknown, another type's — is **left out**, so match
+  by `user.id`, never by position. `[]` answers `[]` without reaching the
+  store; a long list is read 100 ids per query. One query when the users store
+  implements the optional `findUsers` (the reference store, `janus-drizzle`,
+  `janus-mongo`); otherwise `findUser`, ten at a time
+  ([users](docs/guide/users.md#several-users-at-once--findmany)).
 - **`delete(user)`** deletes the user together with every session and one-time
   token they had, so nothing of theirs is kept: a token holds the e-mail it was
   sent to. The user goes first, so an outage half-way leaves only sessions and
@@ -1005,7 +1018,7 @@ describeJanusStores({
 });
 ```
 
-There are 55 cases. They cover:
+There are 58 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -1032,8 +1045,15 @@ There are 55 cases. They cover:
   removed by one that names `null`;
 - deletion: a user's logins are freed, and every session and token of theirs
   goes, with a replay answering `false` or `0` rather than failing;
-- **outages**, one case for each of the fourteen methods whose honest answer can
+- the optional `users.findUsers`: each stored user once, whatever its type, an
+  id nobody holds left out, and `[]` — never `null` — when nobody holds any;
+- **outages**, one case for each of the fifteen methods whose honest answer can
   be "nothing".
+
+**An optional method a store lacks skips its cases, with the reason** — a
+store without `sessions.deleteExpiredSessions` or `users.findUsers` passes the
+suite. A case's `needs` names what it cannot run without, one thing or a list
+(`outage.findUsers` needs `['faults', 'findUsers']`).
 
 The suite imports no test framework and no assertion library. It runs under
 `bun test`, vitest and jest. Its cases are also exported as data
@@ -1314,6 +1334,12 @@ stored fields and the result is checked against the schema, so a patch can
 never leave a user that the schema would refuse. Pass `ifVersion` to make the
 write conditional on what you read.
 
+**`findMany` answers fewer users than ids, never `null` in their place.** An
+unknown, malformed or other type's id is left out and a repeated one answered
+once, so `users[i]` is not the user of `ids[i]`: build a `Map` by `user.id`.
+An outage is `STORE_FAILED`, never a shorter list — a row whose user is
+missing from the answer is one nobody holds.
+
 **Under `bun test`, pass `runner: { describe, it }`.** Measured: Bun gives a
 test file `describe` and `it` as bare identifiers, not as properties of
 `globalThis`. jest, and vitest with `globals: true`, are found without it.
@@ -1379,18 +1405,18 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and fifty-two plausible mistakes, one hundred and fifty-two refused at compile time — and
+**One hundred and fifty-five plausible mistakes, one hundred and fifty-five refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
-are folders with one file per behaviour: `test/types/port/` (twenty-four, on
+are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (sixty-five, on `janus()`, from the point of view of
+it), `test/types/auth/` (sixty-seven, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

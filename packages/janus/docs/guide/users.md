@@ -180,6 +180,7 @@ In the one-type form these are on `auth` itself; with several types, on
 | --- | --- | --- |
 | `create(fields & { password?, active? })` | the user; no session | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN` |
 | `find(id)` | the user, or `null` — for a malformed id, an unknown one, or one of another type | |
+| `findMany(ids)` | the users, in the order of `ids`, each once; an id `find` answers `null` for is left out — see [below](#several-users-at-once--findmany) | |
 | `get(id)` | the user | `NOT_FOUND` |
 | `list({ after?, limit? })` | `CursorPage<User>`, in creation order | `INVALID_CURSOR` |
 | `update(user, patch, { ifVersion? })` | the user as written; sends `user.emailChanged` when the e-mail changed | `USER_INVALID`, `LOGIN_TAKEN`, `VERSION_CONFLICT`, `NOT_FOUND` |
@@ -248,6 +249,53 @@ outage half-way leaves only sessions and tokens that authenticate nobody. It is
 idempotent: calling it again finishes the job. When it deleted the user, it
 sends a [`user.deleted` event](events.md) — once, after the sessions, tokens and relation tuples are gone, and even when an outage interrupts removing them;
 `create` and `signUp` send `user.created`.
+
+### Several users at once — `findMany`
+
+A list of rows that each name a user — a staff list showing every member's
+account state — reads them in one call, not one `find` per row:
+
+```ts
+const rows = await db.staffRows();                       // your own table, 100 rows
+const members = await clinic.staff.findMany(rows.map((row) => row.staffId));
+const byId = new Map(members.map((member) => [member.id, member]));
+
+const shown = rows.map((row) => {
+	const member = byId.get(row.staffId);                // undefined: nobody holds this id
+	return { ...row, active: member?.active ?? false, verified: member?.emailVerified ?? false };
+});
+```
+
+- **Order**: the order of `ids`. A repeated id is answered once, at its first
+  place.
+- **Absence**: an id `find` would answer `null` for — malformed, unknown, or
+  held by a user of another type — is **left out**, never an error. The answer
+  may be shorter than `ids`, so match by `user.id`, never by position.
+- **Empty**: `[]`, or a list with no well-formed id, answers `[]` without
+  reaching the store.
+- **Size**: any length. The store is asked 100 ids at a time, one batch after
+  another, so no query grows with your list.
+- **Failure**: `STORE_FAILED`, never a shorter list. Something other than an
+  array is a bare `TypeError`: only your code passes one.
+- **Cost**: one query per 100 ids when the users store implements the
+  optional `findUsers` — the reference store, `@nxgt/janus-drizzle` and
+  `@nxgt/janus-mongo` do. A store that does not is read with `findUser`,
+  **ten at a time**, so a third-party adapter keeps working and never opens
+  more than ten reads at once for one call; see
+  [writing an adapter](adapters.md#userstorefindusers-optional).
+
+**A GraphQL resolver per row** can batch through a DataLoader of your own —
+`@nxgt/janus-graphql` loads no users itself:
+
+```ts
+import DataLoader from 'dataloader';
+
+// One per request, so nothing is cached across users' requests.
+const staffById = new DataLoader(async (ids: readonly string[]) => {
+	const found = new Map((await clinic.staff.findMany(ids)).map((u) => [u.id, u]));
+	return ids.map((id) => found.get(id) ?? null);
+});
+```
 
 ### Paging every user
 

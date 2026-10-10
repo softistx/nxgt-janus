@@ -48,6 +48,9 @@ How the messages are shaped:
 **Users, sessions and tokens**
 - [`STORE_FAILED` — `<slot>.<method>: the store could not answer`](#store_failed--slotmethod-the-store-could-not-answer)
 - [`STORE_FAILED` — `<slot>.<method> answered undefined …`](#store_failed--slotmethod-answered-undefined-an-absence-is-null-so-this-store-forgot-to-answer)
+- [`STORE_FAILED` — `users.findUsers answered no list …`](#store_failed--usersfindusers-answered-no-list-an-absence-is-a-shorter-list-so-this-store-forgot-to-answer)
+- [`<call>: ids must be an array of user ids`](#call-ids-must-be-an-array-of-user-ids)
+- [`findMany` answers fewer users than ids](#findmany-answers-fewer-users-than-ids)
 - [`NOT_FOUND` — `<call>: no <type> has this id`](#not_found--call-no-type-has-this-id)
 - [`LOGIN_TAKEN` — `<call>: the login is taken by another <type>`](#login_taken--call-the-login-is-taken-by-another-type)
 - [`VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`](#version_conflict--call-expected-version-n-found-m)
@@ -282,10 +285,10 @@ janus({ ..., hasher: scryptHasher(), verifiers: [legacyBcrypt] }); // not [scryp
 
 ### `janus: store.<slot> has no method <method>, which the port requires`
 
-Also: `janus: store.<slot> is missing`, `janus: store must be an object with users, sessions and tokens`, `janus: store.sessions.deleteExpiredSessions must be a function or absent`.
+Also: `janus: store.<slot> is missing`, `janus: store must be an object with users, sessions and tokens`, `janus: store.sessions.deleteExpiredSessions must be a function or absent`, `janus: store.users.findUsers must be a function or absent`.
 
 **When:** `janus({...})`, from JavaScript or with a store typed loosely. TypeScript refuses a partial store at compile time and names the method.
-**Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. `deleteExpiredSessions` is the one optional method: absent, or a function.
+**Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. Two methods are optional — `sessions.deleteExpiredSessions` and `users.findUsers` — and each is absent, or a function: a value in its place (`findUsers: true`, a property copied from a config) is a wiring mistake, not an absent capability.
 An adapter written for an earlier `@nxgt/janus` reports the method a later
 release added to the port: `store.tokens has no method countAttempt` for one
 written against 0.3 (the method came in 0.4), and
@@ -517,6 +520,40 @@ try {
 **When:** with a store you wrote, on the first call to that method.
 **Why:** a method that can find nothing must answer `null`. `undefined` is also what a missing `return` produces, so it is treated as a bug in the store, not as "not found".
 **Fix:** `return doc ?? null;` — and run `@nxgt/janus/conformance` against the store.
+
+### `STORE_FAILED` — `users.findUsers answered no list: an absence is a shorter list, so this store forgot to answer`
+
+**When:** `findMany`, over a users store you wrote that implements the optional `findUsers`.
+**Why:** `findUsers` answered `null`, `undefined` or something else than an array. An id nobody holds is left out of the list, and nobody at all is `[]`; anything else is a store that forgot to answer, so it fails rather than read as "nobody".
+**Fix:** answer the rows you found, mapped to records — or leave `findUsers` out, and `findMany` reads with `findUser`:
+
+```ts
+findUsers: async (ids) => (await db.users.where('id', 'in', ids)).map(toUser), // [] when none
+```
+
+### `<call>: ids must be an array of user ids`
+
+A bare `TypeError` — `findMany: …`, or `staff.findMany: …` with several user types.
+
+**When:** `findMany` was given something other than an array: one id, a `Set`, a comma-separated string.
+**Why:** `findMany` takes a list; one id is `find`. Only your code passes the wrong shape, and TypeScript refuses it.
+**Fix:** pass an array, or use `find` for one id:
+
+```ts
+await auth.staff.findMany([...selectedIds]); // from a Set
+await auth.staff.find(id);                   // one id
+```
+
+### `findMany` answers fewer users than ids
+
+**When:** always, when an id is malformed, unknown, held by a user of another type, or repeated.
+**Why:** `findMany` leaves out what `find` answers `null` for, and answers a repeated id once — it never puts `null` in a place. Reading `users[i]` as the user of `ids[i]` then shows one row's account on another.
+**Fix:** match by id:
+
+```ts
+const byId = new Map((await auth.staff.findMany(ids)).map((user) => [user.id, user]));
+const member = byId.get(row.staffId); // undefined: nobody of this type holds it
+```
 
 ### `NOT_FOUND` — `<call>: no <type> has this id`
 
