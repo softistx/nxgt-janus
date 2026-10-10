@@ -187,6 +187,29 @@ changes the limit; keep its `window` no longer than the shortest `tokens.*`
 lifetime you use. `@nxgt/janus` never sees IP addresses: add a per-IP ceiling
 with `@nxgt/redis` rate limits.
 
+A mutation that sends the e-mail off the request — so its time does not tell
+whether the address has an account — calls `prepare` in the resolver and the
+`send()` of its answer after it, so `MAIL_THROTTLED` still reaches the client
+(`@nxgt/janus` 0.20):
+
+```ts
+const resolvers = {
+	Mutation: {
+		async requestSignInLink(_: unknown, { email }: { email: string }) {
+			const pending = await auth.magicLink.prepare(email); // counted, nobody looked up: MAIL_THROTTLED → 429
+			void pending
+				.send() // looked up and issued after the answer; once — a second send() is a TypeError
+				.then((issued) => issued && mailer.send(issued.email, linkTo(issued.token)))
+				.catch(reportError);
+			return true; // the same answer for every address
+		},
+	},
+};
+```
+
+`signInCode.prepare` and `resetPassword.prepare` work the same way; see
+[requests in two steps](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/email-flows.md#requests-in-two-steps).
+
 What the throttle does not see is one password tried against many logins:
 limit a sign-in mutation **per client address** as well, in the resolver,
 with the limiter you already run:

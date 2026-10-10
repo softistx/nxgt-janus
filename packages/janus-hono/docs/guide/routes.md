@@ -379,22 +379,25 @@ the **challenge** in a cookie scoped to the second, which takes the code and
 opens the session. Sending the e-mail is yours.
 
 ```ts
-import { randomBytes } from 'node:crypto';
 import { sendSession } from '@nxgt/janus-hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
 const CODE_CHALLENGE = 'sign-in-code';
 const codeScope = { path: '/sign-in/email', httpOnly: true, secure: true, sameSite: 'Strict' } as const;
 
+/** Runs `work` off the request, and reports what it throws: nobody else will see it. */
+const offRequest = (work: () => Promise<unknown>): void => void work().catch(reportError);
+
 app.post('/sign-in/email', async (c) => {
 	const { email } = await c.req.json();
-	const issued = await auth.signInCode.request(email);
-	if (issued !== null) {
-		void mailer.send(issued.email, `Your sign-in code: ${issued.code}`); // the code only; not awaited
-	}
-	// the same answer either way: a decoy challenge when nobody holds the e-mail
-	const challenge = issued?.challenge ?? randomBytes(32).toString('base64url');
-	setCookie(c, CODE_CHALLENGE, challenge, { ...codeScope, maxAge: 600 });
+	// counted, nobody looked up, a challenge minted: MAIL_THROTTLED → 429 by janusErrors()
+	const pending = await auth.signInCode.prepare(email);
+	offRequest(async () => {
+		const issued = await pending.send(); // the lookup and the code, off the visitor's request
+		if (issued !== null) await mailer.send(issued.email, `Your sign-in code: ${issued.code}`); // the code only
+	});
+	// the same answer either way: a challenge for everybody, TOKEN_UNKNOWN when nobody holds the e-mail
+	setCookie(c, CODE_CHALLENGE, pending.challenge, { ...codeScope, maxAge: 600 });
 	return c.json({ next: 'code' }, 202);
 });
 
@@ -409,17 +412,20 @@ app.post('/sign-in/email/code', async (c) => {
 ```
 
 **The request route answers the same whoever asked** — the same status, the
-same body, and a cookie either way. `signInCode.request` answers `null` for
-an address nobody holds, and a route that answered differently, or set no
-cookie, would tell anyone which addresses have an account. The decoy is 32
-random bytes, the shape of a real challenge; confirming it is
-`TOKEN_UNKNOWN`. `maxAge: 600` is the default ten minutes of
-`tokens.signInCode`, written out so both cookies match. Not awaiting the
-mailer keeps the answer's time from telling either. `@nxgt/janus` throttles
-each address — five requests per 10 minutes, then `MAIL_THROTTLED`, which
-`janusErrors()` answers 429 with `Retry-After` (the last code sent still
-works); rate-limit the route per client yourself, since one client can ask for
-many addresses.
+same body, and a cookie either way, in the same time. `signInCode.prepare`
+(`@nxgt/janus` 0.20) counts the address and mints the challenge **without
+looking anybody up**, so it makes the same store calls for any address;
+`send()`, which looks the address up and issues the code under that
+challenge, runs after the answer. For an address nobody holds `send()`
+answers `null`, and the challenge confirms as `TOKEN_UNKNOWN`. `maxAge: 600`
+is the default ten minutes of `tokens.signInCode`. `@nxgt/janus` throttles
+each address — five requests per 10 minutes, then `MAIL_THROTTLED` from
+`prepare`, in the visitor's request, which `janusErrors()` answers 429 with
+`Retry-After` (the last code sent still works); rate-limit the route per
+client yourself, since one client can ask for many addresses. `send()` runs
+once: a second call is a `TypeError`, so a retry prepares again. With
+`signInCode.request(email)` instead, the route would wait for the lookup —
+its time would tell — and would set a random decoy challenge for `null`.
 
 The code route still tells a decoy apart: a wrong code against it is 400
 `TOKEN_UNKNOWN`, against a real challenge 401 `CODE_INVALID` with
@@ -502,10 +508,12 @@ const TOKEN = /^[A-Za-z0-9_-]{43}$/; // 32 bytes, base64url: the only thing echo
 
 app.post('/sign-in/email/link', async (c) => {
 	const { email } = await c.req.json();
-	const issued = await auth.magicLink.request(email);
-	if (issued !== null) {
-		void mailer.send(issued.email, `${ORIGIN}/sign-in/link?token=${issued.token}`); // not awaited, so the answer's time tells nothing; in production, a queue that awaits and retries
-	}
+	const pending = await auth.magicLink.prepare(email); // counted, nobody looked up: MAIL_THROTTLED → 429
+	offRequest(async () => { // as in A code sent by e-mail
+		// the lookup and the token, after the answer, so its time tells nothing; in production, a queue
+		const issued = await pending.send();
+		if (issued !== null) await mailer.send(issued.email, `${ORIGIN}/sign-in/link?token=${issued.token}`);
+	});
 	return c.body(null, 202); // the same answer either way: nothing of a link reaches the visitor
 });
 
@@ -788,11 +796,12 @@ app.post('/verify-email/confirm', async (c) => {
 
 app.post('/reset-password', async (c) => {
 	const { email } = await c.req.json();
-	const issued = await auth.resetPassword.request(email);
-	if (issued !== null) {
-		await mailer.send(issued.email, `https://app.test/reset?token=${issued.token}`);
-	}
-	return c.body(null, 202); // the same answer either way: never say which e-mails exist
+	const pending = await auth.resetPassword.prepare(email); // counted, nobody looked up: MAIL_THROTTLED → 429
+	offRequest(async () => { // as in A code sent by e-mail
+		const issued = await pending.send(); // the lookup and the link, off the visitor's request
+		if (issued !== null) await mailer.send(issued.email, `https://app.test/reset?token=${issued.token}`);
+	});
+	return c.body(null, 202); // the same answer, in the same time, either way: never say which e-mails exist
 });
 
 app.post('/reset-password/confirm', async (c) => {
