@@ -1,7 +1,7 @@
 import { type PgDatabase, withTransaction } from '@nxgt/drizzle/pg';
 import type { UserPatch, UserRecord, UserStore } from '@nxgt/janus';
 import { NotFoundError, StoreConflict } from '@nxgt/janus';
-import { and, asc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { run } from '../translate';
 import type { IdentityTables } from './identity-tables';
 import { claimLogins } from './logins';
@@ -16,6 +16,17 @@ export function userStore(db: PgDatabase, tables: IdentityTables): UserStore {
 			run$('insertUser', () => insertUser(db, tables, record)),
 
 		findUser: (id) => run$('findUser', () => findUser(db, tables, id)),
+
+		// One statement, whatever the number of ids: the core sends at most
+		// 100, distinct, and puts the answer back in its caller's order.
+		findUsers: (ids) =>
+			run$('findUsers', async () => {
+				const found = await db
+					.select()
+					.from(tables.users)
+					.where(inArray(tables.users.id, [...ids]));
+				return found.map(toUser);
+			}),
 
 		findUserByLogin: (type, login) =>
 			run$('findUserByLogin', async () => {

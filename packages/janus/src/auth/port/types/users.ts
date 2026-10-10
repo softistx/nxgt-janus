@@ -137,6 +137,24 @@ export interface UserStore {
 	findUser(id: Id): Promise<UserRecord | null>;
 
 	/**
+	 * **Optional capability.** The users holding these ids, whatever their
+	 * type, in **one query** — `@nxgt/janus-drizzle`'s `inArray`,
+	 * `@nxgt/janus-mongo`'s `$in`.
+	 *
+	 * An id no user holds is **left out**: an absence here is a shorter list,
+	 * never `null` and never a rejection. Each record appears once, in any
+	 * order — the core puts them back in the caller's order. A failure throws,
+	 * as everywhere on this port: answering `[]` for an outage turns it into
+	 * "nobody", which is the lockout rule 2 exists to prevent.
+	 *
+	 * The core calls it with **1 to 100 distinct, well-formed ids**, never an
+	 * empty list, and reads a longer list in several calls. A store that does
+	 * not implement it is read with `findUser`, a few ids at a time, so every
+	 * store answers `findMany`; this method only makes it one round trip.
+	 */
+	findUsers?(ids: readonly Id[]): Promise<readonly UserRecord[]>;
+
+	/**
 	 * The user of this type holding this login, or `null`.
 	 *
 	 * `login` is compared byte for byte: the core normalised it with the same

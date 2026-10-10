@@ -19,6 +19,16 @@ export function userStore(db: Db): UserStore {
 
 		findUser: (id) => run$('findUser', () => findUser(collection, id)),
 
+		// One query, whatever the number of ids: the core sends at most 100,
+		// distinct, and puts the answer back in its caller's order.
+		findUsers: (ids) =>
+			run$('findUsers', async () => {
+				const found = await collection.findMany({
+					filter: { _id: { $in: [...ids] } },
+				});
+				return found.map(toUser);
+			}),
+
 		findUserByLogin: (type, login) =>
 			run$('findUserByLogin', async () => {
 				const found = await collection.findFirst({ type, logins: login });

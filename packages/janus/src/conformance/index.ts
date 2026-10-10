@@ -50,6 +50,7 @@ export {
 } from './relations';
 export type {
 	CaseContext,
+	CaseNeed,
 	ConformanceCase,
 	ConformanceHarness,
 	ConformanceRunner,

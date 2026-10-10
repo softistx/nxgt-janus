@@ -21,6 +21,7 @@ import { createMongoStores, syncMongoStores } from './stores';
  */
 const COMMAND_OF: Record<string, readonly string[]> = {
 	findUser: ['find'],
+	findUsers: ['find'],
 	findUserByLogin: ['find'],
 	listUsers: ['find'],
 	findSessionByTokenHash: ['find'],

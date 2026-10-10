@@ -20,6 +20,11 @@ Nothing yet.
   window. A port method to collect them, as sessions are, would let the
   core do it.
 
+- **A batch read across types** — `findMany` reads one user type, as `find`
+  does. The shared `findUser(id)` has no batch counterpart yet; one on the
+  instance, answering a union narrowed by `user.type`, would serve a list that
+  mixes types.
+
 - **More official adapters** — the ports are cut where atomicity is not
   required, so users, sessions and permission tuples can each live in the
   database that suits them. MongoDB is the first adapter
@@ -71,6 +76,13 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Several users by id in one query, v0.18.0** — `auth.<type>.findMany(ids)`
+  answers the type's users in the order of `ids`, each once, and leaves out an
+  id nobody of that type holds — for a list of rows that would otherwise make
+  one `find` per row and fill the connection pool. The users store gains an
+  optional `findUsers`, implemented by the reference store,
+  `@nxgt/janus-drizzle` 0.7.0 and `@nxgt/janus-mongo` 0.8.0; a store without it
+  is read with `findUser`, ten at a time, so third-party adapters keep working.
 - **Requests that send e-mail are throttled, v0.18.0** —
   `janus({ mail: { throttle: { attempts, window } } })`, five per ten
   minutes by default and `false` to turn it off. `magicLink.request`,
@@ -153,20 +165,6 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   user only — or a security settings page; `null` for a user with no active
   factor. The listener can now tell the user how many codes remain, as
   `@nxgt/janus-mail`'s `recoveryCodeUsed` e-mail does.
-- **Recovery codes, v0.10.0** — a user who loses their authenticator app
-  still signs in, with no operator resetting the account.
-  `secondFactor.activate` answers `{ user, recoveryCodes }`: ten single-use
-  codes, shown once and stored only as keyed hashes (breaking: read `.user`).
-  `secondFactor.recover(challenge, code)` redeems a sign-in's challenge with
-  one and answers the session with `recoveryCodesLeft`;
-  `secondFactor.regenerateRecoveryCodes(user, code)` replaces them all on a
-  fresh code from the app, and counts its attempts itself — five per user
-  per 15-minute window, in the store — so a stolen session cannot guess the
-  code, and the route needs no limiter of its own. Two user events,
-  `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`. For adapters:
-  `SecondFactorRecord.recoveryCodes`,
-  stored by the users stores of `@nxgt/janus-drizzle` and
-  `@nxgt/janus-mongo`, with conformance cases.
 - **Sending the e-mails, `@nxgt/janus-mail` v0.1.0** — a package of its
   own, built on the `@nxgt/mail` toolkit: `janusMail({ mailer, from, brand,
   links })` takes what each flow answers —

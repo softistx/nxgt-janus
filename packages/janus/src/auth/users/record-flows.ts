@@ -12,6 +12,7 @@ import {
 } from '../context';
 import type { UserTypeApi } from '../types';
 import { deleteUser } from './delete';
+import { findManyRecords } from './find-many';
 import type { Input } from './flow-types';
 import { insert } from './insert';
 import { update } from './update';
@@ -35,6 +36,16 @@ export function recordFlows(
 		async find(id) {
 			const record = await findRecord(context, id, type.name);
 			return record === null ? null : toUser(record);
+		},
+
+		async findMany(ids) {
+			const records = await findManyRecords(
+				context,
+				ids,
+				type.name,
+				at('findMany'),
+			);
+			return records.map(toUser);
 		},
 
 		async get(id) {

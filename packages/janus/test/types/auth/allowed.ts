@@ -73,6 +73,12 @@ async function allowed() {
 	const link = await clinic.patient.magicLink.request('a@b.test');
 	const sent: string | undefined = link?.token;
 
+	// findMany takes a readonly list, and answers the type's own users.
+	const ids: readonly string[] = ['0190e3b4-0000-7000-8000-000000000000'];
+	const listed = await clinic.staff.findMany(ids);
+	const services: string[] = listed.map((member) => member.service);
+	const byId = new Map((await one.findMany([...ids])).map((u) => [u.id, u]));
+
 	return [
 		name,
 		type,
@@ -90,6 +96,8 @@ async function allowed() {
 		guestByLink,
 		patientByLink,
 		sent,
+		services,
+		byId,
 	];
 }
 

@@ -73,16 +73,32 @@ export function assertStores(
 		}
 	}
 
-	const sessions = (stores as { sessions: Record<string, unknown> }).sessions;
-	const collect = sessions['deleteExpiredSessions'];
+	const slots = stores as Record<
+		keyof typeof REQUIRED,
+		Record<string, unknown>
+	>;
+	return {
+		collectExpired: optional(slots, 'sessions', 'deleteExpiredSessions', where),
+		findUsers: optional(slots, 'users', 'findUsers', where),
+	};
+}
 
-	// Present but not a function is a wiring mistake, not an absent capability:
-	// reporting it as "unsupported" would send the reader to the wrong fix.
-	if (collect !== undefined && typeof collect !== 'function') {
+/**
+ * Whether an optional method is there. Present but not a function is a wiring
+ * mistake, not an absent capability: reporting it as "unsupported" would send
+ * the reader to the wrong fix.
+ */
+function optional(
+	stores: Record<keyof typeof REQUIRED, Record<string, unknown>>,
+	slot: keyof typeof REQUIRED,
+	method: string,
+	where: string,
+): boolean {
+	const found = stores[slot][method];
+	if (found !== undefined && typeof found !== 'function') {
 		throw new TypeError(
-			`${where}: store.sessions.deleteExpiredSessions must be a function or absent`,
+			`${where}: store.${slot}.${method} must be a function or absent`,
 		);
 	}
-
-	return { collectExpired: collect !== undefined };
+	return found !== undefined;
 }

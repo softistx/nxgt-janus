@@ -55,7 +55,7 @@ run.
 | `createMongoAdapter(db)` | `{ store, relations }`: both of the below, keyed as `janus()` takes them, so `janus({ …, ...mongo })` wires both. Connects to nothing. |
 | `syncMongoAdapter(db, options?)` | `syncMongoStores` and `syncMongoRelations` in one step: the four collections. |
 | `MongoAdapter` | The type of what `createMongoAdapter` answers. |
-| `createMongoStores(db)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. Connects to nothing. |
+| `createMongoStores(db)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. Connects to nothing. Implements the optional `users.findUsers`, so `auth.<type>.findMany(ids)` is one `$in` query. |
 | `syncMongoStores(db, options?)` | Creates the three collections, their validators and indexes, and answers what it changed. Needs `dbAdmin`; run it when you deploy, never per request. |
 | `users`, `sessions`, `tokens` | The `@nxgt/mongo` definitions. Defining them registers them, so `syncAll(db)` syncs them with your own collections. |
 | `janusCollections` | The three definitions, in sync order. |

@@ -3,6 +3,7 @@ import { sessionStoreCases } from './cases/sessions';
 import { tokenStoreCases } from './cases/tokens';
 import { userStoreCases } from './cases/users';
 import type {
+	CaseNeed,
 	ConformanceCase,
 	ConformanceHarness,
 	ConformanceRunner,
@@ -23,6 +24,8 @@ export const SKIP_REASONS = {
 		'faults not provided: the outage invariant is not proven for this adapter',
 	deleteExpiredSessions:
 		'stores.sessions does not implement the optional deleteExpiredSessions',
+	findUsers:
+		'stores.users does not implement the optional findUsers: findMany reads with findUser instead',
 } as const;
 
 /**
@@ -39,15 +42,10 @@ export async function runCase(
 	const opened: OpenedStores = await harness.open();
 
 	try {
-		if (conformanceCase.needs === 'faults' && opened.faults === undefined) {
-			return { skipped: SKIP_REASONS.faults };
-		}
-		if (
-			conformanceCase.needs === 'deleteExpiredSessions' &&
-			opened.stores.sessions.deleteExpiredSessions === undefined
-		) {
-			return { skipped: SKIP_REASONS.deleteExpiredSessions };
-		}
+		const missing = needsOf(conformanceCase).find(
+			(need) => !provides(opened, need),
+		);
+		if (missing !== undefined) return { skipped: SKIP_REASONS[missing] };
 
 		await conformanceCase.run({
 			stores: opened.stores,
@@ -56,6 +54,24 @@ export async function runCase(
 		return { passed: true };
 	} finally {
 		await opened.close?.();
+	}
+}
+
+/** What a case needs, as a list, whether it declared one thing or several. */
+function needsOf(conformanceCase: ConformanceCase): readonly CaseNeed[] {
+	const { needs } = conformanceCase;
+	return needs === undefined ? [] : typeof needs === 'string' ? [needs] : needs;
+}
+
+/** Whether these stores, as opened, provide what a case needs. */
+function provides(opened: OpenedStores, need: CaseNeed): boolean {
+	switch (need) {
+		case 'faults':
+			return opened.faults !== undefined;
+		case 'deleteExpiredSessions':
+			return opened.stores.sessions.deleteExpiredSessions !== undefined;
+		case 'findUsers':
+			return opened.stores.users.findUsers !== undefined;
 	}
 }
 
@@ -101,7 +117,13 @@ interface DescribedCase {
 	readonly id: string;
 	readonly group: string;
 	readonly name: string;
-	readonly needs?: string;
+	readonly needs?: string | readonly string[];
+}
+
+/** What a described case needs, as a list, whether it named one thing or several. */
+function needsList(described: DescribedCase): readonly string[] {
+	const { needs } = described;
+	return needs === undefined ? [] : typeof needs === 'string' ? [needs] : needs;
 }
 
 /**
@@ -139,7 +161,10 @@ export function describeSuite<C extends DescribedCase>(options: {
 						);
 						continue;
 					}
-					if (conformanceCase.needs === 'faults' && options.faults === false) {
+					if (
+						needsList(conformanceCase).includes('faults') &&
+						options.faults === false
+					) {
 						runner.it.skip(
 							`${conformanceCase.name} — skipped: ${SKIP_REASONS.faults}`,
 							async () => {},

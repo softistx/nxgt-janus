@@ -37,7 +37,9 @@ const skip = Object.fromEntries([
 	...userStoreCases.map((c) => [c.id, USERS_ARE_NOT_OURS]),
 	...outageCases
 		.filter((c) =>
-			/^outage\.(findUser|findUserByLogin|listUsers|deleteUser)$/.test(c.id),
+			/^outage\.(findUser|findUsers|findUserByLogin|listUsers|deleteUser)$/.test(
+				c.id,
+			),
 		)
 		.map((c) => [c.id, USERS_ARE_NOT_OURS]),
 ]);

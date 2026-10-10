@@ -47,6 +47,12 @@ export interface ConformanceHarness {
 	open(): Promise<OpenedStores>;
 }
 
+/**
+ * What a case may need beyond the required port: the harness's `faults`, or
+ * an optional method of the stores it opens.
+ */
+export type CaseNeed = 'faults' | 'deleteExpiredSessions' | 'findUsers';
+
 /** What a case runs against. */
 export interface CaseContext {
 	readonly stores: JanusStores;
@@ -66,8 +72,11 @@ export interface ConformanceCase {
 	readonly group: 'users' | 'sessions' | 'tokens' | 'outage';
 	/** A sentence: what the store must do. */
 	readonly name: string;
-	/** What the case cannot run without; absent, the case is skipped with a reason. */
-	readonly needs?: 'faults' | 'deleteExpiredSessions';
+	/**
+	 * What the case cannot run without — one thing, or several; when one is
+	 * absent, the case is skipped with a reason.
+	 */
+	readonly needs?: CaseNeed | readonly CaseNeed[];
 	run(context: CaseContext): Promise<void>;
 }
 

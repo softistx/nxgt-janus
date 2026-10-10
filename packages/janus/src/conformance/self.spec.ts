@@ -18,11 +18,12 @@ describeJanusStores({
 });
 
 describe('the suite itself', () => {
-	it('covers the fourteen methods whose honest answer can be nothing', () => {
+	it('covers the fifteen methods whose honest answer can be nothing', () => {
 		expect(
 			allCases.filter((c) => c.group === 'outage').map((c) => c.id),
 		).toEqual([
 			'outage.findUser',
+			'outage.findUsers',
 			'outage.findUserByLogin',
 			'outage.listUsers',
 			'outage.findSessionByTokenHash',
@@ -78,9 +79,9 @@ describe('the suite itself', () => {
 		});
 
 		expect(names[0]).toContain('WITHOUT faults');
-		expect(skipped).toHaveLength(15);
+		expect(skipped).toHaveLength(16);
 		expect(skipped.filter((n) => n.includes(SKIP_REASONS.faults))).toHaveLength(
-			14,
+			15,
 		);
 		expect(skipped).toContainEqual(
 			expect.stringContaining('skipped: our database pages by timestamp'),

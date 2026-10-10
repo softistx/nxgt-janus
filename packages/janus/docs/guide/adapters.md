@@ -31,7 +31,7 @@ describeJanusStores({
 
 | Port | Taken by | Methods |
 | --- | --- | --- |
-| `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 + 6 (+ 1 optional) + 4 |
+| `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 (+ 1 optional) + 7 (+ 1 optional) + 5 |
 | `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 |
 
 They are separate on purpose: an application that only authenticates
@@ -57,6 +57,7 @@ record, a session is derived state, a token is ephemeral.
 interface UserStore {
 	insertUser(record: UserRecord): Promise<UserRecord>;
 	findUser(id: Id): Promise<UserRecord | null>;
+	findUsers?(ids: readonly Id[]): Promise<readonly UserRecord[]>; // optional: one query for many ids
 	findUserByLogin(type: string, login: string): Promise<UserRecord | null>;
 	listUsers(page: UserPageRequest): Promise<CursorPage<UserRecord>>;
 	updateUser(id: Id, patch: UserPatch, ifVersion: number): Promise<UserRecord>;
@@ -76,6 +77,41 @@ interface UserStore {
   and `StoreConflict('version', …)` when the version moved.
 - `listUsers` pages in ascending id order; `after` is the last id of the
   previous page, already checked by the core.
+
+#### `UserStore.findUsers` (optional)
+
+What `findMany` asks for: the users holding these ids, **in one query**.
+Leave it out and nothing breaks — `findMany` reads with `findUser` instead,
+ten at a time — so implement it when your database can answer a list of ids
+in one round trip.
+
+- **Whatever their type**, as `findUser`: the core keeps the type's own users,
+  and puts them back in its caller's order. Answer them **in any order**.
+- **An id nobody holds is left out.** An absence is a shorter list — `[]` when
+  nobody holds any — never `null`, never a rejection.
+- **A failure throws**, as everywhere on the port (rule 2). Answering `[]` for
+  an outage tells the application those users do not exist.
+- The core calls it with **1 to 100 distinct, well-formed ids**, never an
+  empty list, and reads a longer list in several calls one after another — no
+  `IN` grows past 100.
+
+```ts
+import type { UserStore } from '@nxgt/janus';
+
+// PostgreSQL through Drizzle — @nxgt/janus-drizzle's, in one statement
+findUsers: async (ids) =>
+	(await db.select().from(users).where(inArray(users.id, [...ids]))).map(toUser),
+
+// MongoDB — @nxgt/janus-mongo's, in one query
+findUsers: async (ids) =>
+	(await collection.find({ _id: { $in: [...ids] } }).toArray()).map(toUser),
+```
+
+`janus()` reads its presence once (`StoreCapabilities.findUsers`), and refuses
+a `findUsers` that is there but not a function with a `TypeError`: a value in
+the wrong place is a wiring mistake, not an absent capability. The suite's
+`users.findUsers`, `users.findUsersNone` and `outage.findUsers` cases check it,
+and are skipped with their reason for a store that leaves it out.
 
 #### A user's password and second factor
 
@@ -407,7 +443,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 55: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fourteen of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 58: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fifteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 16: the relation store, ids of edge characters, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
@@ -504,8 +540,12 @@ describeJanusStores({
 
 A skipped case still appears in the run, with its reason in its name. A case
 that cannot run on the stores it was given — an outage case with no `faults`,
-`collectExpired` on a store without `deleteExpiredSessions` — passes, and
-emits a `JANUS_CONFORMANCE_SKIPPED` warning with the reason.
+`collectExpired` on a store without `deleteExpiredSessions`, a `findUsers`
+case on a store without `findUsers` — passes, and emits a
+`JANUS_CONFORMANCE_SKIPPED` warning with the reason. A case's `needs` says what
+it cannot run without — one `CaseNeed` or a list: `outage.findUsers` needs
+`['faults', 'findUsers']`, and is skipped for whichever is missing, `faults`
+named first.
 
 ### Without a test runner
 

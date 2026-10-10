@@ -92,7 +92,13 @@ interface DescribedCase {
 	readonly id: string;
 	readonly group: string;
 	readonly name: string;
-	readonly needs?: string;
+	readonly needs?: string | readonly string[];
+}
+
+/** What a described case needs, as a list, whether it named one thing or several. */
+function needsList(described: DescribedCase): readonly string[] {
+	const { needs } = described;
+	return needs === undefined ? [] : typeof needs === 'string' ? [needs] : needs;
 }
 
 /**
@@ -130,7 +136,10 @@ function describeSuite<C extends DescribedCase>(options: {
 						);
 						continue;
 					}
-					if (conformanceCase.needs === 'faults' && options.faults === false) {
+					if (
+						needsList(conformanceCase).includes('faults') &&
+						options.faults === false
+					) {
 						runner.it.skip(
 							`${conformanceCase.name} — skipped: ${SKIP_REASONS.faults}`,
 							async () => {},
