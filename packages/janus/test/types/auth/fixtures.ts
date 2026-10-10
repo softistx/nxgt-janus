@@ -7,11 +7,11 @@
  * at run time: a user who can never sign in, a field read off the wrong kind
  * of user, a password hash handed to a request handler.
  *
- * **Sixty-seven plausible mistakes, sixty-seven refused**, numbered across the
+ * **Seventy-two plausible mistakes, seventy-two refused**, numbered across the
  * folder, one file per behaviour: `wiring.ts`, `sign-up-and-in.ts`,
  * `users.ts`, `second-factor.ts`, `sign-in-codes.ts`, `events.ts`,
- * `step-up.ts`, `sign-in-throttle.ts`, `magic-links.ts`, `devices.ts` and
- * `mail-throttle.ts`,
+ * `step-up.ts`, `sign-in-throttle.ts`, `magic-links.ts`, `devices.ts`,
+ * `mail-throttle.ts` and `prepared.ts`,
  * with the shapes that must keep compiling in `allowed.ts` — the event
  * listener's, the step-up's, the throttles' and the devices' beside their
  * refusals. Add a

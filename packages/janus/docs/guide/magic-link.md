@@ -130,6 +130,38 @@ addresses is not counted. Add a per-IP ceiling with `@nxgt/redis` rate limits
 [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
 for the options.
 
+## Requesting a link in two steps
+
+`request` takes longer for an address with an account — a lookup, a token
+written, the earlier ones spent — than for one nobody holds. Run it off the
+visitor's request to hide that, and its `MAIL_THROTTLED` reaches nobody.
+`prepare` keeps the count in the visitor's request and moves the rest off
+it:
+
+```ts
+// in the visitor's request: validated and counted, nobody looked up
+const pending = await auth.magicLink.prepare(email); // MAIL_THROTTLED past the limit: answer 429
+
+// off it — a queue, or a promise you do not await
+void pending
+	.send() // what request answers: IssuedToken & { user } | null — and it counts nothing
+	.then((issued) => {
+		// ORIGIN as in As routes, below
+		if (issued !== null) return sendMail(issued.email, 'Your sign-in link', `${ORIGIN}/sign-in/link?token=${issued.token}`);
+	})
+	.catch(reportError);
+
+return new Response(null, { status: 202 }); // the same answer either way
+```
+
+`prepare` makes the same store calls whoever holds the address — the
+count's, none with the throttle off — so its time tells nothing. `send()`
+runs **once**: a second call, or one after a `send()` that failed, is a
+`TypeError` (`magicLink.prepare(…).send: already called — …`); prepare
+again, which counts again. The details, shared with sign-in codes and
+password resets, are in
+[the e-mail flows guide](email-flows.md#requests-in-two-steps).
+
 ## Building the link
 
 The token is base64url — safe in a URL without escaping — and goes in a
@@ -469,15 +501,21 @@ it('signs in with the e-mailed link, once, and not after fifteen minutes', async
 interface MagicLinkApi<U, Answer = SignedIn<U>> {
 	readonly magicLink: {
 		request(email: string): Promise<(IssuedToken & { readonly user: U }) | null>;
+		prepare(email: string): Promise<PreparedRequest<IssuedToken & { readonly user: U }>>;
 		confirm(token: string, options?: SignInOptions): Promise<Answer>;
+	};
+}
+
+interface PreparedRequest<Issued> {
+	send(): Promise<Issued | null>; // once: a second call is a TypeError
 	};
 }
 ```
 
 `Answer` is `SignInResult<U>` on a type with a password in an instance given
 a `secondFactor`, and `SignedIn<U>` everywhere else. `MagicLinkApi`,
-`IssuedToken` and `SignInOptions` are exported from `@nxgt/janus`, as
-types; `SignInOptions` is `{ device?: string | null }` — see
+`IssuedToken`, `PreparedRequest` and `SignInOptions` are exported from
+`@nxgt/janus`, as types; `SignInOptions` is `{ device?: string | null }` — see
 [devices](devices.md#giving-a-sign-in-the-device).
 
 ## For an adapter

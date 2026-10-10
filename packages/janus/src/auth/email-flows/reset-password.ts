@@ -20,11 +20,13 @@ import { emit } from '../events';
 import { countMailByAddress } from '../mail-requests';
 import { refuseStale } from '../one-time';
 import { endWhatThePasswordOpened } from '../password-written';
+import { sendOnce } from '../prepared';
 import { hashSecret } from '../secrets';
-import type { ResetPasswordApi } from '../types';
+import type { IssuedToken, PreparedRequest, ResetPasswordApi } from '../types';
 import { issueEmailToken, redeemEmailToken } from './email-token';
 
 type ResetPassword = ResetPasswordApi<AnyUser>['resetPassword'];
+type IssuedReset = IssuedToken & { readonly user: AnyUser };
 
 /**
  * `resetPassword` of one user type: `request` a token for the holder of an
@@ -38,36 +40,12 @@ export function resetPasswordFlows(
 	return {
 		async request(email) {
 			const where = at('resetPassword.request');
-			passwordRule(type, where);
-			// Counted before the address is looked up: past the limit,
-			// nobody and somebody are refused alike.
-			await countMailByAddress(
-				context,
-				type,
-				'resetPassword',
-				String(email),
-				where,
-			);
-			const record = await holderOfEmail(context, type, String(email));
-			if (record === null) return null;
+			return (await prepareReset(context, type, String(email), where)).send();
+		},
 
-			const issued = await issueEmailToken(
-				context,
-				type,
-				'resetPassword',
-				record,
-				where,
-			);
-			// One live link per user: the ones sent before stop working.
-			// Issued first, spent after, as for a sign-in code, so requests
-			// that race leave at most one live — never one each.
-			await context.store.tokens.spendUserTokens(
-				record.id,
-				'resetPassword',
-				context.clock.now(),
-				hashSecret(issued.token),
-			);
-			return { ...issued, user: toUser(record) };
+		async prepare(email) {
+			const where = at('resetPassword.prepare');
+			return prepareReset(context, type, String(email), where);
 		},
 
 		async confirm(secret, password) {
@@ -80,6 +58,53 @@ export function resetPasswordFlows(
 			);
 		},
 	};
+}
+
+/**
+ * Counts a reset asked for `email` — before it is looked up: past the
+ * limit, nobody and somebody are refused alike — and answers the `send`
+ * that issues it, once. `request` is this, then `send`.
+ */
+async function prepareReset(
+	context: Context,
+	type: ResolvedType,
+	email: string,
+	where: string,
+): Promise<PreparedRequest<IssuedReset>> {
+	passwordRule(type, where);
+	await countMailByAddress(context, type, 'resetPassword', email, where);
+	return Object.freeze({
+		send: sendOnce(where, () => issueReset(context, type, email, where)),
+	});
+}
+
+/** Issues a reset token for the holder of `email`, and spends every other they had. */
+async function issueReset(
+	context: Context,
+	type: ResolvedType,
+	email: string,
+	where: string,
+): Promise<IssuedReset | null> {
+	const record = await holderOfEmail(context, type, email);
+	if (record === null) return null;
+
+	const issued = await issueEmailToken(
+		context,
+		type,
+		'resetPassword',
+		record,
+		where,
+	);
+	// One live link per user: the ones sent before stop working. Issued
+	// first, spent after, as for a sign-in code, so requests that race
+	// leave at most one live — never one each.
+	await context.store.tokens.spendUserTokens(
+		record.id,
+		'resetPassword',
+		context.clock.now(),
+		hashSecret(issued.token),
+	);
+	return { ...issued, user: toUser(record) };
 }
 
 /** Redeems a reset token: sets the password, proves the e-mail, signs out everywhere. */

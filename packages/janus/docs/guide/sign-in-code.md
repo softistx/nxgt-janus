@@ -134,6 +134,52 @@ earlier ones: only the last code sent works — see
 throttle](email-flows.md#requests-that-send-e-mail-are-throttled); limit the
 route per client yourself too.
 
+## Requesting a code in two steps
+
+Sending the e-mail after answering hides the mailer's time, not the store's:
+`request` looks the address up and writes a code for an account, and stops
+at the lookup for nobody. Running all of `request` off the visitor's request
+hides that too — but then its `MAIL_THROTTLED` reaches nobody, and the
+challenge, which the visitor must keep, is not there to set in a cookie.
+`prepare` answers both:
+
+```ts
+// in the visitor's request: validated and counted, nobody looked up, a challenge minted
+const pending = await auth.signInCode.prepare(email); // MAIL_THROTTLED past the limit: answer 429
+
+// off it — a queue, or a promise you do not await
+void pending
+	.send() // what request answers: IssuedCode | null, its challenge pending.challenge — and it counts nothing
+	.then((issued) => {
+		if (issued !== null) return sendMail(issued.email, 'Your sign-in code', `Your code is ${issued.code}.`);
+	})
+	.catch(reportError);
+
+// the same answer either way, the challenge with it: no decoy to make
+// (CHALLENGE and scope as in [As routes](#as-routes), below)
+return Response.json(
+	{ next: 'code' },
+	{ status: 202, headers: { 'Set-Cookie': `${CHALLENGE}=${pending.challenge}; Max-Age=600; ${scope}` } },
+);
+```
+
+**The challenge is minted before the lookup**, so every visitor gets one,
+whoever holds the address. For an address nobody holds, `send()` answers
+`null` and the challenge confirms as `TOKEN_UNKNOWN`, exactly as the decoy
+did; for an account, the code `send()` issues is checked against it. Until
+`send()` has run, the challenge is `TOKEN_UNKNOWN` for an account too — a
+visitor who types a code first reads the e-mail first.
+
+`prepare` makes the same store calls whoever holds the address — the
+count's, none with the throttle off. `send()` runs **once**: a second call,
+or one after a `send()` that failed, is a `TypeError`
+(`signInCode.prepare(…).send: already called — …`); prepare again, which
+counts again and mints another challenge. The confirmation still tells a
+real challenge from a decoy by `attemptsLeft`: answer every refusal alike
+where that matters, as [above](#requesting-a-code). The details, shared
+with links and password resets, are in
+[the e-mail flows guide](email-flows.md#requests-in-two-steps).
+
 ## Sending the code by e-mail
 
 Put **the code, and only the code**, in the e-mail — with its lifetime, so
@@ -554,15 +600,21 @@ it('signs in with the e-mailed code, and not after ten minutes', async () => {
 interface SignInCodeApi<U, Answer = SignedIn<U>> {
 	readonly signInCode: {
 		request(email: string): Promise<IssuedCode<U> | null>;
+		prepare(email: string): Promise<PreparedCode<U>>;
 		confirm(challenge: string, code: string, options?: SignInOptions): Promise<Answer>;
 	};
+}
+
+interface PreparedCode<U> {
+	readonly challenge: string;                // for the visitor, now: the one send() issues the code under
+	send(): Promise<IssuedCode<U> | null>;     // once: a second call is a TypeError
 }
 ```
 
 `Answer` is `SignInResult<U>` on a type with a password in an instance given
 a `secondFactor`, and `SignedIn<U>` everywhere else. `IssuedCode`,
-`SignInCodeApi` and `SignInOptions` are exported from `@nxgt/janus`, as
-types; `SignInOptions` is `{ device?: string | null }` — see
+`PreparedCode`, `SignInCodeApi` and `SignInOptions` are exported from
+`@nxgt/janus`, as types; `SignInOptions` is `{ device?: string | null }` — see
 [devices](devices.md#giving-a-sign-in-the-device).
 
 ## See also

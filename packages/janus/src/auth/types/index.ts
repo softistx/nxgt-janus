@@ -26,6 +26,7 @@ export type {
 export type { Janus, SharedApi, TypeApi } from './janus';
 export type { MagicLinkApi } from './magic-link';
 export type { PasswordApi } from './password';
+export type { PreparedCode, PreparedRequest } from './prepared';
 export type {
 	RecoveredSignIn,
 	RecoveryCodesIssued,

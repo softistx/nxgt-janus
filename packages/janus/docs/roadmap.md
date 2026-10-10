@@ -76,7 +76,15 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
-- **Several users by id in one query, v0.18.0** — `auth.<type>.findMany(ids)`
+- **E-mail requests in two steps, v0.20.0** — `magicLink.prepare(email)`,
+  `signInCode.prepare(email)` and `resetPassword.prepare(email)` count the
+  address and look nobody up — the same work for any address — so
+  `MAIL_THROTTLED` reaches the visitor while `send()`, the lookup and the
+  issue, runs off their request, where its time tells nothing. `send()`
+  answers what `request` does, once; a second call is a `TypeError`. A sign-in
+  code's prepared request carries its `challenge`, minted before the lookup,
+  so no decoy is needed for an address nobody holds.
+- **Several users by id in one query, v0.19.0** — `auth.<type>.findMany(ids)`
   answers the type's users in the order of `ids`, each once, and leaves out an
   id nobody of that type holds — for a list of rows that would otherwise make
   one `find` per row and fill the connection pool. The users store gains an
@@ -165,13 +173,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   user only — or a security settings page; `null` for a user with no active
   factor. The listener can now tell the user how many codes remain, as
   `@nxgt/janus-mail`'s `recoveryCodeUsed` e-mail does.
-- **Sending the e-mails, `@nxgt/janus-mail` v0.1.0** — a package of its
-  own, built on the `@nxgt/mail` toolkit: `janusMail({ mailer, from, brand,
-  links })` takes what each flow answers —
-  `await mail.verifyEmail(await auth.verifyEmail.send(user), { name, locale })`
-  — and sends five e-mails, in English and French, over any `@nxgt/mail`
-  transport: e-mail verification, password reset, sign-in code, and the
-  notices *password changed* and *e-mail changed*. They are built once with
-  Maizzle when the package is built, and only filled in at send time, every
-  value escaped: no template engine in your server. A transport that fails
-  throws, like a store.

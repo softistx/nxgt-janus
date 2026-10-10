@@ -1,7 +1,7 @@
 /**
  * Step-ups: a type with no e-mail, a code read off a step-up the app may
  * confirm, a confirmation with no session to stamp, and a `maxAge` that is
- * no duration. Cases 39–42 of the sixty-seven — see `fixtures.ts`. The shapes
+ * no duration. Cases 39–42 of the seventy-two — see `fixtures.ts`. The shapes
  * that must keep compiling are at the end.
  */
 

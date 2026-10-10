@@ -5,6 +5,7 @@
  * Part of what `janus()` hands back; `./index` gathers it.
  */
 
+import type { PreparedCode, PreparedRequest } from './prepared';
 import type { SignedIn, SignInOptions, SignInResult } from './sign-in';
 import type { UserRef } from './user';
 
@@ -55,6 +56,14 @@ export interface SignInCodeApi<U, Answer = SignedIn<U>> {
 		 * `retryAfter`, and no code. Rate-limit it per client too.
 		 */
 		request(email: string): Promise<IssuedCode<U> | null>;
+		/**
+		 * `request` in two steps, for an application that sends the code off
+		 * the visitor's request: counts the address — `MAIL_THROTTLED` with
+		 * `retryAfter` past the limit — looks nobody up, and mints the
+		 * `challenge` to give the visitor now, whoever holds the address.
+		 * `send()` on the answer does the rest, once.
+		 */
+		prepare(email: string): Promise<PreparedCode<U>>;
 		/**
 		 * Checks the code against its challenge, marks the e-mail verified —
 		 * the code reached the inbox — and signs the user in. **An e-mail
@@ -109,6 +118,15 @@ export interface ResetPasswordApi<U> {
 		request(
 			email: string,
 		): Promise<(IssuedToken & { readonly user: U }) | null>;
+		/**
+		 * `request` in two steps, for an application that sends the link off
+		 * the visitor's request: counts the address — `MAIL_THROTTLED` with
+		 * `retryAfter` past the limit — and looks nobody up. `send()` on the
+		 * answer does the rest, once.
+		 */
+		prepare(
+			email: string,
+		): Promise<PreparedRequest<IssuedToken & { readonly user: U }>>;
 		/**
 		 * Redeems the token, sets the password, marks the e-mail verified — the
 		 * link proved it — and **signs the user out everywhere**. Every other

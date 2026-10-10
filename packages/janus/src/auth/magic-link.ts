@@ -11,7 +11,15 @@ import {
 } from './email-sign-in';
 import { countMailByAddress } from './mail-requests';
 import { issueOneTime } from './one-time';
-import type { IssuedToken, MagicLinkApi, SignInResult } from './types';
+import { sendOnce } from './prepared';
+import type {
+	IssuedToken,
+	MagicLinkApi,
+	PreparedRequest,
+	SignInResult,
+} from './types';
+
+type IssuedLink = IssuedToken & { readonly user: AnyUser };
 
 /**
  * Signing in with a link sent to the user's e-mail: no password, and the
@@ -27,6 +35,9 @@ import type { IssuedToken, MagicLinkApi, SignInResult } from './types';
  * Whoever opens the link signs in, in the browser that opened it: the
  * application confirms it from a `POST`, never from the `GET` of the link,
  * which a mail scanner follows too.
+ *
+ * `request` is `prepare`, then `send`: counted, then looked up and issued
+ * (`prepared.ts`).
  */
 export function magicLinkFlows(
 	context: Context,
@@ -36,7 +47,13 @@ export function magicLinkFlows(
 ): MagicLinkApi<AnyUser, SignInResult<AnyUser>>['magicLink'] {
 	return {
 		async request(email) {
-			return requestLink(context, type, String(email), at('magicLink.request'));
+			const where = at('magicLink.request');
+			return (await prepareLink(context, type, String(email), where)).send();
+		},
+
+		async prepare(email) {
+			const where = at('magicLink.prepare');
+			return prepareLink(context, type, String(email), where);
 		},
 
 		async confirm(token, options) {
@@ -47,16 +64,29 @@ export function magicLinkFlows(
 	};
 }
 
-/** Issues a link's token for the holder of `email`, and spends every other they had. */
-async function requestLink(
+/**
+ * Counts a link asked for `email` — before it is looked up: past the limit,
+ * nobody and somebody are refused alike — and answers the `send` that
+ * issues it, once.
+ */
+async function prepareLink(
 	context: Context,
 	type: ResolvedType,
 	email: string,
 	where: string,
-): Promise<(IssuedToken & { readonly user: AnyUser }) | null> {
-	// Counted before the address is looked up: past the limit, nobody and
-	// somebody are refused alike.
+): Promise<PreparedRequest<IssuedLink>> {
 	await countMailByAddress(context, type, 'magicLink', email, where);
+	return Object.freeze({
+		send: sendOnce(where, () => issueLink(context, type, email)),
+	});
+}
+
+/** Issues a link's token for the holder of `email`, and spends every other they had. */
+async function issueLink(
+	context: Context,
+	type: ResolvedType,
+	email: string,
+): Promise<IssuedLink | null> {
 	// Nobody, and an inactive user, get the same answer: no link.
 	const record = await signInHolder(context, type, email);
 	if (record === null) return null;

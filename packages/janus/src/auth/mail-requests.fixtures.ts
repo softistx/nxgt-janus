@@ -78,3 +78,62 @@ export async function times<T>(
 	}
 	return outcomes;
 }
+
+/**
+ * A memory store that records every call made to it, as
+ * `users.findUserByLogin` — for what a request looks up, and in what order.
+ */
+export function recording() {
+	const memory = createMemoryStores();
+	const calls: string[] = [];
+	const recorded = <S extends object>(slot: string, methods: S): S => {
+		const copy: Record<string, unknown> = {};
+		for (const [name, method] of Object.entries(methods)) {
+			copy[name] =
+				typeof method === 'function'
+					? (...args: unknown[]) => {
+							calls.push(`${slot}.${name}`);
+							return method.apply(methods, args);
+						}
+					: method;
+		}
+		return copy as S;
+	};
+	const store: JanusStores = {
+		users: recorded('users', memory.users),
+		sessions: recorded('sessions', memory.sessions),
+		tokens: recorded('tokens', memory.tokens),
+	};
+	return { store, calls };
+}
+
+/** What `prepare` answers, as far as these specs read it. */
+type Prepared = { readonly send: () => Promise<{ email: string } | null> };
+
+/** The three requests made in two steps: `where` of each, the kind it issues, `prepare` and `request`. */
+export const preparedFlows = [
+	{
+		flow: 'magicLink',
+		kind: 'magicLink',
+		prepare: (auth: Mailing['auth'], email: string): Promise<Prepared> =>
+			auth.magicLink.prepare(email),
+		request: (auth: Mailing['auth'], email: string): Promise<unknown> =>
+			auth.magicLink.request(email),
+	},
+	{
+		flow: 'signInCode',
+		kind: 'signInCode',
+		prepare: (auth: Mailing['auth'], email: string): Promise<Prepared> =>
+			auth.signInCode.prepare(email),
+		request: (auth: Mailing['auth'], email: string): Promise<unknown> =>
+			auth.signInCode.request(email),
+	},
+	{
+		flow: 'resetPassword',
+		kind: 'resetPassword',
+		prepare: (auth: Mailing['auth'], email: string): Promise<Prepared> =>
+			auth.resetPassword.prepare(email),
+		request: (auth: Mailing['auth'], email: string): Promise<unknown> =>
+			auth.resetPassword.request(email),
+	},
+] as const;

@@ -14,6 +14,12 @@ interface OneTimeRequest {
 	readonly userId: string;
 	readonly address: string;
 	readonly ttlMs: number;
+	/**
+	 * The secret to issue under, minted beforehand — a sign-in code's
+	 * challenge, handed to the visitor by `prepare` before the lookup. A
+	 * fresh one by default.
+	 */
+	readonly secret?: string;
 }
 
 /**
@@ -49,7 +55,7 @@ async function insertOneTime(
 	code: string | null,
 ): Promise<{ readonly secret: string; readonly expiresAt: Date }> {
 	const now = context.clock.now();
-	const secret = mintSecret();
+	const secret = token.secret ?? mintSecret();
 	const expiresAt = new Date(now.getTime() + token.ttlMs);
 
 	await context.store.tokens.insertToken({

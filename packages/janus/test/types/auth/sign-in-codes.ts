@@ -1,7 +1,7 @@
 /**
  * Sign-in codes: a type with no e-mail, a session read off a code that may
  * still ask for a factor, a code read off a request that found nobody. Cases
- * 29–31 of the sixty-seven — see `fixtures.ts`.
+ * 29–31 of the seventy-two — see `fixtures.ts`.
  */
 
 import { clinic, one, twoFactor } from './fixtures';

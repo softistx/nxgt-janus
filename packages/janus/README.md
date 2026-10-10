@@ -327,6 +327,7 @@ await auth.signInCode.request(email);              // { code, challenge, email, 
 await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user, session, token }
 await auth.magicLink.request(email);               // { token, email, expiresAt, user } | null
 await auth.magicLink.confirm(token);               // { status: 'signedIn', user, session, token }
+await auth.magicLink.prepare(email);               // counted, nobody looked up: { send() } — and signInCode, resetPassword
 await auth.stepUp.request(user);                   // { via: 'email', code, challenge, email, expiresAt, user }
 await auth.stepUp.confirm(request, challenge, code); // the request's session, authenticatedAt: now
 
@@ -422,6 +423,8 @@ else reaches the store and is asynchronous.
   `magicLink.request`, `signInCode.request` and `resetPassword.request` — an
   address nobody holds is counted and refused alike — and per user for
   `verifyEmail.send` and for `stepUp.request` when it e-mails a code.
+  `prepare` counts as `request` does, in the same window
+  ([requests in two steps](#requests-in-two-steps--prepare)).
   `mail: { throttle: { attempts, window } }` changes it, `mail: { throttle:
   false }` turns it off; a store that cannot count throws `STORE_FAILED` and
   nothing is issued
@@ -723,6 +726,52 @@ to type.
 [The sign-in link guide](docs/guide/magic-link.md) has the page that
 confirms from a `POST` so mail scanners spend nothing, every error, routes
 and a test.
+
+### Requests in two steps — `prepare`
+
+```ts
+// In the visitor's request: counted, nobody looked up — the same time for any address.
+// Past the limit it throws MailThrottledError: answer 429 with retryAfter, which
+// @nxgt/janus-hono's janusErrors() and @nxgt/janus-graphql do for you.
+const pending = await auth.magicLink.prepare(email); // { send() }
+
+// Off the visitor's request: looked up, issued, mailed — or nothing, for nobody.
+void (async () => {
+	const issued = await pending.send(); // what request answers: { token, email, expiresAt, user } | null
+	if (issued !== null) {
+		await sendMail(issued.email, `Sign in: https://app.example/sign-in/link?token=${issued.token}`);
+	}
+})().catch(reportError); // a STORE_FAILED here reaches nobody: log it
+
+// the same page for everybody, whoever holds the address
+```
+
+`magicLink.prepare(email)`, `signInCode.prepare(email)` and
+`resetPassword.prepare(email)` are `request(email)` cut in two at the mail
+throttle's count, so `MAIL_THROTTLED` reaches the visitor while the e-mail
+still goes out off their request.
+
+- **`prepare(email)` validates, counts the address, and looks nobody up**:
+  the same store calls whoever holds the address, none with
+  `mail: { throttle: false }`. Past the limit it is `MailThrottledError`
+  with `retryAfter`, and nothing is issued. It shares its count with
+  `request`: one window per flow and address.
+- **`send()` does the rest of `request`, once** — looks the address up,
+  issues, spends the earlier tokens — and answers what `request` answers,
+  `null` for nobody. It counts nothing: the count was `prepare`'s. A second
+  call is a `TypeError`, and so is a call after one that failed: prepare
+  again, which counts again.
+- **`signInCode.prepare` also answers the `challenge`**, minted before the
+  lookup, so the visitor's cookie is set now, whoever holds the address —
+  it replaces the decoy an unknown address needed; for nobody it confirms as
+  `TOKEN_UNKNOWN`. `send()` answers the code issued under it.
+- Typed per flow: `PreparedRequest<IssuedToken & { user }>` for a link and
+  a reset, `PreparedCode<User>` for a code. `verifyEmail.send` and
+  `stepUp.request` have no `prepare`: they take a user the application
+  already holds, so their time tells nothing about who has an account.
+
+[The e-mail flows guide](docs/guide/email-flows.md#requests-in-two-steps)
+has a route for each flow, with Hono.
 
 ### Step-up — `stepUp` and `assertFresh`
 
@@ -1263,6 +1312,17 @@ dummy hash when nobody holds the login, so the hashing time does not tell.
 denied. `resetPassword.request` answers `null` for an unknown e-mail for the
 same reason: answer the visitor the same page either way.
 
+**`request` sent off the visitor's request swallows `MAIL_THROTTLED`.** A
+`request` for an address with an account looks it up and writes tokens; one
+for an address nobody holds stops at the lookup — so an application that
+must not tell the two apart by time runs `request` in the background, where
+its refusal reaches nobody. Call `prepare(email)` in the visitor's request
+instead — counted, nobody looked up, the same time for any address — and
+answer its `MAIL_THROTTLED`; run `send()` in the background. **Never await
+`send()` in the visitor's request**: its time is `request`'s. And it runs
+once — a second `send()`, or one after a failed one, is a `TypeError`:
+`prepare` again.
+
 **`resetPassword.confirm` signs the user out everywhere, and opens no session.**
 Whoever had the old password loses their sessions, and a sign-in they left
 waiting on its second factor is spent with them — as it is by `setPassword`
@@ -1407,7 +1467,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and fifty-five plausible mistakes, one hundred and fifty-five refused at compile time — and
+**One hundred and sixty plausible mistakes, one hundred and sixty refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1415,10 +1475,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (sixty-seven, on `janus()`, from the point of view of
+it), `test/types/auth/` (seventy-two, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible
