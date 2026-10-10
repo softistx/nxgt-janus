@@ -81,7 +81,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | --- | --- |
 | `createDrizzleAdapter(db, options?)` | Returns `{ store, relations }`, both of the entries below, keyed as `janus()` takes them, so `janus({ …, ...postgres })` wires both. It connects to nothing and creates nothing. `options.tables` is what your schema file's `defineJanusTables(…)` returned. |
 | `DrizzleAdapter` | The type of what `createDrizzleAdapter` returns. |
-| `createDrizzleStores(db, options?)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. |
+| `createDrizzleStores(db, options?)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. Implements both optional methods: `sessions.deleteExpiredSessions`, and `users.findUsers`, so `auth.<type>.findMany(ids)` is one `inArray` statement. |
 | `createDrizzleRelations(db, options?)` | The `RelationStore` that `permissions()` takes as `store`, and `janus()` takes as `relations`. |
 | `defineJanusTables(options?)` | The five tables, `{ users, logins, sessions, tokens, relations }`, as Drizzle tables. Export each from a schema file so your migrations create them. |
 | `JanusTablesOptions` | `{ schema? }`: a `pgSchema(…)` to put the tables in. Absent, they are in the connection's `search_path`, `public` by default. |

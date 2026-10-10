@@ -36,6 +36,10 @@ Nothing yet.
 
 ## Shipped
 
+- **Several users in one statement, v0.7.0** — for `@nxgt/janus` 0.18:
+  `users.findUsers` is one `select … where id in (…)`, so
+  `auth.<type>.findMany(ids)` reads a list of up to 100 ids in one round
+  trip instead of one `find` per id. No migration: the primary key serves it.
 - **The sign-in link kind, v0.6.0** — for `@nxgt/janus` 0.15: the
   `tokens_kind` check admits `magicLink`, the token of a link that signs a
   user in — a migration drizzle-kit writes as one statement, rewriting no

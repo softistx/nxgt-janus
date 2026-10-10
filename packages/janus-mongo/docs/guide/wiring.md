@@ -67,7 +67,9 @@ collections of it.
 Every method of the port is implemented except the optional
 `deleteExpiredSessions`: a TTL index drops lapsed sessions, so
 `auth.collectExpired()` answers `UNSUPPORTED` with this adapter. Do not
-schedule it.
+schedule it. The other optional method, `findUsers` (since 0.8), is
+implemented: one `find` on `{ _id: { $in: ids } }`, so
+`auth.<type>.findMany(ids)` reads up to 100 users in one round trip.
 
 ## `createMongoRelations(db)`
 
