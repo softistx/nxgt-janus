@@ -95,6 +95,7 @@ Every call that opens a session takes `{ device }` as its last argument, a
 | `secondFactor.recover(challenge, code, { device })` | the same, after `user.recoveryCodeUsed` |
 | `signInCode.confirm(challenge, code, { device })` | the same — or a challenge, with an active second factor |
 | `magicLink.confirm(token, { device })` | the same — or a challenge, with an active second factor |
+| `signInProven(user, { device })` | the same — or a challenge, with an active second factor |
 
 A step-up opens no session, and takes no device. With several user types,
 the calls are the type's: `clinic.staff.signIn(input, { device })`.
@@ -411,6 +412,9 @@ secondFactor.recover(challenge: string, code: string, options?: SignInOptions): 
 // On every user type with an e-mail:
 signInCode.confirm(challenge: string, code: string, options?: SignInOptions): Promise<Answer>;
 magicLink.confirm(token: string, options?: SignInOptions): Promise<Answer>;
+
+// On every user type:
+signInProven(user: UserRef, options?: SignInOptions): Promise<Answer>;
 
 janus({ ..., devices?: DevicesConfig });
 ```

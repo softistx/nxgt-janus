@@ -315,6 +315,28 @@ Past the limit, `prepare` writes `janus.mail.throttled` with
 whatever span is current when it is called — none in a queue, so it starts
 a trace of its own.
 
+## A sign-in on the application's proof
+
+`signInProven` — a sign-in the application proved itself, such as on
+accepting an invitation — checks no credential, so it is the call an audit
+should be able to single out. It writes what every sign-in writes, marked:
+
+```
+POST /invitation/accept                  server
+└─ janus.signInProven                    janus.user.type=user  user.id=0199…  janus.signIn.status=signedIn
+     log  janus.signIn                   user.id=0199…  janus.signIn.proven=true
+```
+
+A refusal — `USER_INACTIVE`, or `NOT_FOUND` for an id that names nobody of
+the type — is a `janus.signIn.refused` with `janus.signIn.proven: true`, and
+the span stays ok. A user whose second factor is active gets
+`janus.signIn.status=secondFactor` and a `janus.signIn.secondFactor` event,
+as after a password. Nothing is written for the mail: it sends none.
+
+```ts
+// name = 'janus.signIn' and janus.signIn.proven = true, grouped by user.id — who joined without a credential
+```
+
 ## A step-up
 
 A step-up — a signed-in user proving again who they are before a

@@ -33,6 +33,11 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **A sign-in on the application's proof, traced, v0.10.0** —
+  `signInProven` is a span, `janus.<type>.signInProven`, with
+  `janus.signIn.status`, and writes `janus.signIn`, `janus.signIn.refused` or
+  `janus.signIn.secondFactor` like the other sign-ins, marked
+  `janus.signIn.proven: true`. Needs `@nxgt/janus` 0.20.0.
 - **Requests in two steps, traced, v0.10.0** — `magicLink.prepare`,
   `signInCode.prepare` and `resetPassword.prepare` are spans like any flow,
   and write `janus.mail.throttled` past their limit; the `send()` of what

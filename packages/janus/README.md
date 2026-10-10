@@ -328,6 +328,7 @@ await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user
 await auth.magicLink.request(email);               // { token, email, expiresAt, user } | null
 await auth.magicLink.confirm(token);               // { status: 'signedIn', user, session, token }
 await auth.magicLink.prepare(email);               // counted, nobody looked up: { send() } — and signInCode, resetPassword
+await auth.signInProven(user.id);                  // privileged: after a proof YOUR server verified — { status: 'signedIn', … }
 await auth.stepUp.request(user);                   // { via: 'email', code, challenge, email, expiresAt, user }
 await auth.stepUp.confirm(request, challenge, code); // the request's session, authenticatedAt: now
 
@@ -380,9 +381,9 @@ else reaches the store and is asynchronous.
   back to `false`.
 - **Per type**: `create`, `find` (or `null`), `findMany`, `get` (or
   `NOT_FOUND`), `list`, `update(user, patch)` — merged over the stored fields,
-  then validated whole — `setActive` and `delete`; with a password, `signUp`,
-  `signIn`, `findByLogin`, `setPassword` and `changePassword`. Every write but
-  `delete` takes an optional `ifVersion`.
+  then validated whole — `setActive`, `delete` and `signInProven` (below);
+  with a password, `signUp`, `signIn`, `findByLogin`, `setPassword` and
+  `changePassword`. Every write but `delete` takes an optional `ifVersion`.
 - **`findMany(ids)`** answers the type's users **in the order the ids were
   given**, each once — a repeated id at its first place. An id `find` answers
   `null` for — malformed, unknown, another type's — is **left out**, so match
@@ -773,6 +774,45 @@ still goes out off their request.
 [The e-mail flows guide](docs/guide/email-flows.md#requests-in-two-steps)
 has a route for each flow, with Hono.
 
+### Signing in on your own proof — `signInProven`
+
+```ts
+// Accepting an invitation: the proof is the invitation token YOUR server issued and verified.
+const invitation = await invitations.redeem(body.invitationToken); // yours: one use, expiring, hashed at rest
+if (invitation === null) return new Response(null, { status: 404 });
+
+const result = await auth.signInProven(invitation.userId, { device: deviceCookie ?? null });
+if (result.status === 'secondFactor') return askForCode(result.challenge); // switch on status, as after signIn
+// result: { status: 'signedIn', user, session, token, newDevice, deviceToken }
+```
+
+Signs in a user **the application proved by its own means** — an invitation
+token it issued and the person followed, a channel of its own it verified —
+with no password, code or link. Every user type has it.
+
+- **Privileged: janus checks no credential, your server carries the
+  proof.** Call it only after that proof was verified, and **never with an
+  id a request supplied**: whoever chooses the id signs in as anybody. No
+  route of `@nxgt/janus-hono` or `@nxgt/janus-graphql` exposes it.
+- **It finishes as every sign-in does**: an active second factor answers a
+  challenge for `secondFactor.confirm` (`SignInResult`, the same union as
+  `signIn`'s); `device` answers `newDevice` and `deviceToken` and sends
+  `user.newDeviceSignedIn` for a new one; an inactive user is
+  `USER_INACTIVE`.
+- **Takes the user, or their id** (`UserRef`). A malformed id, an unknown
+  one, a deleted user or one of another type is `NOT_FOUND`, as for `get`:
+  a sign-in that found nobody throws rather than answer something to read
+  past.
+- **Sends nothing, counts nothing, spends nothing**: no e-mail, no token,
+  no mail-throttle or sign-in-throttle count — so a loop of anonymous
+  `magicLink.request` on the invitee's address cannot make it answer 429 —
+  and links or codes already in the person's inbox still work. It proves
+  no e-mail either: `emailVerified` stays as it was, and nothing is dropped
+  as on a first proof by link.
+
+[Sessions](docs/guide/sessions.md#signing-in-on-your-own-proof--signinproven)
+has the invitation route in full, and what to verify before the call.
+
 ### Step-up — `stepUp` and `assertFresh`
 
 ```ts
@@ -1135,7 +1175,7 @@ runner-less layer.
 ## Traps
 
 **Once `secondFactor` is configured, switch on `signIn`'s `status`** — and
-on `signInCode.confirm`'s and `magicLink.confirm`'s. A user whose factor is active gets
+on `signInCode.confirm`'s, `magicLink.confirm`'s and `signInProven`'s. A user whose factor is active gets
 `{ status: 'secondFactor', challenge, expiresAt, userId }`, with no `token`
 and no `session`: an e-mailed code or link proves the e-mail, not the factor.
 `userId` is for your logs and rate limits — answer the visitor the
@@ -1174,6 +1214,16 @@ refused past the limit as a registered one is. At most one code is live per
 user — a new `request` spends the one before — so the throttle bounds how
 often anyone who knows an address can fill its inbox or cancel its owner's
 code; it does not stop it.
+
+**`signInProven` trusts the id you give it — give it only one your server
+proved.** It checks no credential: an id read off a request body, a query
+string or a cookie the client wrote signs in whoever sent it, as that user.
+Call it right after verifying a proof you issued — an invitation token
+(single use, expiring, stored hashed), a channel of your own — and take the
+id from that proof's record. For an invitation, it replaces
+`magicLink.request` + `confirm`, which counts against the mail throttle:
+five anonymous requests for the invitee's address would make the
+acceptance answer 429.
 
 **Confirm a sign-in link from a `POST`, never from its `GET`.** Mail
 scanners open every link in an e-mail before the user does: a route that
@@ -1467,7 +1517,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and sixty plausible mistakes, one hundred and sixty refused at compile time — and
+**One hundred and sixty-three plausible mistakes, one hundred and sixty-three refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1475,10 +1525,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (seventy-two, on `janus()`, from the point of view of
+it), `test/types/auth/` (seventy-five, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

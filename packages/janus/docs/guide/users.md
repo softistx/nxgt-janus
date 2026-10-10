@@ -186,6 +186,7 @@ In the one-type form these are on `auth` itself; with several types, on
 | `update(user, patch, { ifVersion? })` | the user as written; sends `user.emailChanged` when the e-mail changed | `USER_INVALID`, `LOGIN_TAKEN`, `VERSION_CONFLICT`, `NOT_FOUND` |
 | `setActive(user, active, { ifVersion? })` | the user as written | `VERSION_CONFLICT`, `NOT_FOUND` |
 | `delete(user)` | `true`, or `false` for an unknown id or one of another type | |
+| `signInProven(user, { device? })` | **privileged** — after a proof your server verified, such as an invitation token: what `signIn` answers, a session or a second-factor challenge; no credential checked, nothing sent, counted or spent — see [sessions](sessions.md#signing-in-on-your-own-proof--signinproven) | `NOT_FOUND`, `USER_INACTIVE` |
 
 With a `password`, besides:
 
