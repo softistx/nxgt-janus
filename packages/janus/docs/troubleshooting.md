@@ -43,6 +43,7 @@ How the messages are shaped:
 - [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
 - [`janus: signIn.throttle …` wiring messages](#janus-signinthrottle-wiring-messages)
 - [`janus: mail.throttle …` wiring messages](#janus-mailthrottle-wiring-messages)
+- [`janus: tokens.<flow> is 5m, shorter than mail.throttle.window, 10m …`](#janus-tokensflow-is-5m-shorter-than-mailthrottlewindow-10m-)
 - [Other `janus:` wiring messages](#other-janus-wiring-messages)
 
 **Users, sessions and tokens**
@@ -475,6 +476,30 @@ nothing`, `janus: mail.throttle.attempts must be a whole number above zero`,
 and a `janus: mail.throttle.window` that is not a duration.
 **Fix:** `mail: { throttle: { attempts: 5, window: '10m' } }` — the defaults —
 or `mail: { throttle: false }` to count nothing.
+
+### `janus: tokens.<flow> is 5m, shorter than mail.throttle.window, 10m …`
+
+A warning, not an error: `janus()` returns, and emits through
+`process.emitWarning` with the code `JANUS_THROTTLE_WINDOW`, once per call. The
+text, here for `tokens.signInCode: '5m'` with the default window:
+
+```
+janus: tokens.signInCode is 5m, shorter than mail.throttle.window, 10m — past the limit the last token sent can expire before the refusal ends. Set mail.throttle.window to 5m or less, or raise tokens.signInCode to 10m or more.
+```
+
+With several flows shorter than the window, one warning lists each
+(`tokens.magicLink is 2m, … ; tokens.stepUp is 30s, …`). **Why:** a request the
+mail throttle refuses spends nothing, so the last link or code sent still works,
+but only until it expires; with a lifetime shorter than the window it can lapse
+while the visitor is still refused. **Fix:** make the window no longer than the
+shortest lifetime, or raise the lifetime:
+
+```ts
+janus({ user, store, tokens: { signInCode: '5m' }, mail: { throttle: { window: '5m' } } });
+```
+
+A runtime without `process.emitWarning` stays silent. Silence it with
+`node --disable-warning=JANUS_THROTTLE_WINDOW`.
 
 ### Other `janus:` wiring messages
 

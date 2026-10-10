@@ -1288,7 +1288,7 @@ fill the inbox, five e-mails per window per flow. Tell the visitor to use the
 last e-mail they received, or to wait `retryAfter` seconds. The default window
 (`'10m'`) is no longer than the shortest default token lifetime; if you set a
 `tokens.*` lifetime shorter than `mail.throttle.window`, the last code can
-expire first, so keep the window no longer than the shortest you use. `janus`
+expire first, so keep the window no longer than the shortest you use — `janus()` warns for it, once per call, through `process.emitWarning` with the code `JANUS_THROTTLE_WINDOW` ([troubleshooting](docs/troubleshooting.md#janus-tokensflow-is-5m-shorter-than-mailthrottlewindow-10m-)). `janus`
 never sees IP addresses, so one client asking for many addresses is not
 counted: add a per-IP ceiling with `@nxgt/redis` rate limits
 (`defineRateLimit`, `bindRateLimit`; `enforce()` throws `GuardError`
