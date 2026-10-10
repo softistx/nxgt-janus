@@ -46,11 +46,12 @@ const events = {
 };
 
 /**
- * What a sign-in by e-mail writes once confirmed — a code or a link —
- * marked, so an alert on refusals can tell one from the other and from a
- * password: a refusal, the second factor asked for, or a sign-in.
+ * What a sign-in other than the password's writes once answered — an
+ * e-mailed code or link, or the application's own proof — marked, so an
+ * alert on refusals can tell one from another and from a password: a
+ * refusal, the second factor asked for, or a sign-in.
  */
-function emailedSignIn(mark: string): (call: Call, outcome: Outcome) => void {
+function markedSignIn(mark: string): (call: Call, outcome: Outcome) => void {
 	return (call, outcome) => {
 		if (!outcome.ok) {
 			log.warn(
@@ -122,11 +123,13 @@ export const WRITTEN: Readonly<
 	// In two steps: prepare is counted, and send issues — what request writes.
 	'signInCode.prepare': mailRequest(),
 	'signInCode.prepare.send': issued(events.signInCodeSent),
-	'signInCode.confirm': emailedSignIn('janus.signIn.code'),
+	'signInCode.confirm': markedSignIn('janus.signIn.code'),
 	'magicLink.request': mailRequest(issued(events.magicLinkSent)),
 	'magicLink.prepare': mailRequest(),
 	'magicLink.prepare.send': issued(events.magicLinkSent),
-	'magicLink.confirm': emailedSignIn('janus.signIn.magicLink'),
+	'magicLink.confirm': markedSignIn('janus.signIn.magicLink'),
+	// No credential checked here: the application carried the proof.
+	signInProven: markedSignIn('janus.signIn.proven'),
 	'stepUp.request': mailRequest((call, outcome) => {
 		// Which code confirms it — e-mailed, or from the app — never the code.
 		if (outcome.ok) {

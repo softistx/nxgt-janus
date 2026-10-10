@@ -25,7 +25,12 @@ function answered(scope: SpanScope, call: Call, outcome: Outcome): void {
 }
 
 /** The flows whose answer is a sign-in's: a session, or a second factor asked for. */
-const SIGN_INS = new Set(['signIn', 'signInCode.confirm', 'magicLink.confirm']);
+const SIGN_INS = new Set([
+	'signIn',
+	'signInCode.confirm',
+	'magicLink.confirm',
+	'signInProven',
+]);
 
 /** `cookie` answers synchronously: it is the one part of `janus()` not traced. */
 const UNTRACED = new Set(['cookie']);
