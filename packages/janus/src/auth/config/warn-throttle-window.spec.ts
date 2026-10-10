@@ -29,16 +29,14 @@ describe('the mail throttle window against the token lifetimes', () => {
 
 	it('names every flow that is shorter, in one warning', () => {
 		wire({
-			tokens: { magicLink: '2m', stepUp: '30s' },
+			tokens: { magicLink: '2m', signInCode: '3m', stepUp: '30s' },
 			mail: { throttle: { window: '1h' } },
 		});
 
 		expect(warn).toHaveBeenCalledTimes(1);
 		const message = String(warn.mock.calls[0]?.[0]);
-		for (const flow of ['magicLink', 'signInCode', 'stepUp']) {
-			expect(message).toContain(`tokens.${flow} is`);
-		}
 		expect(message).toContain('tokens.magicLink is 2m');
+		expect(message).toContain('tokens.signInCode is 3m');
 		expect(message).toContain('tokens.stepUp is 30s');
 		expect(message).toContain('Set mail.throttle.window to 30s or less');
 	});
