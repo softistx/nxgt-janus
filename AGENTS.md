@@ -633,13 +633,13 @@ The table that exists so a duplication is a decision rather than an accident.
   which rewrites every manifest that installs a peer to the newest end of its
   range (`@nxgt/*` `>=<floor> <1`, `mongodb`, `drizzle-orm`, `zod`, `hono`,
   `graphql` `^17.0.0`, `@envelop/core`, `@graphql-tools/utils`, `graphql-ws`,
-  `typescript` `^6.0.3`), deletes `bun.lock`, installs, then builds,
+  `typescript` `^6.0.3 || ^7.0.0`, the last alternative, so 7), deletes `bun.lock`, installs, then builds,
   typechecks, tests (PostgreSQL 17 as a service, the mongod and Redis caches
   under the `ci` job's keys) and verifies the artifacts. Run on 2026-10-06 it
   resolved `@nxgt/redis` 0.7.0, `@nxgt/mongo` 0.19.1, `@nxgt/drizzle` 0.6.3,
   `@nxgt/telemetry` 0.2.2, `@nxgt/mail` 1.0.1, `mongodb` 7.7.0, `drizzle-orm`
   1.0.0-rc.5, `hono` 4.13.13, `graphql` 17.0.2, `zod` 4.6.5 and TypeScript
-  6.0.3, and passed. It leaves out Biome, the changeset checks, the
+  6.0.3, and passed. Run by hand again on 2026-10-10, once the `typescript` peer took 7 in, it resolved TypeScript 7.0.2 and passed build, typecheck (`test/types` and its `@ts-expect-error` cases included), the `@nxgt/janus` specs and `verify:artifacts`. TypeScript 7 ships no JS compiler API, so the two files that ask the language service for completions, `janus/src/permissions/completions.model.spec.ts` and `completions.fixtures.ts`, import TypeScript 6 through an alias devDependency, `typescript-6` (`npm:typescript@~6.0.3`), which the script leaves alone: `tsc` stays the peer's. Nothing a package ships evaluates TypeScript; the peer is for the type-level API. It leaves out Biome, the changeset checks, the
   committed-generated-code check and the two extra PostgreSQL runs
   (node-postgres, postgres.js, PGlite), which depend on the code and not on
   the peers. It is informational, not a required check: an upstream release

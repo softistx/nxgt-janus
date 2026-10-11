@@ -58,6 +58,6 @@
 	"peerDependencies": {
 		"@nxgt/janus": "workspace:^",
 		"@nxgt/redis": ">=0.3.1 <1",
-		"typescript": "^6.0.3"
+		"typescript": "^6.0.3 || ^7.0.0"
 	}
 }

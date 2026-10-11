@@ -59,7 +59,7 @@
 		"@nxgt/janus": "workspace:^",
 		"@nxgt/mongo": ">=0.17.0 <1",
 		"mongodb": ">=7.0.0 <8",
-		"typescript": "^6.0.3",
+		"typescript": "^6.0.3 || ^7.0.0",
 		"zod": ">=4.6.5 <5"
 	}
 }

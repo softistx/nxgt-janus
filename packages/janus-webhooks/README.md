@@ -45,7 +45,7 @@ bun add -d typescript
 ```
 
 Both peers are required: `@nxgt/janus` 0.17 — the exact range is in
-`peerDependencies` — and `typescript` (6). `@nxgt/janus` is a **peer**, so one copy of it defines
+`peerDependencies` — and `typescript` (6 or 7). `@nxgt/janus` is a **peer**, so one copy of it defines
 `UserEvent`. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 It uses `node:crypto`, the global `fetch` and `process.emitWarning`: Bun or
 Node.
