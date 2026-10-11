@@ -1,6 +1,7 @@
 /**
  * Verifying an e-mail: send a token to it, then redeem the token to mark the
- * address verified.
+ * address verified — or prove it on the application's own proof
+ * (`prove-first.ts`).
  */
 
 import type { At } from '../at';
@@ -18,8 +19,12 @@ import { countMailByUser } from '../mail-requests';
 import { refuseStale } from '../one-time';
 import type { VerifyEmailApi } from '../types';
 import { issueEmailToken, redeemEmailToken } from './email-token';
+import { proveFirstFlow } from './prove-first';
 
-/** `verifyEmail` of one user type: `send` a token to its e-mail, then `confirm` it. */
+/**
+ * `verifyEmail` of one user type: `send` a token to its e-mail, then
+ * `confirm` it; or `proveFirst`, on the application's own proof.
+ */
 export function verifyEmailFlows(
 	context: Context,
 	type: ResolvedType,
@@ -63,5 +68,7 @@ export function verifyEmailFlows(
 			}
 			return toUser(written);
 		},
+
+		proveFirst: proveFirstFlow(context, type, at),
 	};
 }

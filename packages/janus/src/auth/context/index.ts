@@ -19,5 +19,5 @@ export {
 	requireHasher,
 } from './password';
 export { findRecord, getRecord, writeUser } from './records';
-export { type AnyUser, idOf, toUser } from './user';
+export { type AnyUser, idOf, refId, toUser } from './user';
 export { validateFields } from './validate-fields';
