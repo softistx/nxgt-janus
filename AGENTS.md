@@ -732,7 +732,10 @@ to its own folder through a symlink, so tsc names the type by a relative
 path, even with the declaration build on. `janus-hono`'s fixture is an app
 made of every middleware — `session`, `provide`, `fresh`, `permission` with
 `byParam`, `sendSession`, `signOut`, `deviceOf`, `janusErrors` — and the same
-routes through `bindJanus`, `j.provide()` included. A middleware or builder whose type ends up in an
+routes through `bindJanus`, `j.provide()` included. The probe installs `typescript` at the root's `devDependencies` range
+(`workspaceTypeScript` in `install.ts`, ported from nxgt-core), so this emit
+runs TypeScript 6 in the `ci` job and 7 in "Newest peers", which rewrites that
+range; the install prints `typescript <version>`. A middleware or builder whose type ends up in an
 app's gets a case there. The folder is typechecked with its package and
 never built or shipped.
 
