@@ -111,6 +111,7 @@ with or without a password — see [sign-in codes](sign-in-code.md) and
 readonly verifyEmail: {
 	send(user: UserRef): Promise<IssuedToken>; // { token, email, expiresAt }
 	confirm(token: string): Promise<User>;
+	proveFirst(user: UserRef): Promise<FirstProof<User>>; // { user, proved } — privileged, below
 };
 ```
 
@@ -129,6 +130,64 @@ event](events.md); one for an e-mail already verified sends nothing.
 Changing the e-mail with `update` sets `emailVerified` back to `false` — and
 the next sign-in by code or link then [drops the password and the second
 factor, and signs out every session](magic-link.md#an-account-someone-else-registered).
+
+## Proving an e-mail on your own proof — `proveFirst`
+
+`verifyEmail.confirm` proves an address and changes nothing else: the user
+asked for the link from inside their own account. A first sign-in by link
+or code goes further, since anybody may have signed up with the address
+before its holder ([why](magic-link.md#an-account-someone-else-registered)).
+`verifyEmail.proveFirst(user)` applies that same first proof when the proof
+is **yours** — an invitation token your server mailed to the address, and
+the person followed:
+
+```ts
+interface FirstProof<User> {
+	readonly user: User;      // after the call: emailVerified is true either way
+	readonly proved: boolean; // true: this call proved it; false: it was already proved
+}
+
+const { user, proved } = await auth.verifyEmail.proveFirst(invited);
+```
+
+On an e-mail **never proved**, it is exactly the ending of
+`magicLink.confirm` and `signInCode.confirm` — the same code runs:
+
+- one write, under the version it read, marks the e-mail verified and drops
+  the password and the second factor, active or waiting, with its recovery
+  codes;
+- every session is revoked, and the reset links and second-factor
+  challenges are spent — before the write, so an outage there leaves the
+  e-mail unproved and a retry runs it all again, and after it, so a sign-in
+  landing in between is ended too;
+- `user.emailVerified` is sent, then `user.passwordChanged` when a password
+  was dropped and `user.secondFactorDisabled` when an active factor was.
+
+On an e-mail **already proved**, nothing is written, revoked or sent, and
+`proved` is `false`. Whether it was proved is read off the user, as the
+confirms read it: `emailVerified`.
+
+**Call it before `setPassword` and before `signInProven`.** It drops the
+password and revokes every session, so in the other order it erases the
+password the invitee just chose, and signs out the session just opened.
+Accepting an invitation is `findByEmail` (or `create`), `proveFirst`,
+`setPassword` for a type with a password, then `signInProven` —
+[sessions](sessions.md#accepting-an-invitation) has the route in full.
+
+**It is privileged.** janus checks no credential: call it only right after
+your server verified a proof that reached the inbox — an invitation token
+it mailed to that address — on the user the proof names, whose current
+e-mail is the address it reached. Never with an id a request supplied:
+whoever chooses it can drop anybody's password and second factor.
+
+It sends no e-mail, issues no token, and counts in neither the mail
+throttle nor the sign-in throttle. An inactive user is `USER_INACTIVE`; a
+malformed id, an unknown one or one of another type is `NOT_FOUND`, as for
+`signInProven`; a user written between the read and the write is
+`VERSION_CONFLICT`, and nothing is proved; an outage is `STORE_FAILED`.
+`@nxgt/janus-telemetry` traces it as `janus.<type>.verifyEmail.proveFirst`
+and writes `janus.email.verified` with `janus.email.proveFirst: true` when
+it proved — the user's id, never the address.
 
 ## `resetPassword`
 
@@ -506,5 +565,5 @@ never the token, and no refusal's message contains it.
 - [Sign-in codes](sign-in-code.md) — the third flow that sends an e-mail: a code, not a link
 - [Sign-in links](magic-link.md) — the fourth: a link that signs in, confirmed from a `POST` so a mail scanner spends nothing
 - [Sessions](sessions.md) — `signOutEverywhere`, which `resetPassword.confirm` calls for you
-- [User events](events.md) — `user.emailVerified` and `user.passwordReset`, which the confirms send
+- [User events](events.md) — `user.emailVerified` and `user.passwordReset`, which the confirms and `proveFirst` send
 - [Errors](errors.md) — every code, and the status it deserves

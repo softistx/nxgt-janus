@@ -618,7 +618,13 @@ app.post('/invitation/accept', csrf({ origin: ORIGIN }), async (c) => {
 	const invitation = await invitations.spend(hash(token), new Date()); // yours: once, unexpired
 	if (invitation === null) return c.json({ code: 'INVITATION_INVALID' }, 404);
 
-	const result = await auth.signInProven(invitation.userId, { device: deviceOf(c) });
+	// The invitation reached the inbox: prove it first — on an address never proved, this
+	// drops a password, a second factor and sessions somebody else set on it.
+	const user = await auth.get(invitation.userId);
+	if (user.email !== invitation.email) return c.json({ code: 'INVITATION_INVALID' }, 404);
+	await auth.verifyEmail.proveFirst(user);
+	// Then sign in — last, since proveFirst revokes every session.
+	const result = await auth.signInProven(user, { device: deviceOf(c) });
 	if (result.status === 'secondFactor') {
 		setCookie(c, CHALLENGE, result.challenge, { ...scope, expires: result.expiresAt });
 		return c.redirect('/sign-in/second-factor', 303);
@@ -627,6 +633,11 @@ app.post('/invitation/accept', csrf({ origin: ORIGIN }), async (c) => {
 	return c.redirect('/', 303);
 });
 ```
+
+`verifyEmail.proveFirst` (`@nxgt/janus` 0.22) comes first, and before any
+`setPassword` your form makes: it drops the password and revokes every
+session. The check on `email` keeps it from proving an address the user
+changed since the invitation was sent.
 
 Not `magicLink.request` then `confirm` at once: `request` counts against
 the mail throttle per address, so five anonymous requests for the invitee's

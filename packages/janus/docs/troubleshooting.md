@@ -63,6 +63,7 @@ How the messages are shaped:
 - [`CREDENTIALS_INVALID` — `<call>: too many passwords tried at this login …`](#credentials_invalid--call-too-many-passwords-tried-at-this-login--wait-for-the-next-window)
 - [`MAIL_THROTTLED` — `<call>: too many e-mails asked for this address …`, or `… for this user …`](#mail_throttled--call-too-many-e-mails-asked-for-this-address--the-last-one-sent-still-works-use-it-or-wait-for-the-next-window)
 - [Accepting an invitation answers `MAIL_THROTTLED`](#accepting-an-invitation-answers-mail_throttled)
+- [The password chosen when accepting an invitation answers `CREDENTIALS_INVALID` (`noPassword`)](#the-password-chosen-when-accepting-an-invitation-answers-credentials_invalid-nopassword)
 - [`MAIL_THROTTLED` never reaches the visitor: `request` runs in the background](#mail_throttled-never-reaches-the-visitor-request-runs-in-the-background)
 - [`<flow>.prepare(…).send: already called — …`](#flowpreparesend-already-called--a-prepared-request-sends-once-call-flowprepare-again-for-another)
 - [`STORE_FAILED` — `<call>: the store dropped the attempts it had just stored`](#store_failed--call-the-store-dropped-the-attempts-it-had-just-stored)
@@ -600,7 +601,7 @@ An outage is never `null` here: it rejects with `STORE_FAILED`.
 
 ### `NOT_FOUND` — `<call>: no <type> has this id`
 
-`NotFoundError`, from `get`, `getUser`, `update`, `setActive`, `setPassword`, `signInProven`, `verifyEmail.send`, `secondFactor.recoveryCodesLeft`. Also `<call>: the user has no e-mail`.
+`NotFoundError`, from `get`, `getUser`, `update`, `setActive`, `setPassword`, `signInProven`, `verifyEmail.send`, `verifyEmail.proveFirst`, `secondFactor.recoveryCodesLeft`. Also `<call>: the user has no e-mail`.
 
 **When:** the id names nobody, names a user of another type (`auth.staff.get(patientId)`), or is not an id at all.
 **Why:** `get*` calls turn an absence into `NOT_FOUND`; `find*` calls answer `null` instead. `signInProven` is a `get`: a sign-in that found nobody throws, and on it `NOT_FOUND` means the proof you verified names a user deleted since, or you passed the id of another type's user — or a value that is not the proof's id at all.
@@ -630,6 +631,13 @@ const user = await auth.find(id); // null when there is nobody
 const user = await auth.get(id);
 await auth.update(user, { name }, { ifVersion: user.version });
 ```
+
+**From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: the user
+was written between the read that found the e-mail never proved and the
+write that proves it — by the user, or by a second acceptance of the same
+invitation. Nothing was proved, though the sessions may already be revoked.
+Call it again: it reads the user anew, and answers `proved: false` when the
+other write proved the e-mail.
 
 **From `secondFactor.confirm`**, the message is the store's:
 `updateUser: expected version <n>, found <m>`.
@@ -800,11 +808,35 @@ const invitation = await invitations.spend(hash(token), new Date()); // yours: o
 if (invitation === null) return new Response(null, { status: 404 });
 const user = await auth.findByEmail(invitation.email); // or invitation.userId, when you stored the id
 if (user === null) return new Response(null, { status: 404 });
+await auth.verifyEmail.proveFirst(user); // the invitation reached the inbox — before signInProven
 const result = await auth.signInProven(user, { device: deviceOf(request) });
 ```
 
 Never pass it an id the request carries: it checks no credential. See
 [sessions](guide/sessions.md#signing-in-on-your-own-proof--signinproven).
+
+### The password chosen when accepting an invitation answers `CREDENTIALS_INVALID` (`noPassword`)
+
+**When:** the acceptance route calls `setPassword` with the password the
+invitee chose, then `verifyEmail.proveFirst`; the invitee is signed in, and
+their next `signIn` with that password answers `CREDENTIALS_INVALID` with
+`reason: 'noPassword'`. Or the route calls `signInProven` before
+`proveFirst`, and the session it just opened is anonymous on the next
+request.
+**Why:** on an e-mail never proved, `proveFirst` drops the password and the
+second factor and revokes every session — whatever was set before it is
+taken for what somebody who signed up with the address left there. It
+cannot tell the invitee's fresh password from a squatter's.
+**Fix:** prove first, then set the password, then sign in:
+
+```ts
+const user = (await auth.findByEmail(invitation.email)) ?? (await auth.create({ email: invitation.email, name }));
+await auth.verifyEmail.proveFirst(user); // 1. drops what was there before
+await auth.setPassword(user, body.password); // 2. the invitee's own
+const result = await auth.signInProven(user, { device: deviceOf(request) }); // 3. last
+```
+
+See [e-mail flows](guide/email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst).
 
 ### `MAIL_THROTTLED` never reaches the visitor: `request` runs in the background
 
@@ -885,7 +917,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven`, for an inactive user: the application's proof does not reactivate anybody.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven` and `verifyEmail.proveFirst`, for an inactive user: the application's proof does not reactivate anybody, and proves nothing on an inactive one.
 **Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it. `magicLink.confirm` checks after spending the link, which is spent too, and `magicLink.request` answers `null` for an inactive user.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 

@@ -3,6 +3,7 @@ import type { Outcome } from '../traced';
 import type { Call } from './call';
 import {
 	argumentUser,
+	provedOf,
 	recoveryCodesLeft,
 	refusalFields,
 	secondFactorFields,
@@ -228,5 +229,16 @@ export const WRITTEN: Readonly<
 	'verifyEmail.confirm': (call, outcome) => {
 		if (outcome.ok)
 			log.info(events.emailVerified(userFields(call, outcome.value)));
+	},
+	// Only when it proved: an e-mail already proved changed nothing.
+	'verifyEmail.proveFirst': (call, outcome) => {
+		if (outcome.ok && provedOf(outcome.value)) {
+			log.info(
+				events.emailVerified({
+					...userFields(call, outcome.value),
+					'janus.email.proveFirst': true,
+				}),
+			);
+		}
 	},
 };

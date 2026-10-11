@@ -100,7 +100,51 @@ export interface VerifyEmailApi<U> {
 		 * e-mail the user has since changed is `TOKEN_STALE`.
 		 */
 		confirm(token: string): Promise<U>;
+		/**
+		 * Applies the first proof of the user's e-mail **the application made
+		 * itself** — an invitation token it issued to the address and the
+		 * person followed: exactly what `magicLink.confirm` and
+		 * `signInCode.confirm` do to an e-mail never proved, with no link and
+		 * no code. In one write it marks the e-mail verified and drops the
+		 * password and the second factor — active or waiting, with its
+		 * recovery codes — and it revokes every session and spends the reset
+		 * links and second-factor challenges, before the write and after it.
+		 * Sends `user.emailVerified`, then `user.passwordChanged` when a
+		 * password was dropped and `user.secondFactorDisabled` when an active
+		 * factor was. Answers `{ user, proved: true }`.
+		 *
+		 * An e-mail already proved changes nothing and sends nothing:
+		 * `{ user, proved: false }`.
+		 *
+		 * **Privileged: janus checks no credential.** Call it only after your
+		 * server verified its own proof of the inbox, with the user from that
+		 * proof's record — never with an id a request supplied: whoever
+		 * chooses it drops anybody's password and second factor.
+		 *
+		 * **Call it before `setPassword` and before `signInProven`**: it drops
+		 * the password and revokes every session, so a password set or a
+		 * session opened before it is gone after it.
+		 *
+		 * Counts nothing in the mail or the sign-in throttle, sends no e-mail
+		 * and issues no token. An inactive user is `USER_INACTIVE`; a
+		 * malformed id, an unknown one or one of another type is `NOT_FOUND`;
+		 * a user written since it was read is `VERSION_CONFLICT`, and nothing
+		 * is proved.
+		 */
+		proveFirst(user: UserRef): Promise<FirstProof<U>>;
 	};
+}
+
+/** What `verifyEmail.proveFirst` answers: the user, and whether this call proved the e-mail. */
+export interface FirstProof<U> {
+	/** The user after the call: `emailVerified` is `true` either way. */
+	readonly user: U;
+	/**
+	 * `true` when the e-mail had never been proved and this call proved it,
+	 * dropping the password and the second factor and revoking every
+	 * session; `false` when it was already proved, and nothing changed.
+	 */
+	readonly proved: boolean;
 }
 
 /** What a user type with an e-mail and a password answers besides. */

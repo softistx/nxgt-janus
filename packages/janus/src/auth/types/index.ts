@@ -10,6 +10,7 @@
 
 export type { Checked } from './checks';
 export type {
+	FirstProof,
 	IssuedCode,
 	IssuedToken,
 	ResetPasswordApi,

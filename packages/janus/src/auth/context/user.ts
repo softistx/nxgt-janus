@@ -29,3 +29,16 @@ export function toUser(record: UserRecord): AnyUser {
 /** The id a {@link UserRef} names. */
 export const idOf = (user: UserRef): string =>
 	typeof user === 'string' ? user : user.id;
+
+/**
+ * The id a JavaScript caller's reference names, or `''` — malformed, and
+ * so `NOT_FOUND` without reaching the store — for anything that names none:
+ * what the privileged calls read, `signInProven` and
+ * `verifyEmail.proveFirst`, which must never mistake a bad value for a user.
+ */
+export function refId(user: UserRef): string {
+	if (typeof user === 'string') return user;
+	const id: unknown =
+		typeof user === 'object' && user !== null ? user.id : undefined;
+	return typeof id === 'string' ? id : '';
+}

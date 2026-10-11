@@ -316,7 +316,7 @@ Every type with an e-mail has it, **with or without a password** — and a
 type with no password has no `findByLogin`. It is the lookup an invitation
 needs: the person was invited at an address, may already hold an account of
 a passwordless type, and is signed in with `signInProven` once your server
-verified the invitation
+verified the invitation and `verifyEmail.proveFirst` proved the address
 ([sessions](sessions.md#accepting-an-invitation)):
 
 ```ts
@@ -334,6 +334,7 @@ if (invitation === null) return notFound();
 const member =
 	(await clinic.member.findByEmail(invitation.email)) ??
 	(await clinic.member.create({ email: invitation.email, name: '' }));
+await clinic.member.verifyEmail.proveFirst(member); // before signInProven: it revokes every session
 await clinic.member.signInProven(member);
 ```
 

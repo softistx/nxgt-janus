@@ -321,6 +321,7 @@ await auth.authenticate(request);                  // { user, session, token, re
 await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
 await auth.verifyEmail.confirm(token);
+await auth.verifyEmail.proveFirst(user);           // privileged: FirstProof — { user, proved }; drops a squatter's password and factor
 await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
@@ -783,6 +784,7 @@ has a route for each flow, with Hono.
 const invitation = await invitations.redeem(body.invitationToken); // yours: one use, expiring, hashed at rest
 if (invitation === null) return new Response(null, { status: 404 });
 
+// The invitation reached the inbox: call verifyEmail.proveFirst before this — see below.
 const result = await auth.signInProven(invitation.userId, { device: deviceCookie ?? null });
 if (result.status === 'secondFactor') return askForCode(result.challenge); // switch on status, as after signIn
 // result: { status: 'signedIn', user, session, token, newDevice, deviceToken }
@@ -810,7 +812,8 @@ with no password, code or link. Every user type has it.
   `magicLink.request` on the invitee's address cannot make it answer 429 —
   and links or codes already in the person's inbox still work. It proves
   no e-mail either: `emailVerified` stays as it was, and nothing is dropped
-  as on a first proof by link.
+  as on a first proof by link — call `verifyEmail.proveFirst` before it
+  when your proof reached the inbox, as an invitation does.
 
 [Sessions](docs/guide/sessions.md#signing-in-on-your-own-proof--signinproven)
 has the invitation route in full, and what to verify before the call.
@@ -825,6 +828,7 @@ if (invitation === null) return new Response(null, { status: 404 });
 const member =
 	(await auth.member.findByEmail(invitation.email)) ?? // User | null — counts nothing, sends nothing
 	(await auth.member.create({ email: invitation.email, name: '' }));
+await auth.member.verifyEmail.proveFirst(member); // the invitation reached the inbox: before signInProven
 const result = await auth.member.signInProven(member, { device: deviceCookie ?? null });
 ```
 
@@ -846,6 +850,43 @@ password and reset flows on it.
   asking the store, as `find` answers a malformed id. An outage is
   `STORE_FAILED`, never `null`.
 - **Server-side only**: it tells whether an account exists. See *Traps*.
+
+### Proving an e-mail on your own proof — `verifyEmail.proveFirst`
+
+```ts
+// Accepting an invitation: the token YOUR server mailed to the address proves the inbox.
+const user = (await auth.findByEmail(invitation.email)) ?? (await auth.create({ email: invitation.email, name }));
+const { proved } = await auth.verifyEmail.proveFirst(user); // 1. first: drops a squatter's password, factor, sessions
+await auth.setPassword(user, body.password);                // 2. then the invitee's own password, if the type has one
+const result = await auth.signInProven(user);               // 3. last: proveFirst revokes every session
+```
+
+Answers `FirstProof<User>` — `{ user, proved }`, exported. Applies **the
+first proof of an e-mail** that `magicLink.confirm` and
+`signInCode.confirm` apply, when the proof is the application's — an
+invitation token it mailed to the address and the person followed. On every
+type with an e-mail; `signInProven` alone proves nothing.
+
+- **On an e-mail never proved, in one write**: marks it verified and drops
+  the password and the second factor — active or waiting, with its recovery
+  codes. It revokes every session and spends the reset links and
+  second-factor challenges, before the write and after it, and sends
+  `user.emailVerified`, then `user.passwordChanged` when a password was
+  dropped and `user.secondFactorDisabled` when an active factor was.
+  Answers `{ user, proved: true }`.
+- **On an e-mail already proved, nothing**: no write, no event, no session
+  revoked — `{ user, proved: false }`.
+- **Sends nothing, counts nothing**: no e-mail, no token, no mail-throttle
+  or sign-in-throttle count.
+- **Refused as `signInProven` refuses**: an inactive user is
+  `USER_INACTIVE`; a malformed id, an unknown one or one of another type is
+  `NOT_FOUND`. A user written between its read and its write is
+  `VERSION_CONFLICT`, with nothing proved; an outage is `STORE_FAILED`.
+- **Privileged, and the order matters**: see *Traps*.
+
+[E-mail flows](docs/guide/email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst)
+has the details; [sessions](docs/guide/sessions.md#accepting-an-invitation)
+has the invitation route in full.
 
 ### Step-up — `stepUp` and `assertFresh`
 
@@ -959,12 +1000,12 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `type` | Sent by |
 | --- | --- |
 | `user.created` | `create`, `signUp` |
-| `user.emailVerified` | `verifyEmail.confirm`; `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
+| `user.emailVerified` | `verifyEmail.confirm` and `verifyEmail.proveFirst`; `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
-| `user.passwordChanged` | `changePassword`, `setPassword`; `signInCode.confirm` and `magicLink.confirm` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
+| `user.passwordChanged` | `changePassword`, `setPassword`; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
 | `user.emailChanged` | `update`, when it changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
-| `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor; `signInCode.confirm` and `magicLink.confirm` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — never for a user who had none, or one still waiting |
+| `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — never for a user who had none, or one still waiting |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes` — not `activate`, whose codes come with `user.secondFactorEnabled` |
 | `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent: a sign-in without the user's phone |
 | `user.newDeviceSignedIn` | `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and `magicLink.confirm`, given a `device` its token did not prove, once the sign-in is complete — carrying `sessionId`, the new session's. Never `signUp`, nor a call given no device |
@@ -1258,6 +1299,21 @@ id from that proof's record. For an invitation, it replaces
 `magicLink.request` + `confirm`, which counts against the mail throttle:
 five anonymous requests for the invitee's address would make the
 acceptance answer 429.
+
+**Call `verifyEmail.proveFirst` first: it drops the password and revokes
+every session.** On an e-mail never proved, it does what a first sign-in by
+link does, so a password set before it is erased — the invitee's own,
+chosen on your acceptance form, included — and a session opened before it
+is revoked. Accept an invitation in this order: `findByEmail` (or
+`create`), then `verifyEmail.proveFirst`, then `setPassword` on a type with
+a password, then `signInProven`. Called after `setPassword`, the person
+signs in once and then finds `signIn` answering `CREDENTIALS_INVALID`
+(`reason: 'noPassword'`). **It is privileged, like `signInProven`**: it
+checks no credential, so call it only right after your server verified
+its own proof of the inbox — an invitation token it mailed to that
+address — on the user that proof names, whose e-mail is the address the
+proof reached; never with an id a request supplied, or anybody can wipe
+anybody's password and second factor and sign them out.
 
 **`findByEmail` is an account-existence oracle — never expose it to an
 anonymous client.** It answers whether somebody of the type holds an
@@ -1561,7 +1617,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and sixty-six plausible mistakes, one hundred and sixty-six refused at compile time — and
+**One hundred and sixty-nine plausible mistakes, one hundred and sixty-nine refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1569,10 +1625,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (seventy-eight, on `janus()`, from the point of view of
+it), `test/types/auth/` (eighty-one, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

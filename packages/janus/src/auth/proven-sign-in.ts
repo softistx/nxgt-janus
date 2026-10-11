@@ -7,10 +7,10 @@
 import { UserInactiveError } from '../errors/janus-error';
 import type { At } from './at';
 import type { ResolvedType } from './config';
-import { type AnyUser, type Context, getRecord } from './context';
+import { type AnyUser, type Context, getRecord, refId } from './context';
 import { deviceHint, reportNewDevice } from './devices';
 import type { Finish } from './email-sign-in';
-import type { ProvenSignInApi, SignInResult, UserRef } from './types';
+import type { ProvenSignInApi, SignInResult } from './types';
 
 /**
  * `signInProven` for one user type: the user read by id — `NOT_FOUND` for
@@ -32,7 +32,7 @@ export function provenSignInFlows(
 		async signInProven(user, options) {
 			const where = at('signInProven');
 			const device = deviceHint(context, options, where);
-			const record = await getRecord(context, idOf(user), type.name, where);
+			const record = await getRecord(context, refId(user), type.name, where);
 			if (!record.active) {
 				throw new UserInactiveError(`${where}: the user is inactive`, {
 					userId: record.id,
@@ -44,15 +44,4 @@ export function provenSignInFlows(
 			return result;
 		},
 	};
-}
-
-/**
- * The id a JavaScript caller's reference names, or `''` — malformed, and
- * so `NOT_FOUND` without reaching the store — for anything that names none.
- */
-function idOf(user: UserRef): string {
-	if (typeof user === 'string') return user;
-	const id: unknown =
-		typeof user === 'object' && user !== null ? user.id : undefined;
-	return typeof id === 'string' ? id : '';
 }

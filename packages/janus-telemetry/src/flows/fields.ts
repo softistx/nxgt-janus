@@ -108,3 +108,13 @@ export function viaOf(value: unknown): string | undefined {
 		? value.via
 		: undefined;
 }
+
+/** `verifyEmail.proveFirst`'s `proved`: whether the call proved the e-mail. */
+export function provedOf(value: unknown): boolean {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'proved' in value &&
+		value.proved === true
+	);
+}

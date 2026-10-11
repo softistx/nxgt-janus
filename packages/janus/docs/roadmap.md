@@ -76,6 +76,15 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Proving an e-mail on the application's own proof, v0.22.0** —
+  `auth.<type>.verifyEmail.proveFirst(user)` applies the first proof of an
+  e-mail that a sign-in link or code applies — verified, the password and
+  the second factor dropped, every session revoked — when the proof is the
+  application's, such as an invitation token mailed to the address. An
+  e-mail already proved changes nothing; the answer says which,
+  `{ user, proved }`. Nothing is counted, sent or issued. An invitation is
+  accepted in this order: find or create, `proveFirst`, `setPassword`,
+  `signInProven`. Privileged: never with an id a request supplied.
 - **Finding a user by e-mail on every type, v0.21.0** —
   `auth.<type>.findByEmail(email)` answers the user of the type holding the
   address, or `null`, on every type with an e-mail — a type with no
@@ -158,11 +167,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `signIn: { throttle: false }` turns it off. A tokens store that cannot
   count fails the sign-in with `STORE_FAILED`. No change for adapters: the
   counts are `secondFactor` tokens, counted by `TokenStore.countAttempt`.
-- **A password or an e-mail changed, in the user events, v0.14.0** —
-  `user.passwordChanged`, sent by `changePassword` and `setPassword` once the
-  older reset links are spent (a reset stays `user.passwordReset` alone), and
-  `user.emailChanged`, sent by an `update` that changed the e-mail, carrying
-  `formerEmail` — the one event with more than the user's id — so a notice
-  can reach the inbox the account just left, as `@nxgt/janus-mail`'s
-  `passwordChanged` and `emailChanged` notices do. Breaking for a `switch`
-  that exhausts `UserEventType`.

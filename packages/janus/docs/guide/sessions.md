@@ -235,16 +235,23 @@ export async function invite(email: string) {
 
 // Accepting — from the page's POST, never from the link's GET, which a mail scanner follows.
 export async function accept(request: Request): Promise<Response> {
-	const { token } = (await request.json()) as { token: string };
+	const body = (await request.json()) as { token: string; password?: string };
+	const { token } = body;
 	// One conditional write: spent once, and only while it has not expired.
 	const invitation = await invitations.spend(hash(String(token)), new Date());
 	if (invitation === null) return Response.json({ code: 'INVITATION_INVALID' }, { status: 404 });
 
-	// The address is the invitation's, never the request's. The person may already have an
+	// 1. The address is the invitation's, never the request's. The person may already have an
 	// account — findByEmail counts nothing, sends nothing — or gets one, with no password.
 	const user =
 		(await auth.findByEmail(invitation.email)) ??
 		(await auth.create({ email: invitation.email, name: '' }));
+	// 2. The invitation reached the inbox: prove the e-mail. On an address never proved this
+	// drops whatever someone who signed up with it set — password, second factor, sessions.
+	await auth.verifyEmail.proveFirst(user);
+	// 3. Only now the invitee's own password, if your form asks for one: proveFirst would drop it.
+	if (typeof body.password === 'string') await auth.setPassword(user, body.password);
+	// 4. Last: proveFirst revokes every session, so the new one opens after it.
 	const result = await auth.signInProven(user, { device: deviceOf(request) });
 	if (result.status === 'secondFactor') {
 		// keep result.challenge for the next request — never in a URL — and ask for a code
@@ -256,6 +263,18 @@ export async function accept(request: Request): Promise<Response> {
 	);
 }
 ```
+
+**The order is the recipe.** `verifyEmail.proveFirst` (since 0.22) applies
+the first proof of the e-mail that a sign-in link would: on an address
+never proved, somebody may have signed up with it first, with a password
+and a second factor of their own, and `signInProven` alone would leave them
+both — and that person's sessions — in place. It drops them and revokes
+every session, so it comes **before** `setPassword`, which would otherwise
+be erased, and **before** `signInProven`, whose session would otherwise be
+revoked. On an address already proved it does nothing. It is privileged as
+`signInProven` is: call it on the user your verified invitation names,
+never on an id from the request
+([e-mail flows](email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst)).
 
 **`findByEmail` works on every type with an e-mail, password or not** —
 since 0.21. A type with no password has no `findByLogin`, and must not
@@ -289,7 +308,8 @@ a link or a code already in the person's inbox still works afterwards.
   `TypeError`, as on every sign-in.
 - **No e-mail proved.** `emailVerified` stays as it was: the call does not
   know your proof reached the inbox. Nothing is dropped either — unlike a
-  first proof by link or code, the password and second factor stay.
+  first proof by link or code, the password and second factor stay. When
+  your proof did reach the inbox, call `verifyEmail.proveFirst` first.
 - **No throttle.** Neither the mail throttle nor the sign-in throttle counts
   it, and it restarts neither: a login past its password attempts is still
   throttled for `signIn`. Limit your own acceptance route per client, as
