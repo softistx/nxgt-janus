@@ -377,14 +377,14 @@ else reaches the store and is asynchronous.
   compile error on `login`, and the message lists the fields you could have
   meant. It is normalised with `'lowercaseTrim'` unless you say otherwise.
 - **`email`** defaults to the field named `email`. A type without one has no
-  `findByEmail`, no `verifyEmail`, no `resetPassword`, no `signInCode` and no `magicLink` — they
-  are absent from its type, not failing at run time. Changing the e-mail sets `emailVerified`
+  `findByEmail`, no `verifyEmail`, no `resetPassword`, no `signInCode` and
+  no `magicLink` — they are absent from its type, not failing at run time. Changing the e-mail sets `emailVerified`
   back to `false`.
 - **Per type**: `create`, `find` (or `null`), `findMany`, `get` (or
   `NOT_FOUND`), `list`, `update(user, patch)` — merged over the stored fields,
   then validated whole — `setActive`, `delete` and `signInProven` (below);
-  with an e-mail, `findByEmail` (below), password or not; with a password, `signUp`, `signIn`, `findByLogin`, `setPassword` and
-  `changePassword`. Every write but `delete` takes an optional `ifVersion`.
+  with an e-mail, `findByEmail` (below), password or not; with a password,
+  `signUp`, `signIn`, `findByLogin`, `setPassword` and `changePassword`. Every write but `delete` takes an optional `ifVersion`.
 - **`findMany(ids)`** answers the type's users **in the order the ids were
   given**, each once — a repeated id at its first place. An id `find` answers
   `null` for — malformed, unknown, another type's — is **left out**, so match
