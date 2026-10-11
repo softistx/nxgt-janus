@@ -344,13 +344,11 @@ jobs:
           (cd packages/janus-redis && bun test src)
           (cd packages/janus-webhooks-redis && bun test src)
       # The library floors. Every `@nxgt/*` peer is `>=<floor> <1`, and the
-      # job above runs the version bun.lock holds, which is not always npm's
-      # latest: `@nxgt/redis` is locked at 0.3.1, its floor, while npm has
-      # 0.7.0 inside `>=0.3.1 <1`, and the newest end is the `Newest peers`
-      # job's. Two floors sit below the lock — `@nxgt/mail` 0.1.0 and
-      # `@nxgt/mongo` 0.17.0 — while `@nxgt/redis`, `@nxgt/drizzle` and
-      # `@nxgt/telemetry` are locked at their floors, so the job above already
-      # runs those. The script points
+      # job above runs the version bun.lock holds, npm's latest when the lock
+      # was last refreshed; the newest end is the `Newest peers` job's. Every
+      # floor sits below the lock — `@nxgt/mail` 0.1.0, `@nxgt/mongo` 0.17.0,
+      # `@nxgt/redis` 0.3.1, `@nxgt/drizzle` 0.6.1 and `@nxgt/telemetry`
+      # 0.2.1 — so each runs here. The script points
       # the named packages' link to the peer at the floor's tarball, fetched
       # from npm outside the lock, runs the command, and puts the links back;
       # package.json and bun.lock are never touched. Typecheck too: a floor
@@ -377,6 +375,35 @@ jobs:
           bash -c 'set -e;
           cd packages/janus-mongo; bun test src; bun run typecheck;
           cd ../janus-kit; bun test src/mongo src/entries.spec.ts; bun run typecheck'
+      # The kit moves with each: it loads the sibling adapter, which resolves
+      # the library from its own directory, and two copies would be two sets
+      # of classes. The kit's whole suite runs, on the Redis 7.0 built above
+      # and the job's PostgreSQL 15.
+      - name: Run the Redis adapters and the kit on @nxgt/redis 0.3.1
+        run: >-
+          bun scripts/run-on-peer-floor.ts @nxgt/redis@0.3.1 janus-redis janus-webhooks-redis janus-kit --
+          bash -c 'set -e;
+          cd packages/janus-redis; bun test src; bun run typecheck;
+          cd ../janus-webhooks-redis; bun test src; bun run typecheck;
+          cd ../janus-kit; bun test src; bun run typecheck'
+        env:
+          JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
+      - name: Run janus-drizzle and the kit on @nxgt/drizzle 0.6.1
+        run: >-
+          bun scripts/run-on-peer-floor.ts @nxgt/drizzle@0.6.1 janus-drizzle janus-kit --
+          bash -c 'set -e;
+          cd packages/janus-drizzle; bun test src; bun run typecheck;
+          cd ../janus-kit; bun test src; bun run typecheck'
+        env:
+          JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
+      - name: Run janus-telemetry and the kit on @nxgt/telemetry 0.2.1
+        run: >-
+          bun scripts/run-on-peer-floor.ts @nxgt/telemetry@0.2.1 janus-telemetry janus-kit --
+          bash -c 'set -e;
+          cd packages/janus-telemetry; bun test src; bun run typecheck;
+          cd ../janus-kit; bun test src; bun run typecheck'
+        env:
+          JANUS_POSTGRES_URL: postgres://postgres:janus@localhost:5432/postgres
       # @nxgt/janus-graphql's four peer floors, together — graphql-ws an
       # optional one, which its WebSocket specs run on. They cannot be
       # linked over as the two above are: graphql-yoga and the
