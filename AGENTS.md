@@ -244,6 +244,10 @@ the line rather than a mistake. It cannot be suppressed locally instead — Biom
 requires its suppression comment to be the last comment before the line, and so
 does TypeScript's `@ts-expect-error`, and the two cannot both be last.
 
+A second override, **`scripts/close-released-issues*.ts`**, is not ours to
+rename: those four files are byte copies of nxgt-core's, and their environment
+names (`GH_TOKEN`) are the platform's. *Deliberate duplications* says why.
+
 Two places where the temptation will be strong:
 
 - **Permission tuples.** Zanzibar's words stay — `object`, `relation`,
@@ -450,6 +454,11 @@ still starts with it. The `Release` workflow fires on every push to `develop`
 and publishes anything whose version is not on the registry — `0.0.0` is not —
 so the very first push tried to publish `@nxgt/janus@0.0.0` and failed on the
 token. The token was not the problem; the missing guard was.
+
+Once a run publishes, its `close-issues` job closes the issues that release
+fixed (label `released`, then a "Fixed in <pkg>@<ver>" comment). It runs apart
+from the job holding the npm token, with `issues: write` alone, and never
+turns the release red (`continue-on-error`).
 
 `scripts/publish.ts` skips a private package. **`scripts/verify-artifacts.ts` does
 not** — it globs `packages/*/package.json` regardless of the flag, so the
