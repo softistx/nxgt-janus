@@ -30,6 +30,10 @@ Every peer is required:
   so this runs on **Bun**;
 - `typescript` 6 or 7.
 
+The `@nxgt/redis` floor is tested, not claimed: the package's specs and its
+typecheck run on `@nxgt/redis` 0.3.1 as well, in the Floors job, on every CI
+run.
+
 It needs **Redis 7.0 or later**, or Valkey — see
 [what Redis must be configured with](docs/guide/wiring.md#what-redis-must-be-configured-with).
 Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.

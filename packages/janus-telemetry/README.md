@@ -40,6 +40,10 @@ Every peer is required: `@nxgt/janus` 0.17 (the exact range is in
 `instanceof JanusError` holds, and one of `@nxgt/telemetry`, so there is one
 current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
+The `@nxgt/telemetry` floor is tested, not claimed: the package's specs and
+its typecheck run on `@nxgt/telemetry` 0.2.1 as well, in the Floors job, on
+every CI run.
+
 ## API
 
 | Export | What it is |

@@ -30,7 +30,7 @@
       "version": "0.7.4",
       "devDependencies": {
         "@electric-sql/pglite": "0.5.8",
-        "@nxgt/drizzle": "0.6.1",
+        "@nxgt/drizzle": "0.6.5",
         "@nxgt/janus": "workspace:^",
         "@types/bun": "^1.4.2",
         "@types/pg": "^8.23.1",
@@ -97,14 +97,14 @@
       },
       "devDependencies": {
         "@electric-sql/pglite": "0.5.8",
-        "@nxgt/drizzle": "0.6.1",
+        "@nxgt/drizzle": "0.6.5",
         "@nxgt/janus": "workspace:^",
         "@nxgt/janus-drizzle": "workspace:^",
         "@nxgt/janus-mongo": "workspace:^",
         "@nxgt/janus-telemetry": "workspace:^",
-        "@nxgt/mongo": "^0.18.1",
-        "@nxgt/redis": "0.3.1",
-        "@nxgt/telemetry": "0.2.1",
+        "@nxgt/mongo": "^0.19.3",
+        "@nxgt/redis": "0.7.2",
+        "@nxgt/telemetry": "0.2.2",
         "@types/bun": "^1.4.2",
         "drizzle-kit": "1.0.0-rc.4",
         "drizzle-orm": "1.0.0-rc.4",
@@ -164,7 +164,7 @@
       "version": "0.8.4",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
-        "@nxgt/mongo": "^0.18.1",
+        "@nxgt/mongo": "^0.19.3",
         "@types/bun": "^1.4.2",
         "mongodb": "^7.6.0",
         "mongodb-memory-server-core": "11.2.0",
@@ -183,7 +183,7 @@
       "version": "0.4.11",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
-        "@nxgt/redis": "0.3.1",
+        "@nxgt/redis": "0.7.2",
         "@types/bun": "^1.4.2",
         "redis-memory-server": "0.17.1",
         "zod": "^4.6.5",
@@ -199,7 +199,7 @@
       "version": "0.11.1",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
-        "@nxgt/telemetry": "0.2.1",
+        "@nxgt/telemetry": "0.2.2",
         "@types/bun": "^1.4.2",
         "zod": "^4.6.5",
       },
@@ -228,7 +228,7 @@
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@nxgt/janus-webhooks": "workspace:^",
-        "@nxgt/redis": "0.3.1",
+        "@nxgt/redis": "0.7.2",
         "@types/bun": "^1.4.2",
         "redis-memory-server": "0.17.1",
         "zod": "^4.6.5",
@@ -449,7 +449,7 @@
 
     "@mongodb-js/saslprep": ["@mongodb-js/saslprep@1.5.4", "", { "dependencies": { "sparse-bitfield": "^3.0.3" } }, "sha512-05UC0jQsjKAOuXQ0H9Ud9vUTJpZIg+n/FinpR30tI5I8pY2inTfPOZ5OF/cg3Ce/N9MoD1xhRCeOsJtuTbFYlw=="],
 
-    "@nxgt/drizzle": ["@nxgt/drizzle@0.6.1", "", { "peerDependencies": { "drizzle-orm": ">=1.0.0-rc.4 <2", "typescript": "^6.0.3" } }, "sha512-sAWMV1jGn9JGystawtBxzSlCbLbz5M1rOGgQSaxEw2D/x9Iv2/48otCoeS3m7w8+5EWOMJYAxOiOVjJmSFWNSw=="],
+    "@nxgt/drizzle": ["@nxgt/drizzle@0.6.5", "", { "peerDependencies": { "drizzle-orm": ">=1.0.0-rc.4 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-OrZL+S5DRNHO53ct1Q75+B53c+3jfut8nf0Dz1MxNEG1FX5lD+B87OLUVibK7yX1w7f0CssjrhpC5nNnoWWzKQ=="],
 
     "@nxgt/i18n-vue": ["@nxgt/i18n-vue@0.2.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "intl-messageformat": "12.1.2" }, "peerDependencies": { "@nuxt/kit": "^4.0.0", "nuxt": "^4.0.0", "typescript": "^6.0.3", "vite": ">=5.0.0", "vue": "^3.5.0" }, "optionalPeers": ["@nuxt/kit", "nuxt", "vite"] }, "sha512-oEfgpAaxWru6i1JPH08WicJkP5ps5GrQTPPSttHC1aLiANoeyjkluR6oiSrqqfqjfHbgWCPAp+IF1C56NSJ3bg=="],
 
@@ -485,11 +485,11 @@
 
     "@nxgt/mail-ui": ["@nxgt/mail-ui@1.0.1", "", { "dependencies": { "unplugin-vue-components": "^32.1.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^1.0.1", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-ZPFWWMuX7pQocKuuXyX2rZqAZcAiIlxHphQgA0tnXuolpYHeZWtDGkR9es5L2eDvgMJKSy2axkF3Zg3pKRXZEA=="],
 
-    "@nxgt/mongo": ["@nxgt/mongo@0.18.1", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-zAWoeevcvw25eOXiF81uzJ9LjCj0RXF8t5HF5Uv2t33mlBB8y+cR/VN1oGtVecX8/U2KcrKBAKVpwfh1N1ZKPQ=="],
+    "@nxgt/mongo": ["@nxgt/mongo@0.19.3", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-D1oEbv12QNrOxl/OTeG00OIoxAZ1E/lzREe+fuW1CtQNLnub5hD6UBE4AVsBKXvZGxB/WlMLeDB+e9abnFEhWg=="],
 
-    "@nxgt/redis": ["@nxgt/redis@0.3.1", "", { "peerDependencies": { "typescript": "^6.0.3", "zod": ">=4.6.5 <5" } }, "sha512-PYfjvKt25IcZ/RPJhUTBnuuAIVpidgA+r14mGGghRj2AXZBgYL5d0N+jzbhQDFPS5dm/b6gea4K654z+TkpvwQ=="],
+    "@nxgt/redis": ["@nxgt/redis@0.7.2", "", { "peerDependencies": { "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-4v12O1X2TBUytl4ZYTeSU3p9PzYyjBKVS+3O+QfHc9OJoLw6puw0/fPez9lfxV2V3xuWHB3l1RnBH73P2Xa/Lg=="],
 
-    "@nxgt/telemetry": ["@nxgt/telemetry@0.2.1", "", { "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-IPkGEL00VD8Un5HgONlvSfE48949Zvz2Nz9/RdOb0p8p8BFp6/fXO8TvKXVgtrwbwDcvXTRJgGmqntWYT3p2cg=="],
+    "@nxgt/telemetry": ["@nxgt/telemetry@0.2.2", "", { "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-x2qzmdk6yKRK7rz2pDsIoD6wHDAmCyqXQbTh199N9epBufggBzU5WV4+31851Qy+8MRRY0qNC/k62F4erIBTlw=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.151.0", "", {}, "sha512-J1yXrIlNDZVzE3ada310xeAw7nH8yCAyLPuUIsjKatFPmfn5bS1oW+cM+QsGOtVWd5nhSpbwZWx/rue+r5Z+PA=="],
 

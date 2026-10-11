@@ -50,7 +50,7 @@
 	},
 	"devDependencies": {
 		"@nxgt/janus": "workspace:^",
-		"@nxgt/telemetry": "0.2.1",
+		"@nxgt/telemetry": "0.2.2",
 		"@types/bun": "^1.4.2",
 		"zod": "^4.6.5"
 	},

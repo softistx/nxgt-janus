@@ -69,17 +69,16 @@ nxgt-telemetry — the range is `>=<floor> <1`: `>=0.17.0 <1`, `>=0.3.1 <1`,
 (`^0.4.2` stops at `0.5.0`), and every minor upstream would then force a
 release here. The same package sits in `devDependencies`, and `bun.lock` holds
 the version the `ci` job's specs run on — npm's `latest` when the lock was last
-refreshed, no longer so today: on 2026-10-06 the lock has `@nxgt/redis` 0.3.1
-where npm has 0.7.0, `@nxgt/mongo` 0.18.1 where it has 0.19.1, `@nxgt/drizzle`
-0.6.1 where it has 0.6.3. The newest end of each range is the `Newest peers`
-job's, below. For `@nxgt/telemetry` that is 0.2.1, the
-floor itself: no later minor was published when the range was widened.
-`@nxgt/redis` 0.3.1 and `@nxgt/drizzle` 0.6.1 are likewise their floors. For
-`@nxgt/mongo` it is 0.18.1, above the 0.17.0 floor, and CI runs that version
-from the lock. The floor, 0.17.0, is tested in CI, step *Run janus-mongo and
-the kit's mongo specs on @nxgt/mongo 0.17.0* of the `floors` job: the
-`janus-mongo` suite and the kit's mongo specs, each with its typecheck, on the
-floor's tarball from npm, outside the lock (`scripts/run-on-peer-floor.ts`).
+refreshed: on 2026-10-11, `@nxgt/redis` 0.7.2, `@nxgt/mongo` 0.19.3,
+`@nxgt/drizzle` 0.6.5 and `@nxgt/telemetry` 0.2.2 — the first three the
+releases that take TypeScript 7 into their peer; `@nxgt/telemetry` 0.2.2
+still peers `typescript` `^6.0.3`. The newest end of each range is the `Newest
+peers` job's, below. Every floor sits below the lock and is tested in CI by
+the `floors` job, on the floor's tarball from npm, outside the lock
+(`scripts/run-on-peer-floor.ts`), each suite with its typecheck: step *Run
+janus-mongo and the kit's mongo specs on @nxgt/mongo 0.17.0*, and the
+`@nxgt/redis` 0.3.1, `@nxgt/drizzle` 0.6.1 and `@nxgt/telemetry` 0.2.1 steps,
+each with the adapters that peer it and the kit's whole suite.
 `@nxgt/mail`, from
 nxgt-mail, peers `janus-mail` at `>=0.1.0 <2` — widened from `<1` when
 nxgt-mail reached 1.0.0 (1.0 removed `withTelemetry`, `withRendererTelemetry`
@@ -582,7 +581,9 @@ The table that exists so a duplication is a decision rather than an accident.
   README allows — `@nxgt/janus-drizzle` and the kit's PostgreSQL-URL case
   on PostgreSQL 15, the two Redis adapters and the kit's drizzle specs, whose
   Redis is real, on Redis 7.0 (7.0.15), the two Redis adapters on Valkey 7.2
-  (Valkey's first line, a built binary from download.valkey.io). The library
+  (Valkey's first line, a built binary from download.valkey.io); the steps
+  for the `@nxgt/redis`, `@nxgt/drizzle` and `@nxgt/telemetry` floors run the
+  kit's whole suite on that Redis 7.0 and PostgreSQL 15. The library
   peers' floors run there too, through `scripts/run-on-peer-floor.ts`, which
   points the named packages' link to a peer at the floor's tarball, runs a
   command, and puts the links back — never touching `package.json` or
@@ -591,9 +592,11 @@ The table that exists so a duplication is a decision rather than an accident.
   refused; so is a malformed one, or a version other than an exact one, before
   anything is fetched. It runs `@nxgt/mail` 0.1.0 under
   `janus-mail`, and `@nxgt/mongo` 0.17.0 under `janus-mongo` and the kit's
-  mongo specs. The other `@nxgt/*` peers are locked at their floors, so the
-  `ci` job already runs them; a lock bump that lifts one above its floor adds
-  a step here. Locally, the command the step runs, for instance
+  mongo specs, `@nxgt/redis` 0.3.1 under `janus-redis`, `janus-webhooks-redis`
+  and the kit, `@nxgt/drizzle` 0.6.1 under `janus-drizzle` and the kit, and
+  `@nxgt/telemetry` 0.2.1 under `janus-telemetry` and the kit (added when the
+  lock moved off those floors, 2026-10-11). A lock bump that lifts another
+  peer above its floor adds a step here. Locally, the command the step runs, for instance
   `bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
   bash -c 'cd packages/janus-mail && bun test src scripts && bun run typecheck'`;
   a link it refuses as left by an interrupted run is fixed by `bun install`.
