@@ -63,7 +63,7 @@ Every peer is required:
 - `@nxgt/janus`;
 - `@nxgt/drizzle`, `>=0.6.1 <1`;
 - `drizzle-orm`, 1.0 (from `1.0.0-rc.4`);
-- `typescript` 6.
+- `typescript` 6 or 7.
 
 `@nxgt/janus` is a **peer**, never a dependency. This package defines no error
 class and throws the peer's own, so `instanceof StoreFailure` holds in your

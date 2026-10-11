@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import ts from 'typescript';
+import ts from 'typescript-6';
 
 /**
  * What an editor offers while a model is being written — measured with the

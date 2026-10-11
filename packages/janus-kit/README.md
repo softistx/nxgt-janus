@@ -69,7 +69,7 @@ Required peers, whichever subpath:
 - `@nxgt/janus`;
 - `@nxgt/redis` `>=0.3.1 <1`, and `zod` 4 which it requires, even with
   sessions in the database: the kit's types name its connection;
-- `typescript` 6.
+- `typescript` 6 or 7.
 
 Peers of `@nxgt/janus-kit/drizzle` — optional in `package.json`, so an
 application on another subpath does not install them, but required by this

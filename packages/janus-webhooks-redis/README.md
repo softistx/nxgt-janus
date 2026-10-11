@@ -18,7 +18,7 @@ included, on every CI run.
 ```sh
 bun add @nxgt/janus-webhooks-redis @nxgt/janus-webhooks @nxgt/janus @nxgt/redis
 bun add zod                  # @nxgt/redis's peer, zod 4, if your application has none
-bun add -d typescript        # 6
+bun add -d typescript        # 6 or 7
 ```
 
 Every peer is required:
@@ -28,7 +28,7 @@ Every peer is required:
   in your code;
 - `@nxgt/redis`, `>=0.3.1 <1`, whose connection wraps Bun's own `RedisClient`,
   so this runs on **Bun**;
-- `typescript` 6.
+- `typescript` 6 or 7.
 
 It needs **Redis 7.0 or later**, or Valkey — see
 [what Redis must be configured with](docs/guide/wiring.md#what-redis-must-be-configured-with).

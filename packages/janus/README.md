@@ -27,7 +27,7 @@ const current = await auth.authenticate(request); // { user, session, token, ren
 bun add @nxgt/janus
 ```
 
-No runtime dependency. `typescript` (6) is a required peer. Your tsconfig resolves as a
+No runtime dependency. `typescript` (6 or 7) is a required peer. Your tsconfig resolves as a
 bundler does (`"moduleResolution": "bundler"`, which Bun and every bundler
 use): the declarations import without extensions, so `nodenext` is not
 supported.

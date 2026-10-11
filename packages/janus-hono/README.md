@@ -37,7 +37,7 @@ bun add @nxgt/janus-hono @nxgt/janus hono
 ```
 
 Every peer is required: `@nxgt/janus`, `hono` (4.13.4 or later) and
-`typescript` (6). `@nxgt/janus` is a **peer**, never a dependency: this package
+`typescript` (6 or 7). `@nxgt/janus` is a **peer**, never a dependency: this package
 defines no error class, so the `JanusError` you catch is the one you import.
 Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`: the
 declarations import without extensions, so `nodenext` is not supported.

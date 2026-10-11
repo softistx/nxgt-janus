@@ -39,7 +39,7 @@ bun add -d typescript
 
 Every peer is required: `@nxgt/janus`, `@nxgt/mongo` (`>=0.17.0 <1`), `mongodb`
 (7), `zod` (4.6.5 or later, which `@nxgt/mongo` defines collections with) and `typescript`
-(6). `@nxgt/janus` is a **peer**, never a dependency: this package defines no
+(6 or 7). `@nxgt/janus` is a **peer**, never a dependency: this package defines no
 error class and throws the peer's own, so `instanceof StoreFailure` holds in
 your code. Like it, this package expects `"moduleResolution": "bundler"`: the
 declarations import without extensions, so `nodenext` is not supported.

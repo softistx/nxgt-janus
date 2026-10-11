@@ -49,7 +49,7 @@ bun add -d typescript
 Three peers, all required: `@nxgt/mail` (0.1 or later, below 2 — 1.0 and
 its transports included), which defines the `Mailer` port and the errors;
 `@nxgt/janus` (0.17), whose flows' answers the methods take — types only,
-nothing of it is loaded; and `typescript` (6). **No Maizzle, no Vue, no
+nothing of it is loaded; and `typescript` (6 or 7). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
 The `@nxgt/mail` floor is tested, not claimed: the package's specs and its

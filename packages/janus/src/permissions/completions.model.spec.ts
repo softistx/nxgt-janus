@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import ts from 'typescript';
+import ts from 'typescript-6';
 import {
 	completionsIn,
 	FILE,
