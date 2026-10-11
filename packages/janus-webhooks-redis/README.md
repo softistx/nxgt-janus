@@ -18,7 +18,7 @@ included, on every CI run.
 ```sh
 bun add @nxgt/janus-webhooks-redis @nxgt/janus-webhooks @nxgt/janus @nxgt/redis
 bun add zod                  # @nxgt/redis's peer, zod 4, if your application has none
-bun add -d typescript        # 6
+bun add -d typescript        # 6 or 7
 ```
 
 Every peer is required:

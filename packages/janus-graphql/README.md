@@ -49,7 +49,7 @@ export const yoga = createYoga({
 
 ```sh
 bun add @nxgt/janus-graphql @nxgt/janus graphql @graphql-tools/utils @envelop/core
-bun add -d typescript        # 6
+bun add -d typescript        # 6 or 7
 ```
 
 Every peer is required but `graphql-ws`:
@@ -60,7 +60,7 @@ Every peer is required but `graphql-ws`:
 | `graphql` | `^16.9.0 \|\| ^17.0.0` | The schema and `GraphQLError` are yours; a second copy of `graphql` fails every schema |
 | `@graphql-tools/utils` | `>=10.0.0 <13` | `mapSchema` and `getDirective`, which apply the directives |
 | `@envelop/core` | `^5.0.0` | Types only — the `Plugin` `useJanus()` answers. Yoga already brings it |
-| `typescript` | `^6.0.3` | As for `@nxgt/janus` |
+| `typescript` | `^6.0.3 || ^7.0.0` | As for `@nxgt/janus` |
 | `graphql-ws` | `^6.0.0`, **optional** | Only for subscriptions over a WebSocket, with `janusConnection()`. Nothing here imports it. For `graphql` 17, a `graphql-ws` whose peer range includes it — 6.3.0 does |
 
 The floors are tested, not claimed: the package's specs and its typecheck run
