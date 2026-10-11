@@ -3,7 +3,8 @@ name: Release
 # Every consumer of these packages installs a published version, so a merge to
 # develop that changes a package is only half a change until it is on the
 # registry. This workflow is the other half: it turns the changesets sitting in
-# .changeset/ into version bumps, then publishes.
+# .changeset/ into version bumps, then publishes, then closes the issues the
+# published versions fixed (`close-issues`, at the end).
 #
 # It opens a "Version Packages" pull request rather than publishing straight
 # from develop; merging that PR is what releases. That keeps the version bump
@@ -37,6 +38,12 @@ jobs:
     name: Release
     # GitHub-hosted. The repository is public, so these minutes are free.
     runs-on: ubuntu-latest
+    # Read by close-issues below. `published-packages` is hyphenated: v2 builds
+    # it from the `git-tag` events `scripts/publish.ts` writes to
+    # $CHANGESETS_OUTPUT, and v1's camel-case `publishedPackages` is empty now.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs.published-packages }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,6 +56,7 @@ jobs:
       # No npmrc step: `bunfig.toml` reads $NPM_TOKEN from the environment.
       # v2 of the action no longer writes one from NPM_TOKEN either.
       - name: Version or publish
+        id: changesets
         uses: changesets/action@v2
         with:
           version-script: bun run changeset:version
@@ -62,3 +70,39 @@ jobs:
           # NPM_TOKEN publishes, read through bunfig.toml.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Closes the issues filed here that this release fixed: labels each
+  # `released`, closes it, and comments "Fixed in <pkg>@<ver>" once. The
+  # scripts are byte copies of nxgt-core's plugins/nxgt-issues/scripts/release/
+  # ("The library-repository recipe" in its README); re-copy them, never edit.
+  # A job of its own, so `issues: write` never sits beside the publish token;
+  # its `permissions` replace the workflow's, so it lists all three it needs.
+  # `!cancelled()` still runs it when the release failed after publishing, and
+  # `continue-on-error` keeps a failure here from turning the release red.
+  close-issues:
+    name: Close released issues
+    needs: release
+    if: ${{ !cancelled() && needs.release.outputs.published == 'true' }}
+    runs-on: ubuntu-latest
+    # Unlike the release job's, cutting this one short loses nothing: a
+    # manual `issues.ts released` redoes what it did not.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      # The history and the tags tell apart a PR several changelogs list.
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup
+        uses: ./.github/actions/setup
+      # The JSON goes through env, never into the command line.
+      - name: Close the issues this release fixed
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISHED: ${{ needs.release.outputs.published-packages }}
+        run: bun scripts/close-released-issues.ts --published "$PUBLISHED"

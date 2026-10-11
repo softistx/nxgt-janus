@@ -75,6 +75,16 @@
 	},
 	"overrides": [
 		{
+			"includes": ["scripts/close-released-issues*.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"useNamingConvention": "off"
+					}
+				}
+			}
+		},
+		{
 			"includes": ["**/test/types/**"],
 			"linter": {
 				"rules": {
