@@ -76,6 +76,13 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Finding a user by e-mail on every type, v0.21.0** —
+  `auth.<type>.findByEmail(email)` answers the user of the type holding the
+  address, or `null`, on every type with an e-mail — a type with no
+  password included, which has no `findByLogin`. The address is normalised
+  and compared as the e-mail flows do; nothing is counted, issued or
+  written. It is the lookup before `signInProven` when an invitation holds
+  an address. Server-side only: it tells whether an account exists.
 - **Signing in on the application's own proof, v0.20.0** —
   `auth.<type>.signInProven(user, { device })` signs in a user the
   application proved itself — an invitation token it issued — and answers
@@ -159,10 +166,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   can reach the inbox the account just left, as `@nxgt/janus-mail`'s
   `passwordChanged` and `emailChanged` notices do. Breaking for a `switch`
   that exhausts `UserEventType`.
-- **An old reset link stops working, v0.13.0** — `resetPassword.request`
-  spends the links sent before, so only the last e-mail's works, and writing
-  a password — a link's `confirm`, `changePassword`, `setPassword` — spends
-  every reset link still live, so a link sent before the change cannot
-  replace the new password. Both answer `TOKEN_SPENT`; an outage spending
-  them fails the call with `STORE_FAILED`. No change for adapters: the
-  existing `TokenStore.spendUserTokens` does it.

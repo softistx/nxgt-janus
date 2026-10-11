@@ -11,6 +11,7 @@ import type {
 	SignInCodeApi,
 	VerifyEmailApi,
 } from './email-flows';
+import type { FindByEmailApi } from './find-by-email';
 import type {
 	EmailOf,
 	FieldsInput,
@@ -68,7 +69,8 @@ export type TypeApi<
 			: PasswordApi<UserOfType<Name, Def>, FieldsInput<Def>, LoginOf<Def>>) &
 	([EmailOf<Def>] extends [never]
 		? unknown
-		: VerifyEmailApi<UserOfType<Name, Def>> &
+		: FindByEmailApi<UserOfType<Name, Def>> &
+				VerifyEmailApi<UserOfType<Name, Def>> &
 				SignInCodeApi<
 					UserOfType<Name, Def>,
 					SignInAnswer<Name, Def, TwoFactor>

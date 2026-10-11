@@ -51,6 +51,7 @@ export type {
 	Authenticated,
 	Checked,
 	EmailOf,
+	FindByEmailApi,
 	HeaderRecord,
 	IssuedCode,
 	IssuedToken,

@@ -53,6 +53,7 @@ How the messages are shaped:
 - [`STORE_FAILED` — `users.findUsers answered no list …`](#store_failed--usersfindusers-answered-no-list-an-absence-is-a-shorter-list-so-this-store-forgot-to-answer)
 - [`<call>: ids must be an array of user ids`](#call-ids-must-be-an-array-of-user-ids)
 - [`findMany` answers fewer users than ids](#findmany-answers-fewer-users-than-ids)
+- [`findByEmail` answers `null` for an address somebody holds](#findbyemail-answers-null-for-an-address-somebody-holds)
 - [`NOT_FOUND` — `<call>: no <type> has this id`](#not_found--call-no-type-has-this-id)
 - [`LOGIN_TAKEN` — `<call>: the login is taken by another <type>`](#login_taken--call-the-login-is-taken-by-another-type)
 - [`VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`](#version_conflict--call-expected-version-n-found-m)
@@ -584,6 +585,19 @@ const byId = new Map((await auth.staff.findMany(ids)).map((user) => [user.id, us
 const member = byId.get(row.staffId); // undefined: nobody of this type holds it
 ```
 
+### `findByEmail` answers `null` for an address somebody holds
+
+**When:** `auth.<type>.findByEmail(email)` on an address you can see on a user.
+**Why:** one of three. The user is of **another type**: each type answers its own users, and the same address may hold one of each. The address is the type's **login, not its e-mail**: on a type that signs in with a username, only the field `email` names is looked up, and a username that looks like an address is nobody's. Or the value is **no address**: not a string — a `{ email }` object from JavaScript, an `undefined` read off a record — empty once trimmed, or holding a NUL or a lone surrogate; it answers `null` without asking the store, as `find` answers a malformed id.
+**Fix:** ask the type the user is of, pass the e-mail itself, and for a username use `findByLogin`:
+
+```ts
+const member = await clinic.member.findByEmail(invitation.email); // a string: the address the invitation holds
+const staff = await clinic.staff.findByLogin('grace');           // a username is a login, not an e-mail
+```
+
+An outage is never `null` here: it rejects with `STORE_FAILED`.
+
 ### `NOT_FOUND` — `<call>: no <type> has this id`
 
 `NotFoundError`, from `get`, `getUser`, `update`, `setActive`, `setPassword`, `signInProven`, `verifyEmail.send`, `secondFactor.recoveryCodesLeft`. Also `<call>: the user has no e-mail`.
@@ -775,14 +789,18 @@ sent still works, though the invitee was sent none.
 loop from filling an inbox. A sign-in your server already proved — the
 invitation token it issued — does not need an e-mailed link, and should not
 share its count.
-**Fix:** call `signInProven` with the id from the invitation's record, after
+**Fix:** call `signInProven` with the user from the invitation's record, after
 verifying the token yourself. It counts nothing, sends nothing, spends no
-link already sent, and answers what `signIn` answers.
+link already sent, and answers what `signIn` answers. An invitation that
+holds an address rather than an id finds the account with `findByEmail`,
+which counts nothing either — on any type with an e-mail, password or not.
 
 ```ts
 const invitation = await invitations.spend(hash(token), new Date()); // yours: once, unexpired
 if (invitation === null) return new Response(null, { status: 404 });
-const result = await auth.signInProven(invitation.userId, { device: deviceOf(request) });
+const user = await auth.findByEmail(invitation.email); // or invitation.userId, when you stored the id
+if (user === null) return new Response(null, { status: 404 });
+const result = await auth.signInProven(user, { device: deviceOf(request) });
 ```
 
 Never pass it an id the request carries: it checks no credential. See
@@ -1006,7 +1024,7 @@ const page = await access.list(user, 'view', 'record', {
 
 **When:** `signIn`, `findByLogin`, `setPassword`, `changePassword`, `resetPassword.*`, from JavaScript. In TypeScript, these methods are absent from a type without `password`.
 **Why:** the user type has no `password` option.
-**Fix:** `users: { staff: { schema: Staff, password: { login: 'email' } } }`.
+**Fix:** `users: { staff: { schema: Staff, password: { login: 'email' } } }` — when the type should sign in with a password. To **find** a user of a type with no password, call `findByEmail(email)` instead of `findByLogin`: declaring a password only to look users up opens `signIn` and `resetPassword` on a type that has none by design.
 
 ### `authenticate()` answers `null` although a valid cookie was sent
 

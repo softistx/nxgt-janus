@@ -328,6 +328,7 @@ await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user
 await auth.magicLink.request(email);               // { token, email, expiresAt, user } | null
 await auth.magicLink.confirm(token);               // { status: 'signedIn', user, session, token }
 await auth.magicLink.prepare(email);               // counted, nobody looked up: { send() } — and signInCode, resetPassword
+await auth.findByEmail(email);                     // User | null — server-side only, counts nothing; every type with an e-mail
 await auth.signInProven(user.id);                  // privileged: after a proof YOUR server verified — { status: 'signedIn', … }
 await auth.stepUp.request(user);                   // { via: 'email', code, challenge, email, expiresAt, user }
 await auth.stepUp.confirm(request, challenge, code); // the request's session, authenticatedAt: now
@@ -376,14 +377,15 @@ else reaches the store and is asynchronous.
   compile error on `login`, and the message lists the fields you could have
   meant. It is normalised with `'lowercaseTrim'` unless you say otherwise.
 - **`email`** defaults to the field named `email`. A type without one has no
-  `verifyEmail`, no `resetPassword`, no `signInCode` and no `magicLink` — they
-  are absent from its type, not failing at run time. Changing the e-mail sets `emailVerified`
-  back to `false`.
+  `findByEmail`, no `verifyEmail`, no `resetPassword`, no `signInCode` and
+  no `magicLink` — they are absent from its type, not failing at run time.
+  Changing the e-mail sets `emailVerified` back to `false`.
 - **Per type**: `create`, `find` (or `null`), `findMany`, `get` (or
   `NOT_FOUND`), `list`, `update(user, patch)` — merged over the stored fields,
   then validated whole — `setActive`, `delete` and `signInProven` (below);
-  with a password, `signUp`, `signIn`, `findByLogin`, `setPassword` and
-  `changePassword`. Every write but `delete` takes an optional `ifVersion`.
+  with an e-mail, `findByEmail` (below), password or not; with a password,
+  `signUp`, `signIn`, `findByLogin`, `setPassword` and `changePassword`.
+  Every write but `delete` takes an optional `ifVersion`.
 - **`findMany(ids)`** answers the type's users **in the order the ids were
   given**, each once — a repeated id at its first place. An id `find` answers
   `null` for — malformed, unknown, another type's — is **left out**, so match
@@ -813,6 +815,38 @@ with no password, code or link. Every user type has it.
 [Sessions](docs/guide/sessions.md#signing-in-on-your-own-proof--signinproven)
 has the invitation route in full, and what to verify before the call.
 
+### Finding a user by e-mail — `findByEmail`
+
+```ts
+// Accepting an invitation sent to an address: the account may already exist, on a type with no password.
+const invitation = await invitations.redeem(body.invitationToken); // yours: verified first
+if (invitation === null) return new Response(null, { status: 404 });
+
+const member =
+	(await auth.member.findByEmail(invitation.email)) ?? // User | null — counts nothing, sends nothing
+	(await auth.member.create({ email: invitation.email, name: '' }));
+const result = await auth.member.signInProven(member, { device: deviceCookie ?? null });
+```
+
+The user of this type holding the address, or `null` — on **every type with
+an e-mail, password or not**. A type with no password has no `findByLogin`,
+and needs no password login to be found: declaring one would open the
+password and reset flows on it.
+
+- **Normalised as the e-mail flows normalise**: trimmed and lowercased,
+  whatever the type's login. A type that signs in with a username is still
+  found by its e-mail, and a username that only looks like an address is
+  nobody's — the same holder `magicLink.request` and `resetPassword.request`
+  would find.
+- **Read-only**: counts nothing in the mail or the sign-in throttle,
+  issues nothing, writes nothing. An inactive user is answered, as by
+  `find` — `signInProven` then refuses them with `USER_INACTIVE`.
+- **A value that is no address is nobody's**: not a string, empty once
+  trimmed, or holding a NUL or a lone surrogate answers `null` without
+  asking the store, as `find` answers a malformed id. An outage is
+  `STORE_FAILED`, never `null`.
+- **Server-side only**: it tells whether an account exists. See *Traps*.
+
 ### Step-up — `stepUp` and `assertFresh`
 
 ```ts
@@ -1225,6 +1259,16 @@ id from that proof's record. For an invitation, it replaces
 five anonymous requests for the invitee's address would make the
 acceptance answer 429.
 
+**`findByEmail` is an account-existence oracle — never expose it to an
+anonymous client.** It answers whether somebody of the type holds an
+address, at once, with no throttle: a route that calls it on an address a
+visitor typed tells anybody who has an account. Call it on the server, after
+a proof of your own — an invitation token your server issued and just
+verified — with the address read from that proof's record, never from the
+request. A visitor who types an address goes through `magicLink.request` or
+`signInCode.request` instead: throttled per address, and answered with the
+same page whether they issued or not.
+
 **Confirm a sign-in link from a `POST`, never from its `GET`.** Mail
 scanners open every link in an e-mail before the user does: a route that
 calls `magicLink.confirm` on the link's `GET` spends it for the scanner, and
@@ -1517,7 +1561,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and sixty-three plausible mistakes, one hundred and sixty-three refused at compile time — and
+**One hundred and sixty-six plausible mistakes, one hundred and sixty-six refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1525,10 +1569,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (seventy-five, on `janus()`, from the point of view of
+it), `test/types/auth/` (seventy-eight, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

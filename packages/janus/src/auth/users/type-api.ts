@@ -8,13 +8,14 @@ import { secondFactorFlows } from '../second-factor/flows';
 import { signInCodeFlows } from '../sign-in-code';
 import { stepUpFlows } from '../step-up/flows';
 import type { AnyTypeApi } from './any-type-api';
+import { findByEmailFlows } from './find-by-email';
 import { passwordFlows } from './password-flows';
 import { recordFlows } from './record-flows';
 
 /**
  * Everything one user type answers, gathered from its flows: its records,
  * its password, its sign-in on the application's proof, its second factor,
- * its sign-in code and link, its step-up and its e-mails.
+ * its sign-in code and link, its step-up, its e-mails and the lookup by e-mail.
  */
 export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 	const at: At = (operation) =>
@@ -32,6 +33,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 		magicLink: magicLinkFlows(context, type, at, secondFactor.finish),
 		stepUp: stepUpFlows(context, type, at),
 
+		...findByEmailFlows(context, type),
 		...emailFlows(context, type, at),
 	};
 }
