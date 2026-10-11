@@ -16,6 +16,7 @@ export type {
 	SignInCodeApi,
 	VerifyEmailApi,
 } from './email-flows';
+export type { FindByEmailApi } from './find-by-email';
 export type {
 	EmailOf,
 	LoginOf,

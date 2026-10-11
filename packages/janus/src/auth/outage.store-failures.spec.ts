@@ -112,7 +112,7 @@ describe('an outage is never a negative answer', () => {
 		expect(error).toBeInstanceOf(StoreFailure);
 	});
 
-	it('find, list, sign-outs, a reset request and a token redemption reject', async () => {
+	it('find, findByEmail, list, sign-outs, a reset request and a token redemption reject', async () => {
 		type Auth = ReturnType<typeof setup>['auth'];
 		const id = '018f0000-0000-7000-8000-000000000000';
 		const cases: [
@@ -128,6 +128,7 @@ describe('an outage is never a negative answer', () => {
 				'findUserByLogin',
 				(auth) => auth.resetPassword.request(ada.email),
 			],
+			['users', 'findUserByLogin', (auth) => auth.findByEmail(ada.email)],
 			['sessions', 'revokeUserSessions', (auth) => auth.signOutEverywhere(id)],
 			[
 				'sessions',
