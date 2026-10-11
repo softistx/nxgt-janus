@@ -84,9 +84,10 @@ Peers of `@nxgt/janus-kit/mongo`, optional in the same way:
   kit's stores must query the same definitions;
 - `@nxgt/mongo` `>=0.17.0 <1` and `mongodb` 7.
 
-The `@nxgt/mongo` floor is tested, not claimed: the kit's mongo specs and its
-typecheck run on `@nxgt/mongo` 0.17.0 as well, in the Floors job, on every CI
-run.
+The `@nxgt/*` floors are tested, not claimed: in the Floors job, on every CI
+run, the kit's mongo specs and its typecheck run on `@nxgt/mongo` 0.17.0, and
+its whole suite and typecheck on `@nxgt/redis` 0.3.1, `@nxgt/drizzle` 0.6.1
+and `@nxgt/telemetry` 0.2.1.
 
 `@nxgt/janus-telemetry` is an optional peer, loaded only when `telemetry` is
 `true`; it requires `@nxgt/telemetry` `>=0.2.1 <1` as its own peer. `@nxgt/janus-redis` is a dependency: your code never imports it.
