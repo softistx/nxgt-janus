@@ -1,5 +1,13 @@
 # @nxgt/janus-telemetry
 
+## 0.10.1
+
+### Patch Changes
+
+- [#207](https://github.com/softistx/nxgt-janus/pull/207) [`7eed42d`](https://github.com/softistx/nxgt-janus/commit/7eed42dc4c59501810cfbbd49bf7483ebbbad7e6) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The README names `janus.<type>.findByEmail` among the traced reads: its span carries the `user.id` it found, never the address asked for.
+- Updated dependencies [[`d450195`](https://github.com/softistx/nxgt-janus/commit/d450195141da06ffb138dd74159ee2865bdd7369)]:
+  - @nxgt/janus@0.21.0
+
 ## 0.10.0
 
 ### Minor Changes
