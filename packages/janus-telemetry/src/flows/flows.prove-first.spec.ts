@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { collect } from '../../test/collect';
+import { collect, rejection } from '../../test/collect';
 import { email, password, setup } from './flows.fixtures';
 
 describe('instrumentJanus()', () => {
@@ -30,5 +30,21 @@ describe('instrumentJanus()', () => {
 		const written = JSON.stringify({ spans, logs });
 		expect(written).not.toContain(email);
 		expect(written).not.toContain(token);
+	});
+
+	it('writes nothing for a refusal, and leaves the span ok', async () => {
+		const { auth } = setup();
+		const { user } = await auth.patient.signUp({ email, password });
+		await auth.patient.setActive(user, false);
+
+		const { spans, logs } = await collect(() =>
+			rejection(auth.patient.verifyEmail.proveFirst(user.id)),
+		);
+
+		expect(
+			spans.find((span) => span.name === 'janus.patient.verifyEmail.proveFirst')
+				?.status,
+		).toBe('ok');
+		expect(logs).toEqual([]);
 	});
 });
