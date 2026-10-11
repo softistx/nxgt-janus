@@ -321,7 +321,7 @@ await auth.authenticate(request);                  // { user, session, token, re
 await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
 await auth.verifyEmail.confirm(token);
-await auth.verifyEmail.proveFirst(user);           // privileged: { user, proved } — drops a squatter's password and factor
+await auth.verifyEmail.proveFirst(user);           // privileged: FirstProof — { user, proved }; drops a squatter's password and factor
 await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
@@ -784,6 +784,7 @@ has a route for each flow, with Hono.
 const invitation = await invitations.redeem(body.invitationToken); // yours: one use, expiring, hashed at rest
 if (invitation === null) return new Response(null, { status: 404 });
 
+// The invitation reached the inbox: call verifyEmail.proveFirst before this — see below.
 const result = await auth.signInProven(invitation.userId, { device: deviceCookie ?? null });
 if (result.status === 'secondFactor') return askForCode(result.challenge); // switch on status, as after signIn
 // result: { status: 'signedIn', user, session, token, newDevice, deviceToken }
@@ -860,7 +861,8 @@ await auth.setPassword(user, body.password);                // 2. then the invit
 const result = await auth.signInProven(user);               // 3. last: proveFirst revokes every session
 ```
 
-Applies **the first proof of an e-mail** that `magicLink.confirm` and
+Answers `FirstProof<User>` — `{ user, proved }`, exported. Applies **the
+first proof of an e-mail** that `magicLink.confirm` and
 `signInCode.confirm` apply, when the proof is the application's — an
 invitation token it mailed to the address and the person followed. On every
 type with an e-mail; `signInProven` alone proves nothing.
