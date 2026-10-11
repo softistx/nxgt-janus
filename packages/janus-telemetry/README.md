@@ -54,7 +54,7 @@ current span. Like `@nxgt/janus`, it expects `"moduleResolution": "bundler"`.
 
 | Span | Attributes |
 | --- | --- |
-| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm`, `janus.signInCode.confirm`, `janus.magicLink.confirm` and `janus.signInProven` included, the reads as well — `janus.<type>.findByEmail` among them — and a prepared request's `send()` as `janus.magicLink.prepare.send` | `janus.user.type`; `user.id` once the answer names a user, never the address or login a read was asked for; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn`, `signInCode.confirm`, `magicLink.confirm` and `signInProven` — `signedIn`, or `secondFactor` when it answered a challenge; for `stepUp.confirm`, the `user.id` of the session it stamped, never the session's id |
+| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm`, `janus.signInCode.confirm`, `janus.magicLink.confirm`, `janus.signInProven` and `janus.verifyEmail.proveFirst` included, the reads as well — `janus.<type>.findByEmail` among them — and a prepared request's `send()` as `janus.magicLink.prepare.send` | `janus.user.type`; `user.id` once the answer names a user, never the address or login a read was asked for; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn`, `signInCode.confirm`, `magicLink.confirm` and `signInProven` — `signedIn`, or `secondFactor` when it answered a challenge; for `stepUp.confirm`, the `user.id` of the session it stamped, never the session's id |
 | `janus.can` | `janus.subject.type`, `janus.subject.id`, `janus.permission`, `janus.object.type`, `janus.object.id`, and the answer, `janus.allowed` |
 | `janus.list` | the subject, `janus.permission`, `janus.object.type`, and `janus.page.items`, how many it found |
 | `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set, read as `permissions()` reads it: a user with a field named `relation` is that user, and a set on a user type is one only when `setOf()` made it |
@@ -91,7 +91,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.user.deleted` | info | a user was deleted |
 | `janus.user.activated`, `janus.user.deactivated` | info | `setActive` |
 | `janus.password.changed`, `janus.password.set`, `janus.password.reset` | info | the user's change, an admin's, a reset |
-| `janus.email.verified` | info | an e-mail was confirmed |
+| `janus.email.verified` | info | an e-mail was confirmed — by `verifyEmail.confirm`, or proved on the application's own proof by `verifyEmail.proveFirst`, which adds `janus.email.proveFirst: true` and writes it only when it proved (an e-mail already proved writes nothing) |
 | `janus.tuple.granted`, `janus.tuple.revoked` | info | a tuple was written, with the object, relation and subject |
 
 ## Traps

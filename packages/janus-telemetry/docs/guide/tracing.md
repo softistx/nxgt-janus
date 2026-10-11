@@ -337,6 +337,20 @@ as after a password. Nothing is written for the mail: it sends none.
 // name = 'janus.signIn' and janus.signIn.proven = true, grouped by user.id — who joined without a credential
 ```
 
+Accepting an invitation first proves the address with
+`verifyEmail.proveFirst`, which drops whatever somebody who signed up with
+it left there — a password, a second factor, sessions. When it proved, it
+writes `janus.email.verified`, marked; an e-mail already proved writes
+nothing. Never the address:
+
+```
+POST /invitation/accept                  server
+├─ janus.verifyEmail.proveFirst          janus.user.type=user  user.id=0199…
+│    log  janus.email.verified           user.id=0199…  janus.email.proveFirst=true
+└─ janus.signInProven                    janus.user.type=user  user.id=0199…  janus.signIn.status=signedIn
+     log  janus.signIn                   user.id=0199…  janus.signIn.proven=true
+```
+
 ## A step-up
 
 A step-up — a signed-in user proving again who they are before a

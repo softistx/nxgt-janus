@@ -33,6 +33,11 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **An e-mail proved on the application's proof, traced, v0.11.0** —
+  `verifyEmail.proveFirst` is a span, `janus.<type>.verifyEmail.proveFirst`,
+  with the `user.id` it proved, and writes `janus.email.verified` marked
+  `janus.email.proveFirst: true` when it proved — nothing for an e-mail
+  already proved, and never the address. Needs `@nxgt/janus` 0.22.0.
 - **A sign-in on the application's proof, traced, v0.10.0** —
   `signInProven` is a span, `janus.<type>.signInProven`, with
   `janus.signIn.status`, and writes `janus.signIn`, `janus.signIn.refused` or
