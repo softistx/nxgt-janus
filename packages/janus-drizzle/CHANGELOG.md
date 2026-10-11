@@ -1,5 +1,13 @@
 # @nxgt/janus-drizzle
 
+## 0.7.4
+
+### Patch Changes
+
+- [#211](https://github.com/softistx/nxgt-janus/pull/211) [`01867bc`](https://github.com/softistx/nxgt-janus/commit/01867bc438ec82cdcf867ab755a2af72874346bc) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Accept TypeScript 7 as well as 6: the `typescript` peer is `^6.0.3 || ^7.0.0`. The packages use TypeScript for its type-level API only, and the type tests, including every compile-time refusal, pass under 7.0.2.
+- Updated dependencies [[`01867bc`](https://github.com/softistx/nxgt-janus/commit/01867bc438ec82cdcf867ab755a2af72874346bc)]:
+  - @nxgt/janus@0.22.1
+
 ## 0.7.3
 
 ### Patch Changes
