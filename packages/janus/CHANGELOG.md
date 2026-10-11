@@ -1,5 +1,23 @@
 # @nxgt/janus
 
+## 0.20.0
+
+### Minor Changes
+
+- [#204](https://github.com/softistx/nxgt-janus/pull/204) [`e064597`](https://github.com/softistx/nxgt-janus/commit/e0645973a37b64ddd47aa4540fd195172888f9b6) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **E-mail requests in two steps: `prepare`, then `send()`.** `magicLink.prepare(email)`, `signInCode.prepare(email)` and `resetPassword.prepare(email)` validate the input as `request` does, normalise the address and count it against the mail throttle — `MailThrottledError` (`MAIL_THROTTLED`, `retryAfter`) past the limit — and **look nobody up**: the same store calls for any address, none with `mail: { throttle: false }`. `send()` on the answer does the rest of `request` — the lookup, the token issued, the earlier ones spent — and answers what `request` answers, `null` for nobody, **without counting again**. It runs once: a second call, or one after a `send()` that failed, is a `TypeError` (`magicLink.prepare(…).send: already called — a prepared request sends once; call magicLink.prepare again for another`), so each `prepare` permits exactly one issue and nothing a caller passes skips the count. An application that runs `request` in the background, so its time does not tell an account from nobody, can now answer `MAIL_THROTTLED` in the visitor's request and send in the background.
+  
+  `@nxgt/janus`: `signInCode.prepare` also answers the `challenge`, minted before the lookup, so the visitor's cookie is set whoever holds the address and no decoy is needed; `send()` issues the code under it. New types `PreparedRequest<Issued>` (`{ send() }`, for a link and a reset) and `PreparedCode<U>` (`{ challenge, send() }`). `request(email)` is unchanged; it is now `prepare`, then `send()`. `verifyEmail.send` and `stepUp.request` have no `prepare`: they are counted per user, for a user the application already holds, so their time tells nothing about who has an account. Five new compile-time refusals (160 in all).
+  
+  `@nxgt/janus-telemetry`: `prepare` is traced like any flow and writes `janus.mail.throttled` (`janus.mail.flow: magicLink.prepare`) past its limit; the `send()` of what it answers is traced as `janus.<type>.magicLink.prepare.send` and writes `janus.magicLink.sent` or `janus.signInCode.sent`, as `request` does. Needs `@nxgt/janus` 0.20 for the new flows.
+  
+  `@nxgt/janus-hono` and `@nxgt/janus-graphql`: docs only — the routes guide's code, link and reset routes, and the errors guide's mutation, use `prepare` in the request and `send()` after the answer.
+
+- [#206](https://github.com/softistx/nxgt-janus/pull/206) [`9629708`](https://github.com/softistx/nxgt-janus/commit/962970815238b4e6684256c9e891b2e662d76b68) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **Signing in on the application's own proof: `auth.<type>.signInProven(user, { device? })`.** For a user the application proved by its own means — an invitation token it issued and the person followed, a channel of its own — with no password, code or link. It finishes as every sign-in does and answers the same `SignedIn | SecondFactorRequired` union: an active second factor answers a challenge for `secondFactor.confirm`, a `device` answers `newDevice` and `deviceToken` and sends `user.newDeviceSignedIn` for a new one, and an inactive user is `USER_INACTIVE`. A malformed id, an unknown one, a deleted user or a user of another type is `NOT_FOUND`, as for `get`. It sends no e-mail, issues no token, counts in neither the mail nor the sign-in throttle, and spends nothing: links and codes already sent still work. It proves no e-mail.
+  
+  **Privileged**: janus checks no credential, so call it only after your server verified its proof, with the id from that proof's record — never with an id a request supplied. It replaces `magicLink.request` + `confirm` for accepting an invitation, which since 0.18 counted against the mail throttle per address: five anonymous requests for the invitee's address made the acceptance answer 429. `@nxgt/janus`: new type `ProvenSignInApi<U, Answer>`, on every user type; three new compile-time refusals (163 in all).
+  
+  `@nxgt/janus-telemetry`: `signInProven` is traced as `janus.<type>.signInProven` with `janus.signIn.status`, and writes `janus.signIn`, `janus.signIn.refused` or `janus.signIn.secondFactor` like the other sign-ins, marked `janus.signIn.proven: true`. Needs `@nxgt/janus` 0.20 for the new flow.
+
 ## 0.19.0
 
 ### Minor Changes
