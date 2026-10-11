@@ -202,7 +202,7 @@ With an e-mail — the field `email` names, password or not — besides:
 
 | Method | Answers | Rejects with |
 | --- | --- | --- |
-| `findByEmail(email)` | the user, or `null`; the address trimmed and lowercased as the e-mail flows do, whatever the login; a value that is no address is nobody's — **server-side only**, see [below](#finding-a-user-by-e-mail--findbyemail) | |
+| `findByEmail(email)` | the user, or `null`; the address trimmed and lowercased as the e-mail flows do, whatever the login; a value that is no address is nobody's — **server-side only**, see [below](#finding-a-user-by-e-mail--findbyemail) | `STORE_FAILED` only |
 
 With `secondFactor` configured, a type with a password also answers
 `secondFactor.enroll`, `activate`, `disable` and `confirm` — see
@@ -309,6 +309,7 @@ const staffById = new DataLoader(async (ids: readonly string[]) => {
 
 ```ts
 findByEmail(email: string): Promise<User | null>
+// typed by FindByEmailApi<User>, exported from @nxgt/janus
 ```
 
 Every type with an e-mail has it, **with or without a password** — and a
