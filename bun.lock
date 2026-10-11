@@ -143,8 +143,8 @@
         "@maizzle/framework": "6.1.7",
         "@maizzle/tailwindcss": "1.5.6",
         "@nxgt/janus": "workspace:^",
-        "@nxgt/mail": "1.0.1",
-        "@nxgt/mail-config": "1.0.2",
+        "@nxgt/mail": "1.0.2",
+        "@nxgt/mail-config": "1.0.3",
         "@nxgt/mail-i18n": "1.0.1",
         "@nxgt/mail-presets": "1.1.1",
         "@nxgt/mail-ui": "1.0.1",
@@ -475,9 +475,9 @@
 
     "@nxgt/janus-webhooks-redis": ["@nxgt/janus-webhooks-redis@workspace:packages/janus-webhooks-redis"],
 
-    "@nxgt/mail": ["@nxgt/mail@1.0.1", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-Q/359qB+ymqTsQWEKy1CA2G8gzWi58tEbSL/AsPDjcI79bJarH9upzW1RygdOemOmTypgvkZApbfIAXXBcDFSw=="],
+    "@nxgt/mail": ["@nxgt/mail@1.0.2", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-32KwcN7X9BOOWA8d2PDRMIwcRTSQurUiit8pP2RBEdQ3Wtyd8dsp7udBQzik4EEtvrZrjoIDexajdS3+GU+z9w=="],
 
-    "@nxgt/mail-config": ["@nxgt/mail-config@1.0.2", "", { "dependencies": { "defu": "^6.1.4" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@maizzle/tailwindcss": "^1.5.6", "typescript": "^6.0.3" } }, "sha512-uGdwXGe92Mm6OOqDWXufcEOGVsnmMdjVGJCeBoR9z2NwO+P9n4fG/JKeDGwVuOEg6/K7P6tKS7jix5Sp4O0ofA=="],
+    "@nxgt/mail-config": ["@nxgt/mail-config@1.0.3", "", { "dependencies": { "defu": "^6.1.4" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@maizzle/tailwindcss": "^1.5.6", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-3+FoJj6Mp6Kas2oAOgFnHcMC6zhO6CRiVM5fliRbMsExMXd3KQ2MTp+RmfC1Qvo1acngI3cgNjPzBNrdeznJaw=="],
 
     "@nxgt/mail-i18n": ["@nxgt/mail-i18n@1.0.1", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "@nxgt/i18n-vue": "^0.2.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^1.0.1", "typescript": "^6.0.3", "vue": "^3.5.0" }, "optionalPeers": ["vue"] }, "sha512-ncZplS6gCMG/m+Vx39AWF8aHnV8J11Sz71G3JuFXvHIziBk3IxrChh1dFBiAoN2L6toPCl0fuq0S9CquofzJvw=="],
 
