@@ -69,10 +69,12 @@ nxgt-telemetry — the range is `>=<floor> <1`: `>=0.17.0 <1`, `>=0.3.1 <1`,
 (`^0.4.2` stops at `0.5.0`), and every minor upstream would then force a
 release here. The same package sits in `devDependencies`, and `bun.lock` holds
 the version the `ci` job's specs run on — npm's `latest` when the lock was last
-refreshed: on 2026-10-11, `@nxgt/redis` 0.7.2, `@nxgt/mongo` 0.19.3,
-`@nxgt/drizzle` 0.6.5 and `@nxgt/telemetry` 0.2.2 — the first three the
-releases that take TypeScript 7 into their peer; `@nxgt/telemetry` 0.2.2
-still peers `typescript` `^6.0.3`. The newest end of each range is the `Newest
+refreshed: on 2026-10-11, `@nxgt/redis` 0.8.0, `@nxgt/mongo` 0.19.3,
+`@nxgt/drizzle` 0.6.5 and `@nxgt/telemetry` 0.2.2 — the first three peer
+`typescript` `^6.0.3 || ^7.0.0`; `@nxgt/telemetry` 0.2.2 still peers
+`^6.0.3`. The test servers stay this repository's own `test/server.ts`, not
+`@nxgt/redis/testing` (0.8.0): the floors job runs the same specs on
+`@nxgt/redis` 0.3.1, which has no such subpath. The newest end of each range is the `Newest
 peers` job's, below. Every floor sits below the lock and is tested in CI by
 the `floors` job, on the floor's tarball from npm, outside the lock
 (`scripts/run-on-peer-floor.ts`), each suite with its typecheck: step *Run
