@@ -581,7 +581,9 @@ The table that exists so a duplication is a decision rather than an accident.
   README allows — `@nxgt/janus-drizzle` and the kit's PostgreSQL-URL case
   on PostgreSQL 15, the two Redis adapters and the kit's drizzle specs, whose
   Redis is real, on Redis 7.0 (7.0.15), the two Redis adapters on Valkey 7.2
-  (Valkey's first line, a built binary from download.valkey.io). The library
+  (Valkey's first line, a built binary from download.valkey.io); the steps
+  for the `@nxgt/redis`, `@nxgt/drizzle` and `@nxgt/telemetry` floors run the
+  kit's whole suite on that Redis 7.0 and PostgreSQL 15. The library
   peers' floors run there too, through `scripts/run-on-peer-floor.ts`, which
   points the named packages' link to a peer at the floor's tarball, runs a
   command, and puts the links back — never touching `package.json` or
