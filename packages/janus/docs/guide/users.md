@@ -198,6 +198,12 @@ With a `password`, besides:
 | `setPassword(user, password, { ifVersion? })` | the user — an admin's call; spends the user's reset links and second-factor challenges still waiting, and signs nobody out; sends `user.passwordChanged` | `PASSWORD_TOO_SHORT` |
 | `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call; spends the user's reset links and second-factor challenges still waiting; sends `user.passwordChanged` | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
 
+With an e-mail — the field `email` names, password or not — besides:
+
+| Method | Answers | Rejects with |
+| --- | --- | --- |
+| `findByEmail(email)` | the user, or `null`; the address trimmed and lowercased as the e-mail flows do, whatever the login; a value that is no address is nobody's — **server-side only**, see [below](#finding-a-user-by-e-mail--findbyemail) | |
+
 With `secondFactor` configured, a type with a password also answers
 `secondFactor.enroll`, `activate`, `disable` and `confirm` — see
 [the second factor](second-factor.md).
@@ -216,6 +222,7 @@ await auth.get(grace.id);                          // User, or NOT_FOUND
 const renamed = await auth.update(grace, { name: 'Grace Hopper' }, { ifVersion: grace.version });
 await auth.setActive(renamed, true);
 await auth.findByLogin('  GRACE@example.com ');    // found: normalised as sign-up normalised it
+await auth.findByEmail('  GRACE@example.com ');    // found: normalised as the e-mail flows normalise it
 await auth.setPassword(renamed, 'a new password');
 await auth.changePassword(renamed, { current: 'a new password', next: 'another password' });
 await auth.delete(renamed);                        // true
@@ -297,6 +304,67 @@ const staffById = new DataLoader(async (ids: readonly string[]) => {
 	return ids.map((id) => found.get(id) ?? null);
 });
 ```
+
+### Finding a user by e-mail — `findByEmail`
+
+```ts
+findByEmail(email: string): Promise<User | null>
+```
+
+Every type with an e-mail has it, **with or without a password** — and a
+type with no password has no `findByLogin`. It is the lookup an invitation
+needs: the person was invited at an address, may already hold an account of
+a passwordless type, and is signed in with `signInProven` once your server
+verified the invitation
+([sessions](sessions.md#accepting-an-invitation)):
+
+```ts
+const clinic = janus({
+	users: {
+		patient: { schema: Patient, password: { login: 'email' } },
+		member: { schema: z.object({ email: z.email(), name: z.string() }) }, // no password, by design
+	},
+	store,
+	hasher,
+});
+
+const invitation = await invitations.spend(hash(token), new Date()); // your proof, verified first
+if (invitation === null) return notFound();
+const member =
+	(await clinic.member.findByEmail(invitation.email)) ??
+	(await clinic.member.create({ email: invitation.email, name: '' }));
+await clinic.member.signInProven(member);
+```
+
+Do not declare a `password` on such a type to get `findByLogin`: it would
+open `signIn`, `resetPassword` and the password changes on a type that has
+none by design.
+
+- **The holder the e-mail flows find.** The address is trimmed and
+  lowercased — the rule every e-mail follows, whatever the type's
+  `password.normalize` — and compared with the stored e-mail. On a type that
+  signs in with a username, the user is found by their e-mail, and a
+  username that only looks like an address is nobody's:
+  `magicLink.request`, `signInCode.request` and `resetPassword.request`
+  would find the same user, or nobody.
+- **Per type.** The same address may hold a patient and a member; each
+  type answers its own, and `null` for the other's.
+- **Inactive users are answered**, as by `find`. `signInProven` then
+  refuses them with `USER_INACTIVE`.
+- **Nothing counted, issued or written.** Neither the mail throttle nor the
+  sign-in throttle counts it, so it answers past both, and leaves both as
+  they were. The store is read once, by `findUserByLogin`.
+- **A value that is no address is nobody's.** Not a string, empty once
+  trimmed, or holding a NUL or a lone surrogate: `null` without asking the
+  store — as `find` answers a malformed id, never a throw, since the value
+  may come from a request.
+- **An outage is `STORE_FAILED`**, never `null`: a lookup that could not
+  ask is not an absence.
+- **Server-side only.** It answers whether an account exists, at once and
+  with no throttle. Never call it on an address a visitor typed into an
+  anonymous route; call it on the address your own proof holds.
+  `@nxgt/janus-telemetry` traces it as `janus.<type>.findByEmail`, with the
+  `user.id` it found and never the address.
 
 ### Paging every user
 

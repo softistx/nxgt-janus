@@ -226,11 +226,10 @@ import { createHash, randomBytes } from 'node:crypto';
 
 const hash = (token: string) => createHash('sha256').update(token).digest('base64url');
 
-// Inviting: create the user, then mail a link of yours — nothing of janus's is sent.
+// Inviting: mail a link of yours to the address — nothing of janus's is sent.
 export async function invite(email: string) {
-	const user = await auth.create({ email, name: '' }); // no password: they will never need one
 	const token = randomBytes(32).toString('base64url');
-	await invitations.insert({ hash: hash(token), userId: user.id, expiresAt: inSevenDays() });
+	await invitations.insert({ hash: hash(token), email, expiresAt: inSevenDays() });
 	await sendMail(email, `Join us: https://app.example/invitation?token=${token}`);
 }
 
@@ -241,7 +240,12 @@ export async function accept(request: Request): Promise<Response> {
 	const invitation = await invitations.spend(hash(String(token)), new Date());
 	if (invitation === null) return Response.json({ code: 'INVITATION_INVALID' }, { status: 404 });
 
-	const result = await auth.signInProven(invitation.userId, { device: deviceOf(request) });
+	// The address is the invitation's, never the request's. The person may already have an
+	// account — findByEmail counts nothing, sends nothing — or gets one, with no password.
+	const user =
+		(await auth.findByEmail(invitation.email)) ??
+		(await auth.create({ email: invitation.email, name: '' }));
+	const result = await auth.signInProven(user, { device: deviceOf(request) });
 	if (result.status === 'secondFactor') {
 		// keep result.challenge for the next request — never in a URL — and ask for a code
 		return Response.json({ next: 'code' });
@@ -252,6 +256,13 @@ export async function accept(request: Request): Promise<Response> {
 	);
 }
 ```
+
+**`findByEmail` works on every type with an e-mail, password or not** —
+since 0.21. A type with no password has no `findByLogin`, and must not
+declare one just to be looked up: that would open the password and reset
+flows on it. It answers whether an account exists, so call it only here,
+after the invitation was verified, on the address the invitation holds
+([users](users.md#finding-a-user-by-e-mail--findbyemail)).
 
 **Before 0.20 this was `magicLink.request(email)` then `magicLink.confirm`,
 at once — use `signInProven` instead.** `request` is counted against the
