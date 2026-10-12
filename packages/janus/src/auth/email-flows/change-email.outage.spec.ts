@@ -88,8 +88,10 @@ describe('changeEmail, and an outage', () => {
 
 	it('send is a wiring TypeError when the schema strips the e-mail field', async () => {
 		let strip = false;
-		const stripping = person.transform((fields) =>
-			strip ? { name: fields.name } : fields,
+		// Typed as the input, so only the run time sees the field go: the
+		// types refuse such a schema, and a JavaScript caller is the case.
+		const stripping = person.transform((fields): typeof fields =>
+			strip ? ({ name: fields.name } as unknown as typeof fields) : fields,
 		);
 		const auth = janus({
 			user: stripping,
