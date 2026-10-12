@@ -232,7 +232,8 @@ The code is `23514`.
 
 **When:** after upgrading to 0.5, on a step-up request — the first write of
 a token of kind `stepUp`; after upgrading to 0.6, on `magicLink.request` —
-the first write of a token of kind `magicLink`. Every other flow still
+the first write of a token of kind `magicLink`; after upgrading to 0.8, on
+the first write of a token of kind `changeEmail`. Every other flow still
 works.
 
 **Why:** the `tokens_kind` check lists the kinds a token may have, and the

@@ -167,6 +167,7 @@ How the messages are shaped:
 - [`reauthenticateSession racing revokeSession: the session should stay revoked — one conditional write, never a read then a write`](#reauthenticatesession-racing-revokesession-the-session-should-stay-revoked--one-conditional-write-never-a-read-then-a-write)
 - [`tokens.insertToken: the store could not answer`, in `tokens.everyKind`](#tokensinserttoken-the-store-could-not-answer-in-tokenseverykind)
 - [`consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`](#consumetoken-for-a-signincode-token-redeemed-as-magiclink-in-tokensmagiclinkkind)
+- [`consumeToken for a verifyEmail token redeemed as changeEmail`, in `tokens.changeEmailKind`](#consumetoken-for-a-verifyemail-token-redeemed-as-changeemail-in-tokenschangeemailkind)
 
 ---
 
@@ -2201,8 +2202,8 @@ In SQL, `update … set authenticated_at = $2 where id = $1 and revoked_at is nu
 ### `tokens.insertToken: the store could not answer`, in `tokens.everyKind`
 
 **When:** the case `tokens.everyKind`, on an adapter whose database lists the token kinds — a `CHECK`, a validator's enum.
-**Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, or `magicLink`, which came in 0.15, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
-**Fix:** add the missing kind to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp'`.
+**Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, `magicLink`, which came in 0.15, or `changeEmail`, which came in 0.23, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
+**Fix:** add the missing kind to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp', 'changeEmail'`.
 
 ### `consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`
 
@@ -2222,3 +2223,11 @@ await tokens.findOneAndUpdate(
 ```
 
 In SQL, `… where token_hash = $1 and kind = $2`; `spendUserTokens` holds `user_id = $1 and kind = $2`. See [`TokenStore`](guide/adapters.md#sessionstore-and-tokenstore).
+
+### `consumeToken for a verifyEmail token redeemed as changeEmail`, in `tokens.changeEmailKind`
+
+Also `consumeToken for a changeEmail token redeemed as verifyEmail`, `countAttempt for a changeEmail token counted as verifyEmail`, `spendUserTokens of changeEmail: the change only`, and `spendUserTokens of changeEmail should not touch a verification, nor anything else have counted it`.
+
+**When:** the case `tokens.changeEmailKind`, on an adapter that matches a token by its hash alone, or spends a user's tokens of every kind at once. The case stores a `changeEmail` and a `verifyEmail` token for one user and one address.
+**Why:** a verification link proves the address its user already holds; an e-mail change moves the user to the address its token names. Redeemed as one another, a link would verify an address it should have changed, or change one it should only have verified — the kind is what keeps the two apart, so every token method must match it.
+**Fix:** put `kind` in the condition of `consumeToken`, `countAttempt` and `spendUserTokens`, exactly as for `tokens.magicLinkKind` above. If the case instead fails with `expected …, got …` on the record, the adapter dropped `address` or `codeHash`: a `changeEmail` token keeps the new address in the first and the address it replaces, keyed, in the second.
