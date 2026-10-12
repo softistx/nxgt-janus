@@ -34,6 +34,23 @@ describe('changeEmail.send', () => {
 		).toMatchObject({ code: 'USER_INVALID' });
 	});
 
+	it('counts nothing for a malformed address: five of them, then a valid one', async () => {
+		const context = changing();
+		const user = await verifiedAda(context);
+		for (let i = 0; i < 5; i++) {
+			expect(
+				await rejection(context.auth.changeEmail.send(user, `bad ${i}`)),
+			).toMatchObject({ code: 'USER_INVALID' });
+		}
+
+		const sent = await context.auth.changeEmail.send(user, NEW_EMAIL);
+
+		expect(sent.email).toBe(NEW_EMAIL);
+		expect((await context.auth.changeEmail.confirm(sent.token)).email).toBe(
+			NEW_EMAIL,
+		);
+	});
+
 	it('does not check whether the address is taken', async () => {
 		const context = changing();
 		const user = await verifiedAda(context);

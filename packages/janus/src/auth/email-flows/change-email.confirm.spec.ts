@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, password } from '../../../test/auth';
+import { ada, bearer, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
 import {
 	changing,
@@ -28,7 +28,26 @@ describe('changeEmail.confirm', () => {
 			await rejection(auth.signIn({ email: ada.email, password })),
 		).toMatchObject({ code: 'CREDENTIALS_INVALID' });
 		expect(signedIn.user.id).toBe(user.id);
+		// The session issued before the change still authenticates the user.
+		const before = await auth.authenticate(bearer(signedIn.token));
+		expect(before?.user.id).toBe(user.id);
 		expect((await auth.findByEmail(NEW_EMAIL))?.id).toBe(user.id);
+	});
+
+	it('keeps the date of an address already verified when only its case changes', async () => {
+		const context = changing();
+		const { auth, clock, store, received } = context;
+		const user = await verifiedAda(context);
+		const verifiedAt = (await store.users.findUser(user.id))?.emailVerifiedAt;
+		const sent = await auth.changeEmail.send(user, 'ADA@example.test');
+		clock.advance(60_000);
+		received.length = 0;
+
+		await auth.changeEmail.confirm(sent.token);
+
+		const after = await store.users.findUser(user.id);
+		expect(after?.emailVerifiedAt).toEqual(verifiedAt ?? null);
+		expect(received).toEqual([]);
 	});
 
 	it('verifies an address the user had not verified', async () => {
@@ -93,7 +112,19 @@ describe('changeEmail.confirm', () => {
 		const { auth } = context;
 		const user = await verifiedAda(context);
 		const sent = await auth.changeEmail.send(user, NEW_EMAIL);
-		await auth.update(user, { email: 'other@example.test' });
+		// Two real sources of a stale link: a write outside janus (a migration,
+		// another service), and a send racing an `update` that moved the e-mail.
+		// Both leave the link alive; `update` itself spends it. Simulated by the
+		// first.
+		const stored = await context.store.users.findUser(user.id);
+		await context.store.users.updateUser(
+			user.id,
+			{
+				updatedAt: context.clock.now(),
+				fields: { ...stored?.fields, email: 'other@example.test' },
+			},
+			stored?.version ?? 0,
+		);
 
 		expect(await rejection(auth.changeEmail.confirm(sent.token))).toMatchObject(
 			{ code: 'TOKEN_STALE' },

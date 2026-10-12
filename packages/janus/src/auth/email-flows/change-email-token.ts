@@ -8,7 +8,7 @@
  * a dump of the store reveals neither.
  */
 
-import { TokenError, UserInvalidError } from '../../errors/janus-error';
+import { TokenError } from '../../errors/janus-error';
 import { normalizeEmail, type ResolvedType } from '../config';
 import { type Context, emailOf, findRecord, validateFields } from '../context';
 import { issueOneTime, spendOneTime, unknownOneTime } from '../one-time';
@@ -18,19 +18,20 @@ import type { IssuedToken } from '../types';
 
 /** What binds a token to the address it replaces. */
 export const formerHash = (secret: string, former: string | null): string =>
-	hashSecret(`${secret}${normalizeEmail(former ?? '')}`);
+	hashSecret(
+		`janus/changeEmail/former\0${secret}\0${normalizeEmail(former ?? '')}`,
+	);
 
 /**
- * Validates `email` as the user's new address, issues the token for it —
- * bound to the address the user has now — and spends the user's earlier ones.
+ * Validates `email` as the user's new address — by the type's own schema, the
+ * other fields as they are — and gives it back as the schema left it.
  */
-export async function issueChangeEmailToken(
-	context: Context,
+export async function newAddressOf(
 	type: ResolvedType,
 	user: UserRecord,
 	email: string,
 	where: string,
-): Promise<IssuedToken> {
+): Promise<string> {
 	const fields = await validateFields(
 		type,
 		{ ...user.fields, [type.email]: email },
@@ -38,12 +39,23 @@ export async function issueChangeEmailToken(
 	);
 	const address = emailOf(type, fields);
 	if (address === null) {
-		throw new UserInvalidError(`${where}: the new e-mail is not a string`, {
-			issues: [{ path: [type.email], message: 'required' }],
-			userType: type.name,
-		});
+		throw new TypeError(
+			`janus: email "${type.email}" did not name a string in validated ${type.name} fields — the schema must keep the e-mail field a required string`,
+		);
 	}
+	return address;
+}
 
+/**
+ * Issues the token for the validated new `address`, bound to the address the
+ * user has now, and spends the user's earlier ones.
+ */
+export async function issueChangeEmailToken(
+	context: Context,
+	type: ResolvedType,
+	user: UserRecord,
+	address: string,
+): Promise<IssuedToken> {
 	const secret = mintSecret();
 	const { expiresAt } = await issueOneTime(context, {
 		kind: 'changeEmail',

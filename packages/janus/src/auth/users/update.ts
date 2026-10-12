@@ -9,7 +9,8 @@ import type { Input } from './flow-types';
 /**
  * `update`: the patch written over the stored fields, then — when it changed
  * the e-mail — `user.emailChanged`, carrying the address the write replaced,
- * which nothing keeps once it landed.
+ * which nothing keeps once it landed, and the user's pending `changeEmail`
+ * links spent.
  */
 export async function update(
 	context: Context,
@@ -39,9 +40,20 @@ export async function update(
 		replaced !== null &&
 		emailChanged(type, replaced.fields, written.fields)
 	) {
-		await emit(context, 'user.emailChanged', written, written.updatedAt, {
-			formerEmail: emailOf(type, replaced.fields),
-		});
+		// A pending changeEmail link was asked from the address just left:
+		// spent, so a move back to that address cannot revive it. The event is
+		// sent from a `finally`, so an outage there still reports the write.
+		try {
+			await context.store.tokens.spendUserTokens(
+				written.id,
+				'changeEmail',
+				context.clock.now(),
+			);
+		} finally {
+			await emit(context, 'user.emailChanged', written, written.updatedAt, {
+				formerEmail: emailOf(type, replaced.fields),
+			});
+		}
 	}
 	return written;
 }

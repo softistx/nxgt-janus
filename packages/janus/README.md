@@ -322,8 +322,9 @@ await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
 await auth.verifyEmail.confirm(token);
 await auth.verifyEmail.proveFirst(user);           // privileged: FirstProof — { user, proved }; drops a squatter's password and factor
-await auth.changeEmail.send(user, newEmail);       // { token, email, expiresAt } — email is the NEW address; gate it behind a fresh sign-in
-await auth.changeEmail.confirm(token);             // the user, moved to the new address and verified
+// { token, email, expiresAt } — email is the NEW address; gate it behind a fresh sign-in
+await auth.changeEmail.send(user, newEmail);
+await auth.changeEmail.confirm(token); // the user, moved to the new address and verified
 await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
@@ -745,14 +746,20 @@ and a test.
 ```ts
 // Gate it: only a user who just proved who they are (assertFresh, or a step-up).
 const issued = await auth.changeEmail.send(user, newEmail); // { token, email, expiresAt }
-await sendMail(issued.email, `https://app.example/email/confirm?token=${issued.token}`); // the NEW address
+const link = `https://app.example/email/confirm?token=${issued.token}`;
+await sendMail(issued.email, link); // the NEW address; say "ignore it if it was not you"
 
 // the page's button POSTs the token back — never confirm on the link's GET
-const changed = await auth.changeEmail.confirm(token); // the user, now at the new address, verified
+const changed = await auth.changeEmail.confirm(token); // now at the new address, verified
 ```
 
 A link sent to the **new** address moves the user there: nothing changes
 until it is followed, and following it proves the address.
+
+**Confirming moves the requester's whole account to the new address** — the
+password and the second factor go with it, so whoever holds the new inbox
+and follows the link signs in with them. The mail to the new address should
+say so, and say "ignore it if it was not you".
 
 - **On every user type with an e-mail**, with a password or without one. The
   address is validated by the type's schema as `update` would: a malformed
@@ -768,13 +775,17 @@ until it is followed, and following it proves the address.
   answers `LOGIN_TAKEN` — the token already spent, nothing written.
 - **`confirm(token)`** spends the token, moves the user to the address and
   marks it verified. The password, the second factor and the sessions are
-  untouched. A user whose e-mail is not the one `send` was asked from — moved
-  by `update` or by another link — is `TOKEN_STALE`, checked again on the
-  record written. A write racing it is `VERSION_CONFLICT`, after the token
-  is spent. Links asked for the former address stop working: `TOKEN_STALE`.
+  untouched. A link whose e-mail is no longer the one `send` was asked from
+  is `TOKEN_SPENT` after an `update` that moved it (`update` spends the
+  links) or after a newer link; `TOKEN_STALE` comes from a write outside
+  janus, or from a `send` racing an `update`, and is checked again on the
+  record written. A write racing `confirm` is `VERSION_CONFLICT`, after the
+  token is spent.
 - **Events**: `user.emailChanged`, carrying `formerEmail`, then
-  `user.emailVerified` — an address already verified, changed only in case,
-  sends neither more than `update` would.
+  `user.emailVerified`. A change of case only sends no `user.emailChanged`,
+  and an address already verified keeps the date it was verified and sends
+  no `user.emailVerified`. An `update` that moves the e-mail spends the
+  user's pending links, so a move back to the old address revives none.
 
 [The e-mail flows guide](docs/guide/email-flows.md#changeemail) has a Hono
 route for each step, with the notice to the former address.
