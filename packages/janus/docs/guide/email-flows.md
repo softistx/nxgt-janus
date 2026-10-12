@@ -215,7 +215,7 @@ is written — the token is already spent. After an `update` that moves the
 e-mail, the pending links are `TOKEN_SPENT`: `update` spends them, so a move
 back to the old address revives none. `TOKEN_STALE` is a link whose e-mail
 is no longer the one it was asked from although nothing spent it: a write
-outside janus, or a `send` racing an `update`. It sends `user.emailChanged` (with
+outside janus, or a `send` racing an `update`. `confirm` sends `user.emailChanged` (with
 `formerEmail`) and `user.emailVerified`.
 
 **Gate `send`, and tell the former address.** Whoever changes the e-mail

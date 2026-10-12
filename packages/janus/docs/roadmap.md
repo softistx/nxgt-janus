@@ -83,8 +83,8 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   validated as `update` does and never checked for a holder at `send`;
   `confirm` answers `LOGIN_TAKEN` with the token spent. Throttled per user
   and per new address; a link lives an hour (`tokens.changeEmail`); a newer
-  `send` spends the earlier links; a link asked from an address the user has
-  left is `TOKEN_STALE`. `user.emailChanged` carries `formerEmail` so the
+  `send` spends the earlier links, and so does an `update` that moves the
+  e-mail, so moving back revives none. `user.emailChanged` carries `formerEmail` so the
   former address can be told. Gate `send` behind a fresh sign-in or a
   step-up. **Breaking for an adapter: `TokenKind` gains `'changeEmail'`**,
   which a `CHECK` or a validator's enum must list — the janus-drizzle 0.8
