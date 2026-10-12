@@ -112,7 +112,10 @@ describe('changeEmail.confirm', () => {
 		const { auth } = context;
 		const user = await verifiedAda(context);
 		const sent = await auth.changeEmail.send(user, NEW_EMAIL);
-		// A writer outside `update`, which would have spent the link.
+		// Two real sources of a stale link: a write outside janus (a migration,
+		// another service), and a send racing an `update` that moved the e-mail.
+		// Both leave the link alive; `update` itself spends it. Simulated by the
+		// first.
 		const stored = await context.store.users.findUser(user.id);
 		await context.store.users.updateUser(
 			user.id,

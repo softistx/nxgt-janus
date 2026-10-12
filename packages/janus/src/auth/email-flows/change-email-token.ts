@@ -37,9 +37,12 @@ export async function newAddressOf(
 		{ ...user.fields, [type.email]: email },
 		where,
 	);
-	// The type guarantees the e-mail field a string, so the schema's own
-	// reading of it is there.
-	const address = emailOf(type, fields) ?? email;
+	const address = emailOf(type, fields);
+	if (address === null) {
+		throw new TypeError(
+			`janus: email "${type.email}" did not name a string in validated ${type.name} fields — the schema must keep the e-mail field a required string`,
+		);
+	}
 	return address;
 }
 

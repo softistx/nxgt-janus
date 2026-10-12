@@ -41,15 +41,19 @@ export async function update(
 		emailChanged(type, replaced.fields, written.fields)
 	) {
 		// A pending changeEmail link was asked from the address just left:
-		// spent, so a move back to that address cannot revive it.
-		await context.store.tokens.spendUserTokens(
-			written.id,
-			'changeEmail',
-			context.clock.now(),
-		);
-		await emit(context, 'user.emailChanged', written, written.updatedAt, {
-			formerEmail: emailOf(type, replaced.fields),
-		});
+		// spent, so a move back to that address cannot revive it. The event is
+		// sent from a `finally`, so an outage there still reports the write.
+		try {
+			await context.store.tokens.spendUserTokens(
+				written.id,
+				'changeEmail',
+				context.clock.now(),
+			);
+		} finally {
+			await emit(context, 'user.emailChanged', written, written.updatedAt, {
+				formerEmail: emailOf(type, replaced.fields),
+			});
+		}
 	}
 	return written;
 }
