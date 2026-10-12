@@ -554,7 +554,7 @@ try {
 
 **When:** `changeEmail.send`, on a database not yet migrated for the `changeEmail` token kind; every other call works.
 **Why:** `changeEmail` is a token kind of its own, and the adapter's table (drizzle's `tokens_kind` check) or collection validator (mongo's `kind` enum) does not list it yet.
-**Fix:** `@nxgt/janus-drizzle` 0.8: apply its migration (`drizzle-kit migrate`). `@nxgt/janus-mongo` 0.9: run `syncMongoAdapter` (or `syncMongoStores`) once at start-up. Until then answer 503, as for any outage.
+**Fix:** `@nxgt/janus-drizzle` 0.8: apply its migration (`drizzle-kit migrate`). `@nxgt/janus-mongo` 0.9: run `syncMongoAdapter` once at start-up (`syncMongoStores` for an application that only authenticates, as the sync guide says). Until then answer 503, as for any outage.
 
 ### `STORE_FAILED` — `<slot>.<method> answered undefined: an absence is null, so this store forgot to answer`
 

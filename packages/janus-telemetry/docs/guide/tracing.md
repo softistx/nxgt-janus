@@ -353,7 +353,7 @@ POST /invitation/accept                  server
 
 ## A changed e-mail
 
-`changeEmail.send` moves nobody yet: it is counted by the mail throttle like
+`changeEmail.send` moves nobody by itself: it is counted by the mail throttle like
 the other e-mail requests, so a refused one is a `janus.mail.throttled` with
 `janus.mail.flow=changeEmail.send` and the `user.id`. `changeEmail.confirm`
 moves the user to the new, proved address and writes `janus.email.changed`
@@ -364,8 +364,8 @@ besides, since the move is the proof. `update` writes the same event with
 move without proof is as visible as one with it. Telemetry sees only the
 call's arguments and answer: the event is written for any patch that names
 `email` — also one that turns out to keep the same address — and a user type
-whose e-mail field is renamed is not seen on `update`. Whoever changes an address takes over password resets, so this is
-the event to alert on:
+whose e-mail field is renamed is not seen on `update`. Whoever changes an
+address takes over password resets, so this is the event to alert on:
 
 ```
 POST /email/confirm                      server

@@ -355,6 +355,13 @@ A locale beyond `en` and `fr` takes **every** template: see
 
 ## Traps
 
+**No template sends `changeEmail`'s link yet.** `auth.<type>.changeEmail.send`
+answers an `IssuedToken` like the others, but `mail.verifyEmail(issued)` is
+not its mail: it would say the wrong thing, and its link redeems a
+verification, not a change (`TOKEN_UNKNOWN`). Send the change link with your
+own mailer for now; `mail.emailChanged` still tells the former address
+afterwards.
+
 **Send to `issued.email`, which the methods do.** Never to what the visitor
 typed: the flow answers the address the user's record holds, as they
 registered it. `emailChanged` goes to `formerEmail` — the address a hijacker
