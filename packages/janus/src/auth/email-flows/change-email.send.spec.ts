@@ -184,12 +184,12 @@ describe('changeEmail.send, throttled', () => {
 		for (let i = 0; i < 5; i++) {
 			await context.auth.changeEmail.send(user, `own${i}@example.test`);
 		}
-		for (let target = 0; target < 3; target++) {
-			for (let i = 0; i < 5; i++) {
+		for (let i = 0; i < 5; i++) {
+			expect(
 				await rejection(
-					context.auth.changeEmail.send(user, `victim${target}@example.test`),
-				);
-			}
+					context.auth.changeEmail.send(user, 'victim@example.test'),
+				),
+			).toMatchObject({ code: 'MAIL_THROTTLED', userId: user.id });
 		}
 		const { user: other } = await context.auth.signUp({
 			email: 'other@example.test',
@@ -197,8 +197,9 @@ describe('changeEmail.send, throttled', () => {
 			password,
 		});
 
-		for (let target = 0; target < 3; target++) {
-			await context.auth.changeEmail.send(other, `victim${target}@example.test`);
+		// All five of the address's counts are left: the refusals spent none.
+		for (let i = 0; i < 5; i++) {
+			await context.auth.changeEmail.send(other, 'victim@example.test');
 		}
 	});
 });
