@@ -53,8 +53,9 @@ export interface UserTypeApi<U, In> {
 	/**
 	 * Changes some fields and keeps the others: the patch is merged over the
 	 * stored fields, then **the whole result is validated**. Changing the e-mail
-	 * sets `emailVerified` back to `false`. To move a user to a new address
-	 * the new address proved, use `changeEmail`.
+	 * sets `emailVerified` back to `false` and spends the user's pending
+	 * `changeEmail` links. To move a user to a new address the new address
+	 * proved, use `changeEmail`.
 	 */
 	update(user: UserRef, patch: Partial<In>, options?: WriteOptions): Promise<U>;
 

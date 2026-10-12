@@ -22,6 +22,7 @@ import type { ChangeEmailApi } from '../types';
 import { emailChanged, fieldsPatch } from '../users/fields-patch';
 import {
 	issueChangeEmailToken,
+	newAddressOf,
 	redeemChangeEmailToken,
 	refuseMoved,
 } from './change-email-token';
@@ -43,11 +44,12 @@ export function changeEmailFlows(
 			const where = at('changeEmail.send');
 			const record = await getRecord(context, idOf(user), type.name, where);
 			if (!record.active) throw inactive(type, record, where);
-			// Counted per user, then per new address, before anything is
-			// issued: a refusal spends nothing.
+			// Validated first, then counted per user and per validated address,
+			// all before anything is issued: a refusal spends nothing.
+			const address = await newAddressOf(type, record, email, where);
 			await countMailByUser(context, type, 'changeEmail', record.id, where);
-			await countMailByAddress(context, type, 'changeEmail', email, where);
-			return issueChangeEmailToken(context, type, record, email, where);
+			await countMailByAddress(context, type, 'changeEmail', address, where);
+			return issueChangeEmailToken(context, type, record, address);
 		},
 
 		async confirm(secret) {
@@ -90,7 +92,12 @@ async function confirmChange(
 				{ [type.email]: token.address },
 				where,
 			);
-			return { ...patch, emailVerifiedAt: now };
+			// Verified by the link that reached the new address; an address
+			// already verified keeps the date it was.
+			const proved =
+				record.emailVerifiedAt === null ||
+				emailChanged(type, record.fields, patch.fields);
+			return proved ? { ...patch, emailVerifiedAt: now } : patch;
 		},
 	);
 	const { replaced } = seen;
