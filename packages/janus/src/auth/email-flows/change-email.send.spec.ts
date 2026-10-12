@@ -34,6 +34,29 @@ describe('changeEmail.send', () => {
 		).toMatchObject({ code: 'USER_INVALID' });
 	});
 
+	it('refuses the current address, as typed or in another case, spending nothing', async () => {
+		const context = changing();
+		const user = await verifiedAda(context);
+		for (let i = 0; i < 3; i++) {
+			expect(
+				await rejection(context.auth.changeEmail.send(user, ada.email)),
+			).toMatchObject({ code: 'USER_INVALID' });
+			expect(
+				await rejection(
+					context.auth.changeEmail.send(user, ada.email.toUpperCase()),
+				),
+			).toMatchObject({ code: 'USER_INVALID' });
+		}
+
+		// Six refusals counted nothing: five links can still be asked for.
+		for (let i = 0; i < 5; i++) {
+			await context.auth.changeEmail.send(user, `n${i}@example.test`);
+		}
+		expect(
+			await rejection(context.auth.changeEmail.send(user, NEW_EMAIL)),
+		).toMatchObject({ code: 'MAIL_THROTTLED' });
+	});
+
 	it('counts nothing for a malformed address: five of them, then a valid one', async () => {
 		const context = changing();
 		const user = await verifiedAda(context);
@@ -127,5 +150,28 @@ describe('changeEmail.send, throttled', () => {
 				context.auth.changeEmail.send(others[5] ?? '', NEW_EMAIL),
 			),
 		).toMatchObject({ code: 'MAIL_THROTTLED' });
+	});
+
+	it('carries the asking user in the refusal of an address another user exhausted', async () => {
+		const context = changing();
+		const user = await verifiedAda(context);
+		for (let i = 0; i < 5; i++) {
+			const { user: other } = await context.auth.signUp({
+				email: `u${i}@example.test`,
+				name: 'U',
+				password,
+			});
+			await context.auth.changeEmail.send(other, NEW_EMAIL);
+		}
+
+		const refused = await rejection(
+			context.auth.changeEmail.send(user, NEW_EMAIL),
+		);
+
+		expect(refused).toMatchObject({ code: 'MAIL_THROTTLED', userId: user.id });
+		// The address refused first, so this user's own count was not spent.
+		for (let i = 0; i < 5; i++) {
+			await context.auth.changeEmail.send(user, `n${i}@example.test`);
+		}
 	});
 });

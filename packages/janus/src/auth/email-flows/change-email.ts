@@ -44,11 +44,21 @@ export function changeEmailFlows(
 			const where = at('changeEmail.send');
 			const record = await getRecord(context, idOf(user), type.name, where);
 			if (!record.active) throw inactive(type, record, where);
-			// Validated first, then counted per user and per validated address,
-			// all before anything is issued: a refusal spends nothing.
+			// Validated first — a USER_INVALID spends nothing — then the address
+			// is counted, then the user, all before anything is issued. The
+			// address first: other people can exhaust it, and that refusal then
+			// leaves the user's own count alone. A refusal by the user's count
+			// has already spent one of the address's, bounded by the same limit.
 			const address = await newAddressOf(type, record, email, where);
+			await countMailByAddress(
+				context,
+				type,
+				'changeEmail',
+				address,
+				where,
+				record.id,
+			);
 			await countMailByUser(context, type, 'changeEmail', record.id, where);
-			await countMailByAddress(context, type, 'changeEmail', address, where);
 			return issueChangeEmailToken(context, type, record, address);
 		},
 

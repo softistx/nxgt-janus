@@ -14,9 +14,9 @@ import { verifyEmailFlows } from './verify-email';
 
 /**
  * The e-mail flows: send a one-time token by e-mail, then confirm it —
- * verifying the address, resetting the password, or moving to a new address. Both confirm the same
- * way: spend the token, read the user, and check the address again on the
- * very record the write replaces.
+ * verifying the address, resetting the password, or moving to a new address.
+ * All three confirm the same way: spend the token, read the user, and check
+ * the address again on the very record the write replaces.
  */
 export function emailFlows(
 	context: Context,
