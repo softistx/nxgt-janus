@@ -49,6 +49,7 @@ How the messages are shaped:
 
 **Users, sessions and tokens**
 - [`STORE_FAILED` — `<slot>.<method>: the store could not answer`](#store_failed--slotmethod-the-store-could-not-answer)
+- [`STORE_FAILED` — `tokens.insertToken: the store could not answer`, on `changeEmail.send` alone](#store_failed--tokensinserttoken-the-store-could-not-answer-on-changeemailsend-alone)
 - [`STORE_FAILED` — `<slot>.<method> answered undefined …`](#store_failed--slotmethod-answered-undefined-an-absence-is-null-so-this-store-forgot-to-answer)
 - [`STORE_FAILED` — `users.findUsers answered no list …`](#store_failed--usersfindusers-answered-no-list-an-absence-is-a-shorter-list-so-this-store-forgot-to-answer)
 - [`<call>: ids must be an array of user ids`](#call-ids-must-be-an-array-of-user-ids)
@@ -167,6 +168,7 @@ How the messages are shaped:
 - [`reauthenticateSession racing revokeSession: the session should stay revoked — one conditional write, never a read then a write`](#reauthenticatesession-racing-revokesession-the-session-should-stay-revoked--one-conditional-write-never-a-read-then-a-write)
 - [`tokens.insertToken: the store could not answer`, in `tokens.everyKind`](#tokensinserttoken-the-store-could-not-answer-in-tokenseverykind)
 - [`consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`](#consumetoken-for-a-signincode-token-redeemed-as-magiclink-in-tokensmagiclinkkind)
+- [`consumeToken for a verifyEmail token redeemed as changeEmail`, in `tokens.changeEmailKind`](#consumetoken-for-a-verifyemail-token-redeemed-as-changeemail-in-tokenschangeemailkind)
 
 ---
 
@@ -366,7 +368,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.magicLink`, `tokens.stepUp`, `secondFactor.challenge` and `signIn.throttle.window` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.magicLink`, `tokens.stepUp`, `tokens.changeEmail`, `secondFactor.challenge` and `signIn.throttle.window` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.
@@ -546,6 +548,14 @@ try {
 }
 ```
 
+### `STORE_FAILED` — `tokens.insertToken: the store could not answer`, on `changeEmail.send` alone
+
+`StoreFailure`, whose `error.cause` reads `new row for relation "tokens" violates check constraint "tokens_kind"` with `@nxgt/janus-drizzle`, or `Document failed validation` with `@nxgt/janus-mongo`.
+
+**When:** `changeEmail.send`, on a database not yet migrated for the `changeEmail` token kind; every other call works.
+**Why:** `changeEmail` is a token kind of its own, and the adapter's table (drizzle's `tokens_kind` check) or collection validator (mongo's `kind` enum) does not list it yet.
+**Fix:** `@nxgt/janus-drizzle` 0.8: apply its migration (`drizzle-kit migrate`). `@nxgt/janus-mongo` 0.9: run `syncMongoAdapter` once at start-up (`syncMongoStores` for an application that only authenticates, as the sync guide says). Until then answer 503, as for any outage.
+
 ### `STORE_FAILED` — `<slot>.<method> answered undefined: an absence is null, so this store forgot to answer`
 
 **When:** with a store you wrote, on the first call to that method.
@@ -617,7 +627,8 @@ const user = await auth.find(id); // null when there is nobody
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
 **Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.
-**Fix:** answer 409. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
+**On `changeEmail.confirm`** the address was free when `changeEmail.send` asked — `send` never checks — and somebody took it before the link was used. The link is already spent and nothing was written: the user keeps their e-mail.
+**Fix:** answer 409. On `changeEmail.confirm`, tell the user the address is taken and ask for another with a new `changeEmail.send`. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
 
 ### `VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`
 
@@ -683,8 +694,8 @@ does the first.
 
 `UserInvalidError`, carrying `issues` — each a `path` and a `message`.
 
-**When:** `signUp`, `create`, `update`.
-**Why:** your schema refused the fields. `update` merges the patch over the stored fields and validates the whole, so the refusal can name a field the patch did not touch. An issue whose message is `set by janus, not by a request` means the input carried a field janus sets (`id`, `active`, `version`, …) and your schema let it through. An issue whose message is `holds a NUL character or a lone surrogate, which no store can keep` means a string — or, with `a key holds …`, an object key — carried `\u0000` or half of a surrogate pair: PostgreSQL refuses both, so janus refuses them on every adapter rather than answer `STORE_FAILED` on one. A key is reported by the path of the object holding it, never by the key itself — in janus's issues and in your schema's alike. An issue at your login field whose message is `normalises to a login that holds …` means your own `password.normalize` function produced such a login from a valid field: fix the function. On MongoDB or the memory store, a user written before janus refused these characters may already hold one: every `update` of that user is refused, whatever it patches, until the field is cleaned — patch it with a clean value in the same `update`.
+**When:** `signUp`, `create`, `update`, and `changeEmail.send`.
+**Why:** your schema refused the fields. `changeEmail.send` also answers it, with one issue at the e-mail field (`is the current e-mail of the user`), for an address equal to the user's current one once normalised: nothing is counted or issued; answer 400, or offer `verifyEmail.send` to prove the current one. `update` merges the patch over the stored fields and validates the whole, so the refusal can name a field the patch did not touch. An issue whose message is `set by janus, not by a request` means the input carried a field janus sets (`id`, `active`, `version`, …) and your schema let it through. An issue whose message is `holds a NUL character or a lone surrogate, which no store can keep` means a string — or, with `a key holds …`, an object key — carried `\u0000` or half of a surrogate pair: PostgreSQL refuses both, so janus refuses them on every adapter rather than answer `STORE_FAILED` on one. A key is reported by the path of the object holding it, never by the key itself — in janus's issues and in your schema's alike. An issue at your login field whose message is `normalises to a login that holds …` means your own `password.normalize` function produced such a login from a valid field: fix the function. On MongoDB or the memory store, a user written before janus refused these characters may already hold one: every `update` of that user is refused, whatever it patches, until the field is cleaned — patch it with a clean value in the same `update`.
 **Fix:** answer 400, field by field:
 
 ```ts
@@ -747,7 +758,8 @@ janus({ ..., signIn: { throttle: { attempts: 20, window: '15m' } } });
 it, or wait for the next window` and carry `userId`.
 
 **When:** `magicLink.request`, `signInCode.request` or
-`resetPassword.request` (per address), or `verifyEmail.send` and an e-mailed
+`resetPassword.request` (per address), or `verifyEmail.send`,
+`changeEmail.send` (per user, and per new address) and an e-mailed
 `stepUp.request` (per user), past five requests of that flow in the current
 10-minute window — whether or not anybody holds the address. `<call>` is the
 call, such as `magicLink.request` or `patient.signInCode.request`.
@@ -917,7 +929,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven` and `verifyEmail.proveFirst`, for an inactive user: the application's proof does not reactivate anybody, and proves nothing on an inactive one.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `changeEmail.send` and `changeEmail.confirm` (the link is spent), and `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven` and `verifyEmail.proveFirst`, for an inactive user: the application's proof does not reactivate anybody, and proves nothing on an inactive one.
 **Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it. `magicLink.confirm` checks after spending the link, which is spent too, and `magicLink.request` answers `null` for an inactive user.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
@@ -925,8 +937,8 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 `TokenError`: `<call>: no such token`, `<call>: the token was already used`, `<call>: the token has expired`.
 
-**When:** `verifyEmail.confirm`, `resetPassword.confirm`.
-**Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword`.
+**When:** `verifyEmail.confirm`, `resetPassword.confirm`, `changeEmail.confirm`.
+**Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted, and a change link confirmed through another user type's `changeEmail` or passed to another flow. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword` and for `changeEmail`. A change link is also spent by a newer `changeEmail.send` for the same user (only the last one works), and by an `update` that changes the user's e-mail.
 A reset link answers `resetPassword.confirm: the token was already used` in
 two more cases: a newer `resetPassword.request` for the same user spent it —
 only the last link sent works, so a visitor who asked twice and clicked the
@@ -1014,9 +1026,9 @@ janus({ ..., tokens: { magicLink: '30m' } });
 
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
 
-**When:** `verifyEmail.confirm`, `resetPassword.confirm` or `magicLink.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
+**When:** `verifyEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` or `changeEmail.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces. A change link is `TOKEN_SPENT`, not stale, after an `update` that moved the e-mail; it is stale after a write outside janus, or a `send` racing an `update`.
 **Why:** confirming it would verify an address nobody holds any more, or reset a password through one. The token is spent, and nothing is written.
-**Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)` — or, for a sign-in link, ask for a new one: `magicLink.request` sends it to the current address.
+**Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)` — or, for a sign-in link, ask for a new one: `magicLink.request` sends it to the current address — or, for a change link, send a new one: `await auth.changeEmail.send(user, newEmail)`.
 
 ### `INVALID_CURSOR` — `<call>: this cursor was not minted by this store, or was minted for another ordering (<n> characters)`
 
@@ -2201,8 +2213,8 @@ In SQL, `update … set authenticated_at = $2 where id = $1 and revoked_at is nu
 ### `tokens.insertToken: the store could not answer`, in `tokens.everyKind`
 
 **When:** the case `tokens.everyKind`, on an adapter whose database lists the token kinds — a `CHECK`, a validator's enum.
-**Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, or `magicLink`, which came in 0.15, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
-**Fix:** add the missing kind to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp'`.
+**Why:** the list does not hold `stepUp`, which came in `@nxgt/janus` 0.12, `magicLink`, which came in 0.15, or `changeEmail`, which came in 0.23, so the database refuses the insert, and the adapter reports it as the outage it cannot tell apart.
+**Fix:** add the missing kind to the list, and ship the migration or the validator with it: `'verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp', 'changeEmail'`.
 
 ### `consumeToken for a signInCode token redeemed as magicLink`, in `tokens.magicLinkKind`
 
@@ -2222,3 +2234,11 @@ await tokens.findOneAndUpdate(
 ```
 
 In SQL, `… where token_hash = $1 and kind = $2`; `spendUserTokens` holds `user_id = $1 and kind = $2`. See [`TokenStore`](guide/adapters.md#sessionstore-and-tokenstore).
+
+### `consumeToken for a verifyEmail token redeemed as changeEmail`, in `tokens.changeEmailKind`
+
+Also `consumeToken for a changeEmail token redeemed as verifyEmail`, `countAttempt for a changeEmail token counted as verifyEmail`, `spendUserTokens of changeEmail: the change only`, and `spendUserTokens of changeEmail should not touch a verification, nor anything else have counted it`.
+
+**When:** the case `tokens.changeEmailKind`, on an adapter that matches a token by its hash alone, or spends a user's tokens of every kind at once. The case stores a `changeEmail` and a `verifyEmail` token for one user and one address.
+**Why:** a verification link proves the address its user already holds; an e-mail change moves the user to the address its token names. Redeemed as one another, a link would verify an address it should have changed, or change one it should only have verified — the kind is what keeps the two apart, so every token method must match it.
+**Fix:** put `kind` in the condition of `consumeToken`, `countAttempt` and `spendUserTokens`, exactly as for `tokens.magicLinkKind` above. If the case instead fails with `expected …, got …` on the record, the adapter dropped `address` or `codeHash`: a `changeEmail` token keeps the new address in the first and the address it replaces, keyed, in the second.

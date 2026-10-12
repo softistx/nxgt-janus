@@ -155,6 +155,12 @@ a code, in the order written; no codes are `null`, read as `[]`.
   `violates check constraint "tokens_kind"`.
   [To 0.6](docs/guide/migrations.md#to-06-the-sign-in-link-kind) shows the
   statement.
+- **Upgrading to 0.8 needs the same kind of migration.** The check admits
+  `changeEmail`, `@nxgt/janus` 0.23's token for a change of e-mail. Deployed
+  without it, the first write of such a token fails with `STORE_FAILED`,
+  caused by the same `violates check constraint "tokens_kind"`.
+  [To 0.8](docs/guide/migrations.md#to-08-the-e-mail-change-kind) shows the
+  statement.
 - **Your migrations create the tables, not this package.** The core never
   manages a schema, and the stores create nothing per request. Without the
   exports in your schema file, the first sign-up fails with `STORE_FAILED`,

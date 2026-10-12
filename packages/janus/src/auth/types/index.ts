@@ -8,6 +8,7 @@
  * dragging a type parameter through every internal function.
  */
 
+export type { ChangeEmailApi } from './change-email';
 export type { Checked } from './checks';
 export type {
 	FirstProof,

@@ -120,6 +120,7 @@ export const tokens = defineCollection({
 			'signInCode',
 			'magicLink',
 			'stepUp',
+			'changeEmail',
 		]),
 		userId: z.string(),
 		address: z.string(),

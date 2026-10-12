@@ -196,14 +196,14 @@ update. A read followed by a write lets two requests redeem one reset token.
 A token is its hash, never its secret, and what it is for:
 
 ```ts
-type TokenKind = 'verifyEmail' | 'resetPassword' | 'secondFactor' | 'signInCode' | 'magicLink' | 'stepUp';
+type TokenKind = 'verifyEmail' | 'resetPassword' | 'secondFactor' | 'signInCode' | 'magicLink' | 'stepUp' | 'changeEmail';
 
 interface TokenRecord {
 	readonly tokenHash: string;
 	readonly kind: TokenKind;
 	readonly userId: Id;
-	readonly address: string; // '' for a secondFactor challenge: nothing was sent
-	readonly codeHash: string | null; // an e-mailed code, hashed — signInCode, or stepUp by e-mail; else null
+	readonly address: string; // '' for a secondFactor challenge: nothing was sent; the NEW address for changeEmail
+	readonly codeHash: string | null; // an e-mailed code, hashed — signInCode, or stepUp by e-mail; changeEmail: the address it replaces, keyed; else null
 	readonly attempts: number; // 0 at insertion
 	readonly expiresAt: Date;
 	readonly spentAt: Date | null;
@@ -218,9 +218,15 @@ confirms an action, nor an action's code signs anyone in. A `magicLink`
 token is a sign-in link's, new in 0.15, kept apart from `signInCode` the same
 way: a sign-in code's challenge is handed to whoever asked for it, and a
 store that redeemed it as a link would sign them in with no code —
-`tokens.magicLinkKind` holds that it does not. A store that lists the
-kinds — a `CHECK`, an enum in a validator — lists `stepUp` and `magicLink`
-too, which `tokens.everyKind` proves. A `secondFactor` token is the challenge `signIn`
+`tokens.magicLinkKind` holds that it does not. A `changeEmail` token is the
+link sent to a user's new address; its `address` is that new address, not the
+one the user holds, and its `codeHash` is the address it replaces, keyed by the
+token's secret — a store keeps both byte for byte. It is kept apart from
+`verifyEmail` the same way: redeemed as a verification it would mark the new
+address verified without changing it, and `tokens.changeEmailKind` holds that
+it is not. A store that lists the kinds — a `CHECK`, an enum in a validator —
+lists `stepUp`, `magicLink` and `changeEmail` too, which `tokens.everyKind`
+proves. A `secondFactor` token is the challenge `signIn`
 answers — or the count of a user's attempts at `regenerateRecoveryCodes`,
 a token of the same kind whose secret nobody is given, never redeemed and
 only counted — and its `address` is `''`: a column or a validator that refuses an
@@ -443,7 +449,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 58: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fifteen of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 59: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fifteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 16: the relation store, ids of edge characters, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty

@@ -137,3 +137,25 @@ describe('a user.emailChanged listener that fails', () => {
 		expect(warnings[0]?.message).not.toContain(ada.email);
 	});
 });
+
+describe('user.emailChanged, by changeEmail.confirm', () => {
+	it('reports the change with the former address, then the verification', async () => {
+		const { auth, received } = setup();
+		const { user } = await auth.signUp({ ...ada, password });
+		const sent = await auth.changeEmail.send(user, 'ada@new.example');
+
+		const changed = await auth.changeEmail.confirm(sent.token);
+
+		expect(types(received)).toEqual([
+			'user.created',
+			'user.emailChanged',
+			'user.emailVerified',
+		]);
+		expect(received[1]).toMatchObject({
+			userId: user.id,
+			occurredAt: changed.updatedAt,
+			formerEmail: ada.email,
+		});
+		expect(JSON.stringify(received)).not.toContain('ada@new.example');
+	});
+});

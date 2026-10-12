@@ -1,8 +1,8 @@
 import type { SpanScope } from '@nxgt/telemetry';
 import { fieldsOf, type Outcome, traced } from '../traced';
 import type { Call } from './call';
-import { WRITTEN } from './events';
 import { sessionUserFields, statusOf, userFields } from './fields';
+import { WRITTEN } from './written';
 
 /** What a span learns from an answer: whose it is, never what it holds. */
 function answered(scope: SpanScope, call: Call, outcome: Outcome): void {

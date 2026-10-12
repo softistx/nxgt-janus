@@ -98,7 +98,7 @@ that cuts an emoji in half, say.
 | `tokens.magicLink` | `Duration` | `'15m'` | How long an e-mailed sign-in link lives. See [sign-in links](magic-link.md) |
 | `tokens.stepUp` | `Duration` | `'10m'` | How long a step-up's challenge — and its e-mailed code — lives. See [step-up](step-up.md) |
 | `signIn.throttle` | `{ attempts?, window? }` or `false` | `{ attempts: 10, window: '15m' }` | Passwords one login may try per window, the right one included, before `signIn` answers `CREDENTIALS_INVALID` with `retryAfter` until the window ends. `false` counts nothing. See [passwords](passwords.md#password-guessing-is-throttled) |
-| `mail.throttle` | `{ attempts?, window? }` or `false` | `{ attempts: 5, window: '10m' }` | E-mails one address (`magicLink`, `signInCode`, `resetPassword` requests) or one user (`verifyEmail.send`, an e-mailed `stepUp.request`) may ask for per flow and window, before the request throws `MAIL_THROTTLED` with `retryAfter` and issues nothing (the last link or code sent still works). Keep `window` no longer than the shortest `tokens.*` lifetime you use. `false` counts nothing. See [e-mail flows](email-flows.md#requests-that-send-e-mail-are-throttled) |
+| `mail.throttle` | `{ attempts?, window? }` or `false` | `{ attempts: 5, window: '10m' }` | E-mails one address (`magicLink`, `signInCode`, `resetPassword` requests) or one user (`verifyEmail.send`, an e-mailed `stepUp.request`, and `changeEmail.send`, which counts the new address too) may ask for per flow and window, before the request throws `MAIL_THROTTLED` with `retryAfter` and issues nothing (the last link or code sent still works). Keep `window` no longer than the shortest `tokens.*` lifetime you use. `false` counts nothing. See [e-mail flows](email-flows.md#requests-that-send-e-mail-are-throttled) |
 | `secondFactor` | `{ issuer, keys, challenge? }` | none | A TOTP second factor for every type with a password. Changes what `signIn` answers — see [the second factor](second-factor.md#configuration) |
 | `devices` | `{ keys }` | none | The keys device tokens are signed with, to tell a sign-in from a new device. Without it, no sign-in may be given a `device` — see [devices](devices.md#wiring) |
 | `events` | `UserEventListener` | none | Called with every user event — `user.created`, `user.deleted`, … — after the write, awaited. See [user events](events.md) |
@@ -183,7 +183,7 @@ In the one-type form these are on `auth` itself; with several types, on
 | `findMany(ids)` | the users, in the order of `ids`, each once; an id `find` answers `null` for is left out — see [below](#several-users-at-once--findmany) | |
 | `get(id)` | the user | `NOT_FOUND` |
 | `list({ after?, limit? })` | `CursorPage<User>`, in creation order | `INVALID_CURSOR` |
-| `update(user, patch, { ifVersion? })` | the user as written; sends `user.emailChanged` when the e-mail changed | `USER_INVALID`, `LOGIN_TAKEN`, `VERSION_CONFLICT`, `NOT_FOUND` |
+| `update(user, patch, { ifVersion? })` | the user as written; sends `user.emailChanged` when the e-mail changed; to move a user to a proved address, use [`changeEmail`](email-flows.md#changeemail) | `USER_INVALID`, `LOGIN_TAKEN`, `VERSION_CONFLICT`, `NOT_FOUND` |
 | `setActive(user, active, { ifVersion? })` | the user as written | `VERSION_CONFLICT`, `NOT_FOUND` |
 | `delete(user)` | `true`, or `false` for an unknown id or one of another type | |
 | `signInProven(user, { device? })` | **privileged** — after a proof your server verified, such as an invitation token: what `signIn` answers, a session or a second-factor challenge; no credential checked, nothing sent, counted or spent — see [sessions](sessions.md#signing-in-on-your-own-proof--signinproven) | `NOT_FOUND`, `USER_INACTIVE` |
@@ -208,12 +208,14 @@ With `secondFactor` configured, a type with a password also answers
 `secondFactor.enroll`, `activate`, `disable` and `confirm` — see
 [the second factor](second-factor.md).
 
-Every method may also reject with `STORE_FAILED`. `setPassword` and
-`changePassword` spend the user's reset links and second-factor challenges
-after the write, so a `STORE_FAILED` there may come with the password
-already written: a retried `changePassword` with the old `current` then
-answers `CREDENTIALS_INVALID`. A `user` argument is a user
-or its id (`UserRef = string | { id: string }`).
+Every method may also reject with `STORE_FAILED`. `update` (when it moves
+the e-mail: it spends the user's pending change links), `setPassword` and
+`changePassword` (they spend the user's reset links and second-factor
+challenges) do that after the write, so a `STORE_FAILED` there may come with
+the write already landed — the e-mail moved, or the password changed: a
+retried `changePassword` with the old `current` then answers
+`CREDENTIALS_INVALID`. A `user` argument is a user or its id
+(`UserRef = string | { id: string }`).
 
 ```ts
 const grace = await auth.create({ email: 'grace@example.com', name: 'Grace', active: false });

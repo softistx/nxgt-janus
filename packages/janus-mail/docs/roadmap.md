@@ -9,6 +9,10 @@ Nothing between releases.
 
 ## Next
 
+- **A changeEmail link template** — the e-mail for the link
+  `changeEmail.send` issues, to the new address: it says the account moves to
+  this address, and to ignore it if the reader did not ask. Needs a preset in
+  `@nxgt/mail-presets` first; until then send that link with your own mailer.
 - **The invitation** — `invitation` from `@nxgt/mail-presets`, once
   `@nxgt/janus` has a flow that sends it: an invitation to a user type.
 - **The other presets of `@nxgt/mail-presets` 0.4.0** — `account-deleted`,

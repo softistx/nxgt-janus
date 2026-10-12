@@ -322,6 +322,9 @@ await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
 await auth.verifyEmail.confirm(token);
 await auth.verifyEmail.proveFirst(user);           // privileged: FirstProof — { user, proved }; drops a squatter's password and factor
+// { token, email, expiresAt } — email is the NEW address; gate it behind a fresh sign-in
+await auth.changeEmail.send(user, newEmail);
+await auth.changeEmail.confirm(token); // the user, moved to the new address and verified
 await auth.resetPassword.request(email);           // … | null
 await auth.resetPassword.confirm(token, newPassword);
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
@@ -379,8 +382,10 @@ else reaches the store and is asynchronous.
   meant. It is normalised with `'lowercaseTrim'` unless you say otherwise.
 - **`email`** defaults to the field named `email`. A type without one has no
   `findByEmail`, no `verifyEmail`, no `resetPassword`, no `signInCode` and
-  no `magicLink` — they are absent from its type, not failing at run time.
-  Changing the e-mail sets `emailVerified` back to `false`.
+  no `magicLink` and no `changeEmail` — they are absent from its type, not
+  failing at run time. Changing the e-mail with `update` sets `emailVerified`
+  back to `false`; to move a user to an address they have proved, use
+  [`changeEmail`](#changing-an-e-mail--changeemail).
 - **Per type**: `create`, `find` (or `null`), `findMany`, `get` (or
   `NOT_FOUND`), `list`, `update(user, patch)` — merged over the stored fields,
   then validated whole — `setActive`, `delete` and `signInProven` (below);
@@ -426,7 +431,8 @@ else reaches the store and is asynchronous.
   **Each flow counts on its own**: per address for
   `magicLink.request`, `signInCode.request` and `resetPassword.request` — an
   address nobody holds is counted and refused alike — and per user for
-  `verifyEmail.send` and for `stepUp.request` when it e-mails a code.
+  `verifyEmail.send`, `changeEmail.send` (and, for its new address, per
+  address too) and for `stepUp.request` when it e-mails a code.
   `prepare` counts as `request` does, in the same window
   ([requests in two steps](#requests-in-two-steps--prepare)).
   `mail: { throttle: { attempts, window } }` changes it, `mail: { throttle:
@@ -545,7 +551,11 @@ A token of kind `stepUp` is that confirmation's challenge: kept apart from
 `magicLink`, new in 0.15, is a sign-in link's, kept apart from `signInCode`
 the same way: a sign-in code's challenge is held by whoever asked for it,
 and must never sign anyone in as a link. A store that lists the kinds — a
-`CHECK`, a validator's enum — adds `magicLink`.
+`CHECK`, a validator's enum — adds `magicLink`. A token of kind
+`changeEmail`, new in 0.23, is the link sent to a user's new address: its
+`address` is that new address and its `codeHash` the address it replaces,
+kept apart from `verifyEmail` so neither is redeemed as the other. The same
+store adds `changeEmail`.
 
 An adapter written against `@nxgt/janus` 0.3 does not compile against this
 port until it implements `countAttempt`, nor one written against 0.6 until it
@@ -731,6 +741,64 @@ to type.
 confirms from a `POST` so mail scanners spend nothing, every error, routes
 and a test.
 
+### Changing an e-mail — `changeEmail`
+
+```ts
+// Gate it: only a user who just proved who they are (assertFresh, or a step-up).
+const issued = await auth.changeEmail.send(user, newEmail); // { token, email, expiresAt }
+const link = `https://app.example/email/confirm?token=${issued.token}`;
+await sendMail(issued.email, link); // the NEW address; say "ignore it if it was not you"
+
+// the page's button POSTs the token back — never confirm on the link's GET
+const changed = await auth.changeEmail.confirm(token); // now at the new address, verified
+```
+
+A link sent to the **new** address moves the user there: nothing changes
+until it is followed, and following it proves the address.
+
+**Confirming moves the requester's whole account to the new address** — the
+password and the second factor go with it, so whoever holds the new inbox
+and follows the link signs in with them. The mail to the new address should
+say so, and say "ignore it if it was not you".
+
+**For now, send the link to the new address with your own mailer**:
+`@nxgt/janus-mail` has no template for it yet (it sends the notice to the
+former address, `emailChanged`). `mail.verifyEmail(issued)` is not the
+change-of-e-mail mail: it would tell the new address to verify, not that the
+account moves there.
+
+- **On every user type with an e-mail**, with a password or without one. The
+  address is validated by the type's schema as `update` would: a malformed
+  one is `USER_INVALID` at `send`, and so is the user's current address
+  (equal once normalised): a change moves to another one, and verifying the
+  current one is `verifyEmail`'s job. That refusal spends nothing.
+- **`send(user, email)`** takes a user you hold, so it is yours to gate:
+  behind `assertFresh` or a step-up, since whoever changes the e-mail takes
+  over password resets. An inactive user is `USER_INACTIVE`. One link is
+  live per user: a new `send` spends the ones before. It lives `'1h'`
+  (`tokens.changeEmail`). Throttled per new address and per user, five per
+  10 minutes each (`MAIL_THROTTLED`, carrying the user's id), before anything
+  is issued. The user is counted first, so an account past its own count
+  exhausts no address; an address other people exhausted costs the asking
+  user one of their own.
+- **Whether the address is taken is not asked at `send`**: it would tell who
+  has an account. `confirm` writes, and the store's own unique constraint
+  answers `LOGIN_TAKEN` — the token already spent, nothing written.
+- **`confirm(token)`** spends the token, moves the user to the address and
+  marks it verified. The password, the second factor and the sessions are
+  untouched. A link whose e-mail is no longer the one `send` was asked from
+  is `TOKEN_SPENT` after an `update` that moved it (`update` spends the
+  links) or after a newer link; `TOKEN_STALE` comes from a write outside
+  janus, or from a `send` racing an `update`, and is checked again on the
+  record written. A write racing `confirm` is `VERSION_CONFLICT`, after the
+  token is spent.
+- **Events**: `user.emailChanged`, carrying `formerEmail`, then
+  `user.emailVerified`. An `update` that moves the e-mail spends the
+  user's pending links, so a move back to the old address revives none.
+
+[The e-mail flows guide](docs/guide/email-flows.md#changeemail) has a Hono
+route for each step, with the notice to the former address.
+
 ### Requests in two steps — `prepare`
 
 ```ts
@@ -770,8 +838,8 @@ still goes out off their request.
   it replaces the decoy an unknown address needed; for nobody it confirms as
   `TOKEN_UNKNOWN`. `send()` answers the code issued under it.
 - Typed per flow: `PreparedRequest<IssuedToken & { user }>` for a link and
-  a reset, `PreparedCode<User>` for a code. `verifyEmail.send` and
-  `stepUp.request` have no `prepare`: they take a user the application
+  a reset, `PreparedCode<User>` for a code. `verifyEmail.send`,
+  `changeEmail.send` and `stepUp.request` have no `prepare`: they take a user the application
   already holds, so their time tells nothing about who has an account.
 
 [The e-mail flows guide](docs/guide/email-flows.md#requests-in-two-steps)
@@ -1000,10 +1068,10 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `type` | Sent by |
 | --- | --- |
 | `user.created` | `create`, `signUp` |
-| `user.emailVerified` | `verifyEmail.confirm` and `verifyEmail.proveFirst`; `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
+| `user.emailVerified` | `verifyEmail.confirm` and `verifyEmail.proveFirst`; `changeEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
 | `user.passwordChanged` | `changePassword`, `setPassword`; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
-| `user.emailChanged` | `update`, when it changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
+| `user.emailChanged` | `update` and `changeEmail.confirm`, when they changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — never for a user who had none, or one still waiting |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes` — not `activate`, whose codes come with `user.secondFactorEnabled` |
@@ -1182,7 +1250,7 @@ describeJanusStores({
 });
 ```
 
-There are 58 cases. They cover:
+There are 59 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -1195,9 +1263,9 @@ There are 58 cases. They cover:
   and never brings back a revoked session, even one revoked at the same
   moment;
 - one-time tokens: a token of every kind the port names is stored, counted
-  and spent — a `CHECK` or an enum that forgot `stepUp` or `magicLink` fails
+  and spent — a `CHECK` or an enum that forgot `stepUp`, `magicLink` or `changeEmail` fails
   here — and neither a step-up nor a sign-in link is ever counted, spent nor
-  answered as a sign-in code; of twenty
+  answered as a sign-in code, nor an e-mail change as a verification; of twenty
   concurrent redemptions, exactly one succeeds; of twenty concurrent
   `countAttempt` calls, each answers a distinct count, and none is counted
   once a racing redemption spent the token;
@@ -1352,7 +1420,19 @@ e-mail changed by `update` is unverified again, and its first proof by link
 or code drops both too. **So does a user who enrolled a factor before
 proving their own e-mail**: they sign in with no challenge, and enrol again
 — offer `secondFactor.enroll` after such a sign-in, or send `verifyEmail`
-before letting anyone enrol. An e-mail already verified keeps both.
+before letting anyone enrol. An e-mail already verified keeps both — and
+`changeEmail.confirm` verifies the new address itself, so the first proof
+afterwards drops nothing.
+
+**Gate `changeEmail.send`, and tell the former address.** Whoever changes the
+e-mail takes over every password reset and sign-in link: call `send` behind
+`assertFresh` or a step-up, never on a session alone, and mail the address the
+user had from `user.emailChanged` (`formerEmail`) — once the change landed it
+is kept nowhere else.
+
+**Run the adapter's migration before using `changeEmail`.** The tokens store
+must list the `changeEmail` kind (janus-drizzle 0.8's migration, janus-mongo
+0.9's `syncMongoAdapter`); until then every `send` is `STORE_FAILED`.
 
 **Every `janus()` that signs users in needs the same `secondFactor`.** An
 instance without keys never signs in a user whose factor is active: `signIn`
@@ -1507,7 +1587,7 @@ and a tokens store that cannot answer fails every password sign-in with
 **The mail throttle counts each flow on its own, and it is not a per-client
 limit.** Five requests per window for one address (`magicLink.request`,
 `signInCode.request`, `resetPassword.request`) or one user
-(`verifyEmail.send`, and `stepUp.request` when it e-mails), then
+(`verifyEmail.send`, `changeEmail.send`, and `stepUp.request` when it e-mails), then
 `MailThrottledError`: answer 429 with `Retry-After: retryAfter`. It is safe to
 show the visitor — it reveals nothing about accounts, unlike `reason`. A refused
 request is counted too, but the window is fixed and cannot be extended.
@@ -1617,7 +1697,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and sixty-nine plausible mistakes, one hundred and sixty-nine refused at compile time — and
+**One hundred and seventy-two plausible mistakes, one hundred and seventy-two refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1625,10 +1705,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (eighty-one, on `janus()`, from the point of view of
+it), `test/types/auth/` (eighty-four, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

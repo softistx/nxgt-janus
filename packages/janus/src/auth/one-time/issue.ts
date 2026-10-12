@@ -28,9 +28,15 @@ interface OneTimeRequest {
  */
 export async function issueOneTime(
 	context: Context,
-	token: OneTimeRequest,
+	token: OneTimeRequest & {
+		/**
+		 * What the token is bound to, stored as its `codeHash`: `changeEmail`
+		 * binds the address it replaces. `null` by default.
+		 */
+		readonly boundHash?: string;
+	},
 ): Promise<{ readonly secret: string; readonly expiresAt: Date }> {
-	return insertOneTime(context, token, null);
+	return insertOneTime(context, token, null, token.boundHash ?? null);
 }
 
 /**
@@ -46,13 +52,14 @@ export async function issueCode(
 	readonly code: string;
 }> {
 	const code = String(randomInt(1_000_000)).padStart(6, '0');
-	return { ...(await insertOneTime(context, token, code)), code };
+	return { ...(await insertOneTime(context, token, code, null)), code };
 }
 
 async function insertOneTime(
 	context: Context,
 	token: OneTimeRequest,
 	code: string | null,
+	boundHash: string | null,
 ): Promise<{ readonly secret: string; readonly expiresAt: Date }> {
 	const now = context.clock.now();
 	const secret = token.secret ?? mintSecret();
@@ -63,7 +70,7 @@ async function insertOneTime(
 		kind: token.kind,
 		userId: token.userId,
 		address: token.address,
-		codeHash: code === null ? null : hashCode(secret, code),
+		codeHash: code === null ? boundHash : hashCode(secret, code),
 		attempts: 0,
 		expiresAt,
 		spentAt: null,

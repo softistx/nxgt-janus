@@ -55,6 +55,8 @@ interface SharedConfig {
 		readonly magicLink?: Duration;
 		/** How long a step-up's challenge waits, e-mailed or not. `'10m'` when absent. */
 		readonly stepUp?: Duration;
+		/** How long the link sent to a new address waits. `'1h'` when absent. */
+		readonly changeEmail?: Duration;
 	};
 	/**
 	 * How `signIn` answers password guessing. **On by default**: past ten

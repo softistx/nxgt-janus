@@ -1,5 +1,6 @@
 import type { ConformanceCase } from '../../types';
 import { tokenAttemptCases } from './attempts';
+import { tokenChangeEmailCases } from './change-email';
 import { tokenDeletionCases } from './deletion';
 import { tokenInsertCases } from './inserts';
 import { tokenKindCases } from './kinds';
@@ -13,5 +14,6 @@ export const tokenStoreCases: readonly ConformanceCase[] = [
 	...tokenSpendingCases,
 	...tokenInsertCases,
 	...tokenKindCases,
+	...tokenChangeEmailCases,
 	...tokenDeletionCases,
 ];

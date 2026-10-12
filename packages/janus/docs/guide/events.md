@@ -44,10 +44,10 @@ The words — **user event**, **listener** — are defined in
 | `type` | Sent by | Not sent |
 | --- | --- | --- |
 | `user.created` | `create`, `signUp` — once the user is inserted, even if `signUp`'s session then fails to open | for a sign-up refused (`LOGIN_TAKEN`, `USER_INVALID`, `PASSWORD_TOO_SHORT`) |
-| `user.emailVerified` | `verifyEmail.confirm` and `verifyEmail.proveFirst`; `resetPassword.confirm` and `magicLink.confirm`, whose link proves the e-mail; `signInCode.confirm`, whose code does | for an e-mail already verified, or a refused confirm |
+| `user.emailVerified` | `verifyEmail.confirm` and `verifyEmail.proveFirst`; `changeEmail.confirm`, whose link reached the new address; `resetPassword.confirm` and `magicLink.confirm`, whose link proves the e-mail; `signInCode.confirm`, whose code does | for an e-mail already verified — `changeEmail.confirm` to the same address in another case included — or a refused confirm |
 | `user.passwordReset` | `resetPassword.confirm` | for `setPassword` or `changePassword` — they are not resets |
 | `user.passwordChanged` | `changePassword` and `setPassword` — a first password set on a user created without one included — once the password is written — even if spending the reset links and second-factor challenges it ends then fails; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail dropped a password, after `user.emailVerified` | for a reset, which is `user.passwordReset` alone; for a `changePassword` refused (`CREDENTIALS_INVALID`) |
-| `user.emailChanged` | `update`, when it changed the e-mail — added, replaced or removed. It carries `formerEmail`, the address before | for an update that leaves the e-mail alone, or changes only its case (`Ada@…` for `ada@…`): compared normalised, the same test that makes the new address unverified; for a type with no e-mail; for an update refused |
+| `user.emailChanged` | `update` and `changeEmail.confirm`, when they changed the e-mail — added, replaced or removed. It carries `formerEmail`, the address before | for an update that leaves the e-mail alone, or changes only its case (`Ada@…` for `ada@…`): compared normalised, the same test that makes the new address unverified; for a type with no e-mail; for an update refused |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the first code made the factor active | for `enroll`, which leaves the factor waiting and asked for nowhere; for a code refused |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an **active** factor; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — even if an outage interrupts the sign-outs | for a user who had no factor, a factor still waiting for its first code — it was never asked for — or a second `disable` |
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes`: the codes the user held stopped working | for `activate`, whose first codes come with `user.secondFactorEnabled`; for a code refused |
@@ -243,7 +243,8 @@ Where the listener runs within a flow, and what an outage does to it:
 | `create` | after the insert — its last step | — |
 | `signUp` | after the insert, **before** the session is opened | fails the call; the event is already sent |
 | `verifyEmail.confirm` | after the write — the flow's last step | — |
-| `update` | after the write — the flow's last step | — |
+| `update` | after the write — and, when it moved the e-mail, after the user's pending change links are spent | fails the call with `STORE_FAILED`, the write landed; the event is sent all the same, from a `finally` |
+| `changeEmail.confirm` | after the write — the flow's last step: `user.emailChanged`, then `user.emailVerified` | — (a `VERSION_CONFLICT` or `LOGIN_TAKEN` leaves nothing written and sends nothing; the token is already spent) |
 | `changePassword`, `setPassword` | **after** the reset links and the second-factor challenges left open are spent | fails the call; the event is sent all the same, from a `finally` |
 | `signInCode.confirm`, `magicLink.confirm`, `verifyEmail.proveFirst` | on an e-mail never verified: **after** every session is revoked and the reset links and second-factor challenges left open are spent — before the write and again after it — and **before** the new session or second-factor challenge is opened. `user.passwordChanged` follows `user.emailVerified` when a password was dropped, then `user.secondFactorDisabled` when an active second factor was removed. An e-mail already verified sends nothing | fails the call; the events are sent all the same, from a `finally`. An outage in the sign-outs before the write fails the call with nothing written and nothing sent: the next code, link or `proveFirst` proves the e-mail again |
 | `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |
@@ -359,7 +360,7 @@ see [troubleshooting](../troubleshooting.md#janus-events-must-be-a-function-that
 
 ## See also
 
-- [E-mail verification and password reset](email-flows.md) — the flows that send `user.emailVerified` and `user.passwordReset`
+- [E-mail verification, password reset and changing an e-mail](email-flows.md) — the flows that send `user.emailVerified`, `user.passwordReset` and, with `changeEmail`, `user.emailChanged`
 - [The second factor](second-factor.md) — `activate` and `disable`, which send `user.secondFactorEnabled` and `user.secondFactorDisabled` — sent too by the first proof of an e-mail by a [code](sign-in-code.md) or a [link](magic-link.md#an-account-someone-else-registered); [recovery codes](second-factor.md#recovery-codes), which send `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`
 - [Devices](devices.md) — the sign-ins that send `user.newDeviceSignedIn`, the device token and the cookie
 - [Users](users.md) — `create`, `signUp`, `update`, `delete`

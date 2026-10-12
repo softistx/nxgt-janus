@@ -1,8 +1,8 @@
-# E-mail verification and password reset
+# E-mail verification, password reset and changing an e-mail
 
-This page is for the two one-time-token flows: proving a user holds their
-e-mail, and resetting a forgotten password. `janus` issues and redeems the
-tokens; **sending the e-mail is yours**.
+This page is for the one-time-token flows: proving a user holds their
+e-mail, resetting a forgotten password, and moving a user to a new e-mail.
+`janus` issues and redeems the tokens; **sending the e-mail is yours**.
 
 ```ts
 import { z } from 'zod';
@@ -40,7 +40,12 @@ of a password, an e-mail or a second factor changed, and a welcome on
 Every link is required but two: `getStarted`, since janus-mail 0.4.0, is
 where the welcome's **Get started** button leads; `recoveryCodes` and
 `magicLink` — the page a [sign-in link](magic-link.md) opens, since
-janus-mail 0.7.0 — are optional.
+janus-mail 0.7.0 — are optional. **`changeEmail.send` is not among them
+yet**: janus-mail has no template for the link to a new address. Send that
+link with your own mailer; janus-mail sends the notice to the former address
+(`emailChanged`). `mail.verifyEmail(issued)` is not the change-of-e-mail
+mail: it would ask the new address to verify, not say the account moves
+there.
 
 ```ts
 import { janusMail } from '@nxgt/janus-mail';
@@ -104,6 +109,7 @@ with or without a password — see [sign-in codes](sign-in-code.md) and
 | `email` | a field name | `'email'` | The field the tokens are sent to, per type |
 | `tokens.verifyEmail` | `Duration` | `'24h'` | How long a verification token lives |
 | `tokens.resetPassword` | `Duration` | `'1h'` | How long a reset token lives |
+| `tokens.changeEmail` | `Duration` | `'1h'` | How long the link sent to a new address lives |
 
 ## `verifyEmail`
 
@@ -188,6 +194,79 @@ malformed id, an unknown one or one of another type is `NOT_FOUND`, as for
 `@nxgt/janus-telemetry` traces it as `janus.<type>.verifyEmail.proveFirst`
 and writes `janus.email.verified` with `janus.email.proveFirst: true` when
 it proved — the user's id, never the address.
+
+## `changeEmail`
+
+```ts
+readonly changeEmail: {
+	send(user: UserRef, email: string): Promise<IssuedToken>; // { token, email, expiresAt } — email is the NEW address
+	confirm(token: string): Promise<User>;
+};
+```
+
+`send` issues a token for the **new** address and changes nothing. The
+address is validated as `update` validates it (`USER_INVALID`), the user must
+be active (`USER_INACTIVE`), and an address equal to the user's current one
+once normalised is `USER_INVALID` too — a change moves to another address;
+verifying the current one is `verifyEmail`'s job. The call is throttled **per
+new address and per user**, five per window each, before anything is issued;
+a refusal carries the user's id. A `USER_INVALID` or a `USER_INACTIVE`
+spends nothing. The user is counted first, so an account past its own count
+spends no address's and can exhaust at most one address per window; an
+address other people exhausted costs the asking user one of their own. The user's
+earlier links are spent: only the last one works. Whether another user holds
+the address is not checked, so `send` tells nobody who has an account.
+
+`confirm` spends the token, moves the user to the address and marks it
+verified (an address already verified keeps its date). The password, the
+second factor and the sessions are untouched — the whole account moves with
+the user, so the mail should say "ignore it if it was not you". If
+the address was taken meanwhile, the store answers `LOGIN_TAKEN` and nothing
+is written — the token is already spent. After an `update` that moves the
+e-mail, the pending links are `TOKEN_SPENT`: `update` spends them, so a move
+back to the old address revives none. `TOKEN_STALE` is a link whose e-mail
+is no longer the one it was asked from although nothing spent it: a write
+outside janus, or a `send` racing an `update`. `confirm` sends `user.emailChanged` (with
+`formerEmail`) and `user.emailVerified`.
+
+**Gate `send`, and tell the former address.** Whoever changes the e-mail
+takes over every reset: call `send` behind a fresh sign-in or a step-up.
+
+```ts
+import { assertFresh, janus } from '@nxgt/janus';
+
+declare function sendMail(to: string, body: string): Promise<void>; // your mailer
+
+const auth = janus({
+	// …
+	// the former address hears of it
+	events: async (event) => {
+		if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+			await sendMail(event.formerEmail, 'Your e-mail was changed.');
+		}
+	},
+});
+
+app.post('/email/change', async (c) => {
+	const current = await auth.authenticate(c.req.raw);
+	if (current === null) return c.body(null, 401);
+	assertFresh(current.session, '5m'); // STEP_UP_REQUIRED past five minutes — or a step-up
+	const { email } = await c.req.json<{ email: string }>();
+	const issued = await auth.changeEmail.send(current.user, email);
+	await sendMail(issued.email, `https://app.example/email/confirm?token=${issued.token}`);
+	return c.body(null, 202);
+});
+
+// the confirm page POSTs the token back — never confirm on the GET
+app.post('/email/confirm', async (c) => {
+	const { token } = await c.req.json<{ token: string }>();
+	await auth.changeEmail.confirm(token);
+	return c.body(null, 204);
+});
+```
+
+The adapter's store must list the `changeEmail` token kind first:
+`@nxgt/janus-drizzle` 0.8's migration, `@nxgt/janus-mongo` 0.9's sync.
 
 ## `resetPassword`
 
@@ -329,6 +408,7 @@ try {
 | `magicLink.request(email)` | address | Anybody can call it with any address. Counted before the address is looked up, so an address nobody holds is refused like a registered one |
 | `signInCode.request(email)` | address | The same |
 | `resetPassword.request(email)` | address | The same |
+| `changeEmail.send(user, email)` | user, and new address | Counted twice (the user, then the new address), five per window each, before anything is issued — a refusal carries the user's id: a loop on one user cannot fill an inbox, and one address cannot be flooded from many users |
 | `verifyEmail.send(user)` | user | The application calls it for a user it knows: an unauthenticated loop on the address cannot spend this count, so it never blocks the user's own verification, and a user changing e-mail buys no extra sends |
 | `stepUp.request(user)`, when it e-mails a code (`via: 'email'`) | user | The same. A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is not counted |
 
@@ -534,8 +614,8 @@ no longer yours to make. For an address nobody holds, `send()` answers
 issues is checked against it. See
 [the sign-in code guide](sign-in-code.md#requesting-a-code-in-two-steps).
 
-**`verifyEmail.send` and `stepUp.request` have no `prepare`.** They are
-counted per user, and called for a user the application already holds — the
+**`verifyEmail.send`, `changeEmail.send` and `stepUp.request` have no
+`prepare`.** They are counted per user, and called for a user the application already holds — the
 session's, or one it just created — so their time tells nothing about who
 has an account, and their `MAIL_THROTTLED` already reaches the visitor in
 the request that asked.
@@ -551,9 +631,9 @@ as by `request`.
 | Code | When |
 | --- | --- |
 | `TOKEN_UNKNOWN` | No token holds that secret — or it was issued for the other flow: a verification token is not a reset token |
-| `TOKEN_SPENT` | Already redeemed — every token is single use. A reset link is also spent by a newer `request` for the same user, and by any password written since it was sent |
+| `TOKEN_SPENT` | Already redeemed — every token is single use. A reset link is also spent by a newer `request` for the same user, and by any password written since it was sent; a change link, by a newer send or an update that moves the e-mail |
 | `TOKEN_EXPIRED` | Its lifespan passed. It is spent all the same, so it cannot be retried |
-| `TOKEN_STALE` | Sent to an e-mail the user no longer has |
+| `TOKEN_STALE` | Asked for an e-mail the user no longer has: the link was sent to an address they have since left — or, for `changeEmail`, asked while they held an address they have since changed. Send a new link |
 
 Of twenty concurrent redemptions of one token, exactly one succeeds: the store
 spends it in one conditional write. The store holds the token's `sha256`,
@@ -565,5 +645,5 @@ never the token, and no refusal's message contains it.
 - [Sign-in codes](sign-in-code.md) — the third flow that sends an e-mail: a code, not a link
 - [Sign-in links](magic-link.md) — the fourth: a link that signs in, confirmed from a `POST` so a mail scanner spends nothing
 - [Sessions](sessions.md) — `signOutEverywhere`, which `resetPassword.confirm` calls for you
-- [User events](events.md) — `user.emailVerified` and `user.passwordReset`, which the confirms and `proveFirst` send
+- [User events](events.md) — `user.emailVerified`, `user.emailChanged` and `user.passwordReset`, which the confirms and `proveFirst` send
 - [Errors](errors.md) — every code, and the status it deserves

@@ -19,6 +19,7 @@ const KINDS = Object.keys({
 	signInCode: true,
 	magicLink: true,
 	stepUp: true,
+	changeEmail: true,
 } satisfies Record<TokenKind, true>) as TokenKind[];
 
 /**
