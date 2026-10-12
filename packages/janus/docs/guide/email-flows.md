@@ -40,7 +40,12 @@ of a password, an e-mail or a second factor changed, and a welcome on
 Every link is required but two: `getStarted`, since janus-mail 0.4.0, is
 where the welcome's **Get started** button leads; `recoveryCodes` and
 `magicLink` — the page a [sign-in link](magic-link.md) opens, since
-janus-mail 0.7.0 — are optional.
+janus-mail 0.7.0 — are optional. **`changeEmail.send` is not among them
+yet**: janus-mail has no template for the link to a new address. Send that
+link with your own mailer; janus-mail sends the notice to the former address
+(`emailChanged`). `mail.verifyEmail(issued)` is not the change-of-e-mail
+mail: it would ask the new address to verify, not say the account moves
+there.
 
 ```ts
 import { janusMail } from '@nxgt/janus-mail';
@@ -201,8 +206,14 @@ readonly changeEmail: {
 
 `send` issues a token for the **new** address and changes nothing. The
 address is validated as `update` validates it (`USER_INVALID`), the user must
-be active (`USER_INACTIVE`), and the call is throttled **per user and per new
-address**, five per window each, before anything is issued. The user's
+be active (`USER_INACTIVE`), and an address equal to the user's current one
+once normalised is `USER_INVALID` too — a change moves to another address;
+verifying the current one is `verifyEmail`'s job. The call is throttled **per
+new address and per user**, five per window each, before anything is issued;
+a refusal carries the user's id. A `USER_INVALID` or a `USER_INACTIVE`
+spends nothing. The user is counted first, so an account past its own count
+spends no address's and can exhaust at most one address per window; an
+address other people exhausted costs the asking user one of their own. The user's
 earlier links are spent: only the last one works. Whether another user holds
 the address is not checked, so `send` tells nobody who has an account.
 
@@ -397,7 +408,7 @@ try {
 | `magicLink.request(email)` | address | Anybody can call it with any address. Counted before the address is looked up, so an address nobody holds is refused like a registered one |
 | `signInCode.request(email)` | address | The same |
 | `resetPassword.request(email)` | address | The same |
-| `changeEmail.send(user, email)` | user, and new address | Counted twice, five per window each, before anything is issued: a loop on one user cannot fill an inbox, and one address cannot be flooded from many users |
+| `changeEmail.send(user, email)` | user, and new address | Counted twice (the user, then the new address), five per window each, before anything is issued — a refusal carries the user's id: a loop on one user cannot fill an inbox, and one address cannot be flooded from many users |
 | `verifyEmail.send(user)` | user | The application calls it for a user it knows: an unauthenticated loop on the address cannot spend this count, so it never blocks the user's own verification, and a user changing e-mail buys no extra sends |
 | `stepUp.request(user)`, when it e-mails a code (`via: 'email'`) | user | The same. A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is not counted |
 

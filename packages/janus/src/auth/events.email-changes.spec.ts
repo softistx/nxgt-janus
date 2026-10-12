@@ -158,16 +158,4 @@ describe('user.emailChanged, by changeEmail.confirm', () => {
 		});
 		expect(JSON.stringify(received)).not.toContain('ada@new.example');
 	});
-
-	it('reports no change for a case-only one, and no verification for an address already verified', async () => {
-		const { auth, received } = setup();
-		const { user } = await auth.signUp({ ...ada, password });
-		const proof = await auth.verifyEmail.send(user);
-		await auth.verifyEmail.confirm(proof.token);
-		const sent = await auth.changeEmail.send(user, 'ADA@example.test');
-
-		await auth.changeEmail.confirm(sent.token);
-
-		expect(types(received)).toEqual(['user.created', 'user.emailVerified']);
-	});
 });

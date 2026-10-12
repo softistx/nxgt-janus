@@ -8,7 +8,7 @@
  * a dump of the store reveals neither.
  */
 
-import { TokenError } from '../../errors/janus-error';
+import { TokenError, UserInvalidError } from '../../errors/janus-error';
 import { normalizeEmail, type ResolvedType } from '../config';
 import { type Context, emailOf, findRecord, validateFields } from '../context';
 import { issueOneTime, spendOneTime, unknownOneTime } from '../one-time';
@@ -24,7 +24,9 @@ export const formerHash = (secret: string, former: string | null): string =>
 
 /**
  * Validates `email` as the user's new address — by the type's own schema, the
- * other fields as they are — and gives it back as the schema left it.
+ * other fields as they are — and gives it back as the schema left it. An
+ * address equal to the current one once normalised is `USER_INVALID`: moving
+ * to where the user already is means nothing (`verifyEmail` proves it).
  */
 export async function newAddressOf(
 	type: ResolvedType,
@@ -41,6 +43,19 @@ export async function newAddressOf(
 	if (address === null) {
 		throw new TypeError(
 			`janus: email "${type.email}" did not name a string in validated ${type.name} fields — the schema must keep the e-mail field a required string`,
+		);
+	}
+	if (
+		normalizeEmail(address) === normalizeEmail(emailOf(type, user.fields) ?? '')
+	) {
+		throw new UserInvalidError(
+			`${where}: the new e-mail is the user's current one — a change moves to another address; verifyEmail proves the current one`,
+			{
+				issues: [
+					{ path: [type.email], message: 'is the current e-mail of the user' },
+				],
+				userType: type.name,
+			},
 		);
 	}
 	return address;

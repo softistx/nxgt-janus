@@ -353,14 +353,21 @@ POST /invitation/accept                  server
 
 ## A changed e-mail
 
-`changeEmail.send` moves nobody yet: it is counted by the mail throttle like
+`changeEmail.send` moves nobody by itself: it is counted by the mail throttle like
 the other e-mail requests, so a refused one is a `janus.mail.throttled` with
 `janus.mail.flow=changeEmail.send` and the `user.id`. `changeEmail.confirm`
 moves the user to the new, proved address and writes `janus.email.changed`
-with the `user.id`, and nothing else about the move: neither the former nor
-the new address, and no `janus.email.verified` besides, since the move is
-the proof. Whoever changes an address takes over password resets, so this is
-the event to alert on:
+with the `user.id` and `janus.email.proved=true`, and nothing else about the
+move: neither the former nor the new address, and no `janus.email.verified`
+besides, since the move is the proof. `update` writes the same event with
+`janus.email.proved=false` when its patch names the `email` field, so a
+move without proof is as visible as one with it. Telemetry sees only the
+call's arguments and answer: the event is written for any patch that names
+`email` — also one that turns out to keep the same address — and a user type
+whose e-mail field is renamed is not seen on `update`, nor an `update` that
+moved the address and then failed with `STORE_FAILED` while spending the
+change links: the event is written for an answered call only. Whoever changes an
+address takes over password resets, so this is the event to alert on:
 
 ```
 POST /email/confirm                      server
@@ -372,7 +379,7 @@ A refusal (`TOKEN_STALE`, `LOGIN_TAKEN`, a `TOKEN_*` code) writes no event;
 the span records the `janus.refusal`.
 
 ```ts
-// name = 'janus.email.changed', grouped by user.id — who moved to another address, and when
+// name = 'janus.email.changed' and janus.email.proved = false — who moved to another address without proof, and when
 ```
 
 ## A step-up

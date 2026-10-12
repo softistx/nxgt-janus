@@ -34,22 +34,6 @@ describe('changeEmail.confirm', () => {
 		expect((await auth.findByEmail(NEW_EMAIL))?.id).toBe(user.id);
 	});
 
-	it('keeps the date of an address already verified when only its case changes', async () => {
-		const context = changing();
-		const { auth, clock, store, received } = context;
-		const user = await verifiedAda(context);
-		const verifiedAt = (await store.users.findUser(user.id))?.emailVerifiedAt;
-		const sent = await auth.changeEmail.send(user, 'ADA@example.test');
-		clock.advance(60_000);
-		received.length = 0;
-
-		await auth.changeEmail.confirm(sent.token);
-
-		const after = await store.users.findUser(user.id);
-		expect(after?.emailVerifiedAt).toEqual(verifiedAt ?? null);
-		expect(received).toEqual([]);
-	});
-
 	it('verifies an address the user had not verified', async () => {
 		const context = changing();
 		const { auth } = context;

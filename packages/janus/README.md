@@ -761,15 +761,26 @@ password and the second factor go with it, so whoever holds the new inbox
 and follows the link signs in with them. The mail to the new address should
 say so, and say "ignore it if it was not you".
 
+**For now, send the link to the new address with your own mailer**:
+`@nxgt/janus-mail` has no template for it yet (it sends the notice to the
+former address, `emailChanged`). `mail.verifyEmail(issued)` is not the
+change-of-e-mail mail: it would tell the new address to verify, not that the
+account moves there.
+
 - **On every user type with an e-mail**, with a password or without one. The
   address is validated by the type's schema as `update` would: a malformed
-  one is `USER_INVALID` at `send`.
+  one is `USER_INVALID` at `send`, and so is the user's current address
+  (equal once normalised): a change moves to another one, and verifying the
+  current one is `verifyEmail`'s job. That refusal spends nothing.
 - **`send(user, email)`** takes a user you hold, so it is yours to gate:
   behind `assertFresh` or a step-up, since whoever changes the e-mail takes
   over password resets. An inactive user is `USER_INACTIVE`. One link is
   live per user: a new `send` spends the ones before. It lives `'1h'`
-  (`tokens.changeEmail`). Throttled per user and per new address, five per
-  10 minutes (`MAIL_THROTTLED`), before anything is issued.
+  (`tokens.changeEmail`). Throttled per new address and per user, five per
+  10 minutes each (`MAIL_THROTTLED`, carrying the user's id), before anything
+  is issued. The user is counted first, so an account past its own count
+  exhausts no address; an address other people exhausted costs the asking
+  user one of their own.
 - **Whether the address is taken is not asked at `send`**: it would tell who
   has an account. `confirm` writes, and the store's own unique constraint
   answers `LOGIN_TAKEN` — the token already spent, nothing written.
@@ -782,9 +793,7 @@ say so, and say "ignore it if it was not you".
   record written. A write racing `confirm` is `VERSION_CONFLICT`, after the
   token is spent.
 - **Events**: `user.emailChanged`, carrying `formerEmail`, then
-  `user.emailVerified`. A change of case only sends no `user.emailChanged`,
-  and an address already verified keeps the date it was verified and sends
-  no `user.emailVerified`. An `update` that moves the e-mail spends the
+  `user.emailVerified`. An `update` that moves the e-mail spends the
   user's pending links, so a move back to the old address revives none.
 
 [The e-mail flows guide](docs/guide/email-flows.md#changeemail) has a Hono

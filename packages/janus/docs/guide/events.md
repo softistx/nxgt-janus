@@ -243,7 +243,8 @@ Where the listener runs within a flow, and what an outage does to it:
 | `create` | after the insert — its last step | — |
 | `signUp` | after the insert, **before** the session is opened | fails the call; the event is already sent |
 | `verifyEmail.confirm` | after the write — the flow's last step | — |
-| `update` | after the write — the flow's last step | — |
+| `update` | after the write — and, when it moved the e-mail, after the user's pending change links are spent | fails the call with `STORE_FAILED`, the write landed; the event is sent all the same, from a `finally` |
+| `changeEmail.confirm` | after the write — the flow's last step: `user.emailChanged`, then `user.emailVerified` | — (a `VERSION_CONFLICT` or `LOGIN_TAKEN` leaves nothing written and sends nothing; the token is already spent) |
 | `changePassword`, `setPassword` | **after** the reset links and the second-factor challenges left open are spent | fails the call; the event is sent all the same, from a `finally` |
 | `signInCode.confirm`, `magicLink.confirm`, `verifyEmail.proveFirst` | on an e-mail never verified: **after** every session is revoked and the reset links and second-factor challenges left open are spent — before the write and again after it — and **before** the new session or second-factor challenge is opened. `user.passwordChanged` follows `user.emailVerified` when a password was dropped, then `user.secondFactorDisabled` when an active second factor was removed. An e-mail already verified sends nothing | fails the call; the events are sent all the same, from a `finally`. An outage in the sign-outs before the write fails the call with nothing written and nothing sent: the next code, link or `proveFirst` proves the e-mail again |
 | `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |

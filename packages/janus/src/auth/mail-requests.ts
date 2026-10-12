@@ -58,12 +58,19 @@ export type MailFlow =
 	| 'stepUp'
 	| 'changeEmail';
 
-/** Who a request is counted for: the address it names, or the user it is for. */
-type Counted = { readonly address: string } | { readonly userId: string };
+/**
+ * Who a request is counted for: the address it names (and, when the request
+ * is a user's, the user it is made for, carried by a refusal), or the user.
+ */
+type Counted =
+	| { readonly address: string; readonly userId?: string }
+	| { readonly userId: string };
 
 /**
  * Counts one request of `flow` for `email` — before it is looked up — and
  * refuses past the last one, whether anybody holds the address or not.
+ * `userId`, for a request made for a user (`changeEmail.send`), is only
+ * carried by the refusal; the count stays the address's.
  */
 export async function countMailByAddress(
 	context: Context,
@@ -71,12 +78,16 @@ export async function countMailByAddress(
 	flow: MailFlow,
 	email: string,
 	where: string,
+	userId?: string,
 ): Promise<void> {
 	await countMail(
 		context,
 		type,
 		flow,
-		{ address: normalizeEmail(email) },
+		{
+			address: normalizeEmail(email),
+			...(userId === undefined ? {} : { userId }),
+		},
 		where,
 	);
 }
@@ -122,12 +133,11 @@ async function countMail(
 	if (attempts <= throttle.attempts) return;
 
 	const now = context.clock.now().getTime();
-	const byUser = 'userId' in counted;
 	throw new MailThrottledError(
-		`${where}: too many e-mails asked for this ${byUser ? 'user' : 'address'} — the last one sent still works; use it, or wait for the next window`,
+		`${where}: too many e-mails asked for this ${'address' in counted ? 'address' : 'user'} — the last one sent still works; use it, or wait for the next window`,
 		{
 			userType: type.name,
-			...(byUser ? { userId: counted.userId } : {}),
+			...(counted.userId === undefined ? {} : { userId: counted.userId }),
 			retryAfter: Math.max(1, Math.ceil((endsAt - now) / 1000)),
 		},
 	);

@@ -208,12 +208,14 @@ With `secondFactor` configured, a type with a password also answers
 `secondFactor.enroll`, `activate`, `disable` and `confirm` — see
 [the second factor](second-factor.md).
 
-Every method may also reject with `STORE_FAILED`. `setPassword` and
-`changePassword` spend the user's reset links and second-factor challenges
-after the write, so a `STORE_FAILED` there may come with the password
-already written: a retried `changePassword` with the old `current` then
-answers `CREDENTIALS_INVALID`. A `user` argument is a user
-or its id (`UserRef = string | { id: string }`).
+Every method may also reject with `STORE_FAILED`. `update` (when it moves
+the e-mail: it spends the user's pending change links), `setPassword` and
+`changePassword` (they spend the user's reset links and second-factor
+challenges) do that after the write, so a `STORE_FAILED` there may come with
+the write already landed — the e-mail moved, or the password changed: a
+retried `changePassword` with the old `current` then answers
+`CREDENTIALS_INVALID`. A `user` argument is a user or its id
+(`UserRef = string | { id: string }`).
 
 ```ts
 const grace = await auth.create({ email: 'grace@example.com', name: 'Grace', active: false });

@@ -21,6 +21,7 @@ describe('instrumentJanus(), a changed e-mail', () => {
 		expect(changed[0]?.attributes).toMatchObject({
 			'janus.user.type': 'patient',
 			'user.id': user.id,
+			'janus.email.proved': true,
 		});
 		expect(logs.some((log) => log.name === 'janus.email.verified')).toBe(false);
 		expect(
@@ -31,6 +32,38 @@ describe('instrumentJanus(), a changed e-mail', () => {
 		for (const secret of [email, moved, ...secrets]) {
 			expect(written).not.toContain(secret);
 		}
+	});
+
+	it('writes janus.email.changed with proved=false for an update whose patch names the e-mail — never the address', async () => {
+		const { auth } = setup();
+		const { user } = await auth.patient.signUp({ email, password });
+		const { spans, logs } = await collect(async () => {
+			await auth.patient.update(user, { email: moved });
+		});
+
+		const changed = logs.filter((log) => log.name === 'janus.email.changed');
+		expect(changed).toHaveLength(1);
+		expect(changed[0]?.attributes).toMatchObject({
+			'janus.user.type': 'patient',
+			'user.id': user.id,
+			'janus.email.proved': false,
+		});
+		const written = JSON.stringify({ spans, logs });
+		for (const address of [email, moved]) {
+			expect(written).not.toContain(address);
+		}
+	});
+
+	it('writes no janus.email.changed for an update whose patch leaves the e-mail out, nor for a refused one', async () => {
+		const { auth } = setup();
+		const { user } = await auth.patient.signUp({ email, password });
+		await auth.patient.signUp({ email: moved, password });
+		const { logs } = await collect(async () => {
+			await auth.patient.update(user, {});
+			await rejection(auth.patient.update(user, { email: moved }));
+		});
+
+		expect(logs.map((log) => log.name)).toEqual([]);
 	});
 
 	it('writes nothing for a send under the limit, nor for a refused confirm', async () => {
@@ -65,5 +98,27 @@ describe('instrumentJanus(), a changed e-mail', () => {
 		for (const address of [email, moved]) {
 			expect(written).not.toContain(address);
 		}
+	});
+
+	it('names the asking user when the new address was exhausted by others', async () => {
+		const { auth } = setup();
+		const { user } = await auth.patient.signUp({ email, password });
+		for (let at = 0; at < 5; at += 1) {
+			const other = await auth.patient.signUp({
+				email: `other${at}@example.test`,
+				password,
+			});
+			await auth.patient.changeEmail.send(other.user, moved);
+		}
+		const { logs } = await collect(async () => {
+			await rejection(auth.patient.changeEmail.send(user, moved));
+		});
+
+		expect(
+			logs.find((log) => log.name === 'janus.mail.throttled')?.attributes,
+		).toMatchObject({
+			'janus.mail.flow': 'changeEmail.send',
+			'user.id': user.id,
+		});
 	});
 });

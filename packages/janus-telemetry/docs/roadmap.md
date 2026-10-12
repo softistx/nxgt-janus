@@ -34,7 +34,9 @@ Nothing yet.
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
 - **E-mail changes in the audit trail** — `changeEmail.confirm` writes
-  `janus.email.changed` with the `user.id`, never an address, and
+  `janus.email.changed` with the `user.id` and `janus.email.proved: true`,
+  never an address (an `update` whose patch names `email` writes it with
+  `janus.email.proved: false`), and
   `changeEmail.send` is counted by the mail throttle like the other e-mail
   requests: `janus.mail.throttled` with `janus.mail.flow: changeEmail.send`.
   Needs the `@nxgt/janus` that ships `changeEmail`.
