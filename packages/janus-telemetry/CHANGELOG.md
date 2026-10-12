@@ -1,5 +1,16 @@
 # @nxgt/janus-telemetry
 
+## 0.12.0
+
+### Minor Changes
+
+- [#220](https://github.com/softistx/nxgt-janus/pull/220) [`9e12709`](https://github.com/softistx/nxgt-janus/commit/9e127095d5e1c59e9030200c120ef82bbffe2186) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `changeEmail.confirm` writes `janus.email.changed`, an info event with `janus.user.type`, the `user.id` of the user who moved to a new address and `janus.email.proved: true` — never the former or the new address, and no `janus.email.verified` besides, since the move is the proof. `update` writes the same event with `janus.email.proved: false` when its patch names the `email` field (the default field name; a renamed one is not seen, an `update` that moved the address and then failed with `STORE_FAILED` is not seen either, and a patch that keeps the same address is still written). `changeEmail.send` is counted by the mail throttle like the other e-mail requests: past its attempts it writes `janus.mail.throttled` with `janus.mail.flow: changeEmail.send` and the `user.id`. Needs the `@nxgt/janus` that ships `changeEmail`.
+
+### Patch Changes
+
+- Updated dependencies [[`349664c`](https://github.com/softistx/nxgt-janus/commit/349664c16b994a4957ad2e37580b67fd0f2cb22d), [`edbd4f3`](https://github.com/softistx/nxgt-janus/commit/edbd4f3b5a2faed9e2ee8a59ead8910b4b9031ff)]:
+  - @nxgt/janus@0.23.0
+
 ## 0.11.1
 
 ### Patch Changes

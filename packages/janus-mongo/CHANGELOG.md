@@ -1,5 +1,16 @@
 # @nxgt/janus-mongo
 
+## 0.9.0
+
+### Minor Changes
+
+- [#218](https://github.com/softistx/nxgt-janus/pull/218) [`edbd4f3`](https://github.com/softistx/nxgt-janus/commit/edbd4f3b5a2faed9e2ee8a59ead8910b4b9031ff) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The `kind` enum of the `tokens` validator admits `changeEmail`, the token kind of `@nxgt/janus`'s change of e-mail. **A sync is required**: run `syncMongoAdapter(db)` before deploying. Until it has run, the first write of a `changeEmail` token fails with `STORE_FAILED`, caused by `Document failed validation`; no document is rewritten.
+
+### Patch Changes
+
+- Updated dependencies [[`349664c`](https://github.com/softistx/nxgt-janus/commit/349664c16b994a4957ad2e37580b67fd0f2cb22d), [`edbd4f3`](https://github.com/softistx/nxgt-janus/commit/edbd4f3b5a2faed9e2ee8a59ead8910b4b9031ff)]:
+  - @nxgt/janus@0.23.0
+
 ## 0.8.4
 
 ### Patch Changes

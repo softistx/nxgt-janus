@@ -1,5 +1,15 @@
 # @nxgt/janus
 
+## 0.23.0
+
+### Minor Changes
+
+- [#219](https://github.com/softistx/nxgt-janus/pull/219) [`349664c`](https://github.com/softistx/nxgt-janus/commit/349664c16b994a4957ad2e37580b67fd0f2cb22d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `auth.<type>.changeEmail` moves a user to a new, proved e-mail address. `send(user, email)` validates the address as `update` would (`USER_INVALID`), issues a link's token for it — answered as `{ token, email, expiresAt }`, `email` being the new address to send it to — and spends the user's earlier links; `confirm(token)` moves the user there, marks it verified and keeps the password, the second factor and the sessions. Whether another user holds the address is not asked at `send` (it would tell who has an account): `confirm` answers `LOGIN_TAKEN` from the store's own constraint, with the token already spent. An `update` that moves the e-mail spends the pending links (`TOKEN_SPENT`), so moving back revives none; a link whose address was changed outside janus is `TOKEN_STALE`. `send` refuses the user's current address, once normalised, with `USER_INVALID` (a refusal spends nothing); it is throttled per new address and per user (`MAIL_THROTTLED`, carrying the user's id), a link lives `'1h'` (`tokens.changeEmail`), and `confirm` sends `user.emailChanged` with `formerEmail` — so the former address can be told — then `user.emailVerified`.
+  
+  **Run the adapter's change first**: the `changeEmail` token kind needs janus-drizzle's migration (0.8) and janus-mongo's `syncMongoAdapter` (0.9), or every `send` is `STORE_FAILED`. **Gate `send`** behind a fresh sign-in (`assertFresh`) or a step-up: whoever changes the e-mail takes over password resets. Confirm from a `POST`, never from the link's `GET`. Documented in the e-mail flows guide, with a Hono route. `@nxgt/janus-mail` has no template for the link yet: send it to the new address with your own mailer.
+
+- [#218](https://github.com/softistx/nxgt-janus/pull/218) [`edbd4f3`](https://github.com/softistx/nxgt-janus/commit/edbd4f3b5a2faed9e2ee8a59ead8910b4b9031ff) Thanks [@SteveGT96](https://github.com/SteveGT96)! - **Adapters: a store that lists the token kinds must list `changeEmail` before this release is used with it** — a breaking change for an adapter you wrote (`TokenKind` gained a member, and a `Record<TokenKind, …>` of yours no longer compiles). `TokenKind` gains `changeEmail`, the token of a link sent to a user's new address. A store that lists the kinds — a `CHECK`, a validator's enum — has to list it, which the conformance suite proves with `tokens.everyKind`, and a new case, `tokens.changeEmailKind` (59 cases), holds that a change and a verification are neither counted, spent nor answered as one another. For a `changeEmail` token, `address` is the new address and `codeHash` the address it replaces, keyed by the token's secret: `TokenRecord.codeHash` documents it.
+
 ## 0.22.1
 
 ### Patch Changes
