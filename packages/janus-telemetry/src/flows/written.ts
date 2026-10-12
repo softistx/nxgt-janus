@@ -15,6 +15,19 @@ import {
 } from './fields';
 import { mailRequest } from './mail';
 
+/** The name `update`'s patch gives the e-mail, the field name janus defaults to. */
+const EMAIL_FIELD = 'email';
+
+/** Whether `update`'s patch (its second argument) names the e-mail field. */
+function patchNamesEmail(call: Call): boolean {
+	const patch = call.args[1];
+	return (
+		typeof patch === 'object' &&
+		patch !== null &&
+		(patch as Record<string, unknown>)[EMAIL_FIELD] !== undefined
+	);
+}
+
 /**
  * What each flow writes once it answered. Nothing here reads a login, an
  * e-mail, a password or a token: only user types, ids, codes and reasons.
@@ -158,8 +171,27 @@ export const WRITTEN: Readonly<
 	},
 	// One event, not two: the move is the proof; no address is written.
 	'changeEmail.confirm': (call, outcome) => {
-		if (outcome.ok)
-			log.info(events.emailChanged(userFields(call, outcome.value)));
+		if (outcome.ok) {
+			log.info(
+				events.emailChanged({
+					...userFields(call, outcome.value),
+					'janus.email.proved': true,
+				}),
+			);
+		}
+	},
+	// Moved without proof, whatever the application decided to trust. Read
+	// from the patch: it names the `email` field (the default name; telemetry
+	// does not know a renamed one), even when the value turns out unchanged.
+	update: (call, outcome) => {
+		if (outcome.ok && patchNamesEmail(call)) {
+			log.info(
+				events.emailChanged({
+					...userFields(call, outcome.value),
+					'janus.email.proved': false,
+				}),
+			);
+		}
 	},
 	// Only when it proved: an e-mail already proved changed nothing.
 	'verifyEmail.proveFirst': (call, outcome) => {

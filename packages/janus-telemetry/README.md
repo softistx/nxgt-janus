@@ -96,7 +96,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.user.activated`, `janus.user.deactivated` | info | `setActive` |
 | `janus.password.changed`, `janus.password.set`, `janus.password.reset` | info | the user's change, an admin's, a reset |
 | `janus.email.verified` | info | an e-mail was confirmed — by `verifyEmail.confirm`, or proved on the application's own proof by `verifyEmail.proveFirst`, which adds `janus.email.proveFirst: true` and writes it only when it proved (an e-mail already proved writes nothing) |
-| `janus.email.changed` | info | `changeEmail.confirm` moved a user to a new, proved e-mail address, with `janus.user.type` and `user.id` — neither the former nor the new address, and no `janus.email.verified` besides: the move is the proof |
+| `janus.email.changed` | info | a user's e-mail moved, with `janus.user.type`, `user.id` and `janus.email.proved` — never the former or the new address. `changeEmail.confirm` writes it with `janus.email.proved: true` (and no `janus.email.verified` besides: the move is the proof); `update` writes it with `janus.email.proved: false` when its patch names the `email` field, even if the address turns out unchanged (the field name janus defaults to — a renamed e-mail field is not seen on `update`) |
 | `janus.tuple.granted`, `janus.tuple.revoked` | info | a tuple was written, with the object, relation and subject |
 
 ## Traps
