@@ -548,7 +548,6 @@ try {
 }
 ```
 
-
 ### `STORE_FAILED` — `tokens.insertToken: the store could not answer`, on `changeEmail.send` alone
 
 `StoreFailure`, whose `error.cause` reads `new row for relation "tokens" violates check constraint "tokens_kind"` with `@nxgt/janus-drizzle`, or `Document failed validation` with `@nxgt/janus-mongo`.
@@ -628,9 +627,8 @@ const user = await auth.find(id); // null when there is nobody
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
 **Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.
-**On `changeEmail.confirm`** the address was free when `changeEmail.send` asked — `send` never checks — and somebody took it before the link was used. The link is already spent and nothing was written: the user keeps their e-mail. **Fix:** answer 409, tell the user the address is taken, and ask for another with a new `changeEmail.send`.
-
-**Fix:** answer 409. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
+**On `changeEmail.confirm`** the address was free when `changeEmail.send` asked — `send` never checks — and somebody took it before the link was used. The link is already spent and nothing was written: the user keeps their e-mail.
+**Fix:** answer 409. On `changeEmail.confirm`, tell the user the address is taken and ask for another with a new `changeEmail.send`. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
 
 ### `VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`
 
@@ -760,8 +758,9 @@ janus({ ..., signIn: { throttle: { attempts: 20, window: '15m' } } });
 it, or wait for the next window` and carry `userId`.
 
 **When:** `magicLink.request`, `signInCode.request` or
-`resetPassword.request` (per address), or `verifyEmail.send`, `changeEmail.send` (per user, and per new address) and an
-e-mailed `stepUp.request` (per user), past five requests of that flow in the current
+`resetPassword.request` (per address), or `verifyEmail.send`,
+`changeEmail.send` (per user, and per new address) and an e-mailed
+`stepUp.request` (per user), past five requests of that flow in the current
 10-minute window — whether or not anybody holds the address. `<call>` is the
 call, such as `magicLink.request` or `patient.signInCode.request`.
 **Why:** requests that send e-mail are throttled, on by default, so a loop
@@ -1027,7 +1026,7 @@ janus({ ..., tokens: { magicLink: '30m' } });
 
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
 
-**When:** `verifyEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` or `changeEmail.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
+**When:** `verifyEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` or `changeEmail.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces. A change link is `TOKEN_SPENT`, not stale, after an `update` that moved the e-mail; it is stale after a write outside janus, or a `send` racing an `update`.
 **Why:** confirming it would verify an address nobody holds any more, or reset a password through one. The token is spent, and nothing is written.
 **Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)` — or, for a sign-in link, ask for a new one: `magicLink.request` sends it to the current address — or, for a change link, send a new one: `await auth.changeEmail.send(user, newEmail)`.
 

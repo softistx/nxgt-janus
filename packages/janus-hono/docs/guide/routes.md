@@ -179,8 +179,8 @@ changes the limit ([passwords](https://github.com/softistx/nxgt-janus/blob/devel
 
 **The requests that send an e-mail are throttled too.** Past five requests
 for one address (or one user, for `verifyEmail.send`, `changeEmail.send` —
-also counted per new address — and an e-mailed `stepUp.request`) in a 10-minute window, `@nxgt/janus` throws
-`MAIL_THROTTLED` and sends nothing; `janusErrors()` answers it
+also counted per new address — and an e-mailed `stepUp.request`) in a
+10-minute window, `@nxgt/janus` throws `MAIL_THROTTLED` and sends nothing; `janusErrors()` answers it
 `429 { code: 'MAIL_THROTTLED', retryAfter }` with a `Retry-After` header.
 **A refused request spends and rotates nothing**: the last link or code sent
 still works, so tell the visitor to use the last e-mail they received, or to

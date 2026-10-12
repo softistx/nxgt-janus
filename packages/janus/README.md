@@ -775,10 +775,12 @@ say so, and say "ignore it if it was not you".
   answers `LOGIN_TAKEN` — the token already spent, nothing written.
 - **`confirm(token)`** spends the token, moves the user to the address and
   marks it verified. The password, the second factor and the sessions are
-  untouched. A user whose e-mail is not the one `send` was asked from — moved
-  by `update` or by another link — is `TOKEN_STALE`, checked again on the
-  record written. A write racing it is `VERSION_CONFLICT`, after the token
-  is spent. Links asked for the former address stop working: `TOKEN_STALE`.
+  untouched. A link whose e-mail is no longer the one `send` was asked from
+  is `TOKEN_SPENT` after an `update` that moved it (`update` spends the
+  links) or after a newer link; `TOKEN_STALE` comes from a write outside
+  janus, or from a `send` racing an `update`, and is checked again on the
+  record written. A write racing `confirm` is `VERSION_CONFLICT`, after the
+  token is spent.
 - **Events**: `user.emailChanged`, carrying `formerEmail`, then
   `user.emailVerified`. A change of case only sends no `user.emailChanged`,
   and an address already verified keeps the date it was verified and sends

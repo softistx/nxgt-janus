@@ -211,17 +211,31 @@ verified (an address already verified keeps its date). The password, the
 second factor and the sessions are untouched — the whole account moves with
 the user, so the mail should say "ignore it if it was not you". If
 the address was taken meanwhile, the store answers `LOGIN_TAKEN` and nothing
-is written — the token is already spent. A user whose e-mail is no longer the
-one the link was asked from is `TOKEN_STALE`, and so is a link for the
-former address once the change landed. An `update` that changes the e-mail
-spends the user's pending change links, so a move back to the old address
-revives none. It sends `user.emailChanged` (with
+is written — the token is already spent. After an `update` that moves the
+e-mail, the pending links are `TOKEN_SPENT`: `update` spends them, so a move
+back to the old address revives none. `TOKEN_STALE` is a link whose e-mail
+is no longer the one it was asked from although nothing spent it: a write
+outside janus, or a `send` racing an `update`. It sends `user.emailChanged` (with
 `formerEmail`) and `user.emailVerified`.
 
 **Gate `send`, and tell the former address.** Whoever changes the e-mail
 takes over every reset: call `send` behind a fresh sign-in or a step-up.
 
 ```ts
+import { assertFresh, janus } from '@nxgt/janus';
+
+declare function sendMail(to: string, body: string): Promise<void>; // your mailer
+
+const auth = janus({
+	// …
+	// the former address hears of it
+	events: async (event) => {
+		if (event.type === 'user.emailChanged' && event.formerEmail != null) {
+			await sendMail(event.formerEmail, 'Your e-mail was changed.');
+		}
+	},
+});
+
 app.post('/email/change', async (c) => {
 	const current = await auth.authenticate(c.req.raw);
 	if (current === null) return c.body(null, 401);
@@ -237,16 +251,6 @@ app.post('/email/confirm', async (c) => {
 	const { token } = await c.req.json<{ token: string }>();
 	await auth.changeEmail.confirm(token);
 	return c.body(null, 204);
-});
-
-// the former address hears of it
-const auth = janus({
-	// …
-	events: async (event) => {
-		if (event.type === 'user.emailChanged' && event.formerEmail != null) {
-			await sendMail(event.formerEmail, 'Your e-mail was changed.');
-		}
-	},
 });
 ```
 
@@ -393,6 +397,7 @@ try {
 | `magicLink.request(email)` | address | Anybody can call it with any address. Counted before the address is looked up, so an address nobody holds is refused like a registered one |
 | `signInCode.request(email)` | address | The same |
 | `resetPassword.request(email)` | address | The same |
+| `changeEmail.send(user, email)` | user, and new address | Counted twice, five per window each, before anything is issued: a loop on one user cannot fill an inbox, and one address cannot be flooded from many users |
 | `verifyEmail.send(user)` | user | The application calls it for a user it knows: an unauthenticated loop on the address cannot spend this count, so it never blocks the user's own verification, and a user changing e-mail buys no extra sends |
 | `stepUp.request(user)`, when it e-mails a code (`via: 'email'`) | user | The same. A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is not counted |
 
@@ -598,8 +603,8 @@ no longer yours to make. For an address nobody holds, `send()` answers
 issues is checked against it. See
 [the sign-in code guide](sign-in-code.md#requesting-a-code-in-two-steps).
 
-**`verifyEmail.send` and `stepUp.request` have no `prepare`.** They are
-counted per user, and called for a user the application already holds — the
+**`verifyEmail.send`, `changeEmail.send` and `stepUp.request` have no
+`prepare`.** They are counted per user, and called for a user the application already holds — the
 session's, or one it just created — so their time tells nothing about who
 has an account, and their `MAIL_THROTTLED` already reaches the visitor in
 the request that asked.
@@ -615,7 +620,7 @@ as by `request`.
 | Code | When |
 | --- | --- |
 | `TOKEN_UNKNOWN` | No token holds that secret — or it was issued for the other flow: a verification token is not a reset token |
-| `TOKEN_SPENT` | Already redeemed — every token is single use. A reset link is also spent by a newer `request` for the same user, and by any password written since it was sent |
+| `TOKEN_SPENT` | Already redeemed — every token is single use. A reset link is also spent by a newer `request` for the same user, and by any password written since it was sent; a change link, by a newer send or an update that moves the e-mail |
 | `TOKEN_EXPIRED` | Its lifespan passed. It is spent all the same, so it cannot be retried |
 | `TOKEN_STALE` | Asked for an e-mail the user no longer has: the link was sent to an address they have since left — or, for `changeEmail`, asked while they held an address they have since changed. Send a new link |
 

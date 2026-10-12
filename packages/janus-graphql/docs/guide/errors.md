@@ -170,11 +170,11 @@ body. `retryAfter` is the seconds until the login's next window.
 
 **The requests that send an e-mail are throttled too.** Past five requests
 for one address (one user, for `verifyEmail.send`, `changeEmail.send` — also
-counted per new address — and an e-mailed `stepUp.request`) in a 10-minute window, `@nxgt/janus` throws `MAIL_THROTTLED`
-and sends nothing; a refused request spends and rotates nothing, so the last
+counted per new address — and an e-mailed `stepUp.request`) in a 10-minute
+window, `@nxgt/janus` throws `MAIL_THROTTLED` and sends nothing; a refused request spends and rotates nothing, so the last
 link or code sent still works. Tell the visitor to use the last e-mail they
-received, or to wait `retryAfter` seconds. `janusGraphQLError()` answers it with the fixed message
-`Too many requests, retry later`:
+received, or to wait `retryAfter` seconds. `janusGraphQLError()` answers it
+with the fixed message `Too many requests, retry later`:
 
 ```json
 {
