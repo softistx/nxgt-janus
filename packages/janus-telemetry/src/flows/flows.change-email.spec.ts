@@ -50,7 +50,7 @@ describe('instrumentJanus(), a changed e-mail', () => {
 		for (let at = 0; at < 5; at += 1) {
 			await auth.patient.changeEmail.send(user, moved);
 		}
-		const { logs } = await collect(async () => {
+		const { spans, logs } = await collect(async () => {
 			await rejection(auth.patient.changeEmail.send(user, moved));
 		});
 
@@ -61,6 +61,9 @@ describe('instrumentJanus(), a changed e-mail', () => {
 			'janus.mail.flow': 'changeEmail.send',
 			'user.id': user.id,
 		});
-		expect(JSON.stringify(throttled)).not.toContain(moved);
+		const written = JSON.stringify({ spans, logs });
+		for (const address of [email, moved]) {
+			expect(written).not.toContain(address);
+		}
 	});
 });
