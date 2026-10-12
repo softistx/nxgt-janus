@@ -364,7 +364,9 @@ besides, since the move is the proof. `update` writes the same event with
 move without proof is as visible as one with it. Telemetry sees only the
 call's arguments and answer: the event is written for any patch that names
 `email` — also one that turns out to keep the same address — and a user type
-whose e-mail field is renamed is not seen on `update`. Whoever changes an
+whose e-mail field is renamed is not seen on `update`, nor an `update` that
+moved the address and then failed with `STORE_FAILED` while spending the
+change links: the event is written for an answered call only. Whoever changes an
 address takes over password resets, so this is the event to alert on:
 
 ```

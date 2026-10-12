@@ -778,9 +778,9 @@ account moves there.
   live per user: a new `send` spends the ones before. It lives `'1h'`
   (`tokens.changeEmail`). Throttled per new address and per user, five per
   10 minutes each (`MAIL_THROTTLED`, carrying the user's id), before anything
-  is issued. The address is counted first, so an address other people
-  exhausted leaves the user's own count alone; a refusal by the user's count
-  has already spent one of the address's.
+  is issued. The user is counted first, so an account past its own count
+  exhausts no address; an address other people exhausted costs the asking
+  user one of their own.
 - **Whether the address is taken is not asked at `send`**: it would tell who
   has an account. `confirm` writes, and the store's own unique constraint
   answers `LOGIN_TAKEN` — the token already spent, nothing written.

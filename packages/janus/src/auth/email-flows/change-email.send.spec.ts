@@ -169,9 +169,36 @@ describe('changeEmail.send, throttled', () => {
 		);
 
 		expect(refused).toMatchObject({ code: 'MAIL_THROTTLED', userId: user.id });
-		// The address refused first, so this user's own count was not spent.
-		for (let i = 0; i < 5; i++) {
+		// The user is counted first: the refusal cost one of their own five.
+		for (let i = 0; i < 4; i++) {
 			await context.auth.changeEmail.send(user, `n${i}@example.test`);
+		}
+		expect(
+			await rejection(context.auth.changeEmail.send(user, 'n4@example.test')),
+		).toMatchObject({ code: 'MAIL_THROTTLED', userId: user.id });
+	});
+
+	it('lets an account past its own count exhaust no address', async () => {
+		const context = changing();
+		const user = await verifiedAda(context);
+		for (let i = 0; i < 5; i++) {
+			await context.auth.changeEmail.send(user, `own${i}@example.test`);
+		}
+		for (let target = 0; target < 3; target++) {
+			for (let i = 0; i < 5; i++) {
+				await rejection(
+					context.auth.changeEmail.send(user, `victim${target}@example.test`),
+				);
+			}
+		}
+		const { user: other } = await context.auth.signUp({
+			email: 'other@example.test',
+			name: 'O',
+			password,
+		});
+
+		for (let target = 0; target < 3; target++) {
+			await context.auth.changeEmail.send(other, `victim${target}@example.test`);
 		}
 	});
 });

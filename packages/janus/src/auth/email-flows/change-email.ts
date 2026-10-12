@@ -44,12 +44,13 @@ export function changeEmailFlows(
 			const where = at('changeEmail.send');
 			const record = await getRecord(context, idOf(user), type.name, where);
 			if (!record.active) throw inactive(type, record, where);
-			// Validated first — a USER_INVALID spends nothing — then the address
-			// is counted, then the user, all before anything is issued. The
-			// address first: other people can exhaust it, and that refusal then
-			// leaves the user's own count alone. A refusal by the user's count
-			// has already spent one of the address's, bounded by the same limit.
+			// Validated first — a USER_INVALID spends nothing — then the user is
+			// counted, then the address, all before anything is issued. The user
+			// first: an account past its own count spends no address's, so one
+			// account can exhaust at most one address per window. An address
+			// other people exhausted costs the asking user one of their own.
 			const address = await newAddressOf(type, record, email, where);
+			await countMailByUser(context, type, 'changeEmail', record.id, where);
 			await countMailByAddress(
 				context,
 				type,
@@ -58,7 +59,6 @@ export function changeEmailFlows(
 				where,
 				record.id,
 			);
-			await countMailByUser(context, type, 'changeEmail', record.id, where);
 			return issueChangeEmailToken(context, type, record, address);
 		},
 
@@ -102,8 +102,9 @@ async function confirmChange(
 				{ [type.email]: token.address },
 				where,
 			);
-			// Verified by the link that reached the new address; an address
-			// already verified keeps the date it was.
+			// Verified by the link that reached the new address. `send` refuses
+			// the current address and an `update` spends the link, so the address
+			// always moves here; the test is a guard, not a path.
 			const proved =
 				record.emailVerifiedAt === null ||
 				emailChanged(type, record.fields, patch.fields);

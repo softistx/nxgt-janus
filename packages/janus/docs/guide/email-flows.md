@@ -210,10 +210,10 @@ be active (`USER_INACTIVE`), and an address equal to the user's current one
 once normalised is `USER_INVALID` too — a change moves to another address;
 verifying the current one is `verifyEmail`'s job. The call is throttled **per
 new address and per user**, five per window each, before anything is issued;
-a refusal carries the user's id. Only a `USER_INVALID` spends nothing: the
-address is counted first, so one other people exhausted leaves the user's
-count alone, while a refusal by the user's count has spent one of the
-address's. The user's
+a refusal carries the user's id. A `USER_INVALID` or a `USER_INACTIVE`
+spends nothing. The user is counted first, so an account past its own count
+spends no address's and can exhaust at most one address per window; an
+address other people exhausted costs the asking user one of their own. The user's
 earlier links are spent: only the last one works. Whether another user holds
 the address is not checked, so `send` tells nobody who has an account.
 
@@ -408,7 +408,7 @@ try {
 | `magicLink.request(email)` | address | Anybody can call it with any address. Counted before the address is looked up, so an address nobody holds is refused like a registered one |
 | `signInCode.request(email)` | address | The same |
 | `resetPassword.request(email)` | address | The same |
-| `changeEmail.send(user, email)` | user, and new address | Counted twice (the new address, then the user), five per window each, before anything is issued — a refusal carries the user's id: a loop on one user cannot fill an inbox, and one address cannot be flooded from many users |
+| `changeEmail.send(user, email)` | user, and new address | Counted twice (the user, then the new address), five per window each, before anything is issued — a refusal carries the user's id: a loop on one user cannot fill an inbox, and one address cannot be flooded from many users |
 | `verifyEmail.send(user)` | user | The application calls it for a user it knows: an unauthenticated loop on the address cannot spend this count, so it never blocks the user's own verification, and a user changing e-mail buys no extra sends |
 | `stepUp.request(user)`, when it e-mails a code (`via: 'email'`) | user | The same. A step-up confirmed with the app (`via: 'secondFactor'`) sends nothing and is not counted |
 
