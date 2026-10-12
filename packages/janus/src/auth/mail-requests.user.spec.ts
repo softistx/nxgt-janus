@@ -94,3 +94,16 @@ describe('stepUp.request, throttled per user', () => {
 		);
 	});
 });
+
+describe('changeEmail.send, throttled on its own', () => {
+	it('is counted apart from verifyEmail.send', async () => {
+		const context = mailing();
+		const { auth, issued } = context;
+		const user = await signedUp(context);
+		await times(5, () => auth.verifyEmail.send(user));
+
+		await auth.changeEmail.send(user, 'new@example.test');
+
+		expect(issued.at(-1)).toBe('changeEmail');
+	});
+});

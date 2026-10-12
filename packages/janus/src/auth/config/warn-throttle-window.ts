@@ -16,6 +16,7 @@ const FLOWS = [
 	'resetPassword',
 	'verifyEmail',
 	'stepUp',
+	'changeEmail',
 ] as const;
 
 const UNITS: readonly (readonly [string, number])[] = [

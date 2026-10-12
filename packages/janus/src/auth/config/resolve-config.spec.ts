@@ -33,6 +33,7 @@ describe('the defaults', () => {
 			signInCode: 600_000,
 			magicLink: 900_000,
 			stepUp: 600_000,
+			changeEmail: 3_600_000,
 		});
 		expect(resolved.cookie).toEqual({
 			name: 'janus-session',

@@ -2,7 +2,7 @@
  * Signing in on the application's proof — `signInProven`: a session read
  * off a sign-in that may still ask for a factor, a login handed over as the
  * user, and a device given as a bare string. Cases 73–75 of the
- * eighty-one — see `fixtures.ts`. The shapes that must keep compiling are
+ * eighty-four — see `fixtures.ts`. The shapes that must keep compiling are
  * at the end of this file.
  */
 

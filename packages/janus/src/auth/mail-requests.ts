@@ -22,7 +22,8 @@
  *   past the limit, as a registered one is, so being throttled never tells
  *   who has an account;
  * - **per user**, for the requests the application makes for a user it
- *   knows — `verifyEmail.send`, and `stepUp.request` when it e-mails a code.
+ *   knows — `verifyEmail.send`, `changeEmail.send` (and, for the address it
+ *   names, per address too), and `stepUp.request` when it e-mails a code.
  *   Nobody without the user's session or the application's call can spend
  *   that count, so a loop on their address leaves their own requests alone;
  *   and whatever addresses one user moves through, they are sent at most as
@@ -54,7 +55,8 @@ export type MailFlow =
 	| 'signInCode'
 	| 'resetPassword'
 	| 'verifyEmail'
-	| 'stepUp';
+	| 'stepUp'
+	| 'changeEmail';
 
 /** Who a request is counted for: the address it names, or the user it is for. */
 type Counted = { readonly address: string } | { readonly userId: string };

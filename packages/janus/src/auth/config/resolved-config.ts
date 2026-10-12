@@ -30,6 +30,7 @@ export interface ResolvedConfig {
 		readonly signInCode: number;
 		readonly magicLink: number;
 		readonly stepUp: number;
+		readonly changeEmail: number;
 	};
 	/** `null` when `signIn.throttle` is `false`. */
 	readonly signInThrottle: {

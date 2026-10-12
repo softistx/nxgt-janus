@@ -6,6 +6,7 @@
  */
 
 import type { JanusConfig, MultiTypeConfig, SingleTypeConfig } from '../config';
+import type { ChangeEmailApi } from './change-email';
 import type {
 	ResetPasswordApi,
 	SignInCodeApi,
@@ -71,6 +72,7 @@ export type TypeApi<
 		? unknown
 		: FindByEmailApi<UserOfType<Name, Def>> &
 				VerifyEmailApi<UserOfType<Name, Def>> &
+				ChangeEmailApi<UserOfType<Name, Def>> &
 				SignInCodeApi<
 					UserOfType<Name, Def>,
 					SignInAnswer<Name, Def, TwoFactor>

@@ -41,6 +41,8 @@ export type JanusErrorCode =
 	 * Raised by the **store's own unique constraint** and surfaced here, never
 	 * decided by reading first: two concurrent sign-ups both pass a read, and
 	 * only a constraint refuses one of them. Carries `login` and `userType`.
+	 * Also by `changeEmail.confirm`, when the new address was taken since the
+	 * link was sent: the token is spent, and nothing is written.
 	 */
 	| 'LOGIN_TAKEN'
 	/**
@@ -92,8 +94,10 @@ export type JanusErrorCode =
 	 */
 	| 'TOKEN_EXPIRED'
 	/**
-	 * The token was sent to an e-mail the user no longer has. Confirming it
-	 * would verify an address nobody holds any more, so it is spent and refused.
+	 * The token was sent to an e-mail the user no longer has — or, for
+	 * `changeEmail`, asked while the user held an e-mail they no longer have.
+	 * Confirming it would verify an address nobody holds any more, so it is
+	 * spent and refused.
 	 */
 	| 'TOKEN_STALE'
 	/**
@@ -107,7 +111,7 @@ export type JanusErrorCode =
 	/**
 	 * Too many e-mails asked for one address — or for one user, once signed
 	 * in — in this window: `magicLink.request`, `signInCode.request`,
-	 * `resetPassword.request`, `verifyEmail.send`, or `stepUp.request` by
+	 * `resetPassword.request`, `verifyEmail.send`, `changeEmail.send`, or `stepUp.request` by
 	 * e-mail. Nothing was issued, so there is nothing to send. Carries
 	 * `retryAfter`, the seconds until the next window. An address nobody
 	 * holds is refused alike, so a response may carry it without telling who

@@ -29,7 +29,12 @@ describe('the mail throttle window against the token lifetimes', () => {
 
 	it('names every flow that is shorter, in one warning', () => {
 		wire({
-			tokens: { magicLink: '2m', signInCode: '3m', stepUp: '30s' },
+			tokens: {
+				magicLink: '2m',
+				signInCode: '3m',
+				stepUp: '30s',
+				changeEmail: '45s',
+			},
 			mail: { throttle: { window: '1h' } },
 		});
 
@@ -38,6 +43,7 @@ describe('the mail throttle window against the token lifetimes', () => {
 		expect(message).toContain('tokens.magicLink is 2m');
 		expect(message).toContain('tokens.signInCode is 3m');
 		expect(message).toContain('tokens.stepUp is 30s');
+		expect(message).toContain('tokens.changeEmail is 45s');
 		expect(message).toContain('Set mail.throttle.window to 30s or less');
 	});
 

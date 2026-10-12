@@ -135,5 +135,9 @@ function resolveTokenTtls(
 			config.tokens?.stepUp ?? '10m',
 			`${where}: tokens.stepUp`,
 		),
+		changeEmail: parseDuration(
+			config.tokens?.changeEmail ?? '1h',
+			`${where}: tokens.changeEmail`,
+		),
 	};
 }

@@ -119,3 +119,17 @@ describe('a password written while a sign-in runs', () => {
 		expect(session?.revokedAt).not.toBeNull();
 	});
 });
+
+describe('an e-mail changed while a change of e-mail is redeemed', () => {
+	it('moves nobody: TOKEN_STALE, the former address kept by the other write', async () => {
+		const store = changingEmailAfterRedeem('other@example.test');
+		const { auth } = setup({ store });
+		const { user } = await auth.signUp({ ...ada, password });
+		const sent = await auth.changeEmail.send(user, 'countess@example.test');
+
+		expect(await rejection(auth.changeEmail.confirm(sent.token))).toMatchObject(
+			{ code: 'TOKEN_STALE' },
+		);
+		expect((await auth.get(user.id)).email).toBe('other@example.test');
+	});
+});
