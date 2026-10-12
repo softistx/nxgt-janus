@@ -1,5 +1,6 @@
 import type { AnyUser } from '../context';
 import type {
+	ChangeEmailApi,
 	FindByEmailApi,
 	MagicLinkApi,
 	PasswordApi,
@@ -25,5 +26,6 @@ export type AnyTypeApi = UserTypeApi<AnyUser, Input> &
 	MagicLinkApi<AnyUser, SignInResult<AnyUser>> &
 	StepUpApi<AnyUser, StepUpByEmail<AnyUser> | StepUpByApp<AnyUser>> &
 	VerifyEmailApi<AnyUser> &
+	ChangeEmailApi<AnyUser> &
 	FindByEmailApi<AnyUser> &
 	ResetPasswordApi<AnyUser>;

@@ -6,7 +6,7 @@ import type { Context } from './context';
  *
  * - `user.created` — by `create` or `signUp`;
  * - `user.emailVerified` — by `verifyEmail.confirm`, or by the link of
- *   `resetPassword.confirm` or `magicLink.confirm`, or the code of
+ *   `resetPassword.confirm`, `magicLink.confirm` or `changeEmail.confirm`, or the code of
  *   `signInCode.confirm`, which prove the e-mail too; never for an e-mail
  *   already verified;
  * - `user.passwordReset` — by `resetPassword.confirm`;
@@ -14,7 +14,8 @@ import type { Context } from './context';
  *   `signInCode.confirm` and `magicLink.confirm` when their first proof of
  *   the e-mail dropped a password, after `user.emailVerified`; never by a
  *   reset, which is `user.passwordReset` alone;
- * - `user.emailChanged` — by `update`, when it changed the e-mail — compared
+ * - `user.emailChanged` — by `update` and `changeEmail.confirm`, when they
+ *   changed the e-mail — compared
  *   normalised, the same test that makes the new one unverified. The one
  *   event that carries more than the user: `formerEmail`;
  * - `user.secondFactorEnabled` — by `secondFactor.activate`, once the factor

@@ -367,7 +367,7 @@ Also `janus: "<name>" cannot name a user type — janus() answers a method of th
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
-The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.magicLink`, `tokens.stepUp`, `secondFactor.challenge` and `signIn.throttle.window` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
+The same for `session.renewAfter`, `tokens.verifyEmail`, `tokens.resetPassword`, `tokens.signInCode`, `tokens.magicLink`, `tokens.stepUp`, `tokens.changeEmail`, `secondFactor.challenge` and `signIn.throttle.window` — and, at call time rather than in `janus()`, `assertFresh: maxAge: "<value>" is not a duration; …`, from a `maxAge` written wrong. Also `<option>: a duration must be above zero` and `<option>: a duration in milliseconds must be a finite number above zero`.
 
 **When:** `janus({...})`.
 **Why:** a duration is a number of milliseconds, or a number followed by one unit. `'30 m'` compiles — TypeScript's `${number}` accepts the space — and is refused here.
@@ -748,8 +748,8 @@ janus({ ..., signIn: { throttle: { attempts: 20, window: '15m' } } });
 it, or wait for the next window` and carry `userId`.
 
 **When:** `magicLink.request`, `signInCode.request` or
-`resetPassword.request` (per address), or `verifyEmail.send` and an e-mailed
-`stepUp.request` (per user), past five requests of that flow in the current
+`resetPassword.request` (per address), or `verifyEmail.send`, `changeEmail.send` (per user, and per new address) and an
+e-mailed `stepUp.request` (per user), past five requests of that flow in the current
 10-minute window — whether or not anybody holds the address. `<call>` is the
 call, such as `magicLink.request` or `patient.signInCode.request`.
 **Why:** requests that send e-mail are throttled, on by default, so a loop

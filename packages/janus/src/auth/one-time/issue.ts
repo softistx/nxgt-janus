@@ -20,6 +20,11 @@ interface OneTimeRequest {
 	 * fresh one by default.
 	 */
 	readonly secret?: string;
+	/**
+	 * What the token is bound to, stored as its `codeHash` when it carries no
+	 * code: `changeEmail` binds the address it replaces. `null` by default.
+	 */
+	readonly boundHash?: string;
 }
 
 /**
@@ -63,7 +68,8 @@ async function insertOneTime(
 		kind: token.kind,
 		userId: token.userId,
 		address: token.address,
-		codeHash: code === null ? null : hashCode(secret, code),
+		codeHash:
+			code === null ? (token.boundHash ?? null) : hashCode(secret, code),
 		attempts: 0,
 		expiresAt,
 		spentAt: null,

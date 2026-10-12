@@ -76,6 +76,19 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Changing a user's e-mail, v0.23.0** —
+  `auth.<type>.changeEmail.send(user, email)` issues a link for the new
+  address, and `changeEmail.confirm(token)` moves the user there, verified,
+  keeping the password, the second factor and the sessions. The address is
+  validated as `update` does and never checked for a holder at `send`;
+  `confirm` answers `LOGIN_TAKEN` with the token spent. Throttled per user
+  and per new address; a link lives an hour (`tokens.changeEmail`); a newer
+  `send` spends the earlier links; a link asked from an address the user has
+  left is `TOKEN_STALE`. `user.emailChanged` carries `formerEmail` so the
+  former address can be told. Gate `send` behind a fresh sign-in or a
+  step-up. **Breaking for an adapter: `TokenKind` gains `'changeEmail'`**,
+  which a `CHECK` or a validator's enum must list — the janus-drizzle 0.8
+  migration, the janus-mongo 0.9 sync.
 - **Proving an e-mail on the application's own proof, v0.22.0** —
   `auth.<type>.verifyEmail.proveFirst(user)` applies the first proof of an
   e-mail that a sign-in link or code applies — verified, the password and
@@ -157,13 +170,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   from a `POST`, so a mail scanner that opens the link spends nothing.
   **Breaking for an adapter: `TokenKind` gains `'magicLink'`**, which a
   `CHECK` or a validator's enum must list.
-- **Password guessing throttled per login, v0.14.0** — past ten passwords
-  tried at one login in a 15-minute window, `signIn` answers
-  `CREDENTIALS_INVALID` with `reason: 'throttled'` and `retryAfter`, the right
-  password included, until the window ends. Nothing locks; a login nobody
-  holds is counted alike; a password sign-in that opens a session —
-  after its second factor, when one is active — starts the count again.
-  On by default: `signIn: { throttle: { attempts, window } }` changes it,
-  `signIn: { throttle: false }` turns it off. A tokens store that cannot
-  count fails the sign-in with `STORE_FAILED`. No change for adapters: the
-  counts are `secondFactor` tokens, counted by `TokenStore.countAttempt`.
