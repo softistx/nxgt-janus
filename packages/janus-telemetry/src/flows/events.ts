@@ -232,7 +232,6 @@ export const WRITTEN: Readonly<
 		if (outcome.ok)
 			log.info(events.emailVerified(userFields(call, outcome.value)));
 	},
-	// One event, not two: the move is the proof; no address is written.
 	'changeEmail.confirm': (call, outcome) => {
 		if (outcome.ok)
 			log.info(events.emailChanged(userFields(call, outcome.value)));
