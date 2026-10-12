@@ -95,11 +95,11 @@ janus.patient.signIn   ok   janus.refusal=CREDENTIALS_INVALID
 
 A request that sends an e-mail past its attempts — `@nxgt/janus` throttles
 `magicLink.request`, `signInCode.request`, `resetPassword.request`,
-`verifyEmail.send` and an e-mailed `stepUp.request` — is a
+`verifyEmail.send`, `changeEmail.send` and an e-mailed `stepUp.request` — is a
 `janus.mail.throttled` warning. The span stays ok with `janus.refusal` set;
 the event names the flow and the seconds until the window ends, and never the
 address. `user.id` is there for the per-user flows (`verifyEmail.send`,
-`stepUp.request`) only:
+`changeEmail.send`, `stepUp.request`) only:
 
 ```
 janus.magicLink.request   ok   janus.refusal=MAIL_THROTTLED
@@ -349,6 +349,30 @@ POST /invitation/accept                  server
 │    log  janus.email.verified           user.id=0199…  janus.email.proveFirst=true
 └─ janus.signInProven                    janus.user.type=user  user.id=0199…  janus.signIn.status=signedIn
      log  janus.signIn                   user.id=0199…  janus.signIn.proven=true
+```
+
+## A changed e-mail
+
+`changeEmail.send` moves nobody yet: it is counted by the mail throttle like
+the other e-mail requests, so a refused one is a `janus.mail.throttled` with
+`janus.mail.flow=changeEmail.send` and the `user.id`. `changeEmail.confirm`
+moves the user to the new, proved address and writes `janus.email.changed`
+with the `user.id`, and nothing else about the move: neither the former nor
+the new address, and no `janus.email.verified` besides, since the move is
+the proof. Whoever changes an address takes over password resets, so this is
+the event to alert on:
+
+```
+POST /email/confirm                      server
+└─ janus.changeEmail.confirm             janus.user.type=user  user.id=0199…
+     log  janus.email.changed            user.id=0199…
+```
+
+A refusal (`TOKEN_STALE`, `LOGIN_TAKEN`, a `TOKEN_*` code) writes no event;
+the span records the `janus.refusal`.
+
+```ts
+// name = 'janus.email.changed', grouped by user.id — who moved to another address, and when
 ```
 
 ## A step-up

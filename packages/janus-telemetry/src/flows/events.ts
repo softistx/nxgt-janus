@@ -44,6 +44,7 @@ const events = {
 	passwordSet: event('janus.password.set'),
 	passwordReset: event('janus.password.reset'),
 	emailVerified: event('janus.email.verified'),
+	emailChanged: event('janus.email.changed'),
 };
 
 /**
@@ -222,6 +223,7 @@ export const WRITTEN: Readonly<
 	'resetPassword.request': mailRequest(),
 	'resetPassword.prepare': mailRequest(),
 	'verifyEmail.send': mailRequest(),
+	'changeEmail.send': mailRequest(),
 	'resetPassword.confirm': (call, outcome) => {
 		if (outcome.ok)
 			log.info(events.passwordReset(userFields(call, outcome.value)));
@@ -229,6 +231,11 @@ export const WRITTEN: Readonly<
 	'verifyEmail.confirm': (call, outcome) => {
 		if (outcome.ok)
 			log.info(events.emailVerified(userFields(call, outcome.value)));
+	},
+	// One event, not two: the move is the proof; no address is written.
+	'changeEmail.confirm': (call, outcome) => {
+		if (outcome.ok)
+			log.info(events.emailChanged(userFields(call, outcome.value)));
 	},
 	// Only when it proved: an e-mail already proved changed nothing.
 	'verifyEmail.proveFirst': (call, outcome) => {
