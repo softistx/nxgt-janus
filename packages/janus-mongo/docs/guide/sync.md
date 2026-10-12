@@ -129,8 +129,8 @@ version adds a field, the validator the previous sync wrote refuses it: from
 0.2 to 0.3, `secondFactor` on every new user and `codeHash` and `attempts` on
 every new token; from 0.4 to 0.5, `recoveryCodes` on every second factor
 written. The same holds for a new value: from 0.5 to 0.6, the token kind
-`stepUp`, and from 0.6 to 0.7, the token kind `magicLink`, which the
-previous validator's `kind` enum refuses. Run the sync
+`stepUp`, from 0.6 to 0.7, the token kind `magicLink`, and from 0.8 to 0.9, the
+token kind `changeEmail`, which the previous validator's `kind` enum refuses. Run the sync
 with the new version **before** the code that writes them:
 
 ```ts
@@ -146,7 +146,8 @@ nothing the previous version writes, so the previous version keeps working
 against it while the deployment rolls. Deployed before the sync,
 every sign-up and every one-time token fails with `STORE_FAILED`, caused by
 `Document failed validation` (code 121) — from 0.5 to 0.6, every step-up
-request only; from 0.6 to 0.7, every `magicLink.request` only. No document
+request only; from 0.6 to 0.7, every `magicLink.request` only; from 0.8 to 0.9, the
+first write of a `changeEmail` token only. No document
 is rewritten either way.
 
 **From 0.4 to 0.5, finish the rollout before users hold recovery codes.** An

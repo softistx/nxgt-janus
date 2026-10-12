@@ -95,7 +95,7 @@ CREATE TABLE "tokens" (
 	"expires_at" timestamp(3) with time zone NOT NULL,
 	"spent_at" timestamp(3) with time zone,
 	"created_at" timestamp(3) with time zone NOT NULL,
-	CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp')),
+	CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp', 'changeEmail')),
 	CONSTRAINT "tokens_attempts" CHECK ("attempts" >= 0)
 );
 -- sessions, relations, the indexes, and the foreign key from
@@ -165,7 +165,8 @@ bunx drizzle-kit migrate --config drizzle.janus.config.ts
 
 Deployed first, every query on `users` or `tokens` fails with `STORE_FAILED`,
 caused by `column "…" does not exist` — or, from 0.4 to 0.5, only a write of
-a `stepUp` token, and from 0.5 to 0.6 of a `magicLink` token, caused by
+a `stepUp` token, from 0.5 to 0.6 of a `magicLink` token, and from 0.7 to 0.8 of a
+`changeEmail` token, caused by
 `violates check constraint "tokens_kind"`.
 
 ### To 0.2: the second factor and attempts
@@ -252,6 +253,24 @@ ones. Deployed before the migration, only `magicLink.request` fails: with
 constraint "tokens_kind"`. An instance still on 0.5 writes no `magicLink`
 token, so the two run side by side. No column changes: a link's token is a
 row like a reset link's, with `code_hash` null and `attempts` 0.
+
+### To 0.8: the e-mail change kind
+
+**A migration is required**, the same shape as 0.5's and 0.6's. The check on
+`tokens.kind` admits `changeEmail`, the token of `@nxgt/janus` 0.23's link to
+a user's new address — one statement, and no row rewritten:
+
+```sql
+ALTER TABLE "tokens" DROP CONSTRAINT "tokens_kind", ADD CONSTRAINT "tokens_kind" CHECK ("kind" in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp', 'changeEmail'));
+```
+
+That is the statement drizzle-kit writes from the 0.7 tables to the 0.8
+ones. Deployed before the migration, only the first write of a `changeEmail`
+token fails: with `STORE_FAILED`, caused by `new row for relation "tokens"
+violates check constraint "tokens_kind"`. An instance still on 0.7 writes no
+`changeEmail` token, so the two run side by side. No column changes: the
+token's `address` holds the new address and `code_hash` the address it
+replaces, keyed by the token's secret.
 
 ## Collecting lapsed sessions
 

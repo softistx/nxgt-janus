@@ -16,11 +16,15 @@ export function tokensTable(table: TableFactory) {
 					'signInCode',
 					'magicLink',
 					'stepUp',
+					'changeEmail',
 				],
 			}).notNull(),
 			userId: key('user_id').notNull(),
 			address: text('address').notNull(),
-			/** A sign-in code's hash, keyed by the token's secret. */
+			/**
+			 * An e-mailed code's hash, keyed by the token's secret — for a
+			 * `changeEmail` token, the address it replaces, keyed the same way.
+			 */
 			codeHash: text('code_hash'),
 			/** Codes tried against it. The default fills the rows a migration finds. */
 			attempts: integer('attempts').notNull().default(0),
@@ -31,7 +35,7 @@ export function tokensTable(table: TableFactory) {
 		(t) => [
 			check(
 				'tokens_kind',
-				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp')`,
+				sql`${t.kind} in ('verifyEmail', 'resetPassword', 'secondFactor', 'signInCode', 'magicLink', 'stepUp', 'changeEmail')`,
 			),
 			check('tokens_attempts', sql`${t.attempts} >= 0`),
 			index('tokens_user_id').on(t.userId),

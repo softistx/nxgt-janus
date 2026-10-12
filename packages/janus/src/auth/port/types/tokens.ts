@@ -25,6 +25,10 @@ import type { Id } from '../../../ids/id';
  *   sent by e-mail, or, with an active second factor, a code from their app.
  *   A kind of its own, so a sign-in code never confirms an action nor an
  *   action's code signs anyone in.
+ * - `changeEmail`: a link sent by e-mail to a user's new address, to confirm
+ *   it. A kind of its own, so a verification link — which proves the address
+ *   the user already holds — never changes an address, nor this one verifies
+ *   the current one.
  */
 export type TokenKind =
 	| 'verifyEmail'
@@ -32,7 +36,8 @@ export type TokenKind =
 	| 'secondFactor'
 	| 'signInCode'
 	| 'magicLink'
-	| 'stepUp';
+	| 'stepUp'
+	| 'changeEmail';
 
 /** A one-time token, as a store holds it: its hash, never its secret. */
 export interface TokenRecord {
@@ -42,14 +47,16 @@ export interface TokenRecord {
 	readonly userId: Id;
 	/**
 	 * The e-mail the token was sent to — the one a verification marks
-	 * verified. `''` for a second-factor challenge, which nothing was sent for.
+	 * verified; for `changeEmail`, the new address the user will hold.
+	 * `''` for a second-factor challenge, which nothing was sent for.
 	 */
 	readonly address: string;
 	/**
 	 * For a token redeemed with an e-mailed code — `signInCode`, and a
 	 * `stepUp` sent by e-mail — the code's hash, keyed
-	 * by the token's secret, so the tokens alone do not reveal it. `null` for
-	 * every other kind: the core writes it so, and a store keeps what it is
+	 * by the token's secret, so the tokens alone do not reveal it. For
+	 * `changeEmail`, the address it replaces, keyed by the secret the same way.
+	 * `null` for every other kind: the core writes it so, and a store keeps what it is
 	 * given.
 	 */
 	readonly codeHash: string | null;

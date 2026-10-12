@@ -545,7 +545,11 @@ A token of kind `stepUp` is that confirmation's challenge: kept apart from
 `magicLink`, new in 0.15, is a sign-in link's, kept apart from `signInCode`
 the same way: a sign-in code's challenge is held by whoever asked for it,
 and must never sign anyone in as a link. A store that lists the kinds — a
-`CHECK`, a validator's enum — adds `magicLink`.
+`CHECK`, a validator's enum — adds `magicLink`. A token of kind
+`changeEmail`, new in 0.23, is the link sent to a user's new address: its
+`address` is that new address and its `codeHash` the address it replaces,
+kept apart from `verifyEmail` so neither is redeemed as the other. The same
+store adds `changeEmail`.
 
 An adapter written against `@nxgt/janus` 0.3 does not compile against this
 port until it implements `countAttempt`, nor one written against 0.6 until it
@@ -1182,7 +1186,7 @@ describeJanusStores({
 });
 ```
 
-There are 58 cases. They cover:
+There are 59 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -1195,9 +1199,9 @@ There are 58 cases. They cover:
   and never brings back a revoked session, even one revoked at the same
   moment;
 - one-time tokens: a token of every kind the port names is stored, counted
-  and spent — a `CHECK` or an enum that forgot `stepUp` or `magicLink` fails
+  and spent — a `CHECK` or an enum that forgot `stepUp`, `magicLink` or `changeEmail` fails
   here — and neither a step-up nor a sign-in link is ever counted, spent nor
-  answered as a sign-in code; of twenty
+  answered as a sign-in code, nor an e-mail change as a verification; of twenty
   concurrent redemptions, exactly one succeeds; of twenty concurrent
   `countAttempt` calls, each answers a distinct count, and none is counted
   once a racing redemption spent the token;

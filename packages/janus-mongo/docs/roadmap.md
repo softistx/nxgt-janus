@@ -44,6 +44,9 @@ Each entry names the version it came in; `CHANGELOG.md` holds the rest.
   `users.findUsers` is one `find` on `{ _id: { $in: ids } }`, so
   `auth.<type>.findMany(ids)` reads a list of up to 100 ids in one round
   trip instead of one `find` per id. No sync needed: `_id` serves it.
+- **The e-mail change kind, v0.9.0** — for `@nxgt/janus` 0.23: the `kind`
+  enum admits `changeEmail`, the token of a link sent to a new address, so run
+  the sync before deploying. No document is rewritten.
 - **The sign-in link kind, v0.7.0** — for `@nxgt/janus` 0.15: the `kind`
   enum admits `magicLink`, the token of a link that signs a user in, so run
   the sync before deploying. No document is rewritten.
