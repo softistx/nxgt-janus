@@ -49,6 +49,7 @@ How the messages are shaped:
 
 **Users, sessions and tokens**
 - [`STORE_FAILED` — `<slot>.<method>: the store could not answer`](#store_failed--slotmethod-the-store-could-not-answer)
+- [`STORE_FAILED` — `tokens.insertToken: the store could not answer`, on `changeEmail.send` alone](#store_failed--tokensinserttoken-the-store-could-not-answer-on-changeemailsend-alone)
 - [`STORE_FAILED` — `<slot>.<method> answered undefined …`](#store_failed--slotmethod-answered-undefined-an-absence-is-null-so-this-store-forgot-to-answer)
 - [`STORE_FAILED` — `users.findUsers answered no list …`](#store_failed--usersfindusers-answered-no-list-an-absence-is-a-shorter-list-so-this-store-forgot-to-answer)
 - [`<call>: ids must be an array of user ids`](#call-ids-must-be-an-array-of-user-ids)
@@ -547,6 +548,15 @@ try {
 }
 ```
 
+
+### `STORE_FAILED` — `tokens.insertToken: the store could not answer`, on `changeEmail.send` alone
+
+`StoreFailure`, whose `error.cause` reads `new row for relation "tokens" violates check constraint "tokens_kind"` with `@nxgt/janus-drizzle`, or `Document failed validation` with `@nxgt/janus-mongo`.
+
+**When:** `changeEmail.send`, on a database not yet migrated for the `changeEmail` token kind; every other call works.
+**Why:** `changeEmail` is a token kind of its own, and the adapter's table (drizzle's `tokens_kind` check) or collection validator (mongo's `kind` enum) does not list it yet.
+**Fix:** `@nxgt/janus-drizzle` 0.8: apply its migration (`drizzle-kit migrate`). `@nxgt/janus-mongo` 0.9: run `syncMongoAdapter` (or `syncMongoStores`) once at start-up. Until then answer 503, as for any outage.
+
 ### `STORE_FAILED` — `<slot>.<method> answered undefined: an absence is null, so this store forgot to answer`
 
 **When:** with a store you wrote, on the first call to that method.
@@ -618,6 +628,8 @@ const user = await auth.find(id); // null when there is nobody
 
 **When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
 **Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.
+**On `changeEmail.confirm`** the address was free when `changeEmail.send` asked — `send` never checks — and somebody took it before the link was used. The link is already spent and nothing was written: the user keeps their e-mail. **Fix:** answer 409, tell the user the address is taken, and ask for another with a new `changeEmail.send`.
+
 **Fix:** answer 409. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
 
 ### `VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`
@@ -918,7 +930,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 ### `USER_INACTIVE` — `<call>: the user is inactive`
 
-**When:** `signIn`, with the **right** password, for a user set inactive. Also `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven` and `verifyEmail.proveFirst`, for an inactive user: the application's proof does not reactivate anybody, and proves nothing on an inactive one.
+**When:** `signIn`, with the **right** password, for a user set inactive. Also `changeEmail.send` and `changeEmail.confirm` (the link is spent), and `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven` and `verifyEmail.proveFirst`, for an inactive user: the application's proof does not reactivate anybody, and proves nothing on an inactive one.
 **Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it. `magicLink.confirm` checks after spending the link, which is spent too, and `magicLink.request` answers `null` for an inactive user.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
 
@@ -926,8 +938,8 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 
 `TokenError`: `<call>: no such token`, `<call>: the token was already used`, `<call>: the token has expired`.
 
-**When:** `verifyEmail.confirm`, `resetPassword.confirm`.
-**Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword`.
+**When:** `verifyEmail.confirm`, `resetPassword.confirm`, `changeEmail.confirm`.
+**Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted, and a change link confirmed through another user type's `changeEmail` or passed to another flow. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword` and for `changeEmail`. A change link is also spent by a newer `changeEmail.send` for the same user (only the last one works), and by an `update` that changes the user's e-mail.
 A reset link answers `resetPassword.confirm: the token was already used` in
 two more cases: a newer `resetPassword.request` for the same user spent it —
 only the last link sent works, so a visitor who asked twice and clicked the
@@ -1015,9 +1027,9 @@ janus({ ..., tokens: { magicLink: '30m' } });
 
 ### `TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`
 
-**When:** `verifyEmail.confirm`, `resetPassword.confirm` or `magicLink.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
+**When:** `verifyEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` or `changeEmail.confirm`, after the user changed their e-mail — even while the link was being redeemed: the address is checked again on the very record the write replaces.
 **Why:** confirming it would verify an address nobody holds any more, or reset a password through one. The token is spent, and nothing is written.
-**Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)` — or, for a sign-in link, ask for a new one: `magicLink.request` sends it to the current address.
+**Fix:** send a new token to the current address: `await auth.verifyEmail.send(user)` — or, for a sign-in link, ask for a new one: `magicLink.request` sends it to the current address — or, for a change link, send a new one: `await auth.changeEmail.send(user, newEmail)`.
 
 ### `INVALID_CURSOR` — `<call>: this cursor was not minted by this store, or was minted for another ordering (<n> characters)`
 
