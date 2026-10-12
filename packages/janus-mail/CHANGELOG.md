@@ -1,5 +1,13 @@
 # @nxgt/janus-mail
 
+## 0.9.8
+
+### Patch Changes
+
+- [#222](https://github.com/softistx/nxgt-janus/pull/222) [`ac97720`](https://github.com/softistx/nxgt-janus/commit/ac9772055064c44a6ea022434a232d8639a6cab2) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The README warns that no template sends `changeEmail`'s link yet: `mail.verifyEmail(issued)` is not its mail. Send the change link with your own mailer for now; `mail.emailChanged` still tells the former address.
+- Updated dependencies [[`349664c`](https://github.com/softistx/nxgt-janus/commit/349664c16b994a4957ad2e37580b67fd0f2cb22d), [`edbd4f3`](https://github.com/softistx/nxgt-janus/commit/edbd4f3b5a2faed9e2ee8a59ead8910b4b9031ff)]:
+  - @nxgt/janus@0.23.0
+
 ## 0.9.7
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @nxgt/janus-graphql
 
+## 0.6.6
+
+### Patch Changes
+
+- Updated dependencies [[`349664c`](https://github.com/softistx/nxgt-janus/commit/349664c16b994a4957ad2e37580b67fd0f2cb22d), [`edbd4f3`](https://github.com/softistx/nxgt-janus/commit/edbd4f3b5a2faed9e2ee8a59ead8910b4b9031ff)]:
+  - @nxgt/janus@0.23.0
+
 ## 0.6.5
 
 ### Patch Changes
