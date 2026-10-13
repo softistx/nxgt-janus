@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.23.1
+
+### Patch Changes
+
+- [#224](https://github.com/softistx/nxgt-janus/pull/224) [`208ecd1`](https://github.com/softistx/nxgt-janus/commit/208ecd12f8a00575fcde53e87e83b871994ae799) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The docs name `@nxgt/janus-mail` 0.10.0's `mail.changeEmail(issued, to)` as the e-mail of `changeEmail.send`'s link, where they said to send it with your own mailer.
+
 ## 0.23.0
 
 ### Minor Changes

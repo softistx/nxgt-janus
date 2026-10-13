@@ -1,5 +1,16 @@
 # @nxgt/janus-mail
 
+## 0.10.0
+
+### Minor Changes
+
+- [#224](https://github.com/softistx/nxgt-janus/pull/224) [`765aee8`](https://github.com/softistx/nxgt-janus/commit/765aee8645498cebc970c10bc078d35e58bdc3a5) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `mail.changeEmail(issued, to, options?)` sends the link `auth.<type>.changeEmail.send(user, newEmail)` issued, to `issued.email` — the new address — with the `confirm-new-email` preset of `@nxgt/mail-presets` 1.2.0, in English and French: it greets `to.name`, says the account moves to this address once the link is followed, and how long it lasts. `links` gains `changeEmail: (token) => string`, optional like `magicLink`: links written before it keep compiling, and the send is a `TypeError` without it. Thirteen templates now (`changeEmail`), so a `templates` for a locale beyond `en` and `fr` must add it. `emailChanged` still tells the former address once the link is redeemed.
+
+### Patch Changes
+
+- Updated dependencies [[`208ecd1`](https://github.com/softistx/nxgt-janus/commit/208ecd12f8a00575fcde53e87e83b871994ae799)]:
+  - @nxgt/janus@0.23.1
+
 ## 0.9.8
 
 ### Patch Changes
