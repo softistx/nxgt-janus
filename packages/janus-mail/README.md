@@ -529,8 +529,8 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Fifty plausible mistakes, fifty refused at compile time.**
-Nine files hold one `@ts-expect-error` per mistake, beside the calls that
+**Fifty-eight plausible mistakes, fifty-eight refused at compile time.**
+Ten files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
@@ -549,9 +549,11 @@ the e-mail change notice sent on its event, 35 and 36;
 four of the sign-in link, 37 to 40;
 [`test/types/step-up-refusals.ts`](test/types/step-up-refusals.ts) the six
 of the step-up's code, 41 to 46, beside the names of the templates, held to
-the thirteen; and
+the thirteen;
 [`test/types/new-sign-in-refusals.ts`](test/types/new-sign-in-refusals.ts)
-the four of the new sign-in notice, 47 to 50:
+the four of the new sign-in notice, 47 to 50; and
+[`test/types/change-email-refusals.ts`](test/types/change-email-refusals.ts)
+the eight of the e-mail change link, 51 to 58:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -603,8 +605,16 @@ the four of the new sign-in notice, 47 to 50:
 48. `newSignIn` without the device and the time.
 49. `time` given as the session's `Date` rather than the text in the recipient's locale and time zone.
 50. A location lookup's `null` passed as `location`, rather than leaving it out.
+51. A sign-in code given to `changeEmail`: it has no token.
+52. A step-up's code given to `changeEmail`: it has no token either.
+53. The token alone, not what `changeEmail.send` answered.
+54. `changeEmail.send`'s answer, not checked for `null`.
+55. `changeEmail` without the recipient.
+56. A recipient without a name.
+57. `links.changeEmail` computed asynchronously.
+58. `links.changeEmail` answered as a `URL` object rather than its `href`.
 
-In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 50 are a `TypeError` at send
+In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 58 are a `TypeError` at send
 time instead, naming the call or the field, and 25, 29 and 34 one from
 `janusMail()`.
 
