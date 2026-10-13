@@ -22,7 +22,7 @@ const mail = janusMail({
 });
 ```
 
-The sign-in code e-mail is now yours; the eleven others stay the defaults.
+The sign-in code e-mail is now yours; the twelve others stay the defaults.
 
 ## What a template is
 
@@ -132,8 +132,8 @@ methods live on its prototype and are refused — see
 
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
 any of the thirteen, and the defaults render the rest. Once `locales` holds
-another locale, it takes **all thirteen** — `stepUp` included, since 0.8, and
-`newSignIn`, since 0.9 — see
+another locale, it takes **all thirteen** — `stepUp` included, since 0.8,
+`newSignIn`, since 0.9, and `changeEmail`, since 0.10 — see
 [Adding a locale](locales.md#adding-a-locale).
 
 `mail.templates` answers the thirteen in use — yours, and the defaults for the

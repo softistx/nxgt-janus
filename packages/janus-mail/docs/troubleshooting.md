@@ -28,8 +28,8 @@ How the messages are shaped:
 - [`janusMail: links must be an object, as { verifyEmail, resetPassword, secureAccount, getStarted }`](#janusmail-links-must-be-an-object-as--verifyemail-resetpassword-secureaccount-getstarted-)
 - [`janusMail: links.<name> must be a function`](#janusmail-linksname-must-be-a-function)
 - [`janusMail: links.recoveryCodes must be a function, or left out`](#janusmail-linksrecoverycodes-must-be-a-function-or-left-out)
-- [`janusMail: links.changeEmail must be a function, or left out`](#janusmail-linkschangeemail-must-be-a-function-or-left-out)
 - [`janusMail: links.magicLink must be a function, or left out`](#janusmail-linksmagiclink-must-be-a-function-or-left-out)
+- [`janusMail: links.changeEmail must be a function, or left out`](#janusmail-linkschangeemail-must-be-a-function-or-left-out)
 - [`janusMail: locales must list at least one locale, as ['en', 'fr']`](#janusmail-locales-must-list-at-least-one-locale-as-en-fr)
 - [`janusMail: locales must be BCP 47 language tags, as 'fr-CA'`](#janusmail-locales-must-be-bcp-47-language-tags-as-fr-ca)
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
@@ -42,8 +42,8 @@ How the messages are shaped:
 - [`janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; <names> missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing)
 
 **Sending**
-- [`janusMail.changeEmail: links.changeEmail is missing — pass it to janusMail({ links }) to send e-mail change links`](#janusmailchangeemail-linkschangeemail-is-missing--pass-it-to-janusmail-links--to-send-e-mail-change-links)
 - [`janusMail.magicLink: links.magicLink is missing — pass it to janusMail({ links }) to send sign-in links`](#janusmailmagiclink-linksmagiclink-is-missing--pass-it-to-janusmail-links--to-send-sign-in-links)
+- [`janusMail.changeEmail: links.changeEmail is missing — pass it to janusMail({ links }) to send e-mail change links`](#janusmailchangeemail-linkschangeemail-is-missing--pass-it-to-janusmail-links--to-send-e-mail-change-links)
 - [`janusMail.stepUp: via must be 'email' — a step-up confirmed with the user's app sends no e-mail`](#janusmailstepup-via-must-be-email--a-step-up-confirmed-with-the-users-app-sends-no-e-mail)
 - [`janusMail.<method>: <field> must be a string`](#janusmailmethod-field-must-be-a-string)
 - [`janusMail.<method>: expiresAt must be a Date`](#janusmailmethod-expiresat-must-be-a-date)
@@ -73,6 +73,7 @@ How the messages are shaped:
 - [`TS2741: Property 'magicLink' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-magiclink-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2741: Property 'stepUp' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-stepup-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2741: Property 'newSignIn' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-newsignin-is-missing-in-type----but-required-in-type-janusmailtemplates)
+- [`TS2741: Property 'changeEmail' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`](#ts2741-property-changeemail-is-missing-in-type----but-required-in-type-janusmailtemplates)
 - [`TS2345: Argument of type 'StepUpByEmail<…> | StepUpByApp<…>' is not assignable to parameter of type 'Pick<StepUpByEmail<unknown>, …>'.`](#ts2345-argument-of-type-stepupbyemail--stepupbyapp-is-not-assignable-to-parameter-of-type-pickstepupbyemailunknown-)
 - [`TS2322: Type '"de"' is not assignable to type '"en" | "fr"'.`](#ts2322-type-de-is-not-assignable-to-type-en--fr)
 - [`TS2741: Property 'getStarted' is missing in type '{ … }' but required in type 'JanusMailLinks'.`](#ts2741-property-getstarted-is-missing-in-type----but-required-in-type-janusmaillinks)
@@ -159,17 +160,6 @@ regenerates their codes:
 links: { …, recoveryCodes: () => 'https://acme.example/account/recovery-codes' },
 ```
 
-### `janusMail: links.changeEmail must be a function, or left out`
-
-`links.changeEmail` given as a URL, or as anything but a function. It is
-optional, but when given it takes the link's one-time token and answers **a
-page of yours that spends nothing**, whose button posts the token to the route
-calling `auth.<type>.changeEmail.confirm`:
-
-```ts
-links: { …, changeEmail: (token) => `https://acme.example/account/email?token=${token}` },
-```
-
 ### `janusMail: links.magicLink must be a function, or left out`
 
 `links.magicLink` given as a URL, or as anything but a function. It is
@@ -180,6 +170,17 @@ calling `auth.magicLink.confirm`:
 
 ```ts
 links: { …, magicLink: (token) => `https://acme.example/sign-in/link?token=${token}` },
+```
+
+### `janusMail: links.changeEmail must be a function, or left out`
+
+`links.changeEmail` given as a URL, or as anything but a function. It is
+optional, but when given it takes the link's one-time token and answers **a
+page of yours that spends nothing**, whose button posts the token to the route
+calling `auth.<type>.changeEmail.confirm`:
+
+```ts
+links: { …, changeEmail: (token) => `https://acme.example/account/email?token=${token}` },
 ```
 
 ### `janusMail: locales must list at least one locale, as ['en', 'fr']`
@@ -268,23 +269,6 @@ janusMail({ mailer, from, brand: 'Acme', links, clock });
 
 ## Sending
 
-### `janusMail.changeEmail: links.changeEmail is missing — pass it to janusMail({ links }) to send e-mail change links`
-
-A `TypeError` from `mail.changeEmail`, before anything is rendered or sent:
-`janusMail()` was given no `links.changeEmail`. It is optional, so
-`janusMail()` accepts `links` without it — written before 0.10, or for an
-application that lets no user change their address — and there is no page to
-fall back on: only yours can carry the token. Add it:
-
-```ts
-const mail = janusMail({
-	…,
-	links: { …, changeEmail: (token) => `https://acme.example/account/email?token=${token}` },
-});
-```
-
-Sending again fails again: it is a bug, not an outage.
-
 ### `janusMail.magicLink: links.magicLink is missing — pass it to janusMail({ links }) to send sign-in links`
 
 A `TypeError` from `mail.magicLink`, before anything is rendered or sent:
@@ -297,6 +281,23 @@ on: only yours can carry the token. Add it:
 const mail = janusMail({
 	…,
 	links: { …, magicLink: (token) => `https://acme.example/sign-in/link?token=${token}` },
+});
+```
+
+Sending again fails again: it is a bug, not an outage.
+
+### `janusMail.changeEmail: links.changeEmail is missing — pass it to janusMail({ links }) to send e-mail change links`
+
+A `TypeError` from `mail.changeEmail`, before anything is rendered or sent:
+`janusMail()` was given no `links.changeEmail`. It is optional, so
+`janusMail()` accepts `links` without it — written before 0.10, or for an
+application that lets no user change their address — and there is no page to
+fall back on: only yours can carry the token. Add it:
+
+```ts
+const mail = janusMail({
+	…,
+	links: { …, changeEmail: (token) => `https://acme.example/account/email?token=${token}` },
 });
 ```
 
@@ -735,6 +736,16 @@ yours. Add `newSignIn` — it is given `brand`, `name`, `device`, `location`,
 `time` and `link` — even if you never send it; in JavaScript the same
 `templates` is
 [`janusMail: the default templates are built in en and fr only — …; newSignIn missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
+See [Templates](guide/templates.md#what-each-template-is-given).
+
+### `TS2741: Property 'changeEmail' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
+
+`templates` written before 0.10, with a locale beyond `en` and `fr`: since
+0.10.0 there are thirteen templates, and with such a locale every one is
+yours. Add `changeEmail` — it is given `brand`, `name`, `link` and
+`expiresIn`, like `verifyEmail` — even if you never send it; in JavaScript
+the same `templates` is
+[`janusMail: the default templates are built in en and fr only — …; changeEmail missing`](#janusmail-the-default-templates-are-built-in-en-and-fr-only--with-another-locale-in-locales-pass-every-template-in-templates-names-missing).
 See [Templates](guide/templates.md#what-each-template-is-given).
 
 ### `TS2345: Argument of type 'StepUpByEmail<…> | StepUpByApp<…>' is not assignable to parameter of type 'Pick<StepUpByEmail<unknown>, …>'.`
