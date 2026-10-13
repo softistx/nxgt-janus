@@ -9,10 +9,6 @@ Nothing between releases.
 
 ## Next
 
-- **A changeEmail link template** — the e-mail for the link
-  `changeEmail.send` issues, to the new address: it says the account moves to
-  this address, and to ignore it if the reader did not ask. Needs a preset in
-  `@nxgt/mail-presets` first; until then send that link with your own mailer.
 - **The invitation** — `invitation` from `@nxgt/mail-presets`, once
   `@nxgt/janus` has a flow that sends it: an invitation to a user type.
 - **The other presets of `@nxgt/mail-presets` 0.4.0** — `account-deleted`,
@@ -49,6 +45,17 @@ Nothing between releases.
 ## Shipped
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
+
+- **A changeEmail link template, v0.10.0.** `changeEmail(issued, to, options?)`,
+  built from `@nxgt/mail-presets` 1.2.0's `confirm-new-email` in English and
+  French: send what `@nxgt/janus` 0.23's `auth.<type>.changeEmail.send(user,
+  newEmail)` answered to `issued.email`, the new address — "Confirm your new
+  e-mail address", that the account moves there, how long the link lasts, and
+  to ignore it if the reader did not ask. Its link is the new, optional
+  `links.changeEmail(token)`; without it the send is a `TypeError`.
+  `emailChanged` still tells the former address once the link is redeemed.
+  Thirteen e-mails now, and thirteen templates to pass for a locale beyond
+  `en` and `fr`.
 
 - **A readable summary and a location in words, v0.9.1.** Built with
   `@nxgt/mail-config` 1.0.2 and `@nxgt/mail-presets` 1.1.1, the text part of

@@ -58,8 +58,8 @@ interface JanusMailBaseOptions<L extends string> {
 }
 
 /**
- * What one send of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`
- * or `stepUp` may pass
+ * What one send of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`,
+ * `changeEmail` or `stepUp` may pass
  * besides the flow's answer and the recipient.
  */
 export interface JanusMailSendOptions {
@@ -125,6 +125,21 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 	magicLink(
 		issued: IssuedToken,
 		to?: Pick<Recipient, 'locale'>,
+		options?: JanusMailSendOptions,
+	): Promise<SentMail>;
+	/**
+	 * What `auth.<type>.changeEmail.send(user, newEmail)` answered, to
+	 * `issued.email` — the NEW address, which the account only moves to when
+	 * the link is redeemed by `changeEmail.confirm(token)` — greeting
+	 * `to.name`, its button and fallback link built by
+	 * `links.changeEmail(issued.token)`, saying how long it stays valid. The
+	 * former address is told afterwards, by `emailChanged`. A `TypeError`,
+	 * before anything is rendered, when `janusMail()` was given no
+	 * `links.changeEmail`.
+	 */
+	changeEmail(
+		issued: IssuedToken,
+		to: Recipient,
 		options?: JanusMailSendOptions,
 	): Promise<SentMail>;
 	/**

@@ -17,6 +17,7 @@ export const links: JanusMailLinks = {
 	secureAccount: () => 'https://acme.example/account/security',
 	getStarted: () => 'https://acme.example/start',
 	magicLink: (token) => `https://acme.example/sign-in/link?token=${token}`,
+	changeEmail: (token) => `https://acme.example/account/email?token=${token}`,
 };
 
 /** The options every spec starts from, with a fresh memory mailer. */
@@ -39,6 +40,13 @@ const expiresAt = new Date('2026-09-27T12:00:00Z');
 export const verification: IssuedToken = {
 	token: 'tok-verify-123',
 	email: 'ada@example.com',
+	expiresAt,
+};
+
+/** What `auth.<type>.changeEmail.send(user, newEmail)` answers: `email` is the NEW address. */
+export const emailChange: IssuedToken = {
+	token: 'tok-change-321',
+	email: 'ada@new.example',
 	expiresAt,
 };
 

@@ -45,7 +45,7 @@ import { i18n } from '@nxgt/mail-i18n';
 import { presets } from '@nxgt/mail-presets';
 import { ui, uiCatalogues } from '@nxgt/mail-ui';
 
-/** The twelve e-mails of Janus's flows. `scripts/build-mail.ts` refuses a build of any other set. */
+/** The thirteen e-mails of Janus's flows. `scripts/build-mail.ts` refuses a build of any other set. */
 const mails = presets({
 	only: [
 		'verify-email',
@@ -53,6 +53,7 @@ const mails = presets({
 		'sign-in-code',
 		'magic-link',
 		'confirm-action',
+		'confirm-new-email',
 		'password-changed',
 		'email-changed',
 		'two-factor-enabled',

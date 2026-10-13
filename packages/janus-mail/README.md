@@ -24,6 +24,7 @@ const mail = janusMail({
 		getStarted: () => 'https://acme.example/',
 		recoveryCodes: () => 'https://acme.example/account/recovery-codes', // optional
 		magicLink: (token) => `https://acme.example/sign-in/link?token=${token}`, // optional
+		changeEmail: (token) => `https://acme.example/account/email?token=${token}`, // optional
 	},
 });
 
@@ -65,12 +66,12 @@ needs Node `^22.22.3`, `^24.15.0` or `>=26`, for Maizzle — see
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `stepUp`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `newSignIn`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?` and `magicLink?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The twelve default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `changeEmail`, `stepUp`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `newSignIn`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?`, `magicLink?` and `changeEmail?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The thirteen default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the twelve of them, and their names |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the thirteen of them, and their names |
 | `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn`, `newEmail`, `when`, `recoveryCodesLeft`, or `device`, `time` and `location`, as its e-mail needs |
-| `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp`: `{ expiresIn? }`, the expiry as text, over the one derived |
+| `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `changeEmail` and `stepUp`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
 | `JanusMailLinks`, `Recipient` | The `links` option; who an e-mail is for — `{ name, locale? }` |
 
@@ -88,6 +89,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `resetPassword(issued, to, options?)` | `issued` from `auth.resetPassword.request(email)`, checked for `null`; a link from `links.resetPassword(issued.token)`, and how long it lasts | `issued.email` |
 | `signInCode(issued, to?, options?)` | `issued.code` from `auth.signInCode.request(email)`, and how long it lasts — **never the challenge** | `issued.email` |
 | `magicLink(issued, to?, options?)` | `issued` from `auth.magicLink.request(email)`, checked for `null`; a link from `links.magicLink(issued.token)`, and how long it lasts. A `TypeError` without `links.magicLink` | `issued.email` |
+| `changeEmail(issued, to, options?)` | `issued` from `auth.<type>.changeEmail.send(user, newEmail)`; a link from `links.changeEmail(issued.token)`, how long it lasts, greeting `to.name`. A `TypeError` without `links.changeEmail` | `issued.email`, the **new** address |
 | `stepUp(issued, to, options?)` | `issued.code` from `auth.stepUp.request(user)`, narrowed to `via: 'email'`, and how long it lasts, greeting `to.name`, with `links.secureAccount()` — **never the challenge**. A `TypeError` for `via: 'secondFactor'` | `issued.email` |
 | `passwordChanged(to)` | A notice, with `links.secureAccount()` | `to.email` |
 | `emailChanged(to)` | A notice naming `to.newEmail`, with `links.secureAccount()` | `to.formerEmail` |
@@ -97,7 +99,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `newSignIn(to, { device, time, location? })` | A notice: the account was signed in from a new device — which device, `time`, and `location`, "Unknown" ("Inconnu") when left out — with `links.secureAccount()` | `to.email` |
 | `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
 
-The five e-mails of a link or a code say how long it lasts — "This link
+The six e-mails of a link or a code say how long it lasts — "This link
 expires in 1 hour.", "Ce lien expire dans 1 heure." — from the flow's
 `issued.expiresAt`: the time left at send time, rounded to the minute, then
 down to the largest whole unit (days, hours or minutes), formatted with
@@ -157,6 +159,22 @@ button posts the token to the route calling `auth.magicLink.confirm`: mail
 scanners open every link in an e-mail, and one that signs in on `GET` signs
 in for the scanner. [`@nxgt/janus`'s sign-in link guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/magic-link.md)
 has that page.
+
+### Confirming a new address — `changeEmail`
+
+```ts
+const issued = await auth.changeEmail.send(user, newEmail); // gate it: assertFresh or a step-up
+await mail.changeEmail(issued, { name: user.name, locale: user.locale }); // "Confirm your new e-mail address", valid 1 hour
+```
+
+The e-mail goes to `issued.email`, which is the **new** address: the account
+moves there only when its link is redeemed by `auth.changeEmail.confirm(token)`.
+Once it is, `user.emailChanged` fires and `mail.emailChanged` tells the
+**former** address (`formerEmail`) — the two e-mails go to two inboxes, and
+you send both. `links.changeEmail` is optional and should open **a page of
+yours that spends nothing**, whose button posts the token to the route
+calling `changeEmail.confirm`, as the sign-in link's does. Uses the
+`confirm-new-email` preset of `@nxgt/mail-presets` 1.2.0, in English and French.
 
 ### Confirming a sensitive action — the step-up
 
@@ -355,12 +373,11 @@ A locale beyond `en` and `fr` takes **every** template: see
 
 ## Traps
 
-**No template sends `changeEmail`'s link yet.** `auth.<type>.changeEmail.send`
-answers an `IssuedToken` like the others, but `mail.verifyEmail(issued)` is
-not its mail: it would say the wrong thing, and its link redeems a
-verification, not a change (`TOKEN_UNKNOWN`). Send the change link with your
-own mailer for now; `mail.emailChanged` still tells the former address
-afterwards.
+**`mail.verifyEmail` is not `changeEmail`'s mail.** `auth.<type>.changeEmail.send`
+answers an `IssuedToken` like `verifyEmail.send`, but its link redeems a
+change, not a verification, and `mail.verifyEmail(issued)` would say the
+wrong thing (and its link, `TOKEN_UNKNOWN`). Send `mail.changeEmail(issued, …)`
+to the new address; `mail.emailChanged` tells the former one afterwards.
 
 **Send to `issued.email`, which the methods do.** Never to what the visitor
 typed: the flow answers the address the user's record holds, as they
@@ -427,6 +444,14 @@ it.** An application that sends no sign-in link leaves it out; calling
 rendered or sent. Unlike `recoveryCodes`, it has no fallback: no other page
 can carry the token.
 
+**`links.changeEmail` is optional, and `changeEmail` refuses to send without
+it.** An application that lets no user change their address leaves it out;
+calling `mail.changeEmail` then throws a `TypeError` —
+`janusMail.changeEmail: links.changeEmail is missing — …` — before anything
+is rendered or sent. Optional rather than required so that links written
+before `changeEmail` keep compiling; there is no fallback, no other page can
+carry the token.
+
 **Leave `location` out when you do not know it.** A geo-IP lookup that found
 nothing answers `null`, which is a compile error here and, in JavaScript,
 `janusMail.newSignIn: location must be a string`: spread it in only when it
@@ -445,9 +470,9 @@ and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all twelve
+built in those two only, so `locales: ['en', 'fr', 'de']` without all thirteen
 templates — `recoveryCodeUsed` included, since 0.5, `magicLink`, since
-0.7, `stepUp`, since 0.8, and `newSignIn`, since 0.9 — is a compile error, and a `TypeError` in JavaScript.
+0.7, `stepUp`, since 0.8, `newSignIn`, since 0.9, and `changeEmail`, since 0.10 — is a compile error, and a `TypeError` in JavaScript.
 
 **The brand is text only.** `brand: 'Acme'` is written in the header, the
 body and the footer, escaped: no logo, no link, no markup. For those, replace
@@ -504,8 +529,8 @@ The symptoms and fixes are in [troubleshooting](docs/troubleshooting.md).
 
 ## Type safety, counted
 
-**Fifty plausible mistakes, fifty refused at compile time.**
-Nine files hold one `@ts-expect-error` per mistake, beside the calls that
+**Fifty-eight plausible mistakes, fifty-eight refused at compile time.**
+Ten files hold one `@ts-expect-error` per mistake, beside the calls that
 must keep compiling:
 [`test/types/send-refusals.ts`](test/types/send-refusals.ts) the eight of a
 send, 1 to 8;
@@ -524,9 +549,11 @@ the e-mail change notice sent on its event, 35 and 36;
 four of the sign-in link, 37 to 40;
 [`test/types/step-up-refusals.ts`](test/types/step-up-refusals.ts) the six
 of the step-up's code, 41 to 46, beside the names of the templates, held to
-the twelve; and
+the thirteen;
 [`test/types/new-sign-in-refusals.ts`](test/types/new-sign-in-refusals.ts)
-the four of the new sign-in notice, 47 to 50:
+the four of the new sign-in notice, 47 to 50; and
+[`test/types/change-email-refusals.ts`](test/types/change-email-refusals.ts)
+the eight of the e-mail change link, 51 to 58:
 
 1. A sign-in code given to `verifyEmail`: it has no token.
 2. A one-time token given to `signInCode`: it has no code.
@@ -578,8 +605,16 @@ the four of the new sign-in notice, 47 to 50:
 48. `newSignIn` without the device and the time.
 49. `time` given as the session's `Date` rather than the text in the recipient's locale and time zone.
 50. A location lookup's `null` passed as `location`, rather than leaving it out.
+51. A sign-in code given to `changeEmail`: it has no token.
+52. A step-up's code given to `changeEmail`: it has no token either.
+53. The token alone, not what `changeEmail.send` answered.
+54. `changeEmail.send`'s answer, not checked for `null`.
+55. `changeEmail` without the recipient.
+56. A recipient without a name.
+57. `links.changeEmail` computed asynchronously.
+58. `links.changeEmail` answered as a `URL` object rather than its `href`.
 
-In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 50 are a `TypeError` at send
+In JavaScript, 19 to 23, 26 to 28, 30 to 33 and 35 to 58 are a `TypeError` at send
 time instead, naming the call or the field, and 25, 29 and 34 one from
 `janusMail()`.
 

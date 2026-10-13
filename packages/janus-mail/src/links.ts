@@ -16,9 +16,10 @@ const REQUIRED_LINKS = [
 
 /**
  * The links a `janusMail()` may leave out: `recoveryCodes` falls back to
- * `secureAccount`; `magicLink` has none, and its send is refused without it.
+ * `secureAccount`; `magicLink` and `changeEmail` have none, and their sends are refused
+ * without it.
  */
-const OPTIONAL_LINKS = ['recoveryCodes', 'magicLink'] as const;
+const OPTIONAL_LINKS = ['recoveryCodes', 'magicLink', 'changeEmail'] as const;
 
 /** `links`: an object of functions, every required one there. */
 export function checkLinks(

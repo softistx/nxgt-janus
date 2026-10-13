@@ -1,7 +1,7 @@
 # Templates
 
 This page is for changing what an e-mail says or looks like: what a template
-is given and answers, replacing some of the twelve, using the defaults on their
+is given and answers, replacing some of the thirteen, using the defaults on their
 own, and what the defaults say.
 
 ```ts
@@ -22,7 +22,7 @@ const mail = janusMail({
 });
 ```
 
-The sign-in code e-mail is now yours; the eleven others stay the defaults.
+The sign-in code e-mail is now yours; the twelve others stay the defaults.
 
 ## What a template is
 
@@ -63,6 +63,7 @@ e-mail.
 | `resetPassword` | `brand`, `name`, `link`, `expiresIn` | `mail.resetPassword(issued, to, options?)` |
 | `signInCode` | `brand`, `code`, `expiresIn` | `mail.signInCode(issued, to?, options?)` |
 | `magicLink` | `brand`, `link`, `expiresIn` | `mail.magicLink(issued, to?, options?)` |
+| `changeEmail` | `brand`, `name`, `link`, `expiresIn` | `mail.changeEmail(issued, to, options?)` |
 | `stepUp` | `brand`, `name`, `code`, `expiresIn`, `link` | `mail.stepUp(issued, to, options?)` |
 | `passwordChanged` | `brand`, `name`, `link` | `mail.passwordChanged(to)` |
 | `emailChanged` | `brand`, `name`, `link`, `newEmail` | `mail.emailChanged(to)` |
@@ -130,12 +131,12 @@ methods live on its prototype and are refused — see
 [troubleshooting](../troubleshooting.md#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-).
 
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
-any of the twelve, and the defaults render the rest. Once `locales` holds
-another locale, it takes **all twelve** — `stepUp` included, since 0.8, and
-`newSignIn`, since 0.9 — see
+any of the thirteen, and the defaults render the rest. Once `locales` holds
+another locale, it takes **all thirteen** — `stepUp` included, since 0.8,
+`newSignIn`, since 0.9, and `changeEmail`, since 0.10 — see
 [Adding a locale](locales.md#adding-a-locale).
 
-`mail.templates` answers the twelve in use — yours, and the defaults for the
+`mail.templates` answers the thirteen in use — yours, and the defaults for the
 rest — frozen:
 
 ```ts
@@ -157,7 +158,7 @@ const { subject, html, text } = await defaults.resetPassword({
 });
 ```
 
-It answers the twelve defaults, typed for `'en' | 'fr'`, without a mailer:
+It answers the thirteen defaults, typed for `'en' | 'fr'`, without a mailer:
 to preview an e-mail, to wrap one — add a line to the default text, say — or
 to send one through something other than `janusMail()`. A default reused for
 a wider set of locales is a compile error: it could not render the one it
@@ -191,6 +192,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 | `resetPassword` | `reset-password` | Reset your password | Réinitialisez votre mot de passe |
 | `signInCode` | `sign-in-code` | Your sign-in code: `042817` | Votre code de connexion : `042817` |
 | `magicLink` | `magic-link` | Your sign-in link | Votre lien de connexion |
+| `changeEmail` | `confirm-new-email` | Confirm your new e-mail address | Confirmez votre nouvelle adresse e-mail |
 | `stepUp` | `confirm-action` | Your confirmation code | Votre code de confirmation |
 | `passwordChanged` | `password-changed` | Your password was changed | Votre mot de passe a été modifié |
 | `emailChanged` | `email-changed` | Your e-mail address was changed | Votre adresse e-mail a été modifiée |
@@ -219,7 +221,7 @@ on macOS` — with no blank line between rows. `welcome` has the brand in
 its heading — "Welcome to Acme" — and the recipient's name in its subject,
 filled at send time like the body; its button says **Get started**.
 
-`verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp` also
+`verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `changeEmail` and `stepUp` also
 say how long the link or the code lasts: "This link expires in 1 hour.", "Ce code expire dans
 10 minutes." The text part keeps each paragraph on one line.
 

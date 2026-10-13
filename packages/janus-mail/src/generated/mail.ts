@@ -4,6 +4,7 @@
 /** The e-mails of the build, each with the variables it takes when it is sent. */
 export interface MailEmails {
 	"confirm-action": { readonly brand: string | number; readonly code: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };
+	"confirm-new-email": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };
 	"email-changed": { readonly brand: string | number; readonly link: string; readonly name: string | number; readonly newEmail: string | number };
 	"magic-link": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string };
 	"new-sign-in": { readonly brand: string | number; readonly device: string | number; readonly link: string; readonly location: string | number; readonly name: string | number; readonly time: string | number };

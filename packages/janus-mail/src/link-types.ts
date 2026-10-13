@@ -48,4 +48,14 @@ export interface JanusMailLinks {
 	 * scanner that opens the link does not sign in for the user.
 	 */
 	readonly magicLink?: (token: string) => string;
+	/**
+	 * The page that confirms a new e-mail address, given the one-time token —
+	 * `changeEmail` links to it. **Optional**, for an application that lets no
+	 * user change their address; without it, `changeEmail` throws a
+	 * `TypeError` before anything is rendered. That page spends nothing until
+	 * the user confirms: its button posts the token to the route that calls
+	 * `auth.<type>.changeEmail.confirm`, so a mail scanner that opens the link
+	 * does not move the account.
+	 */
+	readonly changeEmail?: (token: string) => string;
 }
