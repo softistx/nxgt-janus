@@ -37,15 +37,17 @@ writes it: it takes what `send` and `request` answer, as they answer it, and
 sends the verification, reset, sign-in code and sign-in link e-mails — with the notices
 of a password, an e-mail or a second factor changed, and a welcome on
 `user.created` — in English and French, over any `@nxgt/mail` transport.
-Every link is required but two: `getStarted`, since janus-mail 0.4.0, is
-where the welcome's **Get started** button leads; `recoveryCodes` and
+Every link is required but three: `getStarted`, since janus-mail 0.4.0, is
+where the welcome's **Get started** button leads; `recoveryCodes`,
 `magicLink` — the page a [sign-in link](magic-link.md) opens, since
-janus-mail 0.7.0 — are optional. **`changeEmail.send` is not among them
-yet**: janus-mail has no template for the link to a new address. Send that
-link with your own mailer; janus-mail sends the notice to the former address
-(`emailChanged`). `mail.verifyEmail(issued)` is not the change-of-e-mail
-mail: it would ask the new address to verify, not say the account moves
-there.
+janus-mail 0.7.0 — and `changeEmail`, the page that confirms a new address,
+since janus-mail 0.10.0, are optional. **`changeEmail.send`'s link has its
+own e-mail**: `mail.changeEmail(issued, { name })` sends it to
+`issued.email`, the new address, and janus-mail sends the notice to the
+former address (`emailChanged`) once the link is redeemed. It needs
+`@nxgt/janus-mail` 0.10.0 or later; `mail.verifyEmail(issued)` is not the
+change-of-e-mail mail: it would ask the new address to verify, not say the
+account moves there.
 
 ```ts
 import { janusMail } from '@nxgt/janus-mail';
@@ -59,10 +61,14 @@ const mail = janusMail({
 		resetPassword: (token) => `https://app.example/reset?token=${token}`,
 		secureAccount: () => 'https://app.example/account/security',
 		getStarted: () => 'https://app.example/',
+		changeEmail: (token) => `https://app.example/email/confirm?token=${token}`, // optional
 	},
 });
 
 await mail.verifyEmail(await auth.verifyEmail.send(user), { name: user.name });
+
+// to the NEW address; the account moves when changeEmail.confirm(token) redeems the link
+await mail.changeEmail(await auth.changeEmail.send(user, newEmail), { name: user.name });
 
 const issued = await auth.resetPassword.request(email);
 if (issued !== null) await mail.resetPassword(issued, { name: issued.user.name });

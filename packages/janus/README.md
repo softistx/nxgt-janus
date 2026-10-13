@@ -761,11 +761,12 @@ password and the second factor go with it, so whoever holds the new inbox
 and follows the link signs in with them. The mail to the new address should
 say so, and say "ignore it if it was not you".
 
-**For now, send the link to the new address with your own mailer**:
-`@nxgt/janus-mail` has no template for it yet (it sends the notice to the
-former address, `emailChanged`). `mail.verifyEmail(issued)` is not the
-change-of-e-mail mail: it would tell the new address to verify, not that the
-account moves there.
+**Send the link to the new address with `@nxgt/janus-mail` 0.10.0 or later**:
+`mail.changeEmail(issued, { name })` (its `links.changeEmail` is the page
+above), and it sends the notice to the former address, `emailChanged`, once
+the link is redeemed. `mail.verifyEmail(issued)` is not the change-of-e-mail
+mail: it would tell the new address to verify, not that the account moves
+there. Without janus-mail, send it with your own mailer.
 
 - **On every user type with an e-mail**, with a password or without one. The
   address is validated by the type's schema as `update` would: a malformed
