@@ -1,7 +1,7 @@
 /**
- * The four e-mails that carry what a flow issued — a one-time link or a
+ * The five e-mails that carry what a flow issued — a one-time link or a
  * sign-in code — and say how long it lasts: `verifyEmail`, `resetPassword`,
- * `signInCode` and `magicLink`.
+ * `signInCode`, `magicLink` and `changeEmail`.
  */
 import { expiresInFor } from './expiry';
 import type { ResolvedOptions } from './options';
@@ -10,7 +10,7 @@ import type { JanusMail } from './types';
 
 type ExpiringMails = Pick<
 	JanusMail<string>,
-	'verifyEmail' | 'resetPassword' | 'signInCode' | 'magicLink'
+	'verifyEmail' | 'resetPassword' | 'signInCode' | 'magicLink' | 'changeEmail'
 >;
 
 /** The two e-mails of a one-time token, which link to your page with it. */
@@ -62,7 +62,38 @@ function magicLinkMail(options: ResolvedOptions) {
 	};
 }
 
-/** `verifyEmail`, `resetPassword`, `signInCode` and `magicLink`, over the resolved options. */
+/**
+ * The new address's confirmation: to `issued.email` — the NEW address —
+ * greeting `to.name`, its link built from `issued.token` by the optional
+ * `links.changeEmail`, checked before anything else is read.
+ */
+function changeEmailMail(options: ResolvedOptions) {
+	return async (issued: unknown, to: unknown, sendOptions?: unknown) => {
+		const build = options.links.changeEmail;
+		if (build === undefined) {
+			throw new TypeError(
+				'janusMail.changeEmail: links.changeEmail is missing — pass it to janusMail({ links }) to send e-mail change links',
+			);
+		}
+		const token = field('changeEmail', issued, 'token');
+		const locale = localeFor(options, to);
+		return send(options, 'changeEmail', field('changeEmail', issued, 'email'), {
+			brand: options.brand,
+			name: field('changeEmail', to, 'name'),
+			link: link('changeEmail', build(token), 'changeEmail(token)'),
+			expiresIn: expiresInFor(
+				'changeEmail',
+				issued,
+				locale,
+				sendOptions,
+				options.clock,
+			),
+			locale,
+		});
+	};
+}
+
+/** `verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `changeEmail`, over the resolved options. */
 export function expiringMails(options: ResolvedOptions): ExpiringMails {
 	return {
 		verifyEmail: linkMail(options, 'verifyEmail'),
@@ -84,5 +115,6 @@ export function expiringMails(options: ResolvedOptions): ExpiringMails {
 			});
 		},
 		magicLink: magicLinkMail(options),
+		changeEmail: changeEmailMail(options),
 	};
 }

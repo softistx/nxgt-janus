@@ -49,6 +49,7 @@ time one is sent, and kept.
 | `links.secureAccount` | `() => string` | required | Where a user who made no change secures their account: the notices link to it — the new sign-in's included — and so does the step-up's code, for a user who asked for none |
 | `links.getStarted` | `() => string` | required | Where a new user starts — your home page, or your sign-in page for an account someone else created: the welcome's **Get started** button links to it |
 | `links.magicLink` | `(token) => string` | none: `magicLink` is a `TypeError` without it | The page a sign-in link opens, given the one-time token. That page spends nothing: its button posts the token to the route that calls `auth.magicLink.confirm` |
+| `links.changeEmail` | `(token) => string` | none: `changeEmail` is a `TypeError` without it | The page that confirms a new address, given the one-time token. That page spends nothing: its button posts the token to the route that calls `auth.<type>.changeEmail.confirm` |
 | `links.recoveryCodes` | `() => string` | `links.secureAccount` | Where a user regenerates their recovery codes: the recovery code notice links to it, from its **Secure my account** button |
 | `locales` | `readonly L[]` | `['en', 'fr']` | The locales sent in — see [Locales](locales.md) |
 | `fallbackLocale` | one of `locales` | `'en'`, else the first of `locales` | The locale when the recipient wants none of `locales` |
@@ -144,6 +145,35 @@ nobody by name — and only its `locale` is read.
 - **A sign-in code is not a link.** Its answer has a `challenge`, the
   visitor's secret, and no `token`: the compiler refuses it here, and
   JavaScript gets `janusMail.magicLink: token must be a string`.
+
+### `changeEmail(issued, to, options?)`
+
+```ts
+const issued = await auth.changeEmail.send(user, newEmail); // gate it: assertFresh or a step-up
+await mail.changeEmail(issued, { name: user.name, locale: user.locale });
+```
+
+Sent to `issued.email`, which is the **new** address — the one the account
+moves to, not the one it has — greeting `to.name`: "Confirm your new e-mail
+address", a **Confirm my new address** button to
+`links.changeEmail(issued.token)`, how long it lasts, and "ignore it if this
+was not you: nothing changes". Nothing changes until `auth.changeEmail.confirm`
+redeems the token; then `user.emailChanged` fires and
+[`emailChanged`](#emailchangedto) tells the **former** address. Two
+e-mails, two inboxes, both yours to send.
+
+- **`links.changeEmail` is required to send it.** It is optional in
+  `janusMail()`, so links written before it keep compiling, and without it
+  `changeEmail` throws a `TypeError` —
+  `janusMail.changeEmail: links.changeEmail is missing — …` — before anything
+  is rendered. There is no fallback: only your page can carry the token.
+- **Link to a page, never to the route that confirms.** Mail scanners open
+  every link in an e-mail; one that confirms on `GET` moves the account for
+  the scanner. The page's button posts the token to the route calling
+  `changeEmail.confirm`.
+- **`verifyEmail` is not this e-mail.** Its link redeems a verification
+  (`TOKEN_UNKNOWN` for a change token) and it would tell the new address to
+  verify, not that the account moves there.
 
 ### `stepUp(issued, to, options?)`
 
@@ -403,7 +433,7 @@ it carries no request to describe the device from.
 
 ## The expiry
 
-`verifyEmail`, `resetPassword`, `signInCode`, `magicLink` and `stepUp` say
+`verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `changeEmail` and `stepUp` say
 how long the link or the code lasts — "This link expires in 1 hour.", "Ce code expire dans
 10 minutes." The text is `expiresIn`, one of the template's variables,
 derived at send time from the flow's `issued.expiresAt`:
@@ -453,6 +483,7 @@ a `TypeError`, and nothing reaches the mailer: revive the date with
 | `resetPassword` | `issued.email` | the `email` passed to `request` |
 | `signInCode` | `issued.email` | the `email` passed to `request` |
 | `magicLink` | `issued.email` | the `email` passed to `request` |
+| `changeEmail` | `issued.email` — the new address | the user's current address |
 | `stepUp` | `issued.email` | an address the client sent |
 | `passwordChanged` | `to.email` | — |
 | `emailChanged` | `to.formerEmail` | `to.newEmail` |

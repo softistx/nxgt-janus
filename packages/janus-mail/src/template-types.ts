@@ -51,6 +51,16 @@ export interface JanusMailVariables {
 		readonly expiresIn: string;
 		readonly link: string;
 	};
+	/**
+	 * `name` is the user's, `link` the page that confirms the new address —
+	 * `links.changeEmail(token)` — and the e-mail goes to the new address.
+	 */
+	readonly changeEmail: {
+		readonly brand: string;
+		readonly name: string;
+		readonly link: string;
+		readonly expiresIn: string;
+	};
 	readonly passwordChanged: {
 		readonly brand: string;
 		readonly name: string;
@@ -108,7 +118,7 @@ export interface JanusMailVariables {
 	};
 }
 
-/** The name of one of the twelve templates: `verifyEmail`, `resetPassword`, … */
+/** The name of one of the thirteen templates: `verifyEmail`, `resetPassword`, … */
 export type JanusMailTemplateName = keyof JanusMailVariables;
 
 /**
@@ -121,7 +131,7 @@ export type JanusMailTemplate<V, L extends string = JanusMailLocale> = (
 	variables: V & { readonly locale: L },
 ) => Rendered | PromiseLike<Rendered>;
 
-/** The twelve templates, each for the locales `L`. */
+/** The thirteen templates, each for the locales `L`. */
 export type JanusMailTemplates<L extends string = JanusMailLocale> = {
 	readonly [K in JanusMailTemplateName]: JanusMailTemplate<
 		JanusMailVariables[K],

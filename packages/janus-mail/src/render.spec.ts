@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { SentMail } from '@nxgt/mail';
 import {
 	baseOptions,
+	emailChange,
 	partsOf,
 	reset,
 	signIn,
@@ -25,6 +26,8 @@ const sends: Record<
 	signInCode: (mail, locale) => mail.signInCode(signIn, { locale }),
 	magicLink: (mail, locale) => mail.magicLink(signInLink, { locale }),
 	stepUp: (mail, locale) => mail.stepUp(stepUp, { name, locale }),
+	changeEmail: (mail, locale) =>
+		mail.changeEmail(emailChange, { name, locale }),
 	passwordChanged: (mail, locale) =>
 		mail.passwordChanged({ name, locale, email: 'ada@example.com' }),
 	emailChanged: (mail, locale) =>
@@ -73,6 +76,10 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 	stepUp: {
 		en: 'Your confirmation code',
 		fr: 'Votre code de confirmation',
+	},
+	changeEmail: {
+		en: 'Confirm your new e-mail address',
+		fr: 'Confirmez votre nouvelle adresse e-mail',
 	},
 	passwordChanged: {
 		en: 'Your password was changed',

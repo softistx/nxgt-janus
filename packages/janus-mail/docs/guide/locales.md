@@ -82,6 +82,7 @@ const templates: JanusMailTemplates<Locale> = {
 	resetPassword: ({ name, link, expiresIn, locale }) => render('reset-password', locale, { name, link, expiresIn }),
 	signInCode: ({ code, expiresIn, locale }) => render('sign-in-code', locale, { code, expiresIn }),
 	magicLink: ({ link, expiresIn, locale }) => render('magic-link', locale, { link, expiresIn }),
+	changeEmail: ({ name, link, expiresIn, locale }) => render('confirm-new-email', locale, { name, link, expiresIn }),
 	stepUp: ({ name, code, expiresIn, link, locale }) => render('confirm-action', locale, { name, code, expiresIn, link }),
 	passwordChanged: ({ name, link, locale }) => render('password-changed', locale, { name, link }),
 	emailChanged: ({ name, link, newEmail, locale }) => render('email-changed', locale, { name, link, newEmail }),
@@ -110,7 +111,7 @@ the text of a missing location is held in `en` and `fr` only, so pass
 where it matters.
 `recoveryCodeUsed` is the ninth template, since 0.5.0, `magicLink` the
 tenth, since 0.7.0, `stepUp` the eleventh, since 0.8.0, and `newSignIn` the
-twelfth, since 0.9.0: a `templates`
+twelfth, since 0.9.0, and `changeEmail` the thirteenth, since 0.10.0: a `templates`
 written for an earlier version no longer
 compiles with a locale beyond `en` and `fr` — add the one it lacks. A
 renderer over a Maizzle build of your own, with
@@ -119,13 +120,13 @@ With only some templates, the call does not compile — the error lands on
 `templates`:
 
 ```text
-TS2740: Type '{ verifyEmail: () => Rendered; }' is missing the following properties from type 'JanusMailTemplates<"en" | "fr" | "de">': welcome, resetPassword, signInCode, magicLink, and 7 more.
+TS2740: Type '{ verifyEmail: () => Rendered; }' is missing the following properties from type 'JanusMailTemplates<"en" | "fr" | "de">': welcome, resetPassword, signInCode, magicLink, and 8 more.
 ```
 
 and in JavaScript it throws when `janusMail()` is called:
 
 ```text
-TypeError: janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; resetPassword, signInCode, magicLink, stepUp, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome missing
+TypeError: janusMail: the default templates are built in en and fr only — with another locale in locales, pass every template in templates; resetPassword, signInCode, magicLink, stepUp, changeEmail, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome missing
 ```
 
 A default template is typed for `'en' | 'fr'`, so reusing one in a wider set
@@ -138,4 +139,4 @@ Built-in locales for more languages are on the [roadmap](../roadmap.md).
 
 - `@nxgt/mail`'s [locales guide](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail/docs/guide/locales.md)
   — `pickLocale` and `parseAcceptLanguage` in full.
-- [Templates](templates.md) — writing the twelve for a new locale.
+- [Templates](templates.md) — writing the thirteen for a new locale.

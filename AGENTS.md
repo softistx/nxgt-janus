@@ -87,9 +87,9 @@ nxgt-mail reached 1.0.0 (1.0 removed `withTelemetry`, `withRendererTelemetry`
 and `RetryOptions`, none of which `janus-mail` imports) — and the specs run
 on 1.0.2 from the lock (the patch that takes TypeScript 7 into its peer),
 with `@nxgt/mail-i18n` and `@nxgt/mail-ui`, both 1.0.1, `@nxgt/mail-config`
-1.0.3 and `@nxgt/mail-presets` 1.1.1 (whose
-`confirm-action` is the step-up's e-mail, `stepUp`; the manifest stays
-format 1), building `mails/` — whose
+1.0.3 and `@nxgt/mail-presets` 1.2.0 (whose
+`confirm-action` is the step-up's e-mail, `stepUp`, and `confirm-new-email`
+the new address's, `changeEmail`; the manifest stays format 1), building `mails/` — whose
 HTML follows dark mode since `@nxgt/mail-ui` 0.4.0, with a dark primary of its
 own (`color-primary-dark`) since 0.5.0, a dark muted (`color-muted-dark`,
 the sign-in code's box) since 0.6.0, and since 0.7.0 a dark muted text
@@ -426,7 +426,7 @@ only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
 `build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
 `@nxgt/mail` 0.1.0 reads and that exactly the
-twelve e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
+thirteen e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer. The `maizzle` bin runs on the `node` on the `PATH`, even under
 `bun run`, and Maizzle 6.1.7 needs Node `^22.22.3`, `^24.15.0` or `>=26`
