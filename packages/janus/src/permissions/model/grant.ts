@@ -44,3 +44,18 @@ export type Grant<C extends ModelConfig> = <
 	relation: R,
 	subject: HolderOf<C, T, R>,
 ) => Promise<void>;
+
+/**
+ * Makes `subjects` the only holders of `relation` on `object`, in one write:
+ * typed as {@link Grant}'s `subject`, as an array. Answers the tuples added
+ * and removed. Two concurrent calls on the same object and relation are not
+ * serialised: the result can hold the union of both adds.
+ */
+export type Replace<C extends ModelConfig> = <
+	T extends ObjectTypeOf<C>,
+	R extends GrantableOf<C, T>,
+>(
+	object: { readonly type: T; readonly id: string },
+	relation: R,
+	subjects: readonly HolderOf<C, T, R>[],
+) => Promise<{ added: number; removed: number }>;

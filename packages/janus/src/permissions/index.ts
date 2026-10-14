@@ -39,7 +39,7 @@ export {
 	type Lookup,
 	type ReversibleFromField,
 } from './model/from-field';
-export type { Grant, GrantableOf, HolderOf } from './model/grant';
+export type { Grant, GrantableOf, HolderOf, Replace } from './model/grant';
 export type { List, ListPage, LookupGap } from './model/list';
 export type { ObjectTypeOf, UserTypeOf } from './model/names';
 export type { Permissions } from './model/permissions';
