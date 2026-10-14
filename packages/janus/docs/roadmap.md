@@ -5,7 +5,17 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **`replace()` on permissions** — `access.replace(object, relation,
+  subjects)` makes a list of subjects the only holders of a relation, in one
+  write, and answers `{ added, removed }`: the call that keeps a group's
+  members equal to a list the application holds. Concurrent calls on the same
+  object and relation are not serialised.
+- **Retrying `verifyEmail.proveFirst` once on a version conflict** — a write
+  landing between the read and the proof no longer fails the call: it reads
+  the user again and proves under the new version, answers `proved: false`
+  when that write proved the e-mail, and keeps `VERSION_CONFLICT` when the
+  address changed (janus never proves an address the caller did not read) or
+  when the retry conflicts too.
 
 ## Next
 

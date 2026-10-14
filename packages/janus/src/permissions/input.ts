@@ -99,12 +99,14 @@ export function subjectOf(
 	return { type: type.name, id, relation: value['relation'] };
 }
 
-/** A tuple `grant` or `revoke` may write: a stored relation, and a holder it admits. */
-export function tupleOf(
+/**
+ * The object and stored relation a write is about: the entity as the store
+ * keeps it, and what its relation admits. Refuses a relation read from a field.
+ */
+export function targetOf(
 	model: ResolvedModel,
 	object: unknown,
 	relation: string,
-	subject: unknown,
 	where: string,
 ) {
 	const target = objectOf(model, object, where);
@@ -120,25 +122,36 @@ export function tupleOf(
 			`${where}: ${type.name}.${relation} is read from ${def.field}; there is nothing to store — change the ${type.name} instead`,
 		);
 	}
-
-	const who = subjectOf(model, subject, where);
 	// A tuple no store can keep is refused before one is asked: the same
 	// answer on every adapter, not STORE_FAILED on PostgreSQL alone.
-	for (const [what, id] of [
-		['the object id', target.id],
-		['the subject id', who.id],
-	] as const) {
-		if (!isStorable(id)) throw new TypeError(`${where}: ${what} ${UNSTORABLE}`);
+	if (!isStorable(target.id)) {
+		throw new TypeError(`${where}: the object id ${UNSTORABLE}`);
 	}
-	if (!admits(def.holders, who)) {
+	return {
+		entity: { type: target.type, id: target.id },
+		type,
+		holders: def.holders,
+	};
+}
+
+/** A tuple `grant`, `revoke` or `replace` may write: a stored relation, and a holder it admits. */
+export function tupleOf(
+	model: ResolvedModel,
+	object: unknown,
+	relation: string,
+	subject: unknown,
+	where: string,
+) {
+	const target = targetOf(model, object, relation, where);
+	const who = subjectOf(model, subject, where);
+	if (!isStorable(who.id)) {
+		throw new TypeError(`${where}: the subject id ${UNSTORABLE}`);
+	}
+	if (!admits(target.holders, who)) {
 		throw new TypeError(
-			`${where}: ${type.name}.${relation} is not held by ${'relation' in who ? `${who.type}#${who.relation}` : who.type}`,
+			`${where}: ${target.type.name}.${relation} is not held by ${'relation' in who ? `${who.type}#${who.relation}` : who.type}`,
 		);
 	}
 
-	return {
-		object: { type: target.type, id: target.id },
-		relation,
-		subject: who,
-	};
+	return { object: target.entity, relation, subject: who };
 }

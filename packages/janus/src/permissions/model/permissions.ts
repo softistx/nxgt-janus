@@ -3,7 +3,7 @@
 import type { Can } from './can';
 import type { ModelConfig } from './config';
 import type { PermissionModel } from './define';
-import type { Grant } from './grant';
+import type { Grant, Replace } from './grant';
 import type { List } from './list';
 
 /** What `permissions()` answers. */
@@ -26,4 +26,16 @@ export interface Permissions<C extends ModelConfig> {
 	readonly grant: Grant<C>;
 	/** Removes it. Idempotent: revoking what is not held is not an error. */
 	readonly revoke: Grant<C>;
+	/**
+	 * Makes `subjects` the only holders of `relation` on `object`: adds the
+	 * missing, removes the others, in one write (none when nothing changes), and
+	 * answers `{ added, removed }`. `[]` removes every holder; duplicates count
+	 * once; a subject set is not its entity. Every subject is checked first, as
+	 * `grant()` checks it, so a refusal writes nothing.
+	 *
+	 * **Not serialised**: two concurrent calls on the same object and relation
+	 * each read, then write their diff, so the result can hold the union of both
+	 * adds. A caller that needs one winner serialises them itself.
+	 */
+	readonly replace: Replace<C>;
 }

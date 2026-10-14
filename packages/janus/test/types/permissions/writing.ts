@@ -1,4 +1,4 @@
-/** Cases 17–20: a tuple no relation can hold. See `fixtures.ts`. */
+/** Cases 17–20 and 49–52: a tuple no relation can hold, to grant or to replace. See `fixtures.ts`. */
 
 import { defineModel, fromField } from '../../../src/permissions/index';
 import { access, record, staff, subjects } from './fixtures';
@@ -17,6 +17,28 @@ access.grant(record, 'viewers', {
 	// @ts-expect-error 19. record.viewers admits team#members, not team#leads
 	relation: 'leads',
 });
+
+// @ts-expect-error 49. doctors is read from doctorId: replace has nothing to store
+access.replace(record, 'doctors', [staff]);
+
+access.replace({ type: 'team', id: 't' }, 'leads', [
+	staff,
+	// @ts-expect-error 50. team.leads is held by staff, and one patient in the list is refused
+	{ type: 'patient', id: 'p' },
+]);
+
+access.replace({ type: 'team', id: 't' }, 'members', [
+	staff,
+	{
+		type: 'team',
+		id: 't2',
+		// @ts-expect-error 51. team.members admits team#members, not team#leads
+		relation: 'leads',
+	},
+]);
+
+// @ts-expect-error 52. replace takes the wanted holders as an array, not one subject
+access.replace({ type: 'team', id: 't' }, 'members', staff);
 
 defineModel({
 	subjects,

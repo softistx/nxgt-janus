@@ -37,7 +37,7 @@ supported.
 | Import | What it holds |
 | --- | --- |
 | `@nxgt/janus` | **Identities**: `janus()`, the identity stores' port and its in-memory reference (`createMemoryStores`), the hashers, the user events (`UserEvent`, `UserEventListener`, `UserEventType`). And the **shared vocabulary**: errors, subjects and the tuple notation, ids, pagination, time |
-| `@nxgt/janus/permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the relation store's port and its in-memory reference (`createMemoryRelations`) |
+| `@nxgt/janus/permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke`, `replace` — the relation store's port and its in-memory reference (`createMemoryRelations`) |
 | `@nxgt/janus/conformance` | **For adapters**: the suites a store runs — `describeJanusStores`, `describeRelationStores` — their cases as data, and the reference harnesses |
 
 A subpath appears in `exports` only once it exports something you should call:
@@ -991,8 +991,10 @@ type with an e-mail; `signInProven` alone proves nothing.
   or sign-in-throttle count.
 - **Refused as `signInProven` refuses**: an inactive user is
   `USER_INACTIVE`; a malformed id, an unknown one or one of another type is
-  `NOT_FOUND`. A user written between its read and its write is
-  `VERSION_CONFLICT`, with nothing proved; an outage is `STORE_FAILED`.
+  `NOT_FOUND`. A write landing between the read and the proof is
+  retried once on a fresh read (`proved: false` when that write proved the
+  e-mail); `VERSION_CONFLICT`, with nothing proved, when it changed the
+  address or the retry conflicts too; an outage is `STORE_FAILED`.
 - **Privileged, and the order matters**: see *Traps*.
 
 [E-mail flows](docs/guide/email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst)
@@ -1256,6 +1258,25 @@ would have to read another object's field.
 `const`, or the permission widens and the `ctx` requirement is lost; the
 [permissions guide](docs/guide/permissions.md#a-function-of-your-own-around-can)
 has the example.
+
+**Sync a relation to a wanted list with `replace`.** When the application
+holds the list a group's members should match, `replace(object, relation,
+subjects)` adds the missing holders and removes the others in one write, and
+answers how many of each:
+
+```ts
+const wanted = await db.staff.membersOf('cardiology');   // your own source of truth
+const { added, removed } = await access.replace({ type: 'team', id: 'cardiology' }, 'members', wanted);
+await access.replace({ type: 'team', id: 'cardiology' }, 'members', []);   // empties the group
+```
+
+The subjects are typed as `grant`'s is, as an array, and every one is checked
+before anything is read, so a refusal writes nothing. Duplicates count once,
+holders already right are not written (no write at all when nothing changes),
+and a subject set is not its entity. Other relations and objects are untouched.
+**Two concurrent `replace` calls on one object and relation are not
+serialised**: each reads, then writes its diff, so the result can hold the
+union of both adds — serialise them yourself when one must win.
 
 **A user type may also be an object type**: declare `staff` under `types`, and
 a staff member is an object too — who may edit them is a relation on them. See
@@ -1740,7 +1761,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and seventy-two plausible mistakes, one hundred and seventy-six refused at compile time — and
+**One hundred and eighty plausible mistakes, one hundred and eighty refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1751,7 +1772,7 @@ the identity stores' port, from the point of view of the person implementing
 it), `test/types/auth/` (eighty-eight, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail, four on `findOrCreate`) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail, four on `findOrCreate`) and `test/types/permissions/` (fifty-two, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

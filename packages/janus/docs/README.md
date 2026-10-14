@@ -26,7 +26,7 @@ below are defined once, in [Words](guide/vocabulary.md#words).
 
 | Page | Read it when |
 | --- | --- |
-| [Permissions](guide/permissions.md) | You are modelling access with `defineModel`, `fromField` and `when`, and calling `can`, `list`, `grant`, `revoke` |
+| [Permissions](guide/permissions.md) | You are modelling access with `defineModel`, `fromField` and `when`, and calling `can`, `list`, `grant`, `revoke`, `replace` |
 
 ### Shared by both sides
 

@@ -128,8 +128,12 @@ export interface VerifyEmailApi<U> {
 		 * Counts nothing in the mail or the sign-in throttle, sends no e-mail
 		 * and issues no token. An inactive user is `USER_INACTIVE`; a
 		 * malformed id, an unknown one or one of another type is `NOT_FOUND`;
-		 * a user written since it was read is `VERSION_CONFLICT`, and nothing
-		 * is proved.
+		 * a user written between the read and the proof is read again and the
+		 * proof retried **once**: `proved: false` when that write proved the
+		 * e-mail, `VERSION_CONFLICT` with nothing proved when it changed the
+		 * address (the proof you hold is for the address you read) or when
+		 * the retry conflicts too, `USER_INACTIVE` when it deactivated the
+		 * user. Running the proof twice is harmless.
 		 */
 		proveFirst(user: UserRef): Promise<FirstProof<U>>;
 	};

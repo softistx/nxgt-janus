@@ -63,7 +63,8 @@ export function required<T>(value: T | null, absent: () => JanusError): T {
  * taken login still throws, `NOT_FOUND` still throws: an outage never reads as
  * "somebody else wrote first". It exists for writes the caller did not ask for
  * — rewriting a password hash on sign-in — where losing to a concurrent update
- * means only that the next sign-in tries again.
+ * means only that the next sign-in tries again — and for `verifyEmail.proveFirst`,
+ * which reads again and retries once.
  */
 export async function unlessVersionConflict<T>(
 	write: Promise<T>,
