@@ -949,8 +949,10 @@ type with an e-mail; `signInProven` alone proves nothing.
   or sign-in-throttle count.
 - **Refused as `signInProven` refuses**: an inactive user is
   `USER_INACTIVE`; a malformed id, an unknown one or one of another type is
-  `NOT_FOUND`. A user written between its read and its write is
-  `VERSION_CONFLICT`, with nothing proved; an outage is `STORE_FAILED`.
+  `NOT_FOUND`. A write landing between the read and the proof is
+  retried once on a fresh read (`proved: false` when that write proved the
+  e-mail); `VERSION_CONFLICT`, with nothing proved, when it changed the
+  address or the retry conflicts too; an outage is `STORE_FAILED`.
 - **Privileged, and the order matters**: see *Traps*.
 
 [E-mail flows](docs/guide/email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst)
