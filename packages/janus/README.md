@@ -1717,7 +1717,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and seventy-two plausible mistakes, one hundred and seventy-two refused at compile time — and
+**One hundred and seventy-six plausible mistakes, one hundred and seventy-six refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per

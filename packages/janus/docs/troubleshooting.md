@@ -151,7 +151,9 @@ How the messages are shaped:
 - [`list: the lookup of <type>.<relation> must answer an array of ids`](#list-the-lookup-of-typerelation-must-answer-an-array-of-ids)
 - [`grant: <type>.<relation> is read from <field>; there is nothing to store …`](#grant-typerelation-is-read-from-field-there-is-nothing-to-store--change-the-type-instead)
 - [`grant: <type>.<relation> is not held by <holder>`](#grant-typerelation-is-not-held-by-holder)
-- [Other `can:`, `list:`, `grant:` and `revoke:` messages](#other-can-list-grant-and-revoke-messages)
+- [`replace: the subjects must be an array`](#replace-the-subjects-must-be-an-array)
+- [Two `replace` calls at once leave the union of their adds](#two-replace-calls-at-once-leave-the-union-of-their-adds)
+- [Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages](#other-can-list-grant-revoke-and-replace-messages)
 - [`defineModel: …`](#definemodel-)
 
 **Subjects**
@@ -2009,22 +2011,34 @@ A `lookup` is your code and is not guarded: if it throws, `list()` rejects with 
 
 ### `grant: <type>.<relation> is read from <field>; there is nothing to store — change the <type> instead`
 
-Also with `revoke:`.
+Also with `revoke:` and `replace:`.
 
-**When:** `access.grant(...)` or `access.revoke(...)` on a `fromField` relation.
+**When:** `access.grant(...)`, `access.revoke(...)` or `access.replace(...)` on a `fromField` relation.
 **Why:** that relation lives in the object's own data, not in a tuple.
 **Fix:** update the object — for example set `record.doctorId` — in your own database.
 
 ### `grant: <type>.<relation> is not held by <holder>`
 
-Also with `revoke:`.
+Also with `revoke:` and `replace:`.
 
-**When:** `access.grant(object, relation, subject)`.
+**When:** `access.grant(object, relation, subject)`, or any subject in the list of `access.replace(object, relation, subjects)`; nothing is written.
 **Why:** the model's relation does not admit that kind of subject: `members: ['staff']` refuses a `patient`, and refuses the subject set `team#members` unless it is listed.
 **Fix:** grant a subject the relation admits, or add the holder to the model: `members: ['staff', 'team#members']`.
 With `revoke:` on a tuple stored before the model stopped admitting it, the tuple already grants nothing; remove it through the store: `relations.write({ remove: [tuple] })`.
 
-### Other `can:`, `list:`, `grant:` and `revoke:` messages
+### `replace: the subjects must be an array`
+
+**When:** `access.replace(object, relation, subject)` with one subject instead of a list.
+**Why:** `replace` makes the list the only holders of the relation, so it takes the whole list.
+**Fix:** wrap the subject, `access.replace(team, 'members', [ada])`; `[]` empties the relation. See [`replace`](guide/permissions.md#replace).
+
+### Two `replace` calls at once leave the union of their adds
+
+**When:** two `replace` calls on the same object and relation run concurrently.
+**Why:** each reads the holders, then writes its own difference; they are not serialised, so both lists' additions can remain.
+**Fix:** serialise them yourself (a lock or a queue) when one list must win. See [`replace`](guide/permissions.md#replace).
+
+### Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages
 
 Each is a `TypeError` naming the call. TypeScript refuses most of them on the argument first.
 
@@ -2035,10 +2049,10 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: the object must be { type, id, …its fields }` | `{ type: 'record', ...record }`. |
 | `<call>: the subject must be a user, or { type, id }` | Pass the user from `janus()`, or `{ type, id }`. `null` is anonymous and answers `false`. |
 | `<call>: the object id must be a non-empty string without @, # or parentheses` | Also for `the subject id`. Those characters belong to the tuple notation. |
-| `grant: the object id holds a NUL character or a lone surrogate, which no store can keep` | Also with `revoke:`, and for `the subject id`. PostgreSQL refuses `\u0000` and half a surrogate pair, so janus refuses them on every adapter: clean the id where it was read. `can()` answers `false` and `list()` an empty page for such an id instead — no tuple can name it. |
+| `grant: the object id holds a NUL character or a lone surrogate, which no store can keep` | Also with `revoke:` and `replace:`, and for `the subject id`. PostgreSQL refuses `\u0000` and half a surrogate pair, so janus refuses them on every adapter: clean the id where it was read. `can()` answers `false` and `list()` an empty page for such an id instead — no tuple can name it. |
 | `<call>: "<relation>" is not a relation of <type>, so <type>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'members' }`. |
 | `<call>: <type> is a user type the model does not declare as an object type, so <type>#<relation> is no subject set` | `setOf(user, relation)` names a relation on that user: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
-| `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. |
+| `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. Also with `revoke:` and `replace:` — `replace: "<relation>" is not a relation of <type>`, even for an empty list. |
 | `list: the type must be an object type of the model` | The third argument is a type name: `'record'`. |
 | `list: after must be the nextCursor of a page, or null` | Pass `nextCursor` back as it came. |
 
