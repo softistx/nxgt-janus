@@ -112,7 +112,9 @@ janus.magicLink.request   ok   janus.refusal=MAIL_THROTTLED
 ```
 
 `janus.tuple.granted` and `janus.tuple.revoked` are the record of who was
-given what:
+given what: one per tuple a `grant` or `revoke` writes, and, for a `replace`
+(span `janus.replace`), one `granted` per tuple it added and one `revoked` per
+tuple it removed:
 
 ```
 janus.tuple.granted   janus.object.type=record  janus.object.id=r1  janus.relation=owners  janus.subject.type=patient  janus.subject.id=u1

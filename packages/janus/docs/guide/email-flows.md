@@ -182,7 +182,8 @@ confirms read it: `emailVerified`.
 **Call it before `setPassword` and before `signInProven`.** It drops the
 password and revokes every session, so in the other order it erases the
 password the invitee just chose, and signs out the session just opened.
-Accepting an invitation is `findByEmail` (or `create`), `proveFirst`,
+Accepting an invitation is `findByEmail` (or `create`; `findOrCreate` does both
+in one call), `proveFirst`,
 `setPassword` for a type with a password, then `signInProven` —
 [sessions](sessions.md#accepting-an-invitation) has the route in full.
 
@@ -195,8 +196,37 @@ whoever chooses it can drop anybody's password and second factor.
 It sends no e-mail, issues no token, and counts in neither the mail
 throttle nor the sign-in throttle. An inactive user is `USER_INACTIVE`; a
 malformed id, an unknown one or one of another type is `NOT_FOUND`, as for
-`signInProven`; a user written between the read and the write is
-`VERSION_CONFLICT`, and nothing is proved; an outage is `STORE_FAILED`.
+`signInProven`; an outage is `STORE_FAILED`.
+
+**A write landing between the read and the proof is retried once.** The
+proof is written under the version read, so a write in between (the user
+renaming themselves, a second acceptance of the same invitation) makes it
+`VERSION_CONFLICT`. `proveFirst` then runs the whole flow again on a fresh
+read, and what that read finds decides:
+
+- the user is gone or of another type: `NOT_FOUND`; inactive:
+  `USER_INACTIVE`;
+- **the e-mail is no longer the address first read, or the one your `User`
+  carries** (compared as e-mails
+  are, so a change of case or spacing is the same address): the original
+  `VERSION_CONFLICT`, with nothing proved: the address changed since the first
+  read, or is not the one the `User` you passed carries. The proof you hold
+  reached the inbox of the address you read;
+- the e-mail was proved meanwhile: `{ user, proved: false }`;
+- otherwise the proof runs under the new version, and one
+  `user.emailVerified` is sent.
+
+**The address you hold is checked.** Pass the `User` you read (any object
+carrying the type's e-mail field) and `proveFirst` compares that address,
+normalised as e-mails are, with the one it reads, on the first read and on
+the retry read: a stale `User` whose address changed is `VERSION_CONFLICT`
+and nothing is proved. Pass a bare id string, or an object without the e-mail
+field, and it proves the current address, whatever it is.
+
+A second `VERSION_CONFLICT` propagates: nothing is proved, and calling
+again is safe. Running the proof twice is harmless: a failed attempt wrote
+nothing and sent no event, and the sessions it revoked and the tokens it
+spent before the write are revoked and spent again to the same end.
 `@nxgt/janus-telemetry` traces it as `janus.<type>.verifyEmail.proveFirst`
 and writes `janus.email.verified` with `janus.email.proveFirst: true` when
 it proved — the user's id, never the address.

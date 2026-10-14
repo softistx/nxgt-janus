@@ -30,7 +30,7 @@ either finds this row.
 | --- | --- | --- |
 | **side** | One of the two things Janus does, each usable alone: identities or permissions | "half", "module" |
 | **identities** | The side that answers *who is this?* — users, logins, passwords, sessions, one-time tokens. `janus()`, from `@nxgt/janus` | "auth", "authentication", in prose; `auth` is only the variable name in examples |
-| **permissions** | The side that answers *may they?* — a model, the tuples stored against it, `can`, `list`, `grant`, `revoke`. `@nxgt/janus/permissions` | "authorization", "access control", "ACL" |
+| **permissions** | The side that answers *may they?* — a model, the tuples stored against it, `can`, `list`, `grant`, `revoke`, `replace`. `@nxgt/janus/permissions` | "authorization", "access control", "ACL" |
 
 ### Identities
 

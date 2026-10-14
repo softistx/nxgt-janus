@@ -1,7 +1,7 @@
 /**
  * Changing an e-mail: a type with no e-mail has no `changeEmail`, and `send`
  * and `confirm` take and answer what they say. Cases 82–84 of the
- * eighty-four — see `fixtures.ts`.
+ * eighty-eight — see `fixtures.ts`.
  */
 
 import { clinic, one } from './fixtures';

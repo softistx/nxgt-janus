@@ -347,7 +347,7 @@ points, below. A published entry point is a **public promise**, so a subpath app
 | Entry point | State |
 | --- | --- |
 | `.` | **Identities**: `janus()`, the identity stores' port, their reference and the hashers — and the vocabulary shared with permissions: errors, subjects, pagination, time, ids |
-| `./permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the `RelationStore` port and `createMemoryRelations()` |
+| `./permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke`, `replace` — the `RelationStore` port and `createMemoryRelations()` |
 | `./conformance` | The suites an adapter runs — `describeJanusStores`, `describeRelationStores` — and their reference harnesses. Shipped as product surface, not as a test helper |
 
 The permission *vocabulary* — subjects, the notation, `PermissionDepthError` —

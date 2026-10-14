@@ -37,7 +37,7 @@ supported.
 | Import | What it holds |
 | --- | --- |
 | `@nxgt/janus` | **Identities**: `janus()`, the identity stores' port and its in-memory reference (`createMemoryStores`), the hashers, the user events (`UserEvent`, `UserEventListener`, `UserEventType`). And the **shared vocabulary**: errors, subjects and the tuple notation, ids, pagination, time |
-| `@nxgt/janus/permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke` — the relation store's port and its in-memory reference (`createMemoryRelations`) |
+| `@nxgt/janus/permissions` | **Permissions**: `defineModel`, `fromField`, `when`, `permissions()` — `can`, `list`, `grant`, `revoke`, `replace` — the relation store's port and its in-memory reference (`createMemoryRelations`) |
 | `@nxgt/janus/conformance` | **For adapters**: the suites a store runs — `describeJanusStores`, `describeRelationStores` — their cases as data, and the reference harnesses |
 
 A subpath appears in `exports` only once it exports something you should call:
@@ -333,6 +333,7 @@ await auth.magicLink.request(email);               // { token, email, expiresAt,
 await auth.magicLink.confirm(token);               // { status: 'signedIn', user, session, token }
 await auth.magicLink.prepare(email);               // counted, nobody looked up: { send() } — and signInCode, resetPassword
 await auth.findByEmail(email);                     // User | null — server-side only, counts nothing; every type with an e-mail
+await auth.findOrCreate(key, () => input);         // { user, created } — by login (e-mail without a password); input() only when nobody holds the key
 await auth.signInProven(user.id);                  // privileged: after a proof YOUR server verified — { status: 'signedIn', … }
 await auth.stepUp.request(user);                   // { via: 'email', code, challenge, email, expiresAt, user }
 await auth.stepUp.confirm(request, challenge, code); // the request's session, authenticatedAt: now
@@ -920,6 +921,55 @@ password and reset flows on it.
   `STORE_FAILED`, never `null`.
 - **Server-side only**: it tells whether an account exists. See *Traps*.
 
+### Finding a user, or creating them — `findOrCreate`
+
+```ts
+// Accepting an invitation: the account may exist; if not, it is created only when a password was given.
+const invitation = await invitations.redeem(body.invitationToken); // yours: verified first
+if (invitation === null) return new Response(null, { status: 404 });
+
+const { user } = await auth.findOrCreate(invitation.email, () => {
+	if (body.password === undefined) throw new Error('a password is required'); // refused: nothing is written
+	return { email: invitation.email, name: body.name }; // no password here: proveFirst drops it, setPassword sets it once
+});
+await auth.verifyEmail.proveFirst(user);      // drops a squatter's password, factor and sessions: first
+if (typeof body.password === 'string') await auth.setPassword(user, body.password); // then the invitee's own
+const result = await auth.signInProven(user); // last
+```
+
+The user of this type holding `key`, or the one `input()` describes,
+created — in one call, with the lost race handled. Typed by the exported
+`FindOrCreateApi`; the
+[users guide](docs/guide/users.md#finding-a-user-or-creating-them--findorcreate)
+has the details. On **every type with a
+login or an e-mail**: the key is the login, normalised as `findByLogin`
+normalises it, on a type with a password, and the e-mail, normalised as
+`findByEmail` does, on a type without one. On a type whose login is a
+username, an e-mail key finds an existing user (e-mails are stored as
+logins) but can never create one: the input's username is not the key, so
+it is `USER_INVALID`.
+
+- **Found: nothing else happens.** The user is answered
+  `{ user, created: false }` — an inactive one included — `input` is not
+  called and nothing is written.
+- **`input` is the refusal point.** It runs only when nobody holds the key,
+  and what it throws propagates with nothing written: refuse there what the
+  caller must refuse before a write, such as a missing password.
+- **The key is a string.** Any other value is `USER_INVALID` before `input()`
+  runs.
+- **The input must name the key.** Once validated, its login (its e-mail,
+  without a password) must equal the normalised `key`, or the call is
+  `USER_INVALID` before the write.
+- **A lost race is not an error.** When another call created the user between
+  the read and the write, the store's `LOGIN_TAKEN` is followed by one more
+  read of the key; the winner is answered `{ user, created: false }`. The
+  `LOGIN_TAKEN` is rethrown only when that read finds nobody — another login
+  of the new user is taken.
+- **Created as `create` creates**: the same validation, the same hashing,
+  `PASSWORD_TOO_SHORT` below the policy, and `user.created` sent only when
+  this call created. Signs nobody in.
+- **Server-side only**, an account-existence oracle as `findByEmail` is.
+
 ### Proving an e-mail on your own proof — `verifyEmail.proveFirst`
 
 ```ts
@@ -949,8 +999,15 @@ type with an e-mail; `signInProven` alone proves nothing.
   or sign-in-throttle count.
 - **Refused as `signInProven` refuses**: an inactive user is
   `USER_INACTIVE`; a malformed id, an unknown one or one of another type is
-  `NOT_FOUND`. A user written between its read and its write is
-  `VERSION_CONFLICT`, with nothing proved; an outage is `STORE_FAILED`.
+  `NOT_FOUND`. A write landing between the read and the proof is
+  retried once on a fresh read (`proved: false` when that write proved the
+  e-mail); `VERSION_CONFLICT`, with nothing proved, when it changed the
+  address or the retry conflicts too; an outage is `STORE_FAILED`.
+- **The address you hold is checked.** Given a `User` (an object carrying
+  the type's e-mail field), it compares that address, normalised as e-mails
+  are, with the one it reads, on the first read and on the retry read:
+  another address is `VERSION_CONFLICT` and nothing is proved. Given a bare
+  id, or an object without the e-mail field, it proves the current address.
 - **Privileged, and the order matters**: see *Traps*.
 
 [E-mail flows](docs/guide/email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst)
@@ -1215,6 +1272,28 @@ would have to read another object's field.
 [permissions guide](docs/guide/permissions.md#a-function-of-your-own-around-can)
 has the example.
 
+**Sync a relation to a wanted list with `replace`.** When the application
+holds the list a group's members should match, `replace(object, relation,
+subjects)` adds the missing holders and removes the others in one write, and
+answers the tuples added and the tuples removed:
+
+```ts
+const wanted = await db.staff.membersOf('cardiology');   // your own source of truth
+const { added, removed } = await access.replace({ type: 'team', id: 'cardiology' }, 'members', wanted);   // RelationTuple[] each
+await access.replace({ type: 'team', id: 'cardiology' }, 'members', []);   // empties the group
+```
+
+The subjects are typed as `grant`'s is, as an array, and every one is checked
+before anything is read, so a refusal writes nothing. Duplicates count once,
+holders already right are not written (no write at all when nothing changes),
+and a subject set is not its entity. Other relations and objects are untouched.
+**Two concurrent `replace` calls on one object and relation are not
+serialised**: each reads, then writes its diff, so the result can hold the
+union of both adds — serialise them yourself when one must win. A relation
+store must answer every holder of a relation to `findEntities` and
+`findSubjectSets`, since `replace` reads them all; the
+[permissions guide](docs/guide/permissions.md#replace) has the details.
+
 **A user type may also be an object type**: declare `staff` under `types`, and
 a staff member is an object too — who may edit them is a relation on them. See
 [permissions on a user](docs/guide/permissions.md#permissions-on-a-user).
@@ -1373,8 +1452,9 @@ acceptance answer 429.
 every session.** On an e-mail never proved, it does what a first sign-in by
 link does, so a password set before it is erased — the invitee's own,
 chosen on your acceptance form, included — and a session opened before it
-is revoked. Accept an invitation in this order: `findByEmail` (or
-`create`), then `verifyEmail.proveFirst`, then `setPassword` on a type with
+is revoked. Accept an invitation in this order: `findOrCreate` (find or
+create in one call; `findByEmail` then `create` does the same in two), then
+`verifyEmail.proveFirst`, then `setPassword` on a type with
 a password, then `signInProven`. Called after `setPassword`, the person
 signs in once and then finds `signIn` answering `CREDENTIALS_INVALID`
 (`reason: 'noPassword'`). **It is privileged, like `signInProven`**: it
@@ -1384,10 +1464,14 @@ address — on the user that proof names, whose e-mail is the address the
 proof reached; never with an id a request supplied, or anybody can wipe
 anybody's password and second factor and sign them out.
 
-**`findByEmail` is an account-existence oracle — never expose it to an
-anonymous client.** It answers whether somebody of the type holds an
-address, at once, with no throttle: a route that calls it on an address a
-visitor typed tells anybody who has an account. Call it on the server, after
+**`findByEmail` and `findOrCreate` are account-existence oracles — never
+expose either to an anonymous client.** `findByEmail` answers whether
+somebody of the type holds an address, at once, with no throttle;
+`findOrCreate` is worse, since it also creates accounts: an address nobody
+holds becomes one. Call `findOrCreate` on the server only, after your own
+proof, with the key read from that proof's record. A route that calls
+`findByEmail` on an address a visitor typed tells anybody who has an account.
+Call `findByEmail` on the server, after
 a proof of your own — an invitation token your server issued and just
 verified — with the address read from that proof's record, never from the
 request. A visitor who types an address goes through `magicLink.request` or
@@ -1698,7 +1782,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and seventy-two plausible mistakes, one hundred and seventy-two refused at compile time — and
+**One hundred and eighty plausible mistakes, one hundred and eighty refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1706,10 +1790,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (eighty-four, on `janus()`, from the point of view of
+it), `test/types/auth/` (eighty-eight, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail, four on `findOrCreate`) and `test/types/permissions/` (fifty-two, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

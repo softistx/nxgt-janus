@@ -70,6 +70,10 @@ export interface RelationStore {
 	 * The subject sets holding `relation` on `object` — `team:t1#member` — and
 	 * no single entity. What the traversal follows to reach members of a group.
 	 * `[]` when none; unordered; unpaged, because a relation is held by few sets.
+	 *
+	 * **Answer every holder, never cap.** `replace` reads every holder of any
+	 * relation through this method and `findEntities`, and removes whatever it
+	 * does not see as wanted: a truncated answer leaves holders it never saw.
 	 */
 	findSubjectSets(
 		object: Entity,
@@ -79,8 +83,10 @@ export interface RelationStore {
 	/**
 	 * The single entities holding `relation` on `object`, and no subject set.
 	 * What an arrow follows — a record's team, a folder's parent — which is why
-	 * it is unpaged: an arrow relation holds a handful of objects. `[]` when
-	 * none; unordered.
+	 * it is unpaged: an arrow relation usually holds a handful of objects, but
+	 * `replace` reads every holder of any relation through this method and
+	 * `findSubjectSets`, so an adapter must answer every holder and never cap.
+	 * `[]` when none; unordered.
 	 */
 	findEntities(object: Entity, relation: string): Promise<readonly Entity[]>;
 

@@ -2,6 +2,7 @@ import type { AnyUser } from '../context';
 import type {
 	ChangeEmailApi,
 	FindByEmailApi,
+	FindOrCreateApi,
 	MagicLinkApi,
 	PasswordApi,
 	ProvenSignInApi,
@@ -28,4 +29,5 @@ export type AnyTypeApi = UserTypeApi<AnyUser, Input> &
 	VerifyEmailApi<AnyUser> &
 	ChangeEmailApi<AnyUser> &
 	FindByEmailApi<AnyUser> &
+	FindOrCreateApi<AnyUser, Input> &
 	ResetPasswordApi<AnyUser>;

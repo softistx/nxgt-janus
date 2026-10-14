@@ -19,6 +19,7 @@ export type {
 	VerifyEmailApi,
 } from './email-flows';
 export type { FindByEmailApi } from './find-by-email';
+export type { FindOrCreateApi } from './find-or-create';
 export type {
 	EmailOf,
 	LoginOf,
