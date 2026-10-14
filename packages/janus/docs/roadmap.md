@@ -5,7 +5,11 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **`replace()` on permissions** — `access.replace(object, relation,
+  subjects)` makes a list of subjects the only holders of a relation, in one
+  write, and answers `{ added, removed }`: the call that keeps a group's
+  members equal to a list the application holds. Concurrent calls on the same
+  object and relation are not serialised.
 
 ## Next
 

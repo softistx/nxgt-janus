@@ -1,7 +1,7 @@
 # Permissions — `@nxgt/janus/permissions`
 
 This page is for modelling who may do what, and asking: `defineModel`,
-`fromField`, `when`, then `can`, `list`, `grant` and `revoke`. It is
+`fromField`, `when`, then `can`, `list`, `grant`, `revoke` and `replace`. It is
 Zanzibar's model — relations between objects and subjects, permissions
 computed from them — **without its infrastructure**: the tuples live in your
 database, so a read follows a write and there is nothing to cache.
@@ -543,6 +543,42 @@ await relations.write({
 
 Narrowing a model therefore hides the tuples it no longer admits; it does not
 delete them, and widening it again brings them back.
+
+### `replace`
+
+```ts
+replace(object, relation, subjects): Promise<{ added: number; removed: number }>;
+```
+
+Makes `subjects` the only holders of `relation` on `object`: the use is
+keeping a group's members equal to a list the application already holds.
+`subjects` is typed as `grant`'s `subject`, as an array.
+
+```ts
+const wanted = await db.staff.membersOf('cardiology');
+const { added, removed } = await access.replace(cardiology, 'members', wanted);
+
+await access.replace(cardiology, 'members', []);   // removes every holder
+```
+
+- Every subject is checked first, as `grant()` checks it, and one refusal
+  anywhere in the list is a `TypeError` that writes nothing. An empty list
+  still names an object and a stored relation, and those are checked.
+- The current holders are read (`findEntities` and `findSubjectSets`), and the
+  difference is one `write`: removals and additions together, all or nothing
+  as the port requires, and no write when both are empty.
+- A holder is told apart by its type, id and, for a subject set, its relation:
+  `team:t2#members` is not the entity `team:t2`. A subject listed twice counts
+  once.
+- Tuples of other relations, and of other objects, are never touched. A tuple
+  stored past the model (an older model, or by hand) that the list does not
+  name is removed like any other holder.
+- A failure is `STORE_FAILED`, as for `grant()`.
+
+**Two concurrent calls on the same object and relation are not serialised.**
+Each reads, then writes its own diff, so the result can hold the union of both
+adds. A caller that needs one winner serialises them itself, with a lock or a
+queue of its own.
 
 ### Deleting
 
