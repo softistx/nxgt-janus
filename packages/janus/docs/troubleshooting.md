@@ -646,9 +646,13 @@ await auth.update(user, { name }, { ifVersion: user.version });
 **From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: the user
 was written between the read that found the e-mail never proved and the
 write that proves it — by the user, or by a second acceptance of the same
-invitation. Nothing was proved, though the sessions may already be revoked.
-Call it again: it reads the user anew, and answers `proved: false` when the
-other write proved the e-mail.
+invitation. `proveFirst` already retried once on a fresh read, so you see
+this error only when the user was written **again** during the retry, or when
+the write **changed the e-mail address**: the proof you hold is for the
+address you read, and janus never proves another. Nothing was proved, though
+the sessions may already be revoked. Read the user and check that their
+e-mail is still the invitation's address; if it is, call it again — it
+answers `proved: false` when another write proved the e-mail.
 
 **From `secondFactor.confirm`**, the message is the store's:
 `updateUser: expected version <n>, found <m>`.
