@@ -5,7 +5,11 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing yet.
+- **Tracing `replace`** — `instrumentPermissions` traces
+  `access.replace(object, relation, subjects)` like `grant` and `revoke`: a
+  `janus.replace` span with the object and `janus.relation`, and one
+  `janus.tuple.granted` audit event per tuple it added and one
+  `janus.tuple.revoked` per tuple it removed.
 
 ## Next
 

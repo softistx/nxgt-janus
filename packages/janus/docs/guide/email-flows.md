@@ -209,8 +209,9 @@ read, and what that read finds decides:
 - **the e-mail is no longer the address first read, or the one your `User`
   carries** (compared as e-mails
   are, so a change of case or spacing is the same address): the original
-  `VERSION_CONFLICT`, with nothing proved. The proof you hold reached the
-  inbox of the address you read, and janus never proves another;
+  `VERSION_CONFLICT`, with nothing proved: the address changed since the first
+  read, or is not the one the `User` you passed carries. The proof you hold
+  reached the inbox of the address you read;
 - the e-mail was proved meanwhile: `{ user, proved: false }`;
 - otherwise the proof runs under the new version, and one
   `user.emailVerified` is sent.

@@ -134,6 +134,22 @@ describe('verifyEmail.proveFirst, and a concurrent write', () => {
 		expect(types(received)).not.toContain('user.emailVerified');
 	});
 
+	it('(b2) is VERSION_CONFLICT for a bare id too when the address changed, naming both versions', async () => {
+		const { auth, received, races } = racing();
+		const { user } = await auth.signUp({ ...ada, password });
+		races.push(() => auth.update(user, { email: 'grace@example.test' }));
+
+		const error = await rejection(auth.verifyEmail.proveFirst(user.id));
+
+		expect(error).toMatchObject({
+			code: 'VERSION_CONFLICT',
+			expectedVersion: user.version,
+			actualVersion: user.version + 1,
+		});
+		expect(await auth.get(user.id)).toMatchObject({ emailVerified: false });
+		expect(types(received)).not.toContain('user.emailVerified');
+	});
+
 	it('(c) answers proved: false when the write verified the e-mail', async () => {
 		const { auth, received, races } = racing();
 		const { user } = await auth.signUp({ ...ada, password });

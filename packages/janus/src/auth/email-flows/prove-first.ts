@@ -39,8 +39,9 @@ import type { UserRef, VerifyEmailApi } from '../types';
  * `VERSION_CONFLICT` from `proveFirstEmail` runs the whole flow again on a
  * fresh read: nobody, or an inactive user, is refused as before; an e-mail
  * that is no longer the one first read — compared as e-mails are — is a
- * `VERSION_CONFLICT` naming both versions, since the proof the caller holds is for the address
- * it read and janus never proves another; an e-mail proved meanwhile is
+ * `VERSION_CONFLICT` naming both versions, since the address changed since the
+ * first read (or is not the one the passed `User` carries) and the proof the
+ * caller holds is for the address it read; an e-mail proved meanwhile is
  * answered `proved: false`; otherwise the proof runs under the new version.
  * A second `VERSION_CONFLICT` propagates.
  *
@@ -150,7 +151,7 @@ function assertClaimed(
 		`${where}: the e-mail changed since the user was read`,
 		{
 			userId: record.id,
-			expectedVersion: typeof held === 'number' ? held : record.version,
+			...(typeof held === 'number' ? { expectedVersion: held } : {}),
 			actualVersion: record.version,
 			operation: where,
 		},

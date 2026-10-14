@@ -924,7 +924,7 @@ password and reset flows on it.
 ### Finding a user, or creating them — `findOrCreate`
 
 ```ts
-// Accepting an invitation: the account may exist; if not, it is created only with a password.
+// Accepting an invitation: the account may exist; if not, it is created only when a password was given.
 const invitation = await invitations.redeem(body.invitationToken); // yours: verified first
 if (invitation === null) return new Response(null, { status: 404 });
 
@@ -955,6 +955,8 @@ it is `USER_INVALID`.
 - **`input` is the refusal point.** It runs only when nobody holds the key,
   and what it throws propagates with nothing written: refuse there what the
   caller must refuse before a write, such as a missing password.
+- **The key is a string.** Any other value is `USER_INVALID` before `input()`
+  runs.
 - **The input must name the key.** Once validated, its login (its e-mail,
   without a password) must equal the normalised `key`, or the call is
   `USER_INVALID` before the write.
@@ -1468,8 +1470,8 @@ somebody of the type holds an address, at once, with no throttle;
 `findOrCreate` is worse, since it also creates accounts: an address nobody
 holds becomes one. Call `findOrCreate` on the server only, after your own
 proof, with the key read from that proof's record. A route that calls
-`findByEmail` on an address a visitor typed tells anybody who has an account: a route that calls it on an address a
-visitor typed tells anybody who has an account. Call it on the server, after
+`findByEmail` on an address a visitor typed tells anybody who has an account.
+Call `findByEmail` on the server, after
 a proof of your own — an invitation token your server issued and just
 verified — with the address read from that proof's record, never from the
 request. A visitor who types an address goes through `magicLink.request` or

@@ -153,6 +153,7 @@ How the messages are shaped:
 - [`grant: <type>.<relation> is not held by <holder>`](#grant-typerelation-is-not-held-by-holder)
 - [`replace: the subjects must be an array`](#replace-the-subjects-must-be-an-array)
 - [Two `replace` calls at once leave the union of their adds](#two-replace-calls-at-once-leave-the-union-of-their-adds)
+- [`replace` leaves extra holders on a capped relation store](#replace-leaves-extra-holders-on-a-capped-relation-store)
 - [Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages](#other-can-list-grant-revoke-and-replace-messages)
 - [`defineModel: …`](#definemodel-)
 
@@ -652,8 +653,9 @@ current address), or the user was written between the read that found the e-mail
 write that proves it — by the user, or by a second acceptance of the same
 invitation. `proveFirst` already retried once on a fresh read, so you see
 this error only when the user was written **again** during the retry, or when
-the write **changed the e-mail address**: the proof you hold is for the
-address you read, and janus never proves another. Nothing was proved, though
+the write **changed the e-mail address** since the first read (or it is not
+the one the `User` you passed carries): the proof you hold is for the
+address you read. Nothing was proved, though
 the sessions may already be revoked. Read the user and check that their
 e-mail is still the invitation's address; if it is, call it again — it
 answers `proved: false` when another write proved the e-mail.
@@ -2044,6 +2046,12 @@ With `revoke:` on a tuple stored before the model stopped admitting it, the tupl
 **When:** two `replace` calls on the same object and relation run concurrently.
 **Why:** each reads the holders, then writes its own difference; they are not serialised, so both lists' additions can remain.
 **Fix:** serialise them yourself (a lock or a queue) when one list must win. See [`replace`](guide/permissions.md#replace).
+
+### `replace` leaves extra holders on a capped relation store
+
+**When:** you wrote a `RelationStore` adapter, and `access.replace(object, relation, subjects)` leaves holders you meant to remove, silently.
+**Why:** `replace` reads every holder of the relation through `findEntities` and `findSubjectSets` and removes those the list does not name. An adapter that caps either answer (a `LIMIT`, a first page) hides the rest from it, so they are never removed.
+**Fix:** answer every holder from both methods, unpaged, and never cap. The relation-store conformance suite is the place to check an adapter.
 
 ### Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages
 

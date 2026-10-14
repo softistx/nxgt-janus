@@ -175,6 +175,27 @@ describe('verifyEmail.proveFirst, and the address the caller holds', () => {
 		expect(types()).not.toContain('user.emailVerified');
 	});
 
+	it('names the version it was given, and the one it read, in the conflict', async () => {
+		const { auth } = listening();
+		const { user } = await squatted(auth);
+		await auth.update(user, { email: 'grace@example.test' });
+
+		expect(await rejection(auth.verifyEmail.proveFirst(user))).toMatchObject({
+			expectedVersion: user.version,
+			actualVersion: user.version + 1,
+		});
+		const error = await rejection(
+			auth.verifyEmail.proveFirst({
+				id: user.id,
+				email: ada.email,
+			} as never),
+		);
+		expect(error).toMatchObject({ actualVersion: user.version + 1 });
+		expect(
+			(error as { expectedVersion?: number }).expectedVersion,
+		).toBeUndefined();
+	});
+
 	it('proves the current address for a bare id', async () => {
 		const { auth } = listening();
 		const { user } = await squatted(auth);

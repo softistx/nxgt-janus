@@ -24,8 +24,9 @@ dates here, and the version something shipped in is the only number.
   landing between the read and the proof no longer fails the call: it reads
   the user again and proves under the new version, answers `proved: false`
   when that write proved the e-mail, and keeps `VERSION_CONFLICT` when the
-  address changed (janus never proves an address the caller did not read) or
-  when the retry conflicts too. Given a `User`, it also compares the address
+  address changed since the first read, or is not the one the passed `User`
+  carries (the proof the caller holds is for the address it read), or when
+  the retry conflicts too. Given a `User`, it also compares the address
   that `User` carries with the one it reads, on the first read and on the
   retry: a stale `User` whose address changed is `VERSION_CONFLICT`, with
   nothing proved. Given a bare id, it proves the current address.
