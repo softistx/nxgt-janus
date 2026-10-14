@@ -5,6 +5,14 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
+- **Finding a user, or creating them** —
+  `auth.<type>.findOrCreate(key, input)` answers `{ user, created }`: the
+  holder of the key — the login on a type with a password, the e-mail on one
+  without — or the user `input()` describes, created as `create` creates
+  one. `input` runs only on an absence and may refuse before any write; it
+  must name the key, or the call is `USER_INVALID`; a lost race is
+  answered with the winner, `created: false`. It is the accept step of an
+  invitation in one call. Server-side only.
 - **`replace()` on permissions** — `access.replace(object, relation,
   subjects)` makes a list of subjects the only holders of a relation, in one
   write, and answers `{ added, removed }`: the call that keeps a group's

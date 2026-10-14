@@ -182,7 +182,8 @@ confirms read it: `emailVerified`.
 **Call it before `setPassword` and before `signInProven`.** It drops the
 password and revokes every session, so in the other order it erases the
 password the invitee just chose, and signs out the session just opened.
-Accepting an invitation is `findByEmail` (or `create`), `proveFirst`,
+Accepting an invitation is `findByEmail` (or `create`; `findOrCreate` does both
+in one call), `proveFirst`,
 `setPassword` for a type with a password, then `signInProven` —
 [sessions](sessions.md#accepting-an-invitation) has the route in full.
 

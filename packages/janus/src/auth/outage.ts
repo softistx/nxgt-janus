@@ -7,8 +7,8 @@
  * {@link guardStores} puts the three identity stores behind the shared guard
  * (`src/stores/guard.ts`), the one place a store's answer is caught.
  * {@link required} turns an absence the caller cannot accept into its refusal,
- * and {@link unlessVersionConflict} absorbs one named conflict and rethrows
- * everything else.
+ * {@link unlessVersionConflict} absorbs one named conflict and rethrows
+ * everything else, and {@link unlessLoginTaken} hands back the other one.
  *
  * `outage.scan.spec.ts` reads every other file of `src/auth/`, `src/permissions/`
  * and `src/stores/` and fails if a `catch` appears in one, because the failure
@@ -73,6 +73,26 @@ export async function unlessVersionConflict<T>(
 		return await write;
 	} catch (error) {
 		if (error instanceof StoreConflict && error.on === 'version') return null;
+		throw error;
+	}
+}
+
+/**
+ * A write that may lose a race on a login, and says so: its answer, or the
+ * `StoreConflict('login')` the store refused it with, **as a value**, for the
+ * caller to read the login again and then rethrow or answer the winner.
+ *
+ * **Only `StoreConflict('login')` is handed back.** A failure still throws, a
+ * version conflict still throws: an outage never reads as "somebody else
+ * created the user first".
+ */
+export async function unlessLoginTaken<T>(
+	write: Promise<T>,
+): Promise<T | StoreConflict> {
+	try {
+		return await write;
+	} catch (error) {
+		if (error instanceof StoreConflict && error.on === 'login') return error;
 		throw error;
 	}
 }

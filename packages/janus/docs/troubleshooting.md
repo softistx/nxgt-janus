@@ -627,7 +627,7 @@ const user = await auth.find(id); // null when there is nobody
 
 `StoreConflict` with `on: 'login'`, carrying `login` and `userType`. The login is not in the message, which never carries a value: an e-mail in a log line is personal data. Read it from `error.login`.
 
-**When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
+**When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default). `findOrCreate` rethrows it only when its re-read of the key still finds nobody — another login of the new user (its e-mail, beside a username) is taken; a race lost on the key itself answers `{ user, created: false }` instead.
 **Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.
 **On `changeEmail.confirm`** the address was free when `changeEmail.send` asked — `send` never checks — and somebody took it before the link was used. The link is already spent and nothing was written: the user keeps their e-mail.
 **Fix:** answer 409. On `changeEmail.confirm`, tell the user the address is taken and ask for another with a new `changeEmail.send`. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
@@ -700,8 +700,9 @@ does the first.
 
 `UserInvalidError`, carrying `issues` — each a `path` and a `message`.
 
-**When:** `signUp`, `create`, `update`, and `changeEmail.send`.
+**When:** `signUp`, `create`, `update`, `changeEmail.send`, and `findOrCreate`.
 **Why:** your schema refused the fields. `changeEmail.send` also answers it, with one issue at the e-mail field (`is the current e-mail of the user`), for an address equal to the user's current one once normalised: nothing is counted or issued; answer 400, or offer `verifyEmail.send` to prove the current one. `update` merges the patch over the stored fields and validates the whole, so the refusal can name a field the patch did not touch. An issue whose message is `set by janus, not by a request` means the input carried a field janus sets (`id`, `active`, `version`, …) and your schema let it through. An issue whose message is `holds a NUL character or a lone surrogate, which no store can keep` means a string — or, with `a key holds …`, an object key — carried `\u0000` or half of a surrogate pair: PostgreSQL refuses both, so janus refuses them on every adapter rather than answer `STORE_FAILED` on one. A key is reported by the path of the object holding it, never by the key itself — in janus's issues and in your schema's alike. An issue at your login field whose message is `normalises to a login that holds …` means your own `password.normalize` function produced such a login from a valid field: fix the function. On MongoDB or the memory store, a user written before janus refused these characters may already hold one: every `update` of that user is refused, whatever it patches, until the field is cleaned — patch it with a clean value in the same `update`.
+**`findOrCreate`** also answers it, with one issue at the login field (the e-mail field on a type with no password) and the message `is not the key findOrCreate was given`, when the validated input names another key than the one asked for; nothing is written. A username type given an e-mail nobody holds always meets it, since the input's username cannot be that e-mail. Fix: build the input from the same value as the key.
 **Fix:** answer 400, field by field:
 
 ```ts

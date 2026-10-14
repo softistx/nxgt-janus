@@ -53,6 +53,7 @@ export type {
 	Checked,
 	EmailOf,
 	FindByEmailApi,
+	FindOrCreateApi,
 	FirstProof,
 	HeaderRecord,
 	IssuedCode,

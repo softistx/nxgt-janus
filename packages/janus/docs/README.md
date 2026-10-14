@@ -11,7 +11,7 @@ below are defined once, in [Words](guide/vocabulary.md#words).
 
 | Page | Read it when |
 | --- | --- |
-| [Users](guide/users.md) | You are wiring `janus()`, declaring one or several user types, or calling `create`, `update`, `list`, `delete` — or finding a user by e-mail on a type with no password (`findByEmail`) |
+| [Users](guide/users.md) | You are wiring `janus()`, declaring one or several user types, or calling `create`, `update`, `list`, `delete` — or finding a user by e-mail on a type with no password (`findByEmail`), or finding or creating one in a single call (`findOrCreate`) |
 | [Sessions](guide/sessions.md) | You need to know who a request belongs to, set or clear the cookie, renew, sign out, or test expiry — or sign in a user your application proved itself, such as on accepting an invitation (`signInProven`) |
 | [E-mail verification, password reset and changing an e-mail](guide/email-flows.md) | You are sending a verification, reset or e-mail-change link (`changeEmail`), and handling what comes back — or proving an address on your own proof, such as an invitation (`verifyEmail.proveFirst`) — and how requests that send e-mail are throttled per address or user |
 | [Signing in with an e-mailed link](guide/magic-link.md) | You are signing users in with a link sent by e-mail — a magic link: the page that confirms it from a `POST` so mail scanners spend nothing, the lifetime, the errors, and what ends a link |
