@@ -7,36 +7,7 @@ import {
 } from '@nxgt/janus/permissions';
 import { collect, rejection } from '../test/collect';
 import { instrumentPermissions } from './permissions';
-
-function setup() {
-	const relations = createMemoryRelations();
-	const outage = { on: false };
-	const has = relations.has.bind(relations);
-	const access = instrumentPermissions(
-		permissions({
-			model: defineModel({
-				subjects: ['staff'],
-				types: {
-					record: {
-						related: { owners: ['staff'] },
-						permits: { view: ['owners'] },
-					},
-				},
-			}),
-			store: {
-				...relations,
-				has: (tuple) => {
-					if (outage.on) throw new Error('connection refused');
-					return has(tuple);
-				},
-			},
-		}),
-	);
-	return { access, outage };
-}
-
-const ada = { type: 'staff', id: 'u1' } as const;
-const record = { type: 'record', id: 'r1' } as const;
+import { ada, record, setup } from './permissions.fixtures';
 
 describe('instrumentPermissions()', () => {
 	it('traces can() with its question and its answer, a denial ok', async () => {

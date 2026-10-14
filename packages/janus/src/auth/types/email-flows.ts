@@ -134,6 +134,13 @@ export interface VerifyEmailApi<U> {
 		 * address (the proof you hold is for the address you read) or when
 		 * the retry conflicts too, `USER_INACTIVE` when it deactivated the
 		 * user. Running the proof twice is harmless.
+		 *
+		 * **The address you hold is checked.** Given a `User` — an object
+		 * carrying the type's e-mail field — it compares that address,
+		 * normalised as e-mails are, with the one it reads, on the first read
+		 * and on the retry read: a different one is `VERSION_CONFLICT` and
+		 * nothing is proved. Given a bare id, or an object without the e-mail
+		 * field, it proves the current address.
 		 */
 		proveFirst(user: UserRef): Promise<FirstProof<U>>;
 	};

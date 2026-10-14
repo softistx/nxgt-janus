@@ -13,9 +13,8 @@ import { insert } from './insert';
 async function holder(
 	context: Context,
 	type: ResolvedType,
-	key: unknown,
+	key: string,
 ): Promise<UserRecord | null> {
-	if (typeof key !== 'string') return null;
 	if (type.password !== null) {
 		return byLogin(context, type, type.password.normalize(key));
 	}
@@ -38,7 +37,7 @@ function refusal(type: ResolvedType, where: string, field: string) {
 /** Throws unless the validated fields name `key`, normalised as the lookup does. */
 function mustNameKey(
 	type: ResolvedType,
-	key: unknown,
+	key: string,
 	where: string,
 ): (fields: JsonObject) => void {
 	return (fields) => {
@@ -51,12 +50,10 @@ function mustNameKey(
 					? normalizeEmail(value)
 					: type.password.normalize(value);
 		const wanted =
-			typeof key !== 'string'
-				? null
-				: type.password === null
-					? normalizeEmail(key)
-					: type.password.normalize(key);
-		if (named === null || wanted === null || named !== wanted) {
+			type.password === null
+				? normalizeEmail(key)
+				: type.password.normalize(key);
+		if (named === null || named !== wanted) {
 			throw refusal(type, where, field);
 		}
 	};
@@ -75,18 +72,18 @@ export function findOrCreateFlows(
 	return {
 		async findOrCreate(key, input) {
 			const where = at('findOrCreate');
+			if (typeof key !== 'string') {
+				throw new UserInvalidError(`${where}: the key must be a string`, {
+					issues: [{ path: [], message: 'is not a string' }],
+					userType: type.name,
+				});
+			}
 			const found = await holder(context, type, key);
 			if (found !== null) return { user: toUser(found), created: false };
 
 			const record = await input();
 			const written = await unlessLoginTaken(
-				insert(
-					context,
-					type,
-					record as Input,
-					where,
-					mustNameKey(type, key, where),
-				),
+				insert(context, type, record, where, mustNameKey(type, key, where)),
 			);
 			if (!(written instanceof StoreConflict)) {
 				return { user: toUser(written), created: true };

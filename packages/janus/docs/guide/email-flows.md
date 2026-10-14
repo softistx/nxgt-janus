@@ -206,13 +206,22 @@ read, and what that read finds decides:
 
 - the user is gone or of another type: `NOT_FOUND`; inactive:
   `USER_INACTIVE`;
-- **the e-mail is no longer the address first read** (compared as e-mails
+- **the e-mail is no longer the address first read, or the one your `User`
+  carries** (compared as e-mails
   are, so a change of case or spacing is the same address): the original
-  `VERSION_CONFLICT`, with nothing proved. The proof you hold reached the
-  inbox of the address you read, and janus never proves another;
+  `VERSION_CONFLICT`, with nothing proved: the address changed since the first
+  read, or is not the one the `User` you passed carries. The proof you hold
+  reached the inbox of the address you read;
 - the e-mail was proved meanwhile: `{ user, proved: false }`;
 - otherwise the proof runs under the new version, and one
   `user.emailVerified` is sent.
+
+**The address you hold is checked.** Pass the `User` you read (any object
+carrying the type's e-mail field) and `proveFirst` compares that address,
+normalised as e-mails are, with the one it reads, on the first read and on
+the retry read: a stale `User` whose address changed is `VERSION_CONFLICT`
+and nothing is proved. Pass a bare id string, or an object without the e-mail
+field, and it proves the current address, whatever it is.
 
 A second `VERSION_CONFLICT` propagates: nothing is proved, and calling
 again is safe. Running the proof twice is harmless: a failed attempt wrote

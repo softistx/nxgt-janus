@@ -1,4 +1,3 @@
-import { setup } from './engine.fixtures';
 import { createMemoryRelations } from './port/memory';
 import type { RelationChanges, RelationStore } from './port/types';
 
@@ -13,5 +12,5 @@ export function counting() {
 			await inner.write(changes);
 		},
 	};
-	return { store, writes, access: setup(store) };
+	return { store, writes };
 }

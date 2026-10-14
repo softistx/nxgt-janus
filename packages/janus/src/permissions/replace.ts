@@ -1,6 +1,10 @@
 /** `replace()`: make the holders of one relation exactly a wanted list. */
 
-import { isSubjectSet, type Subject } from '../subjects/subject';
+import {
+	isSubjectSet,
+	type RelationTuple,
+	type Subject,
+} from '../subjects/subject';
 import { targetOf, tupleOf } from './input';
 import type { RelationStore } from './port/types';
 import type { ResolvedModel } from './resolve/resolved';
@@ -14,7 +18,8 @@ const keyOf = (subject: Subject): string =>
 /**
  * Makes `subjects` the only holders of `relation` on `object`: the missing
  * ones are added, the others removed, and what is already right is left alone.
- * Answers how many tuples were added and removed.
+ * Answers the tuples added and the tuples removed, as the single `write` held
+ * them.
  *
  * Every subject is read first, as `grant` reads it, so a refusal writes
  * nothing. `[]` removes every holder. Duplicates count once, and a subject set
@@ -32,14 +37,17 @@ export async function replace(
 	object: unknown,
 	relation: string,
 	subjects: unknown,
-): Promise<{ added: number; removed: number }> {
+): Promise<{
+	added: RelationTuple[];
+	removed: RelationTuple[];
+}> {
 	const where = 'replace';
 	if (!Array.isArray(subjects)) {
 		throw new TypeError(`${where}: the subjects must be an array`);
 	}
 	// An empty list still names an object and a relation: refuse a wrong one.
 	const { entity } = targetOf(model, object, relation, where);
-	const wanted = new Map<string, ReturnType<typeof tupleOf>>();
+	const wanted = new Map<string, RelationTuple>();
 	for (const subject of subjects) {
 		const tuple = tupleOf(model, object, relation, subject, where);
 		wanted.set(keyOf(tuple.subject), tuple);
@@ -59,5 +67,5 @@ export async function replace(
 		.filter(([key]) => !wanted.has(key))
 		.map(([, subject]) => ({ object: entity, relation, subject }));
 	if (add.length > 0 || remove.length > 0) await store.write({ remove, add });
-	return { added: add.length, removed: remove.length };
+	return { added: add, removed: remove };
 }

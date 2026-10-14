@@ -547,16 +547,19 @@ delete them, and widening it again brings them back.
 ### `replace`
 
 ```ts
-replace(object, relation, subjects): Promise<{ added: number; removed: number }>;
+replace(object, relation, subjects): Promise<{ added: RelationTuple[]; removed: RelationTuple[] }>;
 ```
 
 Makes `subjects` the only holders of `relation` on `object`: the use is
 keeping a group's members equal to a list the application already holds.
-`subjects` is typed as `grant`'s `subject`, as an array.
+`subjects` is typed as `grant`'s `subject`, as an array. It answers the
+tuples it added and the tuples it removed, `{ object, relation, subject }`
+each, in the order written, so the application can audit or mirror them.
 
 ```ts
 const wanted = await db.staff.membersOf('cardiology');
 const { added, removed } = await access.replace(cardiology, 'members', wanted);
+// added[0] is { object: cardiology, relation: 'members', subject: … }
 
 await access.replace(cardiology, 'members', []);   // removes every holder
 ```
@@ -574,6 +577,8 @@ await access.replace(cardiology, 'members', []);   // removes every holder
   stored past the model (an older model, or by hand) that the list does not
   name is removed like any other holder.
 - A failure is `STORE_FAILED`, as for `grant()`.
+- It reads every holder of the relation, so a relation store must answer them
+  all through `findEntities` and `findSubjectSets` and never cap.
 
 **Two concurrent calls on the same object and relation are not serialised.**
 Each reads, then writes its own diff, so the result can hold the union of both

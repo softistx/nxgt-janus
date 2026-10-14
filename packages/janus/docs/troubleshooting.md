@@ -153,6 +153,7 @@ How the messages are shaped:
 - [`grant: <type>.<relation> is not held by <holder>`](#grant-typerelation-is-not-held-by-holder)
 - [`replace: the subjects must be an array`](#replace-the-subjects-must-be-an-array)
 - [Two `replace` calls at once leave the union of their adds](#two-replace-calls-at-once-leave-the-union-of-their-adds)
+- [`replace` leaves extra holders on a capped relation store](#replace-leaves-extra-holders-on-a-capped-relation-store)
 - [Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages](#other-can-list-grant-revoke-and-replace-messages)
 - [`defineModel: …`](#definemodel-)
 
@@ -645,13 +646,16 @@ const user = await auth.get(id);
 await auth.update(user, { name }, { ifVersion: user.version });
 ```
 
-**From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: the user
-was written between the read that found the e-mail never proved and the
+**From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: either the
+`User` you passed carries an address that is no longer the user's (nothing is
+proved, on the first read already; a bare id skips this check and proves the
+current address), or the user was written between the read that found the e-mail never proved and the
 write that proves it — by the user, or by a second acceptance of the same
 invitation. `proveFirst` already retried once on a fresh read, so you see
 this error only when the user was written **again** during the retry, or when
-the write **changed the e-mail address**: the proof you hold is for the
-address you read, and janus never proves another. Nothing was proved, though
+the write **changed the e-mail address** since the first read (or it is not
+the one the `User` you passed carries): the proof you hold is for the
+address you read. Nothing was proved, though
 the sessions may already be revoked. Read the user and check that their
 e-mail is still the invitation's address; if it is, call it again — it
 answers `proved: false` when another write proved the e-mail.
@@ -702,7 +706,7 @@ does the first.
 
 **When:** `signUp`, `create`, `update`, `changeEmail.send`, and `findOrCreate`.
 **Why:** your schema refused the fields. `changeEmail.send` also answers it, with one issue at the e-mail field (`is the current e-mail of the user`), for an address equal to the user's current one once normalised: nothing is counted or issued; answer 400, or offer `verifyEmail.send` to prove the current one. `update` merges the patch over the stored fields and validates the whole, so the refusal can name a field the patch did not touch. An issue whose message is `set by janus, not by a request` means the input carried a field janus sets (`id`, `active`, `version`, …) and your schema let it through. An issue whose message is `holds a NUL character or a lone surrogate, which no store can keep` means a string — or, with `a key holds …`, an object key — carried `\u0000` or half of a surrogate pair: PostgreSQL refuses both, so janus refuses them on every adapter rather than answer `STORE_FAILED` on one. A key is reported by the path of the object holding it, never by the key itself — in janus's issues and in your schema's alike. An issue at your login field whose message is `normalises to a login that holds …` means your own `password.normalize` function produced such a login from a valid field: fix the function. On MongoDB or the memory store, a user written before janus refused these characters may already hold one: every `update` of that user is refused, whatever it patches, until the field is cleaned — patch it with a clean value in the same `update`.
-**`findOrCreate`** also answers it, with one issue at the login field (the e-mail field on a type with no password) and the message `is not the key findOrCreate was given`, when the validated input names another key than the one asked for; nothing is written. A username type given an e-mail nobody holds always meets it, since the input's username cannot be that e-mail. Fix: build the input from the same value as the key.
+**`findOrCreate`** also answers it, with one issue at the login field (the e-mail field on a type with no password) and the message `is not the key findOrCreate was given`, when the validated input names another key than the one asked for; nothing is written. A username type given an e-mail nobody holds always meets it, since the input's username cannot be that e-mail. Fix: build the input from the same value as the key. A key that is not a string is answered before `input()` runs, with one issue at the empty path and the message `is not a string`: pass the login or the e-mail as a string.
 **Fix:** answer 400, field by field:
 
 ```ts
@@ -2042,6 +2046,12 @@ With `revoke:` on a tuple stored before the model stopped admitting it, the tupl
 **When:** two `replace` calls on the same object and relation run concurrently.
 **Why:** each reads the holders, then writes its own difference; they are not serialised, so both lists' additions can remain.
 **Fix:** serialise them yourself (a lock or a queue) when one list must win. See [`replace`](guide/permissions.md#replace).
+
+### `replace` leaves extra holders on a capped relation store
+
+**When:** you wrote a `RelationStore` adapter, and `access.replace(object, relation, subjects)` leaves holders you meant to remove, silently.
+**Why:** `replace` reads every holder of the relation through `findEntities` and `findSubjectSets` and removes those the list does not name. An adapter that caps either answer (a `LIMIT`, a first page) hides the rest from it, so they are never removed.
+**Fix:** answer every holder from both methods, unpaged, and never cap. The relation-store conformance suite is the place to check an adapter.
 
 ### Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages
 
