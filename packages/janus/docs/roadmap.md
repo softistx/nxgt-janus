@@ -15,15 +15,20 @@ dates here, and the version something shipped in is the only number.
   invitation in one call. Server-side only.
 - **`replace()` on permissions** — `access.replace(object, relation,
   subjects)` makes a list of subjects the only holders of a relation, in one
-  write, and answers `{ added, removed }`: the call that keeps a group's
-  members equal to a list the application holds. Concurrent calls on the same
+  write, and answers `{ added, removed }`, the tuples added and the tuples
+  removed: the call that keeps a group's members equal to a list the
+  application holds, and what `@nxgt/janus-telemetry` traces as a `janus.replace`
+  span with one audit event per tuple. Concurrent calls on the same
   object and relation are not serialised.
 - **Retrying `verifyEmail.proveFirst` once on a version conflict** — a write
   landing between the read and the proof no longer fails the call: it reads
   the user again and proves under the new version, answers `proved: false`
   when that write proved the e-mail, and keeps `VERSION_CONFLICT` when the
   address changed (janus never proves an address the caller did not read) or
-  when the retry conflicts too.
+  when the retry conflicts too. Given a `User`, it also compares the address
+  that `User` carries with the one it reads, on the first read and on the
+  retry: a stale `User` whose address changed is `VERSION_CONFLICT`, with
+  nothing proved. Given a bare id, it proves the current address.
 
 ## Next
 

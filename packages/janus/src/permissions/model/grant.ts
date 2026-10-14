@@ -1,6 +1,6 @@
 /** What `grant()` and `revoke()` write: the stored relations, and who may hold them. */
 
-import type { NotASet, SetOf } from '../../subjects/subject';
+import type { NotASet, RelationTuple, SetOf } from '../../subjects/subject';
 import type { ModelConfig } from './config';
 import type {
 	ObjectTypeOf,
@@ -58,4 +58,4 @@ export type Replace<C extends ModelConfig> = <
 	object: { readonly type: T; readonly id: string },
 	relation: R,
 	subjects: readonly HolderOf<C, T, R>[],
-) => Promise<{ added: number; removed: number }>;
+) => Promise<{ added: RelationTuple[]; removed: RelationTuple[] }>;

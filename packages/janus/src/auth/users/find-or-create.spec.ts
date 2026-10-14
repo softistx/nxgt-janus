@@ -176,6 +176,24 @@ describe('findOrCreate, on nobody', () => {
 		expect(writes.count).toBe(0);
 	});
 
+	it('refuses a key that is no string before calling input()', async () => {
+		const { store, writes } = countingWrites();
+		const { auth } = invitations({ store });
+		let called = 0;
+
+		for (const key of [undefined, null, 42, { email: grace.email }]) {
+			const error = await rejection(
+				auth.member.findOrCreate(key as never, () => {
+					called += 1;
+					return grace;
+				}),
+			);
+			expect(error).toMatchObject({ code: 'USER_INVALID' });
+		}
+		expect(called).toBe(0);
+		expect(writes.count).toBe(0);
+	});
+
 	it('refuses a short password with PASSWORD_TOO_SHORT, writing nothing', async () => {
 		const { store, writes } = countingWrites();
 		const { auth } = invitations({ store });

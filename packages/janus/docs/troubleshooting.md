@@ -645,8 +645,10 @@ const user = await auth.get(id);
 await auth.update(user, { name }, { ifVersion: user.version });
 ```
 
-**From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: the user
-was written between the read that found the e-mail never proved and the
+**From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: either the
+`User` you passed carries an address that is no longer the user's (nothing is
+proved, on the first read already; a bare id skips this check and proves the
+current address), or the user was written between the read that found the e-mail never proved and the
 write that proves it — by the user, or by a second acceptance of the same
 invitation. `proveFirst` already retried once on a fresh read, so you see
 this error only when the user was written **again** during the retry, or when

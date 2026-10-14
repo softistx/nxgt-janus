@@ -392,12 +392,16 @@ const invitation = await invitations.spend(hash(token), new Date()); // your pro
 if (invitation === null) return notFound();
 const { user, created } = await clinic.patient.findOrCreate(invitation.email, () => {
 	if (body.password === undefined) throw new Error('a password is required'); // refused before any write
-	return { email: invitation.email, birthDate: body.birthDate, password: body.password };
+	return { email: invitation.email, birthDate: body.birthDate }; // no password: proveFirst would drop it
 });
+await clinic.patient.verifyEmail.proveFirst(user);          // drops what a squatter left
+if (typeof body.password === 'string') await clinic.patient.setPassword(user, body.password); // set once, here
 ```
 
 - **`input` runs only on an absence, and may refuse.** What it throws
   propagates, and nothing is written.
+- **The key is a string.** Any other value is `USER_INVALID` before `input`
+  is called.
 - **The input names the key.** After validation its login (its e-mail, on a
   type with no password), normalised, must equal the normalised `key`; if it
   does not, the call rejects with `USER_INVALID` before the write.

@@ -75,18 +75,18 @@ export function findOrCreateFlows(
 	return {
 		async findOrCreate(key, input) {
 			const where = at('findOrCreate');
+			if (typeof key !== 'string') {
+				throw new UserInvalidError(`${where}: the key must be a string`, {
+					issues: [{ path: [], message: 'is not a string' }],
+					userType: type.name,
+				});
+			}
 			const found = await holder(context, type, key);
 			if (found !== null) return { user: toUser(found), created: false };
 
 			const record = await input();
 			const written = await unlessLoginTaken(
-				insert(
-					context,
-					type,
-					record as Input,
-					where,
-					mustNameKey(type, key, where),
-				),
+				insert(context, type, record, where, mustNameKey(type, key, where)),
 			);
 			if (!(written instanceof StoreConflict)) {
 				return { user: toUser(written), created: true };

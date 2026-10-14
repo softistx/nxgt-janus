@@ -24,7 +24,8 @@ describe('replace refuses and fails', () => {
 	];
 	for (const [name, subjects, message] of refusals) {
 		it(`refuses ${name} anywhere in the list, and writes nothing`, async () => {
-			const { access, writes } = counting();
+			const { store, writes } = counting();
+			const access = setup(store);
 			const t = team();
 			await access.grant(t, 'leads', staff());
 			writes.length = 0;
@@ -40,7 +41,8 @@ describe('replace refuses and fails', () => {
 	}
 
 	it('refuses what grant refuses for the object', async () => {
-		const { access, writes } = counting();
+		const { store, writes } = counting();
+		const access = setup(store);
 		const cases = [
 			[{ type: 'ward', id: 'w' }, 'members', '"ward" is not an object type'],
 			[{ type: 'team', id: 't#1' }, 'members', 'without @, # or parentheses'],
@@ -57,7 +59,7 @@ describe('replace refuses and fails', () => {
 	});
 
 	it('refuses a subjects argument that is not an array', async () => {
-		const { access } = counting();
+		const access = setup(counting().store);
 		const error = await rejection(
 			access.replace(team(), 'members', staff() as never),
 		);

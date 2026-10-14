@@ -930,7 +930,7 @@ if (invitation === null) return new Response(null, { status: 404 });
 
 const { user } = await auth.findOrCreate(invitation.email, () => {
 	if (body.password === undefined) throw new Error('a password is required'); // refused: nothing is written
-	return { email: invitation.email, name: body.name, password: body.password };
+	return { email: invitation.email, name: body.name }; // no password here: proveFirst drops it, setPassword sets it once
 });
 await auth.verifyEmail.proveFirst(user);      // drops a squatter's password, factor and sessions: first
 if (typeof body.password === 'string') await auth.setPassword(user, body.password); // then the invitee's own
@@ -938,7 +938,10 @@ const result = await auth.signInProven(user); // last
 ```
 
 The user of this type holding `key`, or the one `input()` describes,
-created — in one call, with the lost race handled. On **every type with a
+created — in one call, with the lost race handled. Typed by the exported
+`FindOrCreateApi`; the
+[users guide](docs/guide/users.md#finding-a-user-or-creating-them--findorcreate)
+has the details. On **every type with a
 login or an e-mail**: the key is the login, normalised as `findByLogin`
 normalises it, on a type with a password, and the e-mail, normalised as
 `findByEmail` does, on a type without one. On a type whose login is a
@@ -998,6 +1001,11 @@ type with an e-mail; `signInProven` alone proves nothing.
   retried once on a fresh read (`proved: false` when that write proved the
   e-mail); `VERSION_CONFLICT`, with nothing proved, when it changed the
   address or the retry conflicts too; an outage is `STORE_FAILED`.
+- **The address you hold is checked.** Given a `User` (an object carrying
+  the type's e-mail field), it compares that address, normalised as e-mails
+  are, with the one it reads, on the first read and on the retry read:
+  another address is `VERSION_CONFLICT` and nothing is proved. Given a bare
+  id, or an object without the e-mail field, it proves the current address.
 - **Privileged, and the order matters**: see *Traps*.
 
 [E-mail flows](docs/guide/email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst)
@@ -1265,11 +1273,11 @@ has the example.
 **Sync a relation to a wanted list with `replace`.** When the application
 holds the list a group's members should match, `replace(object, relation,
 subjects)` adds the missing holders and removes the others in one write, and
-answers how many of each:
+answers the tuples added and the tuples removed:
 
 ```ts
 const wanted = await db.staff.membersOf('cardiology');   // your own source of truth
-const { added, removed } = await access.replace({ type: 'team', id: 'cardiology' }, 'members', wanted);
+const { added, removed } = await access.replace({ type: 'team', id: 'cardiology' }, 'members', wanted);   // RelationTuple[] each
 await access.replace({ type: 'team', id: 'cardiology' }, 'members', []);   // empties the group
 ```
 
@@ -1279,7 +1287,10 @@ holders already right are not written (no write at all when nothing changes),
 and a subject set is not its entity. Other relations and objects are untouched.
 **Two concurrent `replace` calls on one object and relation are not
 serialised**: each reads, then writes its diff, so the result can hold the
-union of both adds — serialise them yourself when one must win.
+union of both adds — serialise them yourself when one must win. A relation
+store must answer every holder of a relation to `findEntities` and
+`findSubjectSets`, since `replace` reads them all; the
+[permissions guide](docs/guide/permissions.md#replace) has the details.
 
 **A user type may also be an object type**: declare `staff` under `types`, and
 a staff member is an object too — who may edit them is a relation on them. See
@@ -1439,8 +1450,9 @@ acceptance answer 429.
 every session.** On an e-mail never proved, it does what a first sign-in by
 link does, so a password set before it is erased — the invitee's own,
 chosen on your acceptance form, included — and a session opened before it
-is revoked. Accept an invitation in this order: `findByEmail` (or
-`create`), then `verifyEmail.proveFirst`, then `setPassword` on a type with
+is revoked. Accept an invitation in this order: `findOrCreate` (find or
+create in one call; `findByEmail` then `create` does the same in two), then
+`verifyEmail.proveFirst`, then `setPassword` on a type with
 a password, then `signInProven`. Called after `setPassword`, the person
 signs in once and then finds `signIn` answering `CREDENTIALS_INVALID`
 (`reason: 'noPassword'`). **It is privileged, like `signInProven`**: it
@@ -1450,9 +1462,13 @@ address — on the user that proof names, whose e-mail is the address the
 proof reached; never with an id a request supplied, or anybody can wipe
 anybody's password and second factor and sign them out.
 
-**`findByEmail` is an account-existence oracle — never expose it to an
-anonymous client.** It answers whether somebody of the type holds an
-address, at once, with no throttle: a route that calls it on an address a
+**`findByEmail` and `findOrCreate` are account-existence oracles — never
+expose either to an anonymous client.** `findByEmail` answers whether
+somebody of the type holds an address, at once, with no throttle;
+`findOrCreate` is worse, since it also creates accounts: an address nobody
+holds becomes one. Call `findOrCreate` on the server only, after your own
+proof, with the key read from that proof's record. A route that calls
+`findByEmail` on an address a visitor typed tells anybody who has an account: a route that calls it on an address a
 visitor typed tells anybody who has an account. Call it on the server, after
 a proof of your own — an invitation token your server issued and just
 verified — with the address read from that proof's record, never from the
