@@ -5,11 +5,7 @@ are no dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **Tracing `replace`** — `instrumentPermissions` traces
-  `access.replace(object, relation, subjects)` like `grant` and `revoke`: a
-  `janus.replace` span with the object and `janus.relation`, and one
-  `janus.tuple.granted` audit event per tuple it added and one
-  `janus.tuple.revoked` per tuple it removed.
+Nothing yet.
 
 ## Next
 
@@ -37,6 +33,11 @@ Nothing yet.
 
 Newest first; the [CHANGELOG](../CHANGELOG.md) holds every release.
 
+- **Tracing `replace`, v0.13.0** — `instrumentPermissions` traces
+  `access.replace(object, relation, subjects)` like `grant` and `revoke`: a
+  `janus.replace` span with the object and `janus.relation`, and one
+  `janus.tuple.granted` audit event per tuple it added and one
+  `janus.tuple.revoked` per tuple it removed.
 - **E-mail changes in the audit trail** — `changeEmail.confirm` writes
   `janus.email.changed` with the `user.id` and `janus.email.proved: true`,
   never an address (an `update` whose patch names `email` writes it with

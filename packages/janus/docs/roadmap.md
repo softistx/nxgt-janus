@@ -5,31 +5,7 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-- **Finding a user, or creating them** —
-  `auth.<type>.findOrCreate(key, input)` answers `{ user, created }`: the
-  holder of the key — the login on a type with a password, the e-mail on one
-  without — or the user `input()` describes, created as `create` creates
-  one. `input` runs only on an absence and may refuse before any write; it
-  must name the key, or the call is `USER_INVALID`; a lost race is
-  answered with the winner, `created: false`. It is the accept step of an
-  invitation in one call. Server-side only.
-- **`replace()` on permissions** — `access.replace(object, relation,
-  subjects)` makes a list of subjects the only holders of a relation, in one
-  write, and answers `{ added, removed }`, the tuples added and the tuples
-  removed: the call that keeps a group's members equal to a list the
-  application holds, and what `@nxgt/janus-telemetry` traces as a `janus.replace`
-  span with one audit event per tuple. Concurrent calls on the same
-  object and relation are not serialised.
-- **Retrying `verifyEmail.proveFirst` once on a version conflict** — a write
-  landing between the read and the proof no longer fails the call: it reads
-  the user again and proves under the new version, answers `proved: false`
-  when that write proved the e-mail, and keeps `VERSION_CONFLICT` when the
-  address changed since the first read, or is not the one the passed `User`
-  carries (the proof the caller holds is for the address it read), or when
-  the retry conflicts too. Given a `User`, it also compares the address
-  that `User` carries with the one it reads, on the first read and on the
-  retry: a stale `User` whose address changed is `VERSION_CONFLICT`, with
-  nothing proved. Given a bare id, it proves the current address.
+Nothing between releases.
 
 ## Next
 
@@ -100,6 +76,31 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Finding a user, or creating them, v0.24.0** —
+  `auth.<type>.findOrCreate(key, input)` answers `{ user, created }`: the
+  holder of the key — the login on a type with a password, the e-mail on one
+  without — or the user `input()` describes, created as `create` creates
+  one. `input` runs only on an absence and may refuse before any write; it
+  must name the key, or the call is `USER_INVALID`; a lost race is
+  answered with the winner, `created: false`. It is the accept step of an
+  invitation in one call. Server-side only.
+- **`replace()` on permissions, v0.24.0** — `access.replace(object, relation,
+  subjects)` makes a list of subjects the only holders of a relation, in one
+  write, and answers `{ added, removed }`, the tuples added and the tuples
+  removed: the call that keeps a group's members equal to a list the
+  application holds, and what `@nxgt/janus-telemetry` traces as a `janus.replace`
+  span with one audit event per tuple. Concurrent calls on the same
+  object and relation are not serialised.
+- **Retrying `verifyEmail.proveFirst` once on a version conflict, v0.24.0** — a write
+  landing between the read and the proof no longer fails the call: it reads
+  the user again and proves under the new version, answers `proved: false`
+  when that write proved the e-mail, and keeps `VERSION_CONFLICT` when the
+  address changed since the first read, or is not the one the passed `User`
+  carries (the proof the caller holds is for the address it read), or when
+  the retry conflicts too. Given a `User`, it also compares the address
+  that `User` carries with the one it reads, on the first read and on the
+  retry: a stale `User` whose address changed is `VERSION_CONFLICT`, with
+  nothing proved. Given a bare id, it proves the current address.
 - **Changing a user's e-mail, v0.23.0** —
   `auth.<type>.changeEmail.send(user, email)` issues a link for the new
   address, and `changeEmail.confirm(token)` moves the user there, verified,
@@ -164,33 +165,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   The window is no longer than the shortest default token lifetime. The counts
   live in the tokens store, with no port change. `MailConfig` and
   `MailThrottleConfig` are exported.
-- **A sign-in from a new device, v0.17.0** — `janus({ devices: { keys } })`,
-  and `{ device }` as the last argument of `signUp`, `signIn`,
-  `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and
-  `magicLink.confirm`: the device token the client holds, or `null`. Every
-  answer that opens a session says `newDevice` and hands back a
-  `deviceToken` for a long-lived cookie, and a new device sends
-  `user.newDeviceSignedIn`, with the new session's `sessionId`, once the
-  sign-in is complete. Nothing is stored: the token is a device id signed
-  for the user, so the store ports are unchanged. A sign-up is never new, a
-  call given no device is not tracked, and removing a key forgets every
-  device it signed. Breaking for a `switch` that exhausts `UserEventType`,
-  and for a `SignedIn` built by hand. See [devices](guide/devices.md).
-- **The first sign-in by link or code ends a squatter's password and second
-  factor, v0.16.0** — when `signInCode.confirm` or `magicLink.confirm`
-  proves an e-mail never verified, the password and the second factor with
-  its recovery codes are dropped and every session signed out before the
-  new one opens: whoever registered the address without its inbox keeps
-  nothing, and the owner is asked for no factor they never set.
-  `user.passwordChanged` and `user.secondFactorDisabled` report what was
-  dropped. An e-mail already verified changes nothing.
-- **Sign in with an e-mailed link (magic link), v0.15.0** —
-  `auth.magicLink.request(email)` and `magicLink.confirm(token)` on every
-  user type with an e-mail, with or without a password: the sign-in code
-  with nothing to type. `request` answers `null` for nobody and for an
-  inactive user alike; only the last link sent works; a link lives fifteen
-  minutes (`tokens.magicLink`) and is spent by its first `confirm`, which
-  proves the e-mail and still asks for an active second factor. Confirmed
-  from a `POST`, so a mail scanner that opens the link spends nothing.
-  **Breaking for an adapter: `TokenKind` gains `'magicLink'`**, which a
-  `CHECK` or a validator's enum must list.
