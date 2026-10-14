@@ -16,6 +16,7 @@ import {
 	toUser,
 } from '../context';
 import { proveFirstEmail } from '../first-proof';
+import { unlessVersionConflict } from '../outage';
 import type { UserRecord } from '../port/types';
 import type { VerifyEmailApi } from '../types';
 
@@ -30,8 +31,8 @@ import type { VerifyEmailApi } from '../types';
  * **A write landing between the read and the proof is retried once.**
  * `VERSION_CONFLICT` from `proveFirstEmail` runs the whole flow again on a
  * fresh read: nobody, or an inactive user, is refused as before; an e-mail
- * that is no longer the one first read — compared as e-mails are — rethrows
- * the original conflict, since the proof the caller holds is for the address
+ * that is no longer the one first read — compared as e-mails are — is a
+ * `VERSION_CONFLICT` naming both versions, since the proof the caller holds is for the address
  * it read and janus never proves another; an e-mail proved meanwhile is
  * answered `proved: false`; otherwise the proof runs under the new version.
  * A second `VERSION_CONFLICT` propagates.
@@ -54,16 +55,24 @@ export function proveFirstFlow(
 		const where = at('verifyEmail.proveFirst');
 		const id = refId(user);
 		const first = await readActive(context, type, id, where);
-		try {
-			return await proveOrAnswer(context, type, first, where);
-		} catch (error) {
-			if (!(error instanceof StoreConflict) || error.on !== 'version') {
-				throw error;
-			}
-			const again = await readActive(context, type, id, where);
-			if (!sameEmail(type, first, again)) throw error;
-			return proveOrAnswer(context, type, again, where);
+		const answer = await unlessVersionConflict(
+			proveOrAnswer(context, type, first, where),
+		);
+		if (answer !== null) return answer;
+		const again = await readActive(context, type, id, where);
+		if (!sameEmail(type, first, again)) {
+			throw new StoreConflict(
+				'version',
+				`${where}: the e-mail changed since it was read`,
+				{
+					userId: first.id,
+					expectedVersion: first.version,
+					actualVersion: again.version,
+					operation: where,
+				},
+			);
 		}
+		return proveOrAnswer(context, type, again, where);
 	};
 }
 
