@@ -57,7 +57,7 @@
 		"@nxgt/janus": "workspace:^",
 		"@nxgt/mail": "1.0.2",
 		"@nxgt/mail-config": "1.0.3",
-		"@nxgt/mail-i18n": "1.0.1",
+		"@nxgt/mail-i18n": "1.0.2",
 		"@nxgt/mail-presets": "1.2.0",
 		"@nxgt/mail-ui": "1.0.1",
 		"@types/bun": "^1.4.2",

@@ -145,7 +145,7 @@
         "@nxgt/janus": "workspace:^",
         "@nxgt/mail": "1.0.2",
         "@nxgt/mail-config": "1.0.3",
-        "@nxgt/mail-i18n": "1.0.1",
+        "@nxgt/mail-i18n": "1.0.2",
         "@nxgt/mail-presets": "1.2.0",
         "@nxgt/mail-ui": "1.0.1",
         "@types/bun": "^1.4.2",
@@ -451,7 +451,7 @@
 
     "@nxgt/drizzle": ["@nxgt/drizzle@0.6.5", "", { "peerDependencies": { "drizzle-orm": ">=1.0.0-rc.4 <2", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-OrZL+S5DRNHO53ct1Q75+B53c+3jfut8nf0Dz1MxNEG1FX5lD+B87OLUVibK7yX1w7f0CssjrhpC5nNnoWWzKQ=="],
 
-    "@nxgt/i18n-vue": ["@nxgt/i18n-vue@0.2.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "intl-messageformat": "12.1.2" }, "peerDependencies": { "@nuxt/kit": "^4.0.0", "nuxt": "^4.0.0", "typescript": "^6.0.3", "vite": ">=5.0.0", "vue": "^3.5.0" }, "optionalPeers": ["@nuxt/kit", "nuxt", "vite"] }, "sha512-oEfgpAaxWru6i1JPH08WicJkP5ps5GrQTPPSttHC1aLiANoeyjkluR6oiSrqqfqjfHbgWCPAp+IF1C56NSJ3bg=="],
+    "@nxgt/i18n-vue": ["@nxgt/i18n-vue@0.4.0", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "intl-messageformat": "12.1.2" }, "peerDependencies": { "@nuxt/kit": "^4.0.0", "nuxt": "^4.0.0", "typescript": "^6.0.3 || ^7.0.0", "vite": ">=5.0.0", "vue": "^3.5.0" }, "optionalPeers": ["@nuxt/kit", "nuxt", "vite"] }, "sha512-GQ4p+BChvtBy7YIwp04ViQHQ6KBhyQwxxjhKIHlZEwewGQS3CD47krK3RsZdtgv/g/EOfs9vQx8BlpkcVf2JQw=="],
 
     "@nxgt/janus": ["@nxgt/janus@workspace:packages/janus"],
 
@@ -479,7 +479,7 @@
 
     "@nxgt/mail-config": ["@nxgt/mail-config@1.0.3", "", { "dependencies": { "defu": "^6.1.4" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@maizzle/tailwindcss": "^1.5.6", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-3+FoJj6Mp6Kas2oAOgFnHcMC6zhO6CRiVM5fliRbMsExMXd3KQ2MTp+RmfC1Qvo1acngI3cgNjPzBNrdeznJaw=="],
 
-    "@nxgt/mail-i18n": ["@nxgt/mail-i18n@1.0.1", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "@nxgt/i18n-vue": "^0.2.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^1.0.1", "typescript": "^6.0.3", "vue": "^3.5.0" }, "optionalPeers": ["vue"] }, "sha512-ncZplS6gCMG/m+Vx39AWF8aHnV8J11Sz71G3JuFXvHIziBk3IxrChh1dFBiAoN2L6toPCl0fuq0S9CquofzJvw=="],
+    "@nxgt/mail-i18n": ["@nxgt/mail-i18n@1.0.2", "", { "dependencies": { "@formatjs/icu-messageformat-parser": "3.5.20", "@nxgt/i18n-vue": "^0.4.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^1.0.3", "typescript": "^6.0.3", "vue": "^3.5.0" }, "optionalPeers": ["vue"] }, "sha512-EfhFVOm+CZn1eqK0RDWEI9krDDL+0ng0S3hwcKftsEDzxOS9e7ER7EscuV6RVVRonRoekNWUlbO61V0Fh2jf7g=="],
 
     "@nxgt/mail-presets": ["@nxgt/mail-presets@1.2.0", "", { "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-i18n": "^1.0.1", "@nxgt/mail-ui": "^1.0.1", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-CeXhgpCR+KopSvo+RQw8DzLhzU4Tvq9gDFV9V79PUQjONVN5un5afyuKQfotOmceqYcXRJO2Qs/G1jxHeILF+A=="],
 
