@@ -1,5 +1,16 @@
 # @nxgt/janus-telemetry
 
+## 0.13.0
+
+### Minor Changes
+
+- [#231](https://github.com/softistx/nxgt-janus/pull/231) [`fbe8303`](https://github.com/softistx/nxgt-janus/commit/fbe8303c20d780406e84643e96e9c0845de1ab67) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `instrumentPermissions` traces `replace` like `grant` and `revoke`: a `janus.replace` span carrying the object and `janus.relation`, and one `janus.tuple.granted` audit event per tuple it added and one `janus.tuple.revoked` per tuple it removed, with the attributes `grant` and `revoke` write (a subject set also carries `janus.subject.relation`). Nothing is written when `replace` changes nothing or fails. `PermissionsLike` gains an optional `replace`. Also documents that `janus.<type>.findOrCreate` is traced like `findByEmail`: the span carries the user type and never the key.
+
+### Patch Changes
+
+- Updated dependencies [[`7e3bfc8`](https://github.com/softistx/nxgt-janus/commit/7e3bfc837dc8586a41f7630dc98fd48ee199622f), [`04f378c`](https://github.com/softistx/nxgt-janus/commit/04f378c37a55d6b6c9609aab4394e749c6950be2), [`311c80d`](https://github.com/softistx/nxgt-janus/commit/311c80db5875e9e878dfff946b71deac6bf58b16)]:
+  - @nxgt/janus@0.24.0
+
 ## 0.12.0
 
 ### Minor Changes
