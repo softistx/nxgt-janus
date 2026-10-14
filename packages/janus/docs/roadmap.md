@@ -76,6 +76,14 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Finding a user, or creating them** —
+  `auth.<type>.findOrCreate(key, input)` answers `{ user, created }`: the
+  holder of the key — the login on a type with a password, the e-mail on one
+  without — or the user `input()` describes, created as `create` creates
+  one. `input` runs only on an absence and may refuse before any write; it
+  must name the key, or the call is `USER_INVALID`; a lost race is
+  answered with the winner, `created: false`. It is the accept step of an
+  invitation in one call. Server-side only.
 - **Changing a user's e-mail, v0.23.0** —
   `auth.<type>.changeEmail.send(user, email)` issues a link for the new
   address, and `changeEmail.confirm(token)` moves the user there, verified,

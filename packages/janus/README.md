@@ -333,6 +333,7 @@ await auth.magicLink.request(email);               // { token, email, expiresAt,
 await auth.magicLink.confirm(token);               // { status: 'signedIn', user, session, token }
 await auth.magicLink.prepare(email);               // counted, nobody looked up: { send() } — and signInCode, resetPassword
 await auth.findByEmail(email);                     // User | null — server-side only, counts nothing; every type with an e-mail
+await auth.findOrCreate(key, () => input);         // { user, created } — by login (e-mail without a password); input() only when nobody holds the key
 await auth.signInProven(user.id);                  // privileged: after a proof YOUR server verified — { status: 'signedIn', … }
 await auth.stepUp.request(user);                   // { via: 'email', code, challenge, email, expiresAt, user }
 await auth.stepUp.confirm(request, challenge, code); // the request's session, authenticatedAt: now
@@ -919,6 +920,47 @@ password and reset flows on it.
   asking the store, as `find` answers a malformed id. An outage is
   `STORE_FAILED`, never `null`.
 - **Server-side only**: it tells whether an account exists. See *Traps*.
+
+### Finding a user, or creating them — `findOrCreate`
+
+```ts
+// Accepting an invitation: the account may exist; if not, it is created only with a password.
+const invitation = await invitations.redeem(body.invitationToken); // yours: verified first
+if (invitation === null) return new Response(null, { status: 404 });
+
+const { user } = await auth.findOrCreate(invitation.email, () => {
+	if (body.password === undefined) throw new Error('a password is required'); // refused: nothing is written
+	return { email: invitation.email, name: body.name, password: body.password };
+});
+await auth.verifyEmail.proveFirst(user);      // drops a squatter's password, factor and sessions: first
+await auth.setPassword(user, body.password);  // then the invitee's own
+const result = await auth.signInProven(user); // last
+```
+
+The user of this type holding `key`, or the one `input()` describes,
+created — in one call, with the lost race handled. On **every type with a
+login or an e-mail**: the key is the login, normalised as `findByLogin`
+normalises it, on a type with a password, and the e-mail, normalised as
+`findByEmail` does, on a type without one.
+
+- **Found: nothing else happens.** The user is answered
+  `{ user, created: false }` — an inactive one included — `input` is not
+  called and nothing is written.
+- **`input` is the refusal point.** It runs only when nobody holds the key,
+  and what it throws propagates with nothing written: refuse there what the
+  caller must refuse before a write, such as a missing password.
+- **The input must name the key.** Once validated, its login (its e-mail,
+  without a password) must equal the normalised `key`, or the call is
+  `USER_INVALID` before the write.
+- **A lost race is not an error.** When another call created the user between
+  the read and the write, the store's `LOGIN_TAKEN` is followed by one more
+  read of the key; the winner is answered `{ user, created: false }`. The
+  `LOGIN_TAKEN` is rethrown only when that read finds nobody — another login
+  of the new user is taken.
+- **Created as `create` creates**: the same validation, the same hashing,
+  `PASSWORD_TOO_SHORT` below the policy, and `user.created` sent only when
+  this call created. Signs nobody in.
+- **Server-side only**, an account-existence oracle as `findByEmail` is.
 
 ### Proving an e-mail on your own proof — `verifyEmail.proveFirst`
 
@@ -1698,7 +1740,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and seventy-two plausible mistakes, one hundred and seventy-two refused at compile time — and
+**One hundred and seventy-two plausible mistakes, one hundred and seventy-six refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1706,10 +1748,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-five, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (eighty-four, on `janus()`, from the point of view of
+it), `test/types/auth/` (eighty-eight, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail) and `test/types/permissions/` (forty-eight, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail, four on `findOrCreate`) and `test/types/permissions/` (forty-eight, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible
