@@ -195,8 +195,28 @@ whoever chooses it can drop anybody's password and second factor.
 It sends no e-mail, issues no token, and counts in neither the mail
 throttle nor the sign-in throttle. An inactive user is `USER_INACTIVE`; a
 malformed id, an unknown one or one of another type is `NOT_FOUND`, as for
-`signInProven`; a user written between the read and the write is
-`VERSION_CONFLICT`, and nothing is proved; an outage is `STORE_FAILED`.
+`signInProven`; an outage is `STORE_FAILED`.
+
+**A write landing between the read and the proof is retried once.** The
+proof is written under the version read, so a write in between (the user
+renaming themselves, a second acceptance of the same invitation) makes it
+`VERSION_CONFLICT`. `proveFirst` then runs the whole flow again on a fresh
+read, and what that read finds decides:
+
+- the user is gone or of another type: `NOT_FOUND`; inactive:
+  `USER_INACTIVE`;
+- **the e-mail is no longer the address first read** (compared as e-mails
+  are, so a change of case or spacing is the same address): the original
+  `VERSION_CONFLICT`, with nothing proved. The proof you hold reached the
+  inbox of the address you read, and janus never proves another;
+- the e-mail was proved meanwhile: `{ user, proved: false }`;
+- otherwise the proof runs under the new version, and one
+  `user.emailVerified` is sent.
+
+A second `VERSION_CONFLICT` propagates: nothing is proved, and calling
+again is safe. Running the proof twice is harmless: a failed attempt wrote
+nothing and sent no event, and the sessions it revoked and the tokens it
+spent before the write are revoked and spent again to the same end.
 `@nxgt/janus-telemetry` traces it as `janus.<type>.verifyEmail.proveFirst`
 and writes `janus.email.verified` with `janus.email.proveFirst: true` when
 it proved — the user's id, never the address.
