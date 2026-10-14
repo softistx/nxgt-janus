@@ -34,6 +34,7 @@ import type { ModelConfig } from './model/config';
 import { type PermissionModel, resolvedOf } from './model/define';
 import type { Permissions } from './model/permissions';
 import type { RelationStore } from './port/types';
+import { replace } from './replace';
 
 /** Deep enough for any hierarchy a person draws; OpenFGA's default too. */
 const DEFAULT_MAX_DEPTH = 25;
@@ -104,5 +105,13 @@ export function permissions<C extends ModelConfig>(
 		list: withBoundModel(list) as Permissions<C>['list'],
 		grant: change('grant') as Permissions<C>['grant'],
 		revoke: change('revoke') as Permissions<C>['revoke'],
+		replace: ((object, relation, subjects) =>
+			replace(
+				model,
+				store,
+				object,
+				relation as string,
+				subjects,
+			)) as Permissions<C>['replace'],
 	});
 }

@@ -13,6 +13,7 @@ import type {
 	VerifyEmailApi,
 } from './email-flows';
 import type { FindByEmailApi } from './find-by-email';
+import type { FindOrCreateApi } from './find-or-create';
 import type {
 	EmailOf,
 	FieldsInput,
@@ -68,6 +69,11 @@ export type TypeApi<
 				> &
 					SecondFactorApi<UserOfType<Name, Def>>
 			: PasswordApi<UserOfType<Name, Def>, FieldsInput<Def>, LoginOf<Def>>) &
+	([LoginOf<Def>] extends [never]
+		? [EmailOf<Def>] extends [never]
+			? unknown
+			: FindOrCreateApi<UserOfType<Name, Def>, FieldsInput<Def>>
+		: FindOrCreateApi<UserOfType<Name, Def>, FieldsInput<Def>>) &
 	([EmailOf<Def>] extends [never]
 		? unknown
 		: FindByEmailApi<UserOfType<Name, Def>> &

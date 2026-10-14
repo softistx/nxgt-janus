@@ -49,7 +49,7 @@ every CI run.
 | Export | What it is |
 | --- | --- |
 | `instrumentJanus(auth)` | The same `janus()` instance, frozen, with every flow traced under its call path — `auth.signIn` as `janus.signIn`, `auth.patient.signIn` as `janus.patient.signIn` — and the security events written as logs. `cookie` stays synchronous and untraced |
-| `instrumentPermissions(access)` | The same `permissions()` instance, frozen, with `can`, `list`, `grant` and `revoke` traced, and one audit event per tuple written |
+| `instrumentPermissions(access)` | The same `permissions()` instance, frozen, with `can`, `list`, `grant`, `revoke` and `replace` traced, and one audit event per tuple written, granted or revoked — for `replace`, one per tuple it added and one per tuple it removed |
 | `JanusLike`, `PermissionsLike` | What each accepts: `instrumentJanus(access)` and `instrumentPermissions(auth)` do not compile. `PermissionsLike.model.subjects`, which `permissions()` answers, tells a user from a subject set; an instance without it has every `{ type, id, relation }` recorded as a set |
 
 ## What is written
@@ -58,10 +58,11 @@ every CI run.
 
 | Span | Attributes |
 | --- | --- |
-| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm`, `janus.signInCode.confirm`, `janus.magicLink.confirm`, `janus.signInProven` and `janus.verifyEmail.proveFirst` included, the reads as well — `janus.<type>.findByEmail` among them — and a prepared request's `send()` as `janus.magicLink.prepare.send` | `janus.user.type`; `user.id` once the answer names a user, never the address or login a read was asked for; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn`, `signInCode.confirm`, `magicLink.confirm` and `signInProven` — `signedIn`, or `secondFactor` when it answered a challenge; for `stepUp.confirm`, the `user.id` of the session it stamped, never the session's id |
+| `janus.<flow>`, `janus.<type>.<flow>` — `janus.secondFactor.confirm`, `janus.signInCode.confirm`, `janus.magicLink.confirm`, `janus.signInProven` and `janus.verifyEmail.proveFirst` included, the reads as well — `janus.<type>.findByEmail` and `janus.<type>.findOrCreate` among them — and a prepared request's `send()` as `janus.magicLink.prepare.send` | `janus.user.type`; `user.id` once the answer names a user, never the address or login a read was asked for; `janus.session.renewed` for `authenticate`; `janus.signIn.status` for `signIn`, `signInCode.confirm`, `magicLink.confirm` and `signInProven` — `signedIn`, or `secondFactor` when it answered a challenge; for `stepUp.confirm`, the `user.id` of the session it stamped, never the session's id |
 | `janus.can` | `janus.subject.type`, `janus.subject.id`, `janus.permission`, `janus.object.type`, `janus.object.id`, and the answer, `janus.allowed` |
 | `janus.list` | the subject, `janus.permission`, `janus.object.type`, and `janus.page.items`, how many it found |
 | `janus.grant`, `janus.revoke` | the object, `janus.relation`, and the subject — `janus.subject.relation` for a subject set, read as `permissions()` reads it: a user with a field named `relation` is that user, and a set on a user type is one only when `setOf()` made it |
+| `janus.replace` | the object and `janus.relation`; the tuples it added and removed are the audit events, below, each with the object, relation and subject a `grant` or `revoke` writes — a subject set always with its `janus.subject.relation`, since a stored tuple names it |
 
 **A refusal is an answer, not a failure.** A wrong password, a taken login, a
 spent token, a denial: the span is `ok`, and a refusal carries
@@ -97,7 +98,7 @@ when the flow knows them — `janus.signOut` carries neither:
 | `janus.password.changed`, `janus.password.set`, `janus.password.reset` | info | the user's change, an admin's, a reset |
 | `janus.email.verified` | info | an e-mail was confirmed — by `verifyEmail.confirm`, or proved on the application's own proof by `verifyEmail.proveFirst`, which adds `janus.email.proveFirst: true` and writes it only when it proved (an e-mail already proved writes nothing) |
 | `janus.email.changed` | info | a user's e-mail moved, with `janus.user.type`, `user.id` and `janus.email.proved` — never the former or the new address. `changeEmail.confirm` writes it with `janus.email.proved: true` (and no `janus.email.verified` besides: the move is the proof); `update` writes it with `janus.email.proved: false` when its patch names the `email` field, even if the address turns out unchanged (the field name janus defaults to — a renamed e-mail field is not seen on `update`, nor an `update` that moved the address and then answered `STORE_FAILED` while spending the change links) |
-| `janus.tuple.granted`, `janus.tuple.revoked` | info | a tuple was written, with the object, relation and subject |
+| `janus.tuple.granted`, `janus.tuple.revoked` | info | a tuple was written by `grant`, `revoke` or `replace` — one event per tuple, `replace` one per tuple added and one per tuple removed — with the object, relation and subject |
 
 ## Traps
 
