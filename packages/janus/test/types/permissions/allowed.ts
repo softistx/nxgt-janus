@@ -22,6 +22,11 @@ async function allowed() {
 			id: 't',
 			relation: 'members',
 		}),
+		// replace takes a readonly array mixing an entity and a subject set.
+		await access.replace({ type: 'team', id: 't' }, 'members', [
+			staff,
+			{ type: 'team', id: 't2', relation: 'members' },
+		] as const),
 		await access.can(staff, 'view', record, { ctx: { onShift: true } }),
 		// Stored relations and arrows need nothing more to be listed.
 		await access.list(staff, 'view', 'team', { limit: 10 }),

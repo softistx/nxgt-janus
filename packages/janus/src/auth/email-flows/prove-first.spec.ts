@@ -157,3 +157,71 @@ describe('verifyEmail.proveFirst refuses', () => {
 		).toBe(true);
 	});
 });
+
+describe('verifyEmail.proveFirst, and the address the caller holds', () => {
+	it('refuses a stale User whose address changed, with VERSION_CONFLICT, and proves nothing', async () => {
+		const { auth, types } = listening();
+		const { user } = await squatted(auth);
+		await auth.update(user, { email: 'grace@example.test' });
+
+		expect(await rejection(auth.verifyEmail.proveFirst(user))).toMatchObject({
+			code: 'VERSION_CONFLICT',
+			userId: user.id,
+		});
+		expect(await auth.get(user.id)).toMatchObject({
+			emailVerified: false,
+			hasPassword: true,
+		});
+		expect(types()).not.toContain('user.emailVerified');
+	});
+
+	it('names the version it was given, and the one it read, in the conflict', async () => {
+		const { auth } = listening();
+		const { user } = await squatted(auth);
+		await auth.update(user, { email: 'grace@example.test' });
+
+		expect(await rejection(auth.verifyEmail.proveFirst(user))).toMatchObject({
+			expectedVersion: user.version,
+			actualVersion: user.version + 1,
+		});
+		const error = await rejection(
+			auth.verifyEmail.proveFirst({
+				id: user.id,
+				email: ada.email,
+			} as never),
+		);
+		expect(error).toMatchObject({ actualVersion: user.version + 1 });
+		expect(
+			(error as { expectedVersion?: number }).expectedVersion,
+		).toBeUndefined();
+	});
+
+	it('proves the current address for a bare id', async () => {
+		const { auth } = listening();
+		const { user } = await squatted(auth);
+		await auth.update(user, { email: 'grace@example.test' });
+
+		const first = await auth.verifyEmail.proveFirst(user.id);
+
+		expect(first.proved).toBe(true);
+		expect(first.user).toMatchObject({ email: 'grace@example.test' });
+	});
+
+	it('proves the current address for an object without the e-mail field', async () => {
+		const { auth } = listening();
+		const { user } = await squatted(auth);
+		await auth.update(user, { email: 'grace@example.test' });
+
+		expect((await auth.verifyEmail.proveFirst({ id: user.id })).proved).toBe(
+			true,
+		);
+	});
+
+	it('still proves when the address only differs in case or spacing', async () => {
+		const { auth } = listening();
+		const { user } = await squatted(auth);
+		await auth.update(user, { email: 'ADA@example.test' });
+
+		expect((await auth.verifyEmail.proveFirst(user)).proved).toBe(true);
+	});
+});

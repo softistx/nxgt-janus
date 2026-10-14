@@ -47,6 +47,8 @@ export interface PermissionsLike {
 	readonly list: (...args: never[]) => Promise<unknown>;
 	readonly grant: (...args: never[]) => Promise<unknown>;
 	readonly revoke: (...args: never[]) => Promise<unknown>;
+	/** Traced when present: an instance made before `replace` has none. */
+	readonly replace?: (...args: never[]) => Promise<unknown>;
 }
 
 type Traced = (...args: unknown[]) => Promise<unknown>;
@@ -94,7 +96,53 @@ const tracersFor = (
 			),
 	grant: (fn) => tupleWrite('janus.grant', granted, fn, userTypes),
 	revoke: (fn) => tupleWrite('janus.revoke', revoked, fn, userTypes),
+	replace: (fn) => replaceWrite(fn),
 });
+
+/** A stored tuple as fields: its subject is a set when it names a relation. */
+function storedFields(tuple: unknown): Fields {
+	if (typeof tuple !== 'object' || tuple === null) return {};
+	const { object, relation, subject } = tuple as Record<string, unknown>;
+	const setRelation =
+		typeof subject === 'object' && subject !== null && 'relation' in subject
+			? subject.relation
+			: undefined;
+	return fieldsOf({
+		...objectFields(object),
+		'janus.relation': typeof relation === 'string' ? relation : undefined,
+		'janus.subject.type': typeOf(subject),
+		'janus.subject.id': idOf(subject),
+		'janus.subject.relation':
+			typeof setRelation === 'string' ? setRelation : undefined,
+	});
+}
+
+/** `replace`: the object and relation on the span, an event per tuple it answers. */
+function replaceWrite(fn: Traced): Traced {
+	return (...args) =>
+		traced(
+			'janus.replace',
+			fieldsOf({
+				...objectFields(args[0]),
+				'janus.relation': typeof args[1] === 'string' ? args[1] : undefined,
+			}),
+			() => fn(...args),
+			(_scope, outcome) => {
+				if (!outcome.ok || typeof outcome.value !== 'object') return;
+				const { added, removed } = (outcome.value ?? {}) as Record<
+					string,
+					unknown
+				>;
+				for (const [tuples, written] of [
+					[added, granted],
+					[removed, revoked],
+				] as const) {
+					if (!Array.isArray(tuples)) continue;
+					for (const tuple of tuples) log.info(written(storedFields(tuple)));
+				}
+			},
+		);
+}
 
 function tupleWrite(
 	name: string,
@@ -121,9 +169,11 @@ function tupleWrite(
 
 /**
  * The same `permissions()` instance, traced: a span per `can` — its subject,
- * permission, object and whether it was allowed — and per `list`, and a
- * `janus.tuple.granted` or `janus.tuple.revoked` event for every tuple
- * written, the audit trail of who was given what.
+ * permission, object and whether it was allowed — and per `list`, a span per
+ * `grant`, `revoke` and `replace`, and a `janus.tuple.granted` or
+ * `janus.tuple.revoked` event for every tuple written, the audit trail of who
+ * was given what. `replace` writes one event per tuple it added and one per
+ * tuple it removed.
  *
  * ```ts
  * const access = instrumentPermissions(permissions({ model, store }));

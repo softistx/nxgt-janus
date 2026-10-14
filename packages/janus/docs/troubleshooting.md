@@ -151,7 +151,10 @@ How the messages are shaped:
 - [`list: the lookup of <type>.<relation> must answer an array of ids`](#list-the-lookup-of-typerelation-must-answer-an-array-of-ids)
 - [`grant: <type>.<relation> is read from <field>; there is nothing to store …`](#grant-typerelation-is-read-from-field-there-is-nothing-to-store--change-the-type-instead)
 - [`grant: <type>.<relation> is not held by <holder>`](#grant-typerelation-is-not-held-by-holder)
-- [Other `can:`, `list:`, `grant:` and `revoke:` messages](#other-can-list-grant-and-revoke-messages)
+- [`replace: the subjects must be an array`](#replace-the-subjects-must-be-an-array)
+- [Two `replace` calls at once leave the union of their adds](#two-replace-calls-at-once-leave-the-union-of-their-adds)
+- [`replace` leaves extra holders on a capped relation store](#replace-leaves-extra-holders-on-a-capped-relation-store)
+- [Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages](#other-can-list-grant-revoke-and-replace-messages)
 - [`defineModel: …`](#definemodel-)
 
 **Subjects**
@@ -625,7 +628,7 @@ const user = await auth.find(id); // null when there is nobody
 
 `StoreConflict` with `on: 'login'`, carrying `login` and `userType`. The login is not in the message, which never carries a value: an e-mail in a log line is personal data. Read it from `error.login`.
 
-**When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default).
+**When:** `signUp`, `create`, or an `update` that changes the login, when another user of **the same type** holds it after normalisation (`Ada@Example.com` and `ada@example.com` collide by default). `findOrCreate` rethrows it only when its re-read of the key still finds nobody — another login of the new user (its e-mail, beside a username) is taken; a race lost on the key itself answers `{ user, created: false }` instead.
 **Why:** the store's unique constraint refused the write. A login is unique per user type: one e-mail may hold a patient user and a staff user.
 **On `changeEmail.confirm`** the address was free when `changeEmail.send` asked — `send` never checks — and somebody took it before the link was used. The link is already spent and nothing was written: the user keeps their e-mail.
 **Fix:** answer 409. On `changeEmail.confirm`, tell the user the address is taken and ask for another with a new `changeEmail.send`. If two concurrent sign-ups with one login both succeed, the unique index is missing — with `@nxgt/janus-mongo`, run `syncMongoStores(db)`.
@@ -643,12 +646,19 @@ const user = await auth.get(id);
 await auth.update(user, { name }, { ifVersion: user.version });
 ```
 
-**From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: the user
-was written between the read that found the e-mail never proved and the
+**From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: either the
+`User` you passed carries an address that is no longer the user's (nothing is
+proved, on the first read already; a bare id skips this check and proves the
+current address), or the user was written between the read that found the e-mail never proved and the
 write that proves it — by the user, or by a second acceptance of the same
-invitation. Nothing was proved, though the sessions may already be revoked.
-Call it again: it reads the user anew, and answers `proved: false` when the
-other write proved the e-mail.
+invitation. `proveFirst` already retried once on a fresh read, so you see
+this error only when the user was written **again** during the retry, or when
+the write **changed the e-mail address** since the first read (or it is not
+the one the `User` you passed carries): the proof you hold is for the
+address you read. Nothing was proved, though
+the sessions may already be revoked. Read the user and check that their
+e-mail is still the invitation's address; if it is, call it again — it
+answers `proved: false` when another write proved the e-mail.
 
 **From `secondFactor.confirm`**, the message is the store's:
 `updateUser: expected version <n>, found <m>`.
@@ -694,8 +704,9 @@ does the first.
 
 `UserInvalidError`, carrying `issues` — each a `path` and a `message`.
 
-**When:** `signUp`, `create`, `update`, and `changeEmail.send`.
+**When:** `signUp`, `create`, `update`, `changeEmail.send`, and `findOrCreate`.
 **Why:** your schema refused the fields. `changeEmail.send` also answers it, with one issue at the e-mail field (`is the current e-mail of the user`), for an address equal to the user's current one once normalised: nothing is counted or issued; answer 400, or offer `verifyEmail.send` to prove the current one. `update` merges the patch over the stored fields and validates the whole, so the refusal can name a field the patch did not touch. An issue whose message is `set by janus, not by a request` means the input carried a field janus sets (`id`, `active`, `version`, …) and your schema let it through. An issue whose message is `holds a NUL character or a lone surrogate, which no store can keep` means a string — or, with `a key holds …`, an object key — carried `\u0000` or half of a surrogate pair: PostgreSQL refuses both, so janus refuses them on every adapter rather than answer `STORE_FAILED` on one. A key is reported by the path of the object holding it, never by the key itself — in janus's issues and in your schema's alike. An issue at your login field whose message is `normalises to a login that holds …` means your own `password.normalize` function produced such a login from a valid field: fix the function. On MongoDB or the memory store, a user written before janus refused these characters may already hold one: every `update` of that user is refused, whatever it patches, until the field is cleaned — patch it with a clean value in the same `update`.
+**`findOrCreate`** also answers it, with one issue at the login field (the e-mail field on a type with no password) and the message `is not the key findOrCreate was given`, when the validated input names another key than the one asked for; nothing is written. A username type given an e-mail nobody holds always meets it, since the input's username cannot be that e-mail. Fix: build the input from the same value as the key. A key that is not a string is answered before `input()` runs, with one issue at the empty path and the message `is not a string`: pass the login or the e-mail as a string.
 **Fix:** answer 400, field by field:
 
 ```ts
@@ -2009,22 +2020,40 @@ A `lookup` is your code and is not guarded: if it throws, `list()` rejects with 
 
 ### `grant: <type>.<relation> is read from <field>; there is nothing to store — change the <type> instead`
 
-Also with `revoke:`.
+Also with `revoke:` and `replace:`.
 
-**When:** `access.grant(...)` or `access.revoke(...)` on a `fromField` relation.
+**When:** `access.grant(...)`, `access.revoke(...)` or `access.replace(...)` on a `fromField` relation.
 **Why:** that relation lives in the object's own data, not in a tuple.
 **Fix:** update the object — for example set `record.doctorId` — in your own database.
 
 ### `grant: <type>.<relation> is not held by <holder>`
 
-Also with `revoke:`.
+Also with `revoke:` and `replace:`.
 
-**When:** `access.grant(object, relation, subject)`.
+**When:** `access.grant(object, relation, subject)`, or any subject in the list of `access.replace(object, relation, subjects)`; nothing is written.
 **Why:** the model's relation does not admit that kind of subject: `members: ['staff']` refuses a `patient`, and refuses the subject set `team#members` unless it is listed.
 **Fix:** grant a subject the relation admits, or add the holder to the model: `members: ['staff', 'team#members']`.
 With `revoke:` on a tuple stored before the model stopped admitting it, the tuple already grants nothing; remove it through the store: `relations.write({ remove: [tuple] })`.
 
-### Other `can:`, `list:`, `grant:` and `revoke:` messages
+### `replace: the subjects must be an array`
+
+**When:** `access.replace(object, relation, subject)` with one subject instead of a list.
+**Why:** `replace` makes the list the only holders of the relation, so it takes the whole list.
+**Fix:** wrap the subject, `access.replace(team, 'members', [ada])`; `[]` empties the relation. See [`replace`](guide/permissions.md#replace).
+
+### Two `replace` calls at once leave the union of their adds
+
+**When:** two `replace` calls on the same object and relation run concurrently.
+**Why:** each reads the holders, then writes its own difference; they are not serialised, so both lists' additions can remain.
+**Fix:** serialise them yourself (a lock or a queue) when one list must win. See [`replace`](guide/permissions.md#replace).
+
+### `replace` leaves extra holders on a capped relation store
+
+**When:** you wrote a `RelationStore` adapter, and `access.replace(object, relation, subjects)` leaves holders you meant to remove, silently.
+**Why:** `replace` reads every holder of the relation through `findEntities` and `findSubjectSets` and removes those the list does not name. An adapter that caps either answer (a `LIMIT`, a first page) hides the rest from it, so they are never removed.
+**Fix:** answer every holder from both methods, unpaged, and never cap. The relation-store conformance suite is the place to check an adapter.
+
+### Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages
 
 Each is a `TypeError` naming the call. TypeScript refuses most of them on the argument first.
 
@@ -2035,10 +2064,10 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: the object must be { type, id, …its fields }` | `{ type: 'record', ...record }`. |
 | `<call>: the subject must be a user, or { type, id }` | Pass the user from `janus()`, or `{ type, id }`. `null` is anonymous and answers `false`. |
 | `<call>: the object id must be a non-empty string without @, # or parentheses` | Also for `the subject id`. Those characters belong to the tuple notation. |
-| `grant: the object id holds a NUL character or a lone surrogate, which no store can keep` | Also with `revoke:`, and for `the subject id`. PostgreSQL refuses `\u0000` and half a surrogate pair, so janus refuses them on every adapter: clean the id where it was read. `can()` answers `false` and `list()` an empty page for such an id instead — no tuple can name it. |
+| `grant: the object id holds a NUL character or a lone surrogate, which no store can keep` | Also with `revoke:` and `replace:`, and for `the subject id`. PostgreSQL refuses `\u0000` and half a surrogate pair, so janus refuses them on every adapter: clean the id where it was read. `can()` answers `false` and `list()` an empty page for such an id instead — no tuple can name it. |
 | `<call>: "<relation>" is not a relation of <type>, so <type>#<relation> is no subject set` | A subject set names a relation of its type: `{ type: 'team', id, relation: 'members' }`. |
 | `<call>: <type> is a user type the model does not declare as an object type, so <type>#<relation> is no subject set` | `setOf(user, relation)` names a relation on that user: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
-| `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. |
+| `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. Also with `revoke:` and `replace:` — `replace: "<relation>" is not a relation of <type>`, even for an empty list. |
 | `list: the type must be an object type of the model` | The third argument is a type name: `'record'`. |
 | `list: after must be the nextCursor of a page, or null` | Pass `nextCursor` back as it came. |
 

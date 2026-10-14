@@ -203,6 +203,7 @@ With an e-mail — the field `email` names, password or not — besides:
 | Method | Answers | Rejects with |
 | --- | --- | --- |
 | `findByEmail(email)` | the user, or `null`; the address trimmed and lowercased as the e-mail flows do, whatever the login; a value that is no address is nobody's — **server-side only**, see [below](#finding-a-user-by-e-mail--findbyemail) | `STORE_FAILED` only |
+| `findOrCreate(key, input)` | `{ user, created }`: the holder of `key`, or the user `input()` describes, created; every type with a login or an e-mail — **server-side only**, see [below](#finding-a-user-or-creating-them--findorcreate) | `USER_INVALID`, `PASSWORD_TOO_SHORT`, `LOGIN_TAKEN`, `STORE_FAILED`, and what `input` throws |
 
 With `secondFactor` configured, a type with a password also answers
 `secondFactor.enroll`, `activate`, `disable` and `confirm` — see
@@ -369,6 +370,49 @@ none by design.
   anonymous route; call it on the address your own proof holds.
   `@nxgt/janus-telemetry` traces it as `janus.<type>.findByEmail`, with the
   `user.id` it found and never the address.
+
+### Finding a user, or creating them — `findOrCreate`
+
+```ts
+findOrCreate(
+	key: string,
+	input: () => Fields | Promise<Fields>, // what create takes
+): Promise<{ user: User; created: boolean }>
+// typed by FindOrCreateApi<User, Fields>, exported from @nxgt/janus
+```
+
+The accept step of an invitation, without the race between `findByEmail`
+and `create`. The `key` is looked up as the type's own lookup would: the
+login on a type with a password, the e-mail on a type without one — so a
+type with neither has no `findOrCreate`. A user found, inactive or not, is
+answered `{ user, created: false }` and `input` is never called:
+
+```ts
+const invitation = await invitations.spend(hash(token), new Date()); // your proof, verified first
+if (invitation === null) return notFound();
+const { user, created } = await clinic.patient.findOrCreate(invitation.email, () => {
+	if (body.password === undefined) throw new Error('a password is required'); // refused before any write
+	return { email: invitation.email, birthDate: body.birthDate }; // no password: proveFirst would drop it
+});
+await clinic.patient.verifyEmail.proveFirst(user);          // drops what a squatter left
+if (typeof body.password === 'string') await clinic.patient.setPassword(user, body.password); // set once, here
+```
+
+- **`input` runs only on an absence, and may refuse.** What it throws
+  propagates, and nothing is written.
+- **The key is a string.** Any other value is `USER_INVALID` before `input`
+  is called.
+- **The input names the key.** After validation its login (its e-mail, on a
+  type with no password), normalised, must equal the normalised `key`; if it
+  does not, the call rejects with `USER_INVALID` before the write.
+- **Created exactly as `create` creates**: validation, hashing, the password
+  policy, `user.created`. The event is sent only when this call created.
+- **A lost race answers the winner.** If the write meets `LOGIN_TAKEN`, the
+  key is read once more: found, it is `{ user, created: false }`; still
+  absent, the `LOGIN_TAKEN` is rethrown.
+- **A key that is no storable string** is nobody's, as for `findByLogin`, and
+  goes through `input` and the creation, which refuses it with `USER_INVALID`.
+- **Server-side only**, an account-existence oracle like `findByEmail`.
 
 ### Paging every user
 

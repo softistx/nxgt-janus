@@ -80,10 +80,13 @@ describe('the scan: no catch around a store call, in auth, permissions or stores
 		).toEqual([]);
 	});
 
-	it("and of the two allowed, the guard's always rethrows and outage.ts's absorbs one named conflict", async () => {
-		// Every catch and two-argument then, bound or not: one each, no more.
+	it("and of the two allowed, the guard's always rethrows and outage.ts's absorb one named conflict each", async () => {
+		// Every catch and two-argument then, bound or not: one each, no more —
+		// outage.ts has two, one per named conflict it absorbs.
 		for (const path of ALLOWED) {
-			expect(forbiddenIn(await Bun.file(path).text())).toHaveLength(1);
+			expect(forbiddenIn(await Bun.file(path).text())).toHaveLength(
+				path === OUTAGE ? 2 : 1,
+			);
 		}
 
 		const guard = await catchBodies(GUARD);
@@ -95,10 +98,12 @@ describe('the scan: no catch around a store call, in auth, permissions or stores
 		// else — every other rejection rethrown. Held to the letter, so a
 		// widened condition is a failing spec and a reviewed change.
 		const outage = await catchBodies(OUTAGE);
-		expect(outage).toHaveLength(1);
-		expect(outage[0]).toBe(
+		// unlessLoginTaken's: the conflict on a login handed back as a value,
+		// and nothing else — every other rejection rethrown.
+		expect(outage).toEqual([
 			"if (error instanceof StoreConflict && error.on === 'version') return null; throw error;",
-		);
+			"if (error instanceof StoreConflict && error.on === 'login') return error; throw error;",
+		]);
 
 		// emit's: the try holds the listener alone — a store call moved
 		// inside it would be caught too — and the catch warns, and nothing
