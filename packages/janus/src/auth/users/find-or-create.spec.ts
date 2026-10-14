@@ -151,6 +151,18 @@ describe('findOrCreate, on nobody', () => {
 		expect(received).toEqual([]);
 	});
 
+	it('refuses an e-mail key nobody holds on a username type: the username is not the key', async () => {
+		const { store, writes } = countingWrites();
+		const { auth } = invitations({ store });
+
+		const error = await rejection(
+			auth.staff.findOrCreate(hopper.email, () => hopper),
+		);
+
+		expect(error).toMatchObject({ code: 'USER_INVALID', userType: 'staff' });
+		expect(writes.count).toBe(0);
+	});
+
 	it('refuses a key that is no storable string, through the creation', async () => {
 		const { store, writes } = countingWrites();
 		const { auth } = invitations({ store });

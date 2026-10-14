@@ -933,7 +933,7 @@ const { user } = await auth.findOrCreate(invitation.email, () => {
 	return { email: invitation.email, name: body.name, password: body.password };
 });
 await auth.verifyEmail.proveFirst(user);      // drops a squatter's password, factor and sessions: first
-await auth.setPassword(user, body.password);  // then the invitee's own
+if (typeof body.password === 'string') await auth.setPassword(user, body.password); // then the invitee's own
 const result = await auth.signInProven(user); // last
 ```
 
@@ -941,7 +941,10 @@ The user of this type holding `key`, or the one `input()` describes,
 created — in one call, with the lost race handled. On **every type with a
 login or an e-mail**: the key is the login, normalised as `findByLogin`
 normalises it, on a type with a password, and the e-mail, normalised as
-`findByEmail` does, on a type without one.
+`findByEmail` does, on a type without one. On a type whose login is a
+username, an e-mail key finds an existing user (e-mails are stored as
+logins) but can never create one: the input's username is not the key, so
+it is `USER_INVALID`.
 
 - **Found: nothing else happens.** The user is answered
   `{ user, created: false }` — an inactive one included — `input` is not

@@ -264,6 +264,12 @@ export async function accept(request: Request): Promise<Response> {
 }
 ```
 
+**`findOrCreate` is step 1 in one call.** `auth.findOrCreate(invitation.email, () => ({ … }))`
+finds the holder or creates the user, losing no race to a second acceptance
+of the same invitation, and its `input` may throw to refuse — "a password is
+required" — before anything is written
+([users](users.md#finding-a-user-or-creating-them--findorcreate)).
+
 **The order is the recipe.** `verifyEmail.proveFirst` (since 0.22) applies
 the first proof of the e-mail that a sign-in link would: on an address
 never proved, somebody may have signed up with it first, with a password
@@ -371,9 +377,3 @@ cannot be replayed. `Session` is the stored record without that hash: `id`,
 - [Devices](devices.md) — the device cookie beside the session cookie, and a sign-in from a new device
 - [E-mail flows](email-flows.md) — verification and password reset
 - [Errors](errors.md) — `STORE_FAILED`, `UNSUPPORTED` and the rest
-
-**`findOrCreate` is step 1 in one call.** `auth.findOrCreate(invitation.email, () => ({ … }))`
-finds the holder or creates the user, losing no race to a second acceptance
-of the same invitation, and its `input` may throw to refuse — "a password is
-required" — before anything is written
-([users](users.md#finding-a-user-or-creating-them--findorcreate)).

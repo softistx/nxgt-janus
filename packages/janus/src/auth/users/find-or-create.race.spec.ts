@@ -64,6 +64,72 @@ describe('findOrCreate, on a lost race', () => {
 	});
 });
 
+describe('findOrCreate, on two calls at once', () => {
+	it('creates once and answers the same user to both', async () => {
+		const { auth } = invitations();
+
+		const [first, second] = await Promise.all([
+			auth.member.findOrCreate(grace.email, () => grace),
+			auth.member.findOrCreate(grace.email, () => grace),
+		]);
+
+		expect([first.created, second.created].sort()).toEqual([false, true]);
+		expect(first.user.id).toBe(second.user.id);
+	});
+});
+
+describe('findOrCreate, on a conflict that is not a taken login', () => {
+	it('does not absorb a StoreConflict on a version', async () => {
+		const memory = createMemoryStores();
+		const { auth } = invitations({
+			store: {
+				...memory,
+				users: {
+					...memory.users,
+					async insertUser(): Promise<never> {
+						throw new StoreConflict('version', 'moved');
+					},
+				},
+			},
+		});
+
+		const error = await rejection(
+			auth.member.findOrCreate(grace.email, () => grace),
+		);
+
+		expect(error).toBeInstanceOf(StoreConflict);
+		expect(error).toMatchObject({ code: 'VERSION_CONFLICT' });
+	});
+
+	it('propagates STORE_FAILED when the re-read after the conflict fails', async () => {
+		const memory = createMemoryStores();
+		let reads = 0;
+		const { auth } = invitations({
+			store: {
+				...memory,
+				users: {
+					...memory.users,
+					async findUserByLogin(type, login) {
+						reads += 1;
+						if (reads > 1) throw new Error('connect ECONNREFUSED');
+						return memory.users.findUserByLogin(type, login);
+					},
+					async insertUser(): Promise<never> {
+						throw new StoreConflict('login', 'a login is taken');
+					},
+				},
+			},
+		});
+
+		const error = await rejection(
+			auth.member.findOrCreate(grace.email, () => grace),
+		);
+
+		expect(error).toBeInstanceOf(StoreFailure);
+		expect(error).toMatchObject({ code: 'STORE_FAILED' });
+	});
+});
+
 describe('findOrCreate, on a store that fails', () => {
 	it('rejects with STORE_FAILED when the lookup fails, never creating', async () => {
 		const { store, writes } = countingWrites();

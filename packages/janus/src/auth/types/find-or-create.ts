@@ -34,6 +34,10 @@ export interface FindOrCreateApi<U, In> {
 	 * winner `{ user, created: false }`; the `LOGIN_TAKEN` is rethrown only
 	 * when that read finds nobody — another login of the new user is taken.
 	 *
+	 * On a type whose login is a username, an e-mail key finds an existing user
+	 * (e-mails are stored as logins) but can never create one: the input's
+	 * username is not the key, so it is `USER_INVALID`.
+	 *
 	 * **An account-existence oracle, as `findByEmail` is: never expose it to an
 	 * anonymous client.** A key that is no storable string is nobody's, and goes
 	 * through `input` and the creation, which refuses it.
