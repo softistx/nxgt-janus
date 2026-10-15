@@ -121,10 +121,30 @@ async function openServer(
 		close: async () => {
 			await over.close();
 			await client.close();
+			await disconnected(admin, name);
 			await admin.unsafe(`drop database ${name} with (force)`);
 			await admin.close();
 		},
 	};
+}
+
+/**
+ * Waits, up to two seconds, until no connection to `name` is left. A pool's
+ * `end()` can resolve before its sockets close: node-postgres's does, on Node
+ * and on Bun from 1.4.3, measured on 2026-10-14. A drop `with (force)`
+ * landing then ends those backends, and the error PostgreSQL sends reaches a
+ * client nobody listens to any more — an unhandled error that fails the
+ * next case, then "too many clients" for the rest. Bun 1.4.2 dropped that
+ * message; Node never did. `with (force)` stays for a connection a spec
+ * itself leaked.
+ */
+async function disconnected(admin: SQL, name: string): Promise<void> {
+	for (let waited = 0; waited < 2000; waited += 20) {
+		const [row] =
+			await admin`select count(*)::int as n from pg_stat_activity where datname = ${name}`;
+		if (row.n === 0) return;
+		await Bun.sleep(20);
+	}
 }
 
 /**

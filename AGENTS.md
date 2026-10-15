@@ -689,10 +689,20 @@ module '@nxgt/janus'`. A working tree with a stale `dist/` hides this, and
 sources would make it pass unbuilt, and would stop measuring what a consumer
 compiles against — the declarations — so the order stays instead.
 
+**`typecheck` runs `tsc`, not Bun's own `bun check`.** Measured on Bun 1.4.3
+(2026-10-14): `bun check` reports the same errors as `tsc` on every project
+here, `TS2578` for an unused `@ts-expect-error` included, in about a tenth of
+the time. It is still not used, for three reasons. It checks with the
+TypeScript built into Bun (6.0.3), so the *Newest peers* job, which installs
+TypeScript 7 for the `typescript` peer and typechecks with it, would test 6
+twice. It emits nothing, and `build.ts` and `verify:artifacts` need `tsc`'s
+declarations. And at the root, `bun check` runs the `check` script (Biome)
+instead of the built-in, so `typecheck:scripts` could not call it.
+
 **`bun.lock` is committed, and CI installs with `bun i --frozen-lockfile`**,
 which fails rather than rewrite a lockfile that disagrees with the manifests.
 So a change to a `package.json` lands with the `bun.lock` that `bun install`
-wrote for it, in the same commit. Bun is pinned — `packageManager: bun@1.4.2`,
+wrote for it, in the same commit. Bun is pinned — `packageManager: bun@1.4.3`,
 and the same version in `.github/actions/setup` — because the lockfile's format
 is Bun's. `changeset:version` runs `bun install --lockfile-only` after the bump
 for a reason of its own: `workspace:^` is published as the version read from
