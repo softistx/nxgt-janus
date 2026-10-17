@@ -195,9 +195,10 @@ counts correctly. Each is named by a keyed hash of the login, never the login
 otherwise, which only keeps the login out of plain sight: a dump of the
 tokens then tells which logins were tried, for a guessed list. Each expires
 two windows after its window starts — half an hour by default — **Redis and MongoDB drop it then;
-PostgreSQL keeps it** until something deletes it, and every login tried,
-registered or not, adds a row per window. Schedule a delete with
-`@nxgt/janus-drizzle`:
+a store with no TTL keeps it** until `collectExpired()` deletes it (the
+tokens store's optional `deleteExpiredTokens`), and every login tried,
+registered or not, adds a row per window. Until the store you use implements
+it, schedule a delete with `@nxgt/janus-drizzle`:
 
 ```sql
 delete from tokens where expires_at < now() - interval '1 hour'; -- janus.tokens when your tables have a schema of their own

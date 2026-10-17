@@ -511,8 +511,8 @@ answers again. A refused request is counted too but cannot extend the wait.
 **Where the counts live.** In the tokens store, as `secondFactor` tokens named
 by a keyed hash of the flow and the address or user id: no port change, no new
 infrastructure, and never the address. That is one row per flow per address or
-user per window. On PostgreSQL, `collectExpired()` does not collect lapsed
-ones: schedule the delete, as for the sign-in throttle. A flushed or evicting
+user per window. `collectExpired()` collects the lapsed ones on a tokens store that implements
+`deleteExpiredTokens`; a store with a TTL expires them on its own. A flushed or evicting
 Redis forgets the counts, and a tokens store that cannot count throws
 `STORE_FAILED` with nothing issued: it fails closed.
 

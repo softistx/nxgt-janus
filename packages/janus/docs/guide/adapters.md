@@ -31,7 +31,7 @@ describeJanusStores({
 
 | Port | Taken by | Methods |
 | --- | --- | --- |
-| `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 (+ 1 optional) + 7 (+ 1 optional) + 5 |
+| `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 (+ 1 optional) + 7 (+ 1 optional) + 5 (+ 1 optional) |
 | `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 |
 
 They are separate on purpose: an application that only authenticates
@@ -184,6 +184,7 @@ interface TokenStore {
 	countAttempt(tokenHash: string, kind: TokenKind): Promise<TokenRecord | null>;
 	spendUserTokens(userId: Id, kind: TokenKind, at: Date, except?: string): Promise<number>; // the unspent ones, but except
 	deleteUserTokens(userId: Id): Promise<number>;
+	deleteExpiredTokens?(before: Date): Promise<number>; // optional: omit it if the database expires on its own
 }
 ```
 
@@ -368,6 +369,41 @@ of the right `kind` whose `spentAt` is empty, skipping the one named by
 `except`. `spendUserTokens` has its own
 outage case.
 
+### `TokenStore.deleteExpiredTokens` (optional)
+
+What `collectExpired()` asks for, beside `SessionStore.deleteExpiredSessions`:
+**delete every token whose `expiresAt` is at or before `before`**, and answer
+how many. Leave it out when your database expires records on its own (a TTL
+index, a key TTL) — nothing breaks, the core compares `expiresAt` on every
+redemption — and implement it when it does not, or the rows pile up.
+
+| The stored token | Written |
+| --- | --- |
+| `expiresAt` at or before `before`, spent or not, of any kind and any user | deleted, and counted |
+| `expiresAt` later than `before`, spent or not | **kept** |
+| none at all | `0`, an absence — never a failure |
+
+**Never delete a token whose `expiresAt` is later, spent or not**: a spent
+token is kept, answered as spent, until it lapses, or a count would start
+over. That includes the throttles' counts — ordinary `secondFactor` tokens
+under a keyed-hash user id, which `deleteUserTokens` never reaches and this
+method is the only thing to collect. The core calls it with `clock.now()`, no
+margin: a link collected answers `TOKEN_UNKNOWN`.
+
+```ts
+import type { TokenStore } from '@nxgt/janus';
+
+// PostgreSQL through Drizzle — one statement, over an index on expires_at
+deleteExpiredTokens: async (before) =>
+	(await db.delete(tokens).where(lte(tokens.expiresAt, before)).returning({ tokenHash: tokens.tokenHash })).length,
+```
+
+`janus()` reads its presence once (`StoreCapabilities.collectExpiredTokens`),
+and refuses a `deleteExpiredTokens` that is there but not a function with a
+`TypeError`. The suite's `tokens.deleteExpired` and `outage.deleteExpiredTokens`
+cases check it, and are skipped with their reason for a store that leaves it
+out. A failure throws, as everywhere on the port.
+
 ### `RelationStore`
 
 ```ts
@@ -449,7 +485,7 @@ compile error naming the missing method.
 
 | Suite | Cases | Harness opens |
 | --- | --- | --- |
-| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 59: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — fifteen of them | `{ stores, faults?, close? }` |
+| `describeJanusStores({ name, harness, runner?, faults?, skip? })` | 61: users, sessions, tokens, and one outage per method whose honest answer can be "nothing" — sixteen of them | `{ stores, faults?, close? }` |
 | `describeRelationStores({ name, harness, runner?, faults?, skip? })` | 16: the relation store, ids of edge characters, and one outage per method | `{ store, faults?, close? }` |
 
 `harness.open()` is called **once per case** and must answer fresh, empty
@@ -546,7 +582,8 @@ describeJanusStores({
 
 A skipped case still appears in the run, with its reason in its name. A case
 that cannot run on the stores it was given — an outage case with no `faults`,
-`collectExpired` on a store without `deleteExpiredSessions`, a `findUsers`
+`sessions.deleteExpired` on a store without `deleteExpiredSessions`,
+`tokens.deleteExpired` on one without `deleteExpiredTokens`, a `findUsers`
 case on a store without `findUsers` — passes, and emits a
 `JANUS_CONFORMANCE_SKIPPED` warning with the reason. A case's `needs` says what
 it cannot run without — one `CaseNeed` or a list: `outage.findUsers` needs
