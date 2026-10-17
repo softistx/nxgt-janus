@@ -746,8 +746,8 @@ the login, it is refused. Nothing is compared.
 counted by the store, in fixed windows of the clock, shared by every process
 over the same store. Nothing locks: the next window signs in, and a sign-in
 that succeeds, or a `changePassword` that is written, starts the count
-again. In tests with `fixedClock`, the window never ends: advance the clock past `retryAfter`, or wire
-`signIn: { throttle: false }`.
+again. In tests with `fixedClock`, the window never ends: advance the clock
+past `retryAfter`, or wire `signIn: { throttle: false }`.
 **Fix:** tell the visitor to wait `retryAfter` seconds — not that the
 password is wrong — and answer 401, as `@nxgt/janus-hono`'s `janusErrors()`
 does, with a `Retry-After` header. If nobody you know tried ten passwords,
