@@ -69,6 +69,11 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **`changePassword` counts in the sign-in throttle, v0.27.0** — each call is
+  one more password tried at the user's login, in the budget `signIn` counts
+  in: past the limit it answers `CREDENTIALS_INVALID` with `reason:
+  'throttled'` and `retryAfter`, the right current password included, and a
+  change that is written restarts the count.
 - **Root `changeEmail.confirm` for instances with several user types, v0.26.0** —
   `auth.changeEmail.confirm(token)` confirms a change of e-mail for a page that
   does not know the user's type: it reads the user the link was issued to and
@@ -144,18 +149,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   in no throttle and spends no link already sent, so accepting an
   invitation no longer goes through `magicLink.request` and its mail
   throttle. Privileged: never with an id a request supplied.
-- **E-mail requests in two steps, v0.20.0** — `magicLink.prepare(email)`,
-  `signInCode.prepare(email)` and `resetPassword.prepare(email)` count the
-  address and look nobody up — the same work for any address — so
-  `MAIL_THROTTLED` reaches the visitor while `send()`, the lookup and the
-  issue, runs off their request, where its time tells nothing. `send()`
-  answers what `request` does, once; a second call is a `TypeError`. A sign-in
-  code's prepared request carries its `challenge`, minted before the lookup,
-  so no decoy is needed for an address nobody holds.
-- **Several users by id in one query, v0.19.0** — `auth.<type>.findMany(ids)`
-  answers the type's users in the order of `ids`, each once, and leaves out an
-  id nobody of that type holds — for a list of rows that would otherwise make
-  one `find` per row and fill the connection pool. The users store gains an
-  optional `findUsers`, implemented by the reference store,
-  `@nxgt/janus-drizzle` 0.7.0 and `@nxgt/janus-mongo` 0.8.0; a store without it
-  is read with `findUser`, ten at a time, so third-party adapters keep working.

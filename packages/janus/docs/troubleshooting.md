@@ -535,7 +535,7 @@ A runtime without `process.emitWarning` stays silent. Silence it with
 **Why:** a store that cannot answer throws; it never answers `null`. The driver's own error is on `error.cause` — not in the message, because a driver message can hold a connection string, and a connection string holds a password.
 **Fix:** answer **503**, and log `cause`. Never map it to 401, 404, `null` or `false`: that turns an outage into a silent lockout, where every user is told they do not exist.
 
-**After a password write** — `resetPassword.confirm`, `changePassword`, `setPassword` — the failure may come from spending the user's reset links and second-factor challenges, which runs after the password is written: the new password is then in place. A retried `changePassword` with the old `current` answers `CREDENTIALS_INVALID`; the next `resetPassword.request` spends any link left live.
+**After a password write** — `resetPassword.confirm`, `changePassword`, `setPassword` — the failure may come from spending the user's reset links and second-factor challenges, which runs after the password is written: the new password is then in place. A `STORE_FAILED` from `changePassword` may therefore follow a written change: check with `signIn` using `next` before retrying. A retried `changePassword` with the old `current` answers `CREDENTIALS_INVALID`; the next `resetPassword.request` spends any link left live.
 
 ```ts
 import { JanusError } from '@nxgt/janus';
@@ -738,19 +738,20 @@ return new Response('Wrong e-mail or password', { status: 401 });
 
 `CredentialError`, with `reason: 'throttled'` and `retryAfter`.
 
-**When:** `signIn`, after ten passwords were tried at this login in the
-current 15-minute window — whatever this password is, **the right one
-included**, and whether or not anybody holds the login. Nothing is compared.
+**When:** `signIn` or `changePassword`, after ten passwords were tried at
+this login in the current 15-minute window. The two share one count. Whatever
+the password is, **the right one included**, and whether or not anybody holds
+the login, it is refused. Nothing is compared.
 **Why:** `signIn` throttles password guessing per login, on by default:
 counted by the store, in fixed windows of the clock, shared by every process
 over the same store. Nothing locks: the next window signs in, and a sign-in
-that succeeds starts the count again. In tests with `fixedClock`, the window
-never ends: advance the clock past `retryAfter`, or wire
-`signIn: { throttle: false }`.
+that succeeds, or a `changePassword` that is written, starts the count
+again. In tests with `fixedClock`, the window never ends: advance the clock
+past `retryAfter`, or wire `signIn: { throttle: false }`.
 **Fix:** tell the visitor to wait `retryAfter` seconds — not that the
 password is wrong — and answer 401, as `@nxgt/janus-hono`'s `janusErrors()`
 does, with a `Retry-After` header. If nobody you know tried ten passwords,
-somebody is guessing: look for `janus.signIn.throttled` in your logs. To
+somebody is guessing: count the `CredentialError`s with `reason: 'throttled'` your handler sees. To
 change the limit or turn it off:
 
 ```ts

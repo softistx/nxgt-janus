@@ -418,7 +418,9 @@ else reaches the store and is asynchronous.
   'throttled'` and `retryAfter`, the seconds until the next window. Nothing
   locks, a login nobody holds is counted alike, and a password sign-in that
   opens a session — after its second factor, when one is active — starts
-  the count again. `signIn: { throttle: { attempts, window } }`
+  the count again. `changePassword` counts in the same budget: a wrong
+  `current` is one more password tried at the login, and past the limit it
+  is refused alike, with `retryAfter`. `signIn: { throttle: { attempts, window } }`
   changes it, `signIn: { throttle: false }` turns it off; a store that
   cannot count throws `STORE_FAILED`
   ([passwords](docs/guide/passwords.md#password-guessing-is-throttled)).
@@ -1673,7 +1675,9 @@ minutes.
 per 15 minutes, then `CREDENTIALS_INVALID` with `retryAfter` until the window
 ends — the right password too, so tell the visitor to wait `retryAfter`
 seconds rather than that the password is wrong. `CredentialRefusal` gained
-`'throttled'`: an exhaustive `switch` over `error.reason` must handle it. A
+`'throttled'`: an exhaustive `switch` over `error.reason` must handle it.
+`changePassword` counts in the same budget, so wrong current passwords can
+make `signIn` answer throttled, and the other way round. A
 test that tries more than ten wrong passwords at one login over a
 `fixedClock` is throttled too: advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`. **Somebody who knows a login can keep its
