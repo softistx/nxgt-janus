@@ -20,7 +20,7 @@ This adapter **defines no error class**. Every error it throws is
 - [`STORE_FAILED`: `sessions.<operation>: the store could not answer`](#store_failed-sessionsoperation-the-store-could-not-answer)
 - [`STORE_FAILED`: `sessions.<operation>: a reply that is not … — a key under the prefix this adapter did not write`](#store_failed-sessionsoperation-a-reply-that-is-not---a-key-under-the-prefix-this-adapter-did-not-write)
 - [`CROSSSLOT Keys in request don't hash to the same slot`, or `Script attempted to access a non local key in a cluster node`](#crossslot-keys-in-request-dont-hash-to-the-same-slot-or-script-attempted-to-access-a-non-local-key-in-a-cluster-node)
-- [`UNSUPPORTED`: `collectExpired: store.sessions does not implement deleteExpiredSessions …`](#unsupported-collectexpired-storesessions-does-not-implement-deleteexpiredsessions-)
+- [`UNSUPPORTED`: `collectExpired: store.sessions does not implement deleteExpiredSessions, nor store.tokens deleteExpiredTokens …`](#unsupported-collectexpired-storesessions-does-not-implement-deleteexpiredsessions-nor-storetokens-deleteexpiredtokens-)
 - [`TypeError: connectRedis: this URI is already connected with other options.`](#typeerror-connectredis-this-uri-is-already-connected-with-other-options)
 - [Users are signed out after Redis restarts](#users-are-signed-out-after-redis-restarts)
 - [Users are signed out while Redis is up, under memory pressure](#users-are-signed-out-while-redis-is-up-under-memory-pressure)
@@ -139,12 +139,12 @@ user's set, which live in different hash slots. Cluster is not supported.
 
 **Fix:** give Janus a single Redis, or a primary with replicas.
 
-### `UNSUPPORTED`: `collectExpired: store.sessions does not implement deleteExpiredSessions …`
+### `UNSUPPORTED`: `collectExpired: store.sessions does not implement deleteExpiredSessions, nor store.tokens deleteExpiredTokens …`
 
 **When:** `auth.collectExpired()`.
 
-**Why:** Redis expires every session key itself, at its `expiresAt`. There is
-nothing to collect, so the method is deliberately not implemented.
+**Why:** Redis expires every session and token key itself, at its
+`expiresAt`. There is nothing to collect, so neither method is implemented.
 
 **Fix:** remove the scheduled job.
 

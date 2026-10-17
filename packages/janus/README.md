@@ -1665,8 +1665,8 @@ test that tries more than ten wrong passwords at one login over a
 `fixedClock` is throttled too: advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`. **Somebody who knows a login can keep its
 password sign-in shut**, ten tries a window; a sign-in code or link, when you wire them, still opens it — the throttle counts passwords, never those.
-On a store with no TTL, schedule `collectExpired()`: every login tried adds a
-row per window. One password tried against
+On a store with no TTL (PostgreSQL through `@nxgt/janus-drizzle`), schedule
+`collectExpired()`: every login tried adds a row per window, and it deletes them. One password tried against
 many logins is not counted: rate-limit `signIn` per client address yourself
 ([passwords](docs/guide/passwords.md#what-you-still-limit-yourself)). The
 counts live in the tokens store: a flushed or evicting Redis forgets them,
@@ -1697,7 +1697,8 @@ counted: add a per-IP ceiling with `@nxgt/redis` rate limits
 [example](docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)). A test suite that requests more than five of
 one flow for one address or user over a `fixedClock` is throttled: advance the
 clock past `retryAfter`, or wire `mail: { throttle: false }`. The counts live
-in the tokens store, so on a store with no TTL schedule `collectExpired()`, a
+in the tokens store, so on a store with no TTL (PostgreSQL through `@nxgt/janus-drizzle`) schedule
+`collectExpired()`, which deletes them; a
 flushed or evicting Redis forgets them, and a tokens store that cannot count
 throws `STORE_FAILED` with nothing issued
 ([e-mail flows](docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)).

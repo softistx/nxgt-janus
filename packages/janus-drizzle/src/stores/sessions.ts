@@ -2,6 +2,7 @@ import type { PgDatabase } from '@nxgt/drizzle/pg';
 import type { SessionRecord, SessionStore } from '@nxgt/janus';
 import { and, eq, isNull, lte, ne, sql } from 'drizzle-orm';
 import { run } from '../translate';
+import { deleteAndCount } from './count-deleted';
 import type { IdentityTables } from './identity-tables';
 import { stamp, toSession } from './records';
 
@@ -70,11 +71,11 @@ export function sessionStore(
 
 		deleteExpiredSessions: (before) =>
 			run$('deleteExpiredSessions', async () => {
-				const deleted = await db
-					.delete(tables.sessions)
-					.where(lte(tables.sessions.expiresAt, before))
-					.returning({ id: tables.sessions.id });
-				return deleted.length;
+				return deleteAndCount(
+					db,
+					tables.sessions,
+					lte(tables.sessions.expiresAt, before),
+				);
 			}),
 	};
 }

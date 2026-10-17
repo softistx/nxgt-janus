@@ -121,7 +121,8 @@ a restart, a failover or a `SCRIPT FLUSH`.
   the same call fails in 1 ms, and `janusErrors()` answers 503 at once.
 - **`auth.collectExpired()` answers `UNSUPPORTED`** with this adapter. Redis
   expires every session and token key itself, so there is nothing to collect;
-  `deleteExpiredSessions` is deliberately not implemented. Do not schedule it.
+  `deleteExpiredSessions` and `deleteExpiredTokens` are deliberately not
+  implemented. Do not schedule it.
 - **A lapsed session is gone, not revoked.** Redis drops a key when its expiry
   passes. The core refuses a lapsed session on every read regardless, so
   nothing changes for your users. But a session cannot be read once it has

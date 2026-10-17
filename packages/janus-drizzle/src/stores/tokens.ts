@@ -1,7 +1,8 @@
 import type { PgDatabase } from '@nxgt/drizzle/pg';
 import type { Id, TokenKind, TokenRecord, TokenStore } from '@nxgt/janus';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, lte, ne, sql } from 'drizzle-orm';
 import { run } from '../translate';
+import { deleteAndCount } from './count-deleted';
 import type { IdentityTables } from './identity-tables';
 import { stamp } from './records';
 
@@ -51,6 +52,17 @@ export function tokenStore(db: PgDatabase, tables: IdentityTables): TokenStore {
 					.where(eq(tables.tokens.userId, userId))
 					.returning({ tokenHash: tables.tokens.tokenHash });
 				return deleted.length;
+			}),
+
+		deleteExpiredTokens: (before) =>
+			run$('deleteExpiredTokens', async () => {
+				// Spent or not, of any kind and any user: a throttle's count is a
+				// token too. A row that lapses later is never touched.
+				return deleteAndCount(
+					db,
+					tables.tokens,
+					lte(tables.tokens.expiresAt, before),
+				);
 			}),
 	};
 }

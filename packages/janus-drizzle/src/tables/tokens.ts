@@ -39,6 +39,8 @@ export function tokensTable(table: TableFactory) {
 			),
 			check('tokens_attempts', sql`${t.attempts} >= 0`),
 			index('tokens_user_id').on(t.userId),
+			/** `deleteExpiredTokens`: PostgreSQL has no TTL, so the core collects. */
+			index('tokens_expires_at').on(t.expiresAt),
 		],
 	);
 }

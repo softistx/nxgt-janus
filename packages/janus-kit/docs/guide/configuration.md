@@ -154,12 +154,13 @@ guessing per login, and the counts of e-mailed requests (`mail.throttle`):
 ten passwords again, every address ask for five e-mails again — as a flush signs everybody out. Keep `FLUSHDB` for tests.
 
 Absent, sessions and tokens stay in the database. On PostgreSQL, schedule
-`kit.auth.collectExpired()` then: PostgreSQL has no TTL — and a delete of
-lapsed tokens, which it does not collect: `@nxgt/janus`'s sign-in throttle
-adds one per login tried and per window, its mail throttle one per flow, address or user and window
-(`delete from tokens where expires_at < now() - interval '1 hour';`, schema-qualified when the tables have a schema of their own). `tokens` has no index on `expires_at`, so the delete scans the table: add
-`create index on tokens (expires_at)` in a migration of yours if it grows. On MongoDB, a TTL index
-removes them, and `collectExpired()` answers `UNSUPPORTED`.
+`kit.auth.collectExpired()` then: PostgreSQL has no TTL, and the call deletes
+lapsed sessions and lapsed tokens — the sign-in throttle's counts, one per
+login tried and per window, and the mail throttle's — in one statement each.
+Both tables are indexed on `expires_at` once the
+[To 0.9](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/docs/guide/migrations.md#to-09-an-index-on-tokensexpires_at)
+migration is applied. On MongoDB, a TTL index removes them,
+and `collectExpired()` answers `UNSUPPORTED`.
 
 ## `auth`
 
