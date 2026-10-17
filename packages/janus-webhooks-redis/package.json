@@ -1,6 +1,6 @@
 {
 	"name": "@nxgt/janus-webhooks-redis",
-	"version": "0.5.10",
+	"version": "0.5.11",
 	"description": "The Redis queue for @nxgt/janus-webhooks on @nxgt/redis: deliveries that outlive the process, claimed atomically under a lease",
 	"license": "MIT",
 	"type": "module",
