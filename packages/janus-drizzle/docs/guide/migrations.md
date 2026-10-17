@@ -292,10 +292,18 @@ token, so the two run side by side. Three things to know:
   `create index on tokens (expires_at)` yourself; PostgreSQL named it
   `tokens_expires_at_idx`. drizzle-kit does not know it, so it writes
   `tokens_expires_at` beside it and the table keeps two indexes on one column.
-  `drop index tokens_expires_at_idx;` in the same migration.
+  `drop index tokens_expires_at_idx;` in the same migration (`drop index
+  janus.tokens_expires_at_idx;` with a schema of their own).
 - **`CREATE INDEX` blocks writes while it builds**, and sign-ins write to
   `tokens` (the throttles' counts). On a large table, build it off-peak, or
-  by hand with `CREATE INDEX CONCURRENTLY` and let drizzle-kit find it there.
+  build it `CONCURRENTLY` yourself, outside the migration, under the exact
+  name `tokens_expires_at` (`create index concurrently tokens_expires_at on
+  "janus"."tokens" (expires_at);`, schema-qualified when the tables have a
+  schema of their own). It cannot run in the migrator's transaction
+  (PostgreSQL error 25001). drizzle-kit compares snapshots, not the database,
+  so it still writes the plain `CREATE INDEX`, which would fail with
+  `relation "tokens_expires_at" already exists`: edit the generated statement
+  to `CREATE INDEX IF NOT EXISTS "tokens_expires_at" …`.
 - **The first `collectExpired()` deletes the whole backlog** in one
   statement, every lapsed throttle row since the table was created. Run it
   off-peak the first time.
@@ -313,7 +321,9 @@ const collected = await auth.collectExpired();
 console.info(`janus: ${collected} lapsed sessions and tokens deleted`);
 ```
 
-`expires_at` is indexed on both tables, so each is one indexed `delete`. The
+`expires_at` is indexed on both tables (on `tokens` only once the [0.9
+migration](#to-09-an-index-on-tokensexpires_at) is applied), so each is one
+indexed `delete`. The
 tokens are not few: `@nxgt/janus`'s sign-in throttle adds a row per login
 tried and per 15-minute window, a login nobody holds included, and its mail
 throttle one per flow, address or user and window. A token is deleted spent

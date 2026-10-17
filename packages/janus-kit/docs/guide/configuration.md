@@ -157,7 +157,9 @@ Absent, sessions and tokens stay in the database. On PostgreSQL, schedule
 `kit.auth.collectExpired()` then: PostgreSQL has no TTL, and the call deletes
 lapsed sessions and lapsed tokens — the sign-in throttle's counts, one per
 login tried and per window, and the mail throttle's — in one statement each.
-Both tables are indexed on `expires_at`. On MongoDB, a TTL index removes them,
+Both tables are indexed on `expires_at` once the
+[To 0.9](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/docs/guide/migrations.md#to-09-an-index-on-tokensexpires_at)
+migration is applied. On MongoDB, a TTL index removes them,
 and `collectExpired()` answers `UNSUPPORTED`.
 
 ## `auth`
