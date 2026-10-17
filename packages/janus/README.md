@@ -1782,13 +1782,13 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and eighty plausible mistakes, one hundred and eighty refused at compile time — and
+**One hundred and eighty-one plausible mistakes, one hundred and eighty-one refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
-are folders with one file per behaviour: `test/types/port/` (twenty-five, on
+are folders with one file per behaviour: `test/types/port/` (twenty-six, on
 the identity stores' port, from the point of view of the person implementing
 it), `test/types/auth/` (eighty-eight, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
