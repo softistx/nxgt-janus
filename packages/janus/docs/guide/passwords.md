@@ -197,15 +197,11 @@ tokens then tells which logins were tried, for a guessed list. Each expires
 two windows after its window starts — half an hour by default — **Redis and MongoDB drop it then;
 a store with no TTL keeps it** until `collectExpired()` deletes it (the
 tokens store's optional `deleteExpiredTokens`), and every login tried,
-registered or not, adds a row per window. Until the store you use implements
-it, schedule a delete with `@nxgt/janus-drizzle`:
-
-```sql
-delete from tokens where expires_at < now() - interval '1 hour'; -- janus.tokens when your tables have a schema of their own
-```
-
-`tokens` has no index on `expires_at`, so the delete scans the table: add
-`create index on tokens (expires_at)` in a migration of yours if it grows.
+registered or not, adds a row per window. Schedule `collectExpired()` on such
+a store: `@nxgt/janus-drizzle` implements `deleteExpiredTokens` (since 0.9),
+with an index on `expires_at` that its
+[migration](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/docs/guide/migrations.md#to-09-an-index-on-tokensexpires_at)
+adds. A store of your own implements the method, or its rows stay.
 
 The key is your first `secondFactor` key: wiring
 `secondFactor` for the first time, or putting a new key first, starts every
