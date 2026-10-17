@@ -7,6 +7,11 @@
  * password sign-in shut, window after window: a per-client limit is the
  * application's, and a sign-in code still opens the account.
  *
+ * `changePassword` counts in the same budget: each call is one more
+ * password tried at the user's login, counted before `current` is compared
+ * (a user with no password too) and refused past the limit alike, and a
+ * change that is written restarts the count. Wrong guesses of both add up.
+ *
  * Counted per login, **known or not**: an unknown login is counted as a
  * registered one is, so the throttle does not tell them apart. Counted
  * before anything is looked up or compared, so of twenty guesses at once,

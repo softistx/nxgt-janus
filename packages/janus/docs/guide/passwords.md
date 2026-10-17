@@ -175,6 +175,14 @@ What it does, precisely:
   active, only once its code or a recovery code opens the session. A
   password that only opens a challenge restarts nothing, so knowing the
   password buys no more than ten challenges per window.
+- **`changePassword` counts in the same budget.** Each call is one more
+  password tried at the user's login, counted before `current` is compared
+  (a user with no password too, so the answer does not tell them apart), so
+  a caller holding a session cannot guess current passwords without limit.
+  Past the limit it answers `CREDENTIALS_INVALID` with `reason: 'throttled'`
+  and `retryAfter`, the right `current` included, and writes nothing. One
+  budget per account: wrong guesses at `signIn` and at `changePassword` add
+  up, and a change that is written starts the count again.
 - **The windows are fixed slices of the clock**, not sliding: ten attempts
   at the end of one window and ten at the start of the next are allowed.
 
@@ -228,8 +236,6 @@ The throttle counts per login. It does not see:
 - **One password tried against many logins** (password spraying), nor many
   logins from one client: limit `signIn` **per client address** in front of
   the call, with the limiter you already run.
-- `changePassword`, which compares the current password too: limit it per
-  user.
 - `resetPassword.request`, `signInCode.request` and `magicLink.request`,
   which send e-mail — and their `prepare`: [the mail throttle](email-flows.md#requests-that-send-e-mail-are-throttled)
   counts them per address, but not per client. Limit them per client.

@@ -69,6 +69,11 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **`changePassword` counts in the sign-in throttle, v0.27.0** — each call is
+  one more password tried at the user's login, in the budget `signIn` counts
+  in: past the limit it answers `CREDENTIALS_INVALID` with `reason:
+  'throttled'` and `retryAfter`, the right current password included, and a
+  change that is written restarts the count.
 - **Collecting lapsed one-time tokens, v0.25.0** — `collectExpired()` deletes
   lapsed sessions and, through a new optional `TokenStore.deleteExpiredTokens`,
   lapsed one-time tokens too: the sign-in and mail throttles' counts
