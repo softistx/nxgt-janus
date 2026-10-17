@@ -33,4 +33,5 @@ export const RESERVED_TYPES = [
 	'cookie',
 	'collectExpired',
 	'types',
+	'changeEmail',
 ] as const;

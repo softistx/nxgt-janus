@@ -366,8 +366,8 @@ janus({ user: z.object({ username: z.string() }), password: { login: 'username' 
 Also `janus: "<name>" cannot name a user type — janus() answers a method of that name` and `janus: users declares no user type`.
 
 **When:** `janus({ users: {...} })`.
-**Why:** each type becomes a property of what `janus()` answers — `auth.staff` — so it must be a name, and not one of the shared methods (`authenticate`, `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`, `collectExpired`, `types`).
-**Fix:** `users: { staffMember: {...} }`, not `'staff-member'` or `cookie`.
+**Why:** each type becomes a property of what `janus()` answers — `auth.staff` — so it must be a name, and not one of the shared methods (`authenticate`, `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`, `collectExpired`, `types`, `changeEmail`).
+**Fix:** `users: { staffMember: {...} }`, not `'staff-member'`, `cookie` or `changeEmail`.
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
@@ -949,7 +949,7 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 `TokenError`: `<call>: no such token`, `<call>: the token was already used`, `<call>: the token has expired`.
 
 **When:** `verifyEmail.confirm`, `resetPassword.confirm`, `changeEmail.confirm`.
-**Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted, and a change link confirmed through another user type's `changeEmail` or passed to another flow. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword` and for `changeEmail`. A change link is also spent by a newer `changeEmail.send` for the same user (only the last one works), and by an `update` that changes the user's e-mail.
+**Why:** a token is spent by its first use, and an expired one is spent too. `TOKEN_UNKNOWN` also covers a token whose user was deleted, and a change link confirmed through another user type's `changeEmail` (which spends it, so the right type then answers `TOKEN_SPENT`) or passed to another flow. The defaults are 24 h for `verifyEmail`, 1 h for `resetPassword` and for `changeEmail`. A change link is also spent by a newer `changeEmail.send` for the same user (only the last one works), and by an `update` that changes the user's e-mail.
 A reset link answers `resetPassword.confirm: the token was already used` in
 two more cases: a newer `resetPassword.request` for the same user spent it —
 only the last link sent works, so a visitor who asked twice and clicked the
@@ -958,7 +958,9 @@ sent, by another link's `confirm`, `changePassword` or `setPassword`. When two
 requests race, even the last link can be spent: at most one survives,
 sometimes none.
 **Fix:** answer 400 and offer to send a new link — and tell the visitor to use
-the latest e-mail. To change the lifetimes:
+the latest e-mail. With several user types, confirm a change link from a page
+that does not know the type with the root's `auth.changeEmail.confirm(token)`,
+never through a guessed type. To change the lifetimes:
 
 ```ts
 janus({ ..., tokens: { verifyEmail: '72h', resetPassword: '2h' } });

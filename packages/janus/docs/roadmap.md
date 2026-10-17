@@ -69,6 +69,12 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Root `changeEmail.confirm` for instances with several user types, v0.26.0** —
+  `auth.changeEmail.confirm(token)` confirms a change of e-mail for a page that
+  does not know the user's type: it reads the user the link was issued to and
+  confirms as their type does. A type's own `confirm` still answers
+  `TOKEN_UNKNOWN`, and spends the token, for another type's link; no user type
+  may be named `changeEmail`.
 - **Collecting lapsed one-time tokens, v0.25.0** — `collectExpired()` deletes
   lapsed sessions and, through a new optional `TokenStore.deleteExpiredTokens`,
   lapsed one-time tokens too: the sign-in and mail throttles' counts
@@ -153,15 +159,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   optional `findUsers`, implemented by the reference store,
   `@nxgt/janus-drizzle` 0.7.0 and `@nxgt/janus-mongo` 0.8.0; a store without it
   is read with `findUser`, ten at a time, so third-party adapters keep working.
-- **Requests that send e-mail are throttled, v0.18.0** —
-  `janus({ mail: { throttle: { attempts, window } } })`, five per ten
-  minutes by default and `false` to turn it off. `magicLink.request`,
-  `signInCode.request` and `resetPassword.request` count per address;
-  `verifyEmail.send` and an e-mailed `stepUp.request` count per user; each
-  flow on its own. Past the limit a request throws `MailThrottledError`
-  (`MAIL_THROTTLED`, 429) with `retryAfter` and issues, spends and rotates
-  nothing: the last link or code sent still works, so a loop on an address
-  cannot lock its owner out.
-  The window is no longer than the shortest default token lifetime. The counts
-  live in the tokens store, with no port change. `MailConfig` and
-  `MailThrottleConfig` are exported.

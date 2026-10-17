@@ -68,16 +68,20 @@ export function changeEmailFlows(
 	};
 }
 
-/** Redeems a change's token: the write, then the events it earned. */
-async function confirmChange(
+/**
+ * Redeems a change's token: the write, then the events it earned. `asked` is
+ * the type whose `confirm` was called, or null for the root's, where the
+ * user's own type answers.
+ */
+export async function confirmChange(
 	context: Context,
-	type: ResolvedType,
+	asked: ResolvedType | null,
 	secret: string,
 	where: string,
 ): Promise<AnyUser> {
-	const { token, user } = await redeemChangeEmailToken(
+	const { token, user, type } = await redeemChangeEmailToken(
 		context,
-		type,
+		asked,
 		secret,
 		where,
 	);

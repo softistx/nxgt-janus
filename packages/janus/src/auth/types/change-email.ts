@@ -46,6 +46,38 @@ export interface ChangeEmailApi<U> {
 		 * holds is `LOGIN_TAKEN` — the token already spent; an inactive user
 		 * is `USER_INACTIVE`. A user written in between is `VERSION_CONFLICT`,
 		 * also after the token is spent.
+		 *
+		 * **With several user types**, a token issued to a user of another type
+		 * is `TOKEN_UNKNOWN` here, and it is spent. A page that does not know
+		 * the type — an anonymous confirmation page — calls the root's
+		 * `janus.changeEmail.confirm` instead.
+		 */
+		confirm(token: string): Promise<U>;
+	};
+}
+
+/**
+ * What an instance with several user types answers at its root when at least
+ * one has an e-mail: the confirmation of a change, whatever the user's type.
+ */
+export interface AnyTypeChangeEmailApi<U> {
+	readonly changeEmail: {
+		/**
+		 * Confirms a change of e-mail for a page that does not know the user's
+		 * type: spends the link's token, reads the user it was issued to,
+		 * whatever their type, and then does what that type's `confirm` does —
+		 * the same move, events and refusals. The answer's `type` says which
+		 * type it was.
+		 *
+		 * **Call it from a `POST`**, never from the `GET` of the link. An
+		 * unknown, spent or lapsed token is `TOKEN_UNKNOWN`, `TOKEN_SPENT` or
+		 * `TOKEN_EXPIRED`; a user gone since, or of a type with no e-mail, is
+		 * `TOKEN_UNKNOWN`; a user whose e-mail is no longer the one the link
+		 * was asked from is `TOKEN_STALE`; an address another user of the type
+		 * holds is `LOGIN_TAKEN` — the token already spent; an inactive user
+		 * is `USER_INACTIVE`. A user written in between is `VERSION_CONFLICT`.
+		 *
+		 * `send` stays on each type: `janus.admin.changeEmail.send(...)`.
 		 */
 		confirm(token: string): Promise<U>;
 	};
