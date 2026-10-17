@@ -1,5 +1,17 @@
 # @nxgt/janus-kit
 
+## 0.1.25
+
+### Patch Changes
+
+- [#235](https://github.com/softistx/nxgt-janus/pull/235) [`35014b0`](https://github.com/softistx/nxgt-janus/commit/35014b0d2bd7076a887ae41da52396a5eed241af) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Documentation only: on PostgreSQL, `kit.auth.collectExpired()` now deletes lapsed tokens, the throttles' counts included, beside lapsed sessions, so the hand-written `delete from tokens` the configuration guide advised is no longer needed. Upgrade `@nxgt/janus-drizzle` to 0.9 and `@nxgt/janus` to 0.25 for it.
+- Updated dependencies [[`edabeb3`](https://github.com/softistx/nxgt-janus/commit/edabeb310e1e944c0f555979d5f119302f35618b), [`35014b0`](https://github.com/softistx/nxgt-janus/commit/35014b0d2bd7076a887ae41da52396a5eed241af), [`35014b0`](https://github.com/softistx/nxgt-janus/commit/35014b0d2bd7076a887ae41da52396a5eed241af), [`35014b0`](https://github.com/softistx/nxgt-janus/commit/35014b0d2bd7076a887ae41da52396a5eed241af)]:
+  - @nxgt/janus@0.25.0
+  - @nxgt/janus-drizzle@0.9.0
+  - @nxgt/janus-mongo@0.9.2
+  - @nxgt/janus-redis@0.4.14
+  - @nxgt/janus-telemetry@0.13.1
+
 ## 0.1.24
 
 ### Patch Changes

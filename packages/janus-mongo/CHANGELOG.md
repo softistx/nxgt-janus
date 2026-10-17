@@ -1,5 +1,13 @@
 # @nxgt/janus-mongo
 
+## 0.9.2
+
+### Patch Changes
+
+- [#235](https://github.com/softistx/nxgt-janus/pull/235) [`35014b0`](https://github.com/softistx/nxgt-janus/commit/35014b0d2bd7076a887ae41da52396a5eed241af) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Documentation only: the TTL indexes drop lapsed tokens as well as sessions, so `deleteExpiredTokens` is deliberately not implemented either, and `auth.collectExpired()` still answers `UNSUPPORTED` with this adapter. The `createMongoStores` JSDoc named `sessions.collectExpired()`, which does not exist.
+- Updated dependencies [[`edabeb3`](https://github.com/softistx/nxgt-janus/commit/edabeb310e1e944c0f555979d5f119302f35618b)]:
+  - @nxgt/janus@0.25.0
+
 ## 0.9.1
 
 ### Patch Changes
