@@ -1,7 +1,7 @@
 /**
  * Proving an e-mail on the application's proof — `verifyEmail.proveFirst`:
  * asked of a type with no e-mail, its answer read as a sign-in, and its
- * answer read as the user. Cases 79–81 of the eighty-eight — see
+ * answer read as the user. Cases 79–81 of the ninety-two — see
  * `fixtures.ts`. The shapes that must keep compiling are at the end of this
  * file.
  */

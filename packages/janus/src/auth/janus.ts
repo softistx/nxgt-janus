@@ -3,6 +3,7 @@ import { systemClock } from '../time/clock';
 import { type JanusConfig, resolveConfig } from './config';
 import { warnThrottleWindow } from './config/warn-throttle-window';
 import { createContext } from './context';
+import { anyTypeChangeEmail } from './email-flows/any-type-change-email';
 import { resolveEvents } from './events';
 import { guardStores } from './outage';
 import { assertStores } from './port/assert-stores';
@@ -103,6 +104,10 @@ export function janus<const C extends JanusConfig>(
 	// type's schema before any of these answers was built.
 	const surface = resolved.single
 		? { ...shared, ...types['user'] }
-		: { ...shared, ...types };
+		: {
+				...shared,
+				...types,
+				...anyTypeChangeEmail(context),
+			};
 	return surface as unknown as Janus<C>;
 }

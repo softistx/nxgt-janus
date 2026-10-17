@@ -48,6 +48,7 @@ export type { SealingKey } from './sealing';
 export { assertFresh } from './sessions/fresh';
 export type { StandardSchemaV1 } from './standard-schema';
 export type {
+	AnyTypeChangeEmailApi,
 	Authenticated,
 	ChangeEmailApi,
 	Checked,

@@ -798,6 +798,19 @@ there. Without janus-mail, send it with your own mailer.
 - **Events**: `user.emailChanged`, carrying `formerEmail`, then
   `user.emailVerified`. An `update` that moves the e-mail spends the
   user's pending links, so a move back to the old address revives none.
+- **With several user types**, `auth.admin.changeEmail.confirm(token)` answers
+  `TOKEN_UNKNOWN` for a token issued to a user of another type — and the token
+  is spent. A confirmation page that does not know the type calls the root's
+  instead, which reads the user the token was issued to, whatever their type,
+  and confirms exactly as their type does (`send` stays on each type):
+
+  ```ts
+  await auth.admin.changeEmail.send(admin, newEmail);
+  const changed = await auth.changeEmail.confirm(token); // changed.type === 'admin'
+  ```
+
+  It exists when at least one type has an e-mail, so a type cannot be named
+  `changeEmail`.
 
 [The e-mail flows guide](docs/guide/email-flows.md#changeemail) has a Hono
 route for each step, with the notice to the former address.
@@ -1796,7 +1809,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and eighty-one plausible mistakes, one hundred and eighty-one refused at compile time — and
+**One hundred and eighty-five plausible mistakes, one hundred and eighty-five refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1804,10 +1817,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-six, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (eighty-eight, on `janus()`, from the point of view of
+it), `test/types/auth/` (ninety-two, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, three on changing an e-mail, four on `findOrCreate`) and `test/types/permissions/` (fifty-two, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, four on `findOrCreate`) and `test/types/permissions/` (fifty-two, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible
