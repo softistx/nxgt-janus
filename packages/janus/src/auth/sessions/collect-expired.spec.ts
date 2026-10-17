@@ -6,6 +6,8 @@ import { createMemoryStores } from '../port/memory';
 import type { JanusStores } from '../port/types';
 
 const DAY = 24 * 3_600_000;
+/** The tokens `lapsed()` leaves behind: the reset link, and the mail throttle's count of it. */
+const TOKENS = 2;
 
 /** The memory stores, minus the collectors `without` names, and with what each one is asked. */
 function recording(without: 'sessions' | 'tokens' | 'both' | 'none') {
@@ -53,7 +55,7 @@ describe('collectExpired', () => {
 	it('adds the lapsed sessions and the lapsed tokens, sessions first, both asked at clock.now()', async () => {
 		const { auth, clock, asked } = await lapsed('none');
 
-		expect(await auth.collectExpired()).toBeGreaterThanOrEqual(2);
+		expect(await auth.collectExpired()).toBe(1 + TOKENS);
 
 		expect(asked.map((call) => call.slot)).toEqual(['sessions', 'tokens']);
 		for (const call of asked)
@@ -71,7 +73,7 @@ describe('collectExpired', () => {
 	it('collects the tokens alone when the sessions store has no collector', async () => {
 		const { auth, asked } = await lapsed('sessions');
 
-		expect(await auth.collectExpired()).toBeGreaterThanOrEqual(1);
+		expect(await auth.collectExpired()).toBe(TOKENS);
 		expect(asked.map((call) => call.slot)).toEqual(['tokens']);
 	});
 
