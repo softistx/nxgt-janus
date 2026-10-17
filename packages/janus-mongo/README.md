@@ -139,8 +139,8 @@ spend the same one.
   minute. The core compares `expiresAt` on every read, and that is what expires
   it.
 - **`auth.collectExpired()` answers `UNSUPPORTED`** with this adapter. The TTL
-  index already drops lapsed sessions, so `deleteExpiredSessions` is
-  deliberately not implemented.
+  indexes already drop lapsed sessions and tokens, so `deleteExpiredSessions`
+  and `deleteExpiredTokens` are deliberately not implemented.
 - **No sync function is called for you** — `syncMongoAdapter`, or
   `syncMongoStores` for identities alone. The core never manages a schema.
   Without it there is no unique index, and nothing stops two concurrent sign-ups

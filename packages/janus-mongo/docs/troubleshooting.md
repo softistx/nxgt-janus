@@ -36,7 +36,7 @@ How the driver's errors become the port's:
 - [`LOGIN_TAKEN` — `<operation>: the login is taken by another <type>`](#login_taken--operation-the-login-is-taken-by-another-type)
 - [`STORE_FAILED` — `<slot>.<operation>: a duplicate key on <fields>, which this adapter never writes on purpose`](#store_failed--slotoperation-a-duplicate-key-on-fields-which-this-adapter-never-writes-on-purpose)
 - [`NOT_FOUND` / `VERSION_CONFLICT` — `updateUser: …`](#not_found--version_conflict--updateuser-)
-- [`UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions …`](#unsupported--collectexpired-storesessions-does-not-implement-deleteexpiredsessions--)
+- [`UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions, nor store.tokens deleteExpiredTokens …`](#unsupported--collectexpired-storesessions-does-not-implement-deleteexpiredsessions-nor-storetokens-deleteexpiredtokens--)
 - [Lapsed sessions and tokens are still in the collection](#lapsed-sessions-and-tokens-are-still-in-the-collection)
 - [`findObjects` answers ids in a different order than JavaScript sorts them](#findobjects-answers-ids-in-a-different-order-than-javascript-sorts-them)
 
@@ -174,10 +174,10 @@ if (error instanceof JanusError && error.code === 'STORE_FAILED') {
 **Why:** the write matched nothing, and the adapter reads again to tell an unknown id from a version that moved. On a conflict nothing was written.
 **Fix:** for a conflict, read the user again and retry; see `VERSION_CONFLICT` in the core's troubleshooting.
 
-### `UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions — …`
+### `UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions, nor store.tokens deleteExpiredTokens — …`
 
 **When:** `auth.collectExpired()`.
-**Why:** deliberate. The `expiry` TTL index already deletes lapsed sessions, so this adapter does not implement `deleteExpiredSessions`.
+**Why:** deliberate. The `expiry` TTL indexes already delete lapsed sessions and tokens, so this adapter implements neither `deleteExpiredSessions` nor `deleteExpiredTokens`.
 **Fix:** do not schedule `collectExpired` with this adapter. Nothing is lost: expiry never depended on it.
 
 ### Lapsed sessions and tokens are still in the collection

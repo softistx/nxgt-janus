@@ -24,8 +24,8 @@ Nothing yet.
   a reverse index, which a database does better.
 - **Redis Cluster.** A script reads keys it finds on the way, which may live
   in different slots.
-- **`collectExpired()`.** Redis expires sessions itself; the method answers
-  `UNSUPPORTED` on purpose.
+- **`collectExpired()`.** Redis expires sessions and tokens itself; the
+  method answers `UNSUPPORTED` on purpose, for tokens as well as sessions.
 - **Clients other than Bun's.** `@nxgt/redis`'s connection is Bun's
   `RedisClient`, so this runs on Bun.
 - **Error classes of its own.** The adapter throws `@nxgt/janus`'s classes,
