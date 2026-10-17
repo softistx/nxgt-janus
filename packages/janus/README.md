@@ -1331,7 +1331,7 @@ describeJanusStores({
 });
 ```
 
-There are 59 cases. They cover:
+There are 61 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,

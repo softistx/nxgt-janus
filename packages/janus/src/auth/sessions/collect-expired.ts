@@ -15,10 +15,14 @@ import type { Context } from '../context';
  */
 export async function collectExpired(context: Context): Promise<number> {
 	const { store, clock, capabilities } = context;
-	const sessions = capabilities.collectExpired;
-	const tokens = capabilities.collectExpiredTokens;
+	const sessions = capabilities.collectExpired
+		? store.sessions.deleteExpiredSessions
+		: undefined;
+	const tokens = capabilities.collectExpiredTokens
+		? store.tokens.deleteExpiredTokens
+		: undefined;
 
-	if (!sessions && !tokens) {
+	if (sessions === undefined && tokens === undefined) {
 		throw new UnsupportedError(
 			'collectExpired: store.sessions does not implement deleteExpiredSessions, nor store.tokens deleteExpiredTokens — their stores expire records on their own, or implement the methods',
 			{ slot: 'sessions', operation: 'deleteExpiredSessions' },
@@ -26,12 +30,6 @@ export async function collectExpired(context: Context): Promise<number> {
 	}
 
 	const before = clock.now();
-	let deleted = 0;
-	if (sessions) {
-		deleted += (await store.sessions.deleteExpiredSessions?.(before)) ?? 0;
-	}
-	if (tokens) {
-		deleted += (await store.tokens.deleteExpiredTokens?.(before)) ?? 0;
-	}
-	return deleted;
+	const collected = sessions === undefined ? 0 : await sessions(before);
+	return collected + (tokens === undefined ? 0 : await tokens(before));
 }
