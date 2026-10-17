@@ -1,5 +1,12 @@
 # @nxgt/janus-mail
 
+## 0.10.4
+
+### Patch Changes
+
+- Updated dependencies [[`9783db4`](https://github.com/softistx/nxgt-janus/commit/9783db4f9f68585f45821ce7013aa65d4c4ab5dc)]:
+  - @nxgt/janus@0.27.0
+
 ## 0.10.3
 
 ### Patch Changes
