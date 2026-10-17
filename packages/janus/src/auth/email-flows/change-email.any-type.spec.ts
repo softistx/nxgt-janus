@@ -6,6 +6,7 @@ import { fixedClock } from '../../time/clock';
 import type { UserEvent } from '../events';
 import { janus } from '../janus';
 import { createMemoryStores } from '../port/memory';
+import { hashSecret } from '../secrets';
 
 const Account = z.strictObject({ email: z.email(), name: z.string() });
 
@@ -18,6 +19,7 @@ function twoTypes() {
 		users: {
 			admin: { schema: Account, password: { login: 'email' } },
 			member: { schema: Account, password: { login: 'email' } },
+			porter: { schema: z.strictObject({ username: z.string() }) },
 		},
 		store,
 		hasher,
@@ -30,6 +32,7 @@ function twoTypes() {
 const ADMIN = { email: 'admin@example.test', name: 'Ada' };
 const MEMBER = { email: 'member@example.test', name: 'Max' };
 const MOVED = 'moved@example.test';
+const HOUR = 3_600_000;
 
 describe('changeEmail.confirm at the root of several types', () => {
 	it('moves an admin whose type the page does not know, verified, with its events', async () => {
@@ -109,5 +112,72 @@ describe('changeEmail.confirm at the root of several types', () => {
 		expect(await rejection(auth.changeEmail.confirm(sent.token))).toMatchObject(
 			{ code: 'TOKEN_SPENT' },
 		);
+	});
+
+	it('refuses an inactive user with USER_INACTIVE', async () => {
+		const { auth } = twoTypes();
+		const admin = await auth.admin.create(ADMIN);
+		const sent = await auth.admin.changeEmail.send(admin, MOVED);
+		await auth.admin.setActive(admin, false);
+
+		expect(await rejection(auth.changeEmail.confirm(sent.token))).toMatchObject(
+			{ code: 'USER_INACTIVE' },
+		);
+	});
+
+	it('refuses a lapsed token with TOKEN_EXPIRED', async () => {
+		const { auth, clock } = twoTypes();
+		const admin = await auth.admin.create(ADMIN);
+		const sent = await auth.admin.changeEmail.send(admin, MOVED);
+		clock.advance(HOUR);
+
+		expect(await rejection(auth.changeEmail.confirm(sent.token))).toMatchObject(
+			{ code: 'TOKEN_EXPIRED' },
+		);
+	});
+
+	it('refuses a user deleted since with TOKEN_UNKNOWN', async () => {
+		const { auth } = twoTypes();
+		const admin = await auth.admin.create(ADMIN);
+		const sent = await auth.admin.changeEmail.send(admin, MOVED);
+		await auth.admin.delete(admin);
+
+		expect(await rejection(auth.changeEmail.confirm(sent.token))).toMatchObject(
+			{ code: 'TOKEN_UNKNOWN' },
+		);
+	});
+
+	it('refuses an address another user of the type took with LOGIN_TAKEN', async () => {
+		const { auth } = twoTypes();
+		const admin = await auth.admin.create(ADMIN);
+		const sent = await auth.admin.changeEmail.send(admin, MOVED);
+		await auth.admin.create({ email: MOVED, name: 'Other' });
+
+		expect(await rejection(auth.changeEmail.confirm(sent.token))).toMatchObject(
+			{ code: 'LOGIN_TAKEN' },
+		);
+		expect((await auth.admin.get(admin.id)).email).toBe(ADMIN.email);
+	});
+
+	it('refuses a user of a type with no e-mail with TOKEN_UNKNOWN', async () => {
+		const { auth, store, clock } = twoTypes();
+		const porter = await auth.porter.create({ username: 'porter' });
+		// No type without an e-mail has a `send`: the token is put in the store.
+		const secret = 'a-token-for-a-porter';
+		await store.tokens.insertToken({
+			tokenHash: hashSecret(secret),
+			kind: 'changeEmail',
+			userId: porter.id,
+			address: MOVED,
+			codeHash: null,
+			attempts: 0,
+			expiresAt: new Date(clock.now().getTime() + HOUR),
+			spentAt: null,
+			createdAt: clock.now(),
+		});
+
+		expect(await rejection(auth.changeEmail.confirm(secret))).toMatchObject({
+			code: 'TOKEN_UNKNOWN',
+		});
 	});
 });

@@ -810,7 +810,7 @@ there. Without janus-mail, send it with your own mailer.
   ```
 
   It exists when at least one type has an e-mail, so a type cannot be named
-  `changeEmail`.
+  `changeEmail`. Its type is `AnyTypeChangeEmailApi`.
 
 [The e-mail flows guide](docs/guide/email-flows.md#changeemail) has a Hono
 route for each step, with the notice to the former address.

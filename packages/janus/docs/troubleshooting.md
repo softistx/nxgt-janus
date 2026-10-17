@@ -366,8 +366,8 @@ janus({ user: z.object({ username: z.string() }), password: { login: 'username' 
 Also `janus: "<name>" cannot name a user type — janus() answers a method of that name` and `janus: users declares no user type`.
 
 **When:** `janus({ users: {...} })`.
-**Why:** each type becomes a property of what `janus()` answers — `auth.staff` — so it must be a name, and not one of the shared methods (`authenticate`, `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`, `collectExpired`, `types`).
-**Fix:** `users: { staffMember: {...} }`, not `'staff-member'` or `cookie`.
+**Why:** each type becomes a property of what `janus()` answers — `auth.staff` — so it must be a name, and not one of the shared methods (`authenticate`, `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`, `collectExpired`, `types`, `changeEmail`).
+**Fix:** `users: { staffMember: {...} }`, not `'staff-member'`, `cookie` or `changeEmail`.
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
 
