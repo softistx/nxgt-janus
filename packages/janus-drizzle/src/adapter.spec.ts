@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { fixedClock, janus, scryptHasher } from '@nxgt/janus';
 import { defineModel, permissions } from '@nxgt/janus/permissions';
+import { count } from 'drizzle-orm';
 import { z } from 'zod';
 import { openTestDb } from '../test/db';
 import { createDrizzleAdapter } from './adapter';
+import { defineJanusTables } from './tables';
 
 describe('createDrizzleAdapter()', () => {
 	it('wires both sides with one spread: deleting a user deletes their tuples', async () => {
@@ -65,6 +67,48 @@ describe('createDrizzleAdapter()', () => {
 				headers: { authorization: `Bearer ${token}` },
 			});
 			expect(await auth.authenticate(request)).toBeNull();
+		} finally {
+			await test.close();
+		}
+	});
+	it("collects lapsed tokens, the sign-in throttle's counts included, and never one that lapses later", async () => {
+		const test = await openTestDb();
+		try {
+			const clock = fixedClock(Date.UTC(2026, 0, 1));
+			const auth = janus({
+				user: z.strictObject({ email: z.email() }),
+				password: { login: 'email' },
+				hasher: scryptHasher({ cost: 10 }),
+				clock,
+				...createDrizzleAdapter(test.db),
+			});
+			await auth.signUp({
+				email: 'ada@example.test',
+				password: 'correct horse',
+			});
+			const rows = async () => {
+				const [row] = await test.db
+					.select({ n: count() })
+					.from(defineJanusTables().tokens);
+				return row?.n ?? 0;
+			};
+
+			// A wrong password counts an attempt: a throttle row, a token like the rest.
+			await auth.signIn({ email: 'ada@example.test', password: 'wrong' }).then(
+				() => undefined,
+				() => undefined,
+			);
+			const counted = await rows();
+			expect(counted).toBeGreaterThan(0);
+
+			// Inside its window nothing is collected: the count is still needed.
+			expect(await auth.collectExpired()).toBe(0);
+			expect(await rows()).toBe(counted);
+
+			// Two windows later the row has lapsed, and goes.
+			clock.advance(60 * 60 * 1000);
+			expect(await auth.collectExpired()).toBe(counted);
+			expect(await rows()).toBe(0);
 		} finally {
 			await test.close();
 		}
