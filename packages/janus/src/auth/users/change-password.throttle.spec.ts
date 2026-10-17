@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, password } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
-import { StoreFailure } from '../../errors/janus-error';
+import { CredentialError, StoreFailure } from '../../errors/janus-error';
 import { createMemoryStores } from '../port/memory';
 import type { JanusStores } from '../port/types';
 import {
@@ -11,23 +11,24 @@ import {
 	throttled,
 	WINDOW_MS,
 } from '../sign-in-attempts.fixtures';
+import type { UserRef } from '../types';
 
 const NEXT = 'a brand new password';
 
 /** Tries `count` wrong current passwords for `user`, and answers each reason. */
 async function change(
 	{ auth }: Throttled,
-	user: { readonly id: string },
+	user: UserRef,
 	count: number,
 	current = 'wrong password',
 ): Promise<unknown[]> {
 	const reasons: unknown[] = [];
 	for (let at = 0; at < count; at += 1) {
 		const error = await rejection(
-			auth.changePassword(user as never, { current, next: NEXT }),
+			auth.changePassword(user, { current, next: NEXT }),
 		);
 		expect(error).toMatchObject({ code: 'CREDENTIALS_INVALID' });
-		reasons.push((error as { reason?: unknown }).reason);
+		reasons.push(error instanceof CredentialError ? error.reason : undefined);
 	}
 	return reasons;
 }
@@ -113,7 +114,7 @@ describe('changePassword, counted in the sign-in throttle of the login', () => {
 	it('counts a user with no password all the same', async () => {
 		const context = throttled();
 		const { auth } = context;
-		const user = (await auth.create({ ...ada })) as { id: string };
+		const user = await auth.create({ ...ada });
 
 		const reasons = await change(context, user, 11);
 

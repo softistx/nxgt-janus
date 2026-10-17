@@ -82,7 +82,9 @@ export interface PasswordApi<
 	 * the sign-in throttle of the user's login, whose budget `signIn` shares:
 	 * past the limit it is `CREDENTIALS_INVALID` with `reason: 'throttled'` and
 	 * `retryAfter`, the right `current` included, and a change that is written
-	 * restarts the count. Other sessions stay open: call
+	 * restarts the count; that restart runs after the write, so a `STORE_FAILED`
+	 * from it leaves the password changed: check with `signIn` using `next`
+	 * before retrying. Other sessions stay open: call
 	 * `signOutEverywhere(user, { except })` for that.
 	 */
 	changePassword(
