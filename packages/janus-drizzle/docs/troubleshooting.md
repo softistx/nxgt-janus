@@ -44,7 +44,7 @@ How PostgreSQL's errors become the port's:
 - [`STORE_FAILED`: `<slot>.<operation>: the store could not answer`](#store_failed-slotoperation-the-store-could-not-answer)
 - [`LOGIN_TAKEN`: `<operation>: the login is taken by another <type>`](#login_taken-operation-the-login-is-taken-by-another-type)
 - [`NOT_FOUND` / `VERSION_CONFLICT`: `updateUser: …`](#not_found--version_conflict-updateuser-)
-- [The `sessions` table keeps growing](#the-sessions-table-keeps-growing)
+- [The `sessions` or `tokens` table keeps growing](#the-sessions-or-tokens-table-keeps-growing)
 - [`NOT_FOUND`: `insertUser: the user was deleted meanwhile`](#not_found-insertuser-the-user-was-deleted-meanwhile)
 
 ---
@@ -364,14 +364,17 @@ written.
 
 **Fix:** read the user again and retry, or tell the user it changed meanwhile.
 
-### The `sessions` table keeps growing
+### The `sessions` or `tokens` table keeps growing
 
-**When:** rows whose `expires_at` has passed are never deleted.
+**When:** rows whose `expires_at` has passed are never deleted. In `tokens`
+they are mostly the throttles' counts: a row per login tried and per window.
 
 **Why:** PostgreSQL has no TTL. The core refuses a lapsed session on every
-read, but deleting it is `auth.collectExpired()`'s job.
+read, but deleting it, and deleting a lapsed token, is
+`auth.collectExpired()`'s job.
 
-**Fix:** schedule it.
+**Fix:** schedule it. If the delete is slow, `tokens` lacks its
+`tokens_expires_at` index: [To 0.9](guide/migrations.md#to-09-an-index-on-tokensexpires_at).
 
 ```ts
 const collected = await auth.collectExpired(); // hourly

@@ -36,6 +36,12 @@ Nothing yet.
 
 ## Shipped
 
+- **Lapsed tokens collected, v0.9.0** — for `@nxgt/janus` 0.25:
+  `tokens.deleteExpiredTokens` is one `delete … where expires_at <= …
+  returning`, so `auth.collectExpired()` deletes lapsed tokens, the
+  throttles' counts included, beside the sessions. A migration is
+  recommended: drizzle-kit writes one `CREATE INDEX` on `tokens.expires_at`,
+  and without it the delete scans the table.
 - **Several users in one statement, v0.7.0** — for `@nxgt/janus` 0.18:
   `users.findUsers` is one `select … where id in (…)`, so
   `auth.<type>.findMany(ids)` reads a list of up to 100 ids in one round
