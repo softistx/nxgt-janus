@@ -6,6 +6,7 @@ describe('assertStores', () => {
 	it('accepts a complete set of stores, and reports the optional capabilities', () => {
 		expect(assertStores(createMemoryStores(), 'janus')).toEqual({
 			collectExpired: true,
+			collectExpiredTokens: true,
 			findUsers: true,
 		});
 	});
@@ -16,6 +17,18 @@ describe('assertStores', () => {
 
 		expect(assertStores({ ...stores, sessions }, 'janus')).toEqual({
 			collectExpired: false,
+			collectExpiredTokens: true,
+			findUsers: true,
+		});
+	});
+
+	it('reports a tokens store without deleteExpiredTokens as not collecting its tokens', () => {
+		const stores = createMemoryStores();
+		const { deleteExpiredTokens: _, ...tokens } = stores.tokens;
+
+		expect(assertStores({ ...stores, tokens }, 'janus')).toEqual({
+			collectExpired: true,
+			collectExpiredTokens: false,
 			findUsers: true,
 		});
 	});
@@ -26,6 +39,7 @@ describe('assertStores', () => {
 
 		expect(assertStores({ ...stores, users }, 'janus')).toEqual({
 			collectExpired: true,
+			collectExpiredTokens: true,
 			findUsers: false,
 		});
 	});
@@ -66,6 +80,19 @@ describe('assertStores', () => {
 			),
 		).toThrow(
 			'janus: store.sessions.deleteExpiredSessions must be a function or absent',
+		);
+	});
+
+	it('refuses a deleteExpiredTokens that is present but not a function', () => {
+		const stores = createMemoryStores();
+
+		expect(() =>
+			assertStores(
+				{ ...stores, tokens: { ...stores.tokens, deleteExpiredTokens: 1 } },
+				'janus',
+			),
+		).toThrow(
+			'janus: store.tokens.deleteExpiredTokens must be a function or absent',
 		);
 	});
 

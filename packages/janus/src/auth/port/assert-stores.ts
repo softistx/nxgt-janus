@@ -79,6 +79,12 @@ export function assertStores(
 	>;
 	return {
 		collectExpired: optional(slots, 'sessions', 'deleteExpiredSessions', where),
+		collectExpiredTokens: optional(
+			slots,
+			'tokens',
+			'deleteExpiredTokens',
+			where,
+		),
 		findUsers: optional(slots, 'users', 'findUsers', where),
 	};
 }

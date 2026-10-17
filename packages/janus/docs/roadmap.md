@@ -5,20 +5,18 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+- **Collecting lapsed one-time tokens** — `collectExpired()` deletes lapsed
+  sessions and, through a new optional `TokenStore.deleteExpiredTokens`,
+  lapsed one-time tokens too: the sign-in and mail throttles' counts
+  included, which a store with no TTL (PostgreSQL) kept for ever, one per
+  login tried per window and one per flow per address or user per window.
+  The core and the reference store ship it; the official adapters follow.
 
 ## Next
 
 Nothing yet.
 
 ## Later
-
-- **Collecting lapsed one-time tokens** — `collectExpired()` deletes lapsed
-  sessions only. On a store with no TTL (PostgreSQL), lapsed tokens stay
-  until you delete them, and the sign-in throttle adds one per login tried
-  per window, and the mail throttle one per flow per address or user per
-  window. A port method to collect them, as sessions are, would let the
-  core do it.
 
 - **A batch read across types** — `findMany` reads one user type, as `find`
   does. The shared `findUser(id)` has no batch counterpart yet; one on the

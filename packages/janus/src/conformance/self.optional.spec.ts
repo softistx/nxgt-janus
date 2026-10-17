@@ -61,3 +61,39 @@ describe('an optional method a store lacks', () => {
 		});
 	});
 });
+
+/** The reference store, its faults included, without the optional deleteExpiredTokens. */
+function withoutDeleteExpiredTokens(): ConformanceHarness {
+	const reference = referenceHarness();
+	return {
+		async open() {
+			const opened = await reference.open();
+			const { deleteExpiredTokens: _, ...tokens } = opened.stores.tokens;
+			return { ...opened, stores: { ...opened.stores, tokens } };
+		},
+	};
+}
+
+describeJanusStores({
+	name: 'the reference store without deleteExpiredTokens',
+	harness: withoutDeleteExpiredTokens(),
+	runner: { describe, it },
+});
+
+describe('an optional tokens method a store lacks', () => {
+	it('skips both cases that need deleteExpiredTokens, with the reason, faults or not', async () => {
+		const needing = allCases.filter((c) =>
+			[c.needs].flat().includes('deleteExpiredTokens'),
+		);
+
+		expect(needing.map((c) => c.id)).toEqual([
+			'tokens.deleteExpired',
+			'outage.deleteExpiredTokens',
+		]);
+		for (const conformanceCase of needing) {
+			expect(
+				await runCase(conformanceCase, withoutDeleteExpiredTokens()),
+			).toEqual({ skipped: SKIP_REASONS.deleteExpiredTokens });
+		}
+	});
+});

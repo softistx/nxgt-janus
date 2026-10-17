@@ -144,9 +144,10 @@ export interface SharedApi<U extends { readonly type: string }> {
 	};
 
 	/**
-	 * Deletes lapsed sessions. `UNSUPPORTED` when the sessions store does not
-	 * implement `deleteExpiredSessions` — a store with its own TTL does not need
-	 * to.
+	 * Deletes lapsed sessions and lapsed one-time tokens — the throttles' counts
+	 * included — from the stores that implement `deleteExpiredSessions` /
+	 * `deleteExpiredTokens`, and answers how many in all. `UNSUPPORTED` when
+	 * neither does — a store with its own TTL does not need to.
 	 */
 	collectExpired(): Promise<number>;
 

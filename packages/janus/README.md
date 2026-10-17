@@ -410,7 +410,8 @@ else reaches the store and is asynchronous.
 - **Shared**: `authenticate`, `signOut`, `signOutEverywhere(user, { except })`,
   `findUser` and `getUser` across types, `cookie.serialize(token, session)` and
   `cookie.clear()` — `HttpOnly; SameSite=Lax; Secure` unless you say otherwise
-  — and `collectExpired`.
+  — and `collectExpired`, which deletes lapsed sessions and lapsed one-time
+  tokens.
 - **Password guessing is throttled**, on by default: past ten passwords
   tried at one login in a 15-minute window, `signIn` refuses every one — the
   right password included — with `CREDENTIALS_INVALID`, `reason:
@@ -1330,7 +1331,7 @@ describeJanusStores({
 });
 ```
 
-There are 59 cases. They cover:
+There are 61 cases. They cover:
 - round-trip, byte for byte — including every edge character the core lets
   through (control characters, U+FFFF, a surrogate pair);
 - uniqueness, as a constraint: of twenty concurrent inserts of one login,
@@ -1359,12 +1360,15 @@ There are 59 cases. They cover:
   goes, with a replay answering `false` or `0` rather than failing;
 - the optional `users.findUsers`: each stored user once, whatever its type, an
   id nobody holds left out, and `[]` — never `null` — when nobody holds any;
-- **outages**, one case for each of the fifteen methods whose honest answer can
+- the optional `tokens.deleteExpiredTokens`: lapsed tokens deleted, spent or
+  not, and a token one millisecond short of lapsing kept, still spent when it
+  was;
+- **outages**, one case for each of the sixteen methods whose honest answer can
   be "nothing".
 
 **An optional method a store lacks skips its cases, with the reason** — a
-store without `sessions.deleteExpiredSessions` or `users.findUsers` passes the
-suite. A case's `needs` names what it cannot run without, one `CaseNeed` or a list
+store without `sessions.deleteExpiredSessions`, `tokens.deleteExpiredTokens`
+or `users.findUsers` passes the suite. A case's `needs` names what it cannot run without, one `CaseNeed` or a list
 (`outage.findUsers` needs `['faults', 'findUsers']`).
 
 The suite imports no test framework and no assertion library. It runs under
@@ -1661,7 +1665,7 @@ test that tries more than ten wrong passwords at one login over a
 `fixedClock` is throttled too: advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`. **Somebody who knows a login can keep its
 password sign-in shut**, ten tries a window; a sign-in code or link, when you wire them, still opens it — the throttle counts passwords, never those.
-On PostgreSQL, delete lapsed tokens on a schedule: every login tried adds a
+On a store with no TTL, schedule `collectExpired()`: every login tried adds a
 row per window. One password tried against
 many logins is not counted: rate-limit `signIn` per client address yourself
 ([passwords](docs/guide/passwords.md#what-you-still-limit-yourself)). The
@@ -1693,10 +1697,19 @@ counted: add a per-IP ceiling with `@nxgt/redis` rate limits
 [example](docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)). A test suite that requests more than five of
 one flow for one address or user over a `fixedClock` is throttled: advance the
 clock past `retryAfter`, or wire `mail: { throttle: false }`. The counts live
-in the tokens store, so on PostgreSQL schedule the delete of lapsed tokens, a
+in the tokens store, so on a store with no TTL schedule `collectExpired()`, a
 flushed or evicting Redis forgets them, and a tokens store that cannot count
 throws `STORE_FAILED` with nothing issued
 ([e-mail flows](docs/guide/email-flows.md#requests-that-send-e-mail-are-throttled)).
+
+**`collectExpired()` also collects lapsed one-time tokens, and a custom
+tokens store has to implement `deleteExpiredTokens` for it.** Without the
+method, only the sessions are collected — or `UNSUPPORTED`, when the sessions
+store has none either — and the throttles' counts pile up on a database with
+no TTL. Once a lapsed token is collected, its link answers `TOKEN_UNKNOWN`
+instead of `TOKEN_EXPIRED` or `TOKEN_SPENT`: a page that tells the two apart
+should treat the third as "this link is no longer valid"
+([sessions](docs/guide/sessions.md#collectexpired)).
 
 **A sign-in can move a user's `version`.** Rewriting a stale hash is a write. A
 user object read before that sign-in, and then passed as `ifVersion`, gets
@@ -1782,13 +1795,13 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and eighty plausible mistakes, one hundred and eighty refused at compile time — and
+**One hundred and eighty-one plausible mistakes, one hundred and eighty-one refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
 mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
-are folders with one file per behaviour: `test/types/port/` (twenty-five, on
+are folders with one file per behaviour: `test/types/port/` (twenty-six, on
 the identity stores' port, from the point of view of the person implementing
 it), `test/types/auth/` (eighty-eight, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,

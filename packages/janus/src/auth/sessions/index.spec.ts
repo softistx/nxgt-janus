@@ -161,7 +161,12 @@ describe('signing out', () => {
 
 		expect(await auth.collectExpired()).toBe(1);
 
-		const store = { ...createMemoryStores(), sessions: withoutCollect };
+		const { deleteExpiredTokens: __, ...tokens } = createMemoryStores().tokens;
+		const store = {
+			...createMemoryStores(),
+			sessions: withoutCollect,
+			tokens,
+		};
 		const error = (await rejection(
 			setup({ store }).auth.collectExpired(),
 		)) as JanusError;

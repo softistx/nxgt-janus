@@ -1,5 +1,5 @@
 import { mintId } from '../../../ids/id';
-import { equal, isNull } from '../../assert';
+import { equal, isNull, ok } from '../../assert';
 import { at, tokenRecord } from '../../fixtures';
 import type { ConformanceCase } from '../../types';
 
@@ -48,6 +48,56 @@ export const tokenDeletionCases: readonly ConformanceCase[] = [
 				await stores.tokens.deleteUserTokens(userId),
 				0,
 				'deleteUserTokens for a user with none answers 0, not a failure',
+			);
+		},
+	},
+	{
+		id: 'tokens.deleteExpired',
+		group,
+		name: 'deletes tokens whose expiry is at or before the instant, spent or not, and only those',
+		needs: 'deleteExpiredTokens',
+		async run({ stores }) {
+			const collect = stores.tokens.deleteExpiredTokens;
+			ok(collect !== undefined, 'deleteExpiredTokens should be present');
+			const lapsedAt = at('2026-01-10T00:00:00.000Z');
+			const laterAt = at('2026-01-10T00:00:00.001Z');
+			const spentAt = at('2026-01-05T00:00:00.000Z');
+			const lapsed = tokenRecord({ expiresAt: lapsedAt });
+			const lapsedSpent = tokenRecord({ expiresAt: lapsedAt, spentAt });
+			const living = tokenRecord({ expiresAt: laterAt });
+			const livingSpent = tokenRecord({ expiresAt: laterAt, spentAt });
+			for (const record of [lapsed, lapsedSpent, living, livingSpent]) {
+				await stores.tokens.insertToken(record);
+			}
+
+			equal(
+				await collect?.call(stores.tokens, lapsedAt),
+				2,
+				'deleteExpiredTokens: how many it deleted, spent ones included',
+			);
+			for (const record of [lapsed, lapsedSpent]) {
+				isNull(
+					await stores.tokens.countAttempt(record.tokenHash, record.kind),
+					'countAttempt after deleteExpiredTokens',
+				);
+			}
+			equal(
+				await stores.tokens.countAttempt(living.tokenHash, living.kind),
+				{ ...living, attempts: 1 },
+				'deleteExpiredTokens should keep a token one millisecond short of lapsing',
+			);
+			equal(
+				await stores.tokens.countAttempt(
+					livingSpent.tokenHash,
+					livingSpent.kind,
+				),
+				livingSpent,
+				'deleteExpiredTokens should keep a spent token until it lapses, still spent',
+			);
+			equal(
+				await collect?.call(stores.tokens, lapsedAt),
+				0,
+				'deleteExpiredTokens with nothing lapsed answers 0, not a failure',
 			);
 		},
 	},
