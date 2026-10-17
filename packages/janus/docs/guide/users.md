@@ -196,7 +196,7 @@ With a `password`, besides:
 | `signIn({ [login]: string, password }, { device? })` | `{ status: 'signedIn', user, session, token, newDevice, deviceToken }` — or, with `secondFactor` configured and the user's factor active, `{ status: 'secondFactor', challenge, expiresAt, userId }`: switch on `status` | `CREDENTIALS_INVALID` — with `retryAfter` once the login is throttled — `USER_INACTIVE`, `HASH_UNSUPPORTED` |
 | `findByLogin(login)` | the user, or `null`; the login is normalised first, and one holding a NUL or a lone surrogate is nobody's | |
 | `setPassword(user, password, { ifVersion? })` | the user — an admin's call; spends the user's reset links and second-factor challenges still waiting, and signs nobody out; sends `user.passwordChanged` | `PASSWORD_TOO_SHORT` |
-| `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call; spends the user's reset links and second-factor challenges still waiting; sends `user.passwordChanged` | `CREDENTIALS_INVALID`, `PASSWORD_TOO_SHORT` |
+| `changePassword(user, { current, next }, { ifVersion? })` | the user — the user's own call; spends the user's reset links and second-factor challenges still waiting; sends `user.passwordChanged` | `CREDENTIALS_INVALID` (`throttled` past the [sign-in throttle](passwords.md#password-guessing-is-throttled), which it counts in), `PASSWORD_TOO_SHORT` |
 
 With an e-mail — the field `email` names, password or not — besides:
 

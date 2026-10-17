@@ -78,8 +78,12 @@ export interface PasswordApi<
 
 	/**
 	 * Replaces the password after checking the current one — the user's call.
-	 * `CREDENTIALS_INVALID` when `current` is wrong. Other sessions stay open:
-	 * call `signOutEverywhere(user, { except })` for that.
+	 * `CREDENTIALS_INVALID` when `current` is wrong. Each call is counted in
+	 * the sign-in throttle of the user's login, whose budget `signIn` shares:
+	 * past the limit it is `CREDENTIALS_INVALID` with `reason: 'throttled'` and
+	 * `retryAfter`, the right `current` included, and a change that is written
+	 * restarts the count. Other sessions stay open: call
+	 * `signOutEverywhere(user, { except })` for that.
 	 */
 	changePassword(
 		user: UserRef,

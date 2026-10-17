@@ -738,13 +738,14 @@ return new Response('Wrong e-mail or password', { status: 401 });
 
 `CredentialError`, with `reason: 'throttled'` and `retryAfter`.
 
-**When:** `signIn`, after ten passwords were tried at this login in the
-current 15-minute window — whatever this password is, **the right one
+**When:** `signIn` or `changePassword`, after ten passwords were tried at
+this login in the current 15-minute window — by either: they share one count — whatever this password is, **the right one
 included**, and whether or not anybody holds the login. Nothing is compared.
 **Why:** `signIn` throttles password guessing per login, on by default:
 counted by the store, in fixed windows of the clock, shared by every process
 over the same store. Nothing locks: the next window signs in, and a sign-in
-that succeeds starts the count again. In tests with `fixedClock`, the window
+that succeeds, or a `changePassword` that is written, starts the count
+again. In tests with `fixedClock`, the window
 never ends: advance the clock past `retryAfter`, or wire
 `signIn: { throttle: false }`.
 **Fix:** tell the visitor to wait `retryAfter` seconds — not that the
