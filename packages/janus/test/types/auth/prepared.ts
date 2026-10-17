@@ -1,7 +1,7 @@
 /**
  * Requests in two steps — `prepare`, then `send()`: a type with no e-mail or
  * no password, an answer read without its `null`, a challenge read off a
- * link, and a count a caller tries to pass. Cases 68–72 of the eighty-eight —
+ * link, and a count a caller tries to pass. Cases 68–72 of the ninety-two —
  * see `fixtures.ts`. The shapes that must keep compiling are at the end of
  * this file.
  */

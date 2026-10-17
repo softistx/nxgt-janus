@@ -74,6 +74,12 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   in: past the limit it answers `CREDENTIALS_INVALID` with `reason:
   'throttled'` and `retryAfter`, the right current password included, and a
   change that is written restarts the count.
+- **Root `changeEmail.confirm` for instances with several user types, v0.26.0** —
+  `auth.changeEmail.confirm(token)` confirms a change of e-mail for a page that
+  does not know the user's type: it reads the user the link was issued to and
+  confirms as their type does. A type's own `confirm` still answers
+  `TOKEN_UNKNOWN`, and spends the token, for another type's link; no user type
+  may be named `changeEmail`.
 - **Collecting lapsed one-time tokens, v0.25.0** — `collectExpired()` deletes
   lapsed sessions and, through a new optional `TokenStore.deleteExpiredTokens`,
   lapsed one-time tokens too: the sign-in and mail throttles' counts
@@ -143,30 +149,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   in no throttle and spends no link already sent, so accepting an
   invitation no longer goes through `magicLink.request` and its mail
   throttle. Privileged: never with an id a request supplied.
-- **E-mail requests in two steps, v0.20.0** — `magicLink.prepare(email)`,
-  `signInCode.prepare(email)` and `resetPassword.prepare(email)` count the
-  address and look nobody up — the same work for any address — so
-  `MAIL_THROTTLED` reaches the visitor while `send()`, the lookup and the
-  issue, runs off their request, where its time tells nothing. `send()`
-  answers what `request` does, once; a second call is a `TypeError`. A sign-in
-  code's prepared request carries its `challenge`, minted before the lookup,
-  so no decoy is needed for an address nobody holds.
-- **Several users by id in one query, v0.19.0** — `auth.<type>.findMany(ids)`
-  answers the type's users in the order of `ids`, each once, and leaves out an
-  id nobody of that type holds — for a list of rows that would otherwise make
-  one `find` per row and fill the connection pool. The users store gains an
-  optional `findUsers`, implemented by the reference store,
-  `@nxgt/janus-drizzle` 0.7.0 and `@nxgt/janus-mongo` 0.8.0; a store without it
-  is read with `findUser`, ten at a time, so third-party adapters keep working.
-- **Requests that send e-mail are throttled, v0.18.0** —
-  `janus({ mail: { throttle: { attempts, window } } })`, five per ten
-  minutes by default and `false` to turn it off. `magicLink.request`,
-  `signInCode.request` and `resetPassword.request` count per address;
-  `verifyEmail.send` and an e-mailed `stepUp.request` count per user; each
-  flow on its own. Past the limit a request throws `MailThrottledError`
-  (`MAIL_THROTTLED`, 429) with `retryAfter` and issues, spends and rotates
-  nothing: the last link or code sent still works, so a loop on an address
-  cannot lock its owner out.
-  The window is no longer than the shortest default token lifetime. The counts
-  live in the tokens store, with no port change. `MailConfig` and
-  `MailThrottleConfig` are exported.

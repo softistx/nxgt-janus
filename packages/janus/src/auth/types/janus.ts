@@ -6,7 +6,7 @@
  */
 
 import type { JanusConfig, MultiTypeConfig, SingleTypeConfig } from '../config';
-import type { ChangeEmailApi } from './change-email';
+import type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 import type {
 	ResetPasswordApi,
 	SignInCodeApi,
@@ -162,6 +162,16 @@ export interface SharedApi<U extends { readonly type: string }> {
  */
 type TwoFactorOf<C> = 'secondFactor' extends keyof C ? true : false;
 
+/**
+ * The users of the types that have an e-mail, which `changeEmail.confirm` at
+ * the root of several types answers; nothing when no type has one.
+ */
+type ChangeEmailUsers<C extends MultiTypeConfig> = {
+	[K in keyof C['users'] & string]: [EmailOf<C['users'][K]>] extends [never]
+		? never
+		: UserOfType<K, C['users'][K]>;
+}[keyof C['users'] & string];
+
 /** What `janus(config)` answers. */
 export type Janus<C extends JanusConfig> = SharedApi<UserOf<C>> &
 	(C extends MultiTypeConfig
@@ -171,7 +181,9 @@ export type Janus<C extends JanusConfig> = SharedApi<UserOf<C>> &
 					C['users'][K],
 					TwoFactorOf<C>
 				>;
-			}
+			} & ([ChangeEmailUsers<C>] extends [never]
+				? unknown
+				: AnyTypeChangeEmailApi<ChangeEmailUsers<C>>)
 		: C extends SingleTypeConfig
 			? TypeApi<'user', SingleAsType<C>, TwoFactorOf<C>>
 			: never);

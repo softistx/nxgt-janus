@@ -265,6 +265,20 @@ is no longer the one it was asked from although nothing spent it: a write
 outside janus, or a `send` racing an `update`. `confirm` sends `user.emailChanged` (with
 `formerEmail`) and `user.emailVerified`.
 
+**With several user types**, a type's own `confirm` answers `TOKEN_UNKNOWN`
+for a token issued to another type's user, and spends it — a later
+confirmation through the right type is then `TOKEN_SPENT`. A page that does
+not know the type calls the root's `confirm`, which reads the user the token
+was issued to and confirms as their type does: same move, same events, same
+errors, and `type` in the answer says which type it was. `send` stays on each
+type. The root's exists when one type has an e-mail, which is why no type may
+be named `changeEmail`.
+
+```ts
+// one anonymous page for every type
+const changed = await auth.changeEmail.confirm(token); // changed.type: 'admin' | 'member'
+```
+
 **Gate `send`, and tell the former address.** Whoever changes the e-mail
 takes over every reset: call `send` behind a fresh sign-in or a step-up.
 
