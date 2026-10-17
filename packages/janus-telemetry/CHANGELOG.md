@@ -1,5 +1,12 @@
 # @nxgt/janus-telemetry
 
+## 0.13.1
+
+### Patch Changes
+
+- Updated dependencies [[`edabeb3`](https://github.com/softistx/nxgt-janus/commit/edabeb310e1e944c0f555979d5f119302f35618b)]:
+  - @nxgt/janus@0.25.0
+
 ## 0.13.0
 
 ### Minor Changes
