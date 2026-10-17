@@ -51,7 +51,11 @@ export interface ConformanceHarness {
  * What a case may need beyond the required port: the harness's `faults`, or
  * an optional method of the stores it opens.
  */
-export type CaseNeed = 'faults' | 'deleteExpiredSessions' | 'findUsers';
+export type CaseNeed =
+	| 'faults'
+	| 'deleteExpiredSessions'
+	| 'deleteExpiredTokens'
+	| 'findUsers';
 
 /** What a case runs against. */
 export interface CaseContext {

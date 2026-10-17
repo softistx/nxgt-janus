@@ -64,7 +64,7 @@ that wired the library, so no handler needs to tell it apart.
 | `SECOND_FACTOR_NOT_ENROLLED` | `SecondFactorError` | 409 | `activate` before `enroll`; `regenerateRecoveryCodes` without an active factor; `confirm` or `recover` after the factor was disabled | `userId` |
 | `SECOND_FACTOR_ACTIVE` | `SecondFactorError` | 409 | `enroll` or `activate` on a factor already active: `disable` it first | `userId` |
 | `INVALID_CURSOR` | `InvalidCursorError` | 400 | A cursor this store did not mint. Never a silent first page | |
-| `UNSUPPORTED` | `UnsupportedError` | 501 | The wired store lacks an optional capability — `collectExpired` without `deleteExpiredSessions` | `slot`, `operation` |
+| `UNSUPPORTED` | `UnsupportedError` | 501 | The wired store lacks an optional capability — `collectExpired` with neither `deleteExpiredSessions` nor `deleteExpiredTokens` | `slot`, `operation` |
 | `PERMISSION_DEPTH` | `PermissionDepthError` | 500 | A check or list walked past `maxDepth`. **Not a denial** | `permission`, `maxDepth` |
 
 Every class extends `JanusError`, which extends `Error`, so no `catch` block

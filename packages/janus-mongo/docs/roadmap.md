@@ -18,8 +18,9 @@ Nothing yet.
 ## Not planned
 
 - **`collectExpired()` with this adapter** — it answers `UNSUPPORTED` on
-  purpose. The TTL indexes on `sessions` and `tokens` already drop lapsed
-  records, and the core decides expiry on every read regardless.
+  purpose, and for tokens as well as sessions (`@nxgt/janus` 0.25 collects
+  lapsed tokens from the stores that implement `deleteExpiredTokens`). The TTL
+  indexes on `sessions` and `tokens` already drop lapsed records, and the core decides expiry on every read regardless.
 - **Retrying a relation transaction for you** — the driver's
   `withTransaction` would retry an outage for two minutes before answering. A
   relation write is idempotent, so retry it yourself, on your own terms.

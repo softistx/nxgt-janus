@@ -158,4 +158,17 @@ export interface TokenStore {
 	 * must not outlive the user until its expiry.
 	 */
 	deleteUserTokens(userId: Id): Promise<number>;
+
+	/**
+	 * **Optional capability.** Deletes every token — spent or not, of any kind
+	 * and any user — whose `expiresAt` is at or before `before`, and answers how
+	 * many. Never one whose `expiresAt` is later, spent or not: a spent token is
+	 * kept until it lapses, or a count would start over.
+	 *
+	 * What collects the sign-in and mail throttles' counts, which are ordinary
+	 * tokens under a keyed-hash user id that `deleteUserTokens` never reaches.
+	 * A store with its own expiry — a TTL index, a key TTL — does not implement
+	 * it; `collectExpired()` reads its presence.
+	 */
+	deleteExpiredTokens?(before: Date): Promise<number>;
 }

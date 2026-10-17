@@ -24,6 +24,8 @@ export const SKIP_REASONS = {
 		'faults not provided: the outage invariant is not proven for this adapter',
 	deleteExpiredSessions:
 		'stores.sessions does not implement the optional deleteExpiredSessions',
+	deleteExpiredTokens:
+		'stores.tokens does not implement the optional deleteExpiredTokens',
 	findUsers:
 		'stores.users does not implement the optional findUsers: findMany reads with findUser instead',
 } as const;
@@ -70,6 +72,8 @@ function provides(opened: OpenedStores, need: CaseNeed): boolean {
 			return opened.faults !== undefined;
 		case 'deleteExpiredSessions':
 			return opened.stores.sessions.deleteExpiredSessions !== undefined;
+		case 'deleteExpiredTokens':
+			return opened.stores.tokens.deleteExpiredTokens !== undefined;
 		case 'findUsers':
 			return opened.stores.users.findUsers !== undefined;
 	}

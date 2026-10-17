@@ -1,10 +1,9 @@
 /**
  * What `janus()` answers whatever its user types: authenticating a request,
  * signing out, finding a user by id, the cookie, and collecting expired
- * sessions.
+ * sessions and one-time tokens.
  */
 
-import { UnsupportedError } from '../../errors/janus-error';
 import { isId } from '../../ids/id';
 import {
 	type AnyUser,
@@ -17,6 +16,7 @@ import {
 import { hashSecret } from '../secrets';
 import type { Authenticated, RequestLike, SharedApi } from '../types';
 import { authenticate } from './authenticate';
+import { collectExpired } from './collect-expired';
 import { cookieOf } from './cookie';
 import { presentedToken } from './presented-token';
 
@@ -70,14 +70,7 @@ export function sharedApi(context: Context): InternalSharedApi {
 		cookie: cookieOf(context),
 
 		async collectExpired() {
-			const collect = store.sessions.deleteExpiredSessions;
-			if (!context.capabilities.collectExpired || collect === undefined) {
-				throw new UnsupportedError(
-					'collectExpired: store.sessions does not implement deleteExpiredSessions — its store expires sessions on its own, or implement the method',
-					{ slot: 'sessions', operation: 'deleteExpiredSessions' },
-				);
-			}
-			return collect(clock.now());
+			return collectExpired(context);
 		},
 
 		types: [...config.types.keys()],

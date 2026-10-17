@@ -85,7 +85,7 @@ declarations import without extensions, so `nodenext` is not supported.
 | --- | --- |
 | `createDrizzleAdapter(db, options?)` | Returns `{ store, relations }`, both of the entries below, keyed as `janus()` takes them, so `janus({ …, ...postgres })` wires both. It connects to nothing and creates nothing. `options.tables` is what your schema file's `defineJanusTables(…)` returned. |
 | `DrizzleAdapter` | The type of what `createDrizzleAdapter` returns. |
-| `createDrizzleStores(db, options?)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. Implements both optional methods: `sessions.deleteExpiredSessions`, and `users.findUsers`, so `auth.<type>.findMany(ids)` is one `inArray` statement. |
+| `createDrizzleStores(db, options?)` | The `{ users, sessions, tokens }` that `janus()` takes as `store`. Implements all three optional methods: `sessions.deleteExpiredSessions`, `tokens.deleteExpiredTokens` and `users.findUsers`, so `auth.<type>.findMany(ids)` is one `inArray` statement. |
 | `createDrizzleRelations(db, options?)` | The `RelationStore` that `permissions()` takes as `store`, and `janus()` takes as `relations`. |
 | `defineJanusTables(options?)` | The five tables, `{ users, logins, sessions, tokens, relations }`, as Drizzle tables. Export each from a schema file so your migrations create them. |
 | `JanusTablesOptions` | `{ schema? }`: a `pgSchema(…)` to put the tables in. Absent, they are in the connection's `search_path`, `public` by default. |
@@ -108,7 +108,7 @@ tables.
 | `users` | `id` · `(id, type)` unique, for the logins' foreign key · `(type, id)` for listing · a check that a password has both its hash and its date, or neither · a check that a second factor (`second_factor_method`, `_secret`, `_confirmed_at`, `_last_step`, `_recovery_codes`) has its method and its secret, or none of the five · a check that the method is `totp` and the last step not negative |
 | `logins` | primary key `(type, login)`: **a login is unique per user type** · `(user_id, type)` references the user, `on delete cascade` |
 | `sessions` | `id` · `token_hash` unique · `user_id` · `expires_at`, for `collectExpired()` |
-| `tokens` | `token_hash` · `user_id` · a check on `kind` · `code_hash`, and `attempts`, `not null default 0`, checked `>= 0` |
+| `tokens` | `token_hash` · `user_id` · `expires_at`, for `collectExpired()` · a check on `kind` · `code_hash`, and `attempts`, `not null default 0`, checked `>= 0` |
 | `relations` | one row per tuple, unique `nulls not distinct` over all six columns, subject first: the index `findObjects` pages · `(object_type, object_id, relation)` for one hop forwards |
 
 `logins` is also a `text[]` on `users`, which the store reads back in order.
@@ -174,11 +174,18 @@ a code, in the order written; no codes are `null`, read as `[]`.
   `createDrizzleAdapter(db, { tables: janusTables })`, with the object your
   schema file exports.
 - **Call `auth.collectExpired()` on a schedule.** PostgreSQL has no TTL, so
-  lapsed sessions stay in `sessions` until something deletes them. The
-  core still refuses them on every read. **Lapsed tokens stay too**, and
-  `collectExpired()` does not delete them: `@nxgt/janus`'s sign-in throttle
-  adds a row per login tried and per 15-minute window — a login nobody holds
-  included — and its mail throttle one per flow, address or user and window, so schedule `delete from tokens where expires_at < now() - interval '1 hour';` beside it — `<schema>.tokens` when the tables have a schema of their own. `tokens` has no index on `expires_at`, so the delete scans the table: add `create index on tokens (expires_at)` in a migration of yours if it grows.
+  lapsed sessions stay in `sessions` and lapsed tokens in `tokens` until
+  something deletes them. The core still refuses them on every read.
+  `collectExpired()` deletes both and answers how many in all. The tokens
+  matter: `@nxgt/janus`'s sign-in throttle adds a row per login tried and per
+  15-minute window — a login nobody holds included — and its mail throttle
+  one per flow, address or user and window. The first run after an upgrade
+  deletes the whole backlog in one statement, so run it off-peak.
+- **Upgrading to 0.9 recommends a migration.** `tokens` gains an index on
+  `expires_at`, one `CREATE INDEX`. Without it the delete scans the table.
+  Drop a hand-made `tokens (expires_at)` index first, or the column keeps two.
+  [To 0.9](docs/guide/migrations.md#to-09-an-index-on-tokensexpires_at) shows
+  the statement.
 - **A unique violation on anything but a login is a `StoreFailure`, not
   `LOGIN_TAKEN`.** Such a violation is an adapter bug. Reporting it as a taken
   login would tell somebody their e-mail is in use when it is not.

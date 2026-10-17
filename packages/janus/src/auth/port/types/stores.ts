@@ -27,6 +27,8 @@ export interface JanusStores {
 export interface StoreCapabilities {
 	/** Whether `sessions.deleteExpiredSessions` is implemented. */
 	readonly collectExpired: boolean;
+	/** Whether `tokens.deleteExpiredTokens` is implemented. */
+	readonly collectExpiredTokens: boolean;
 	/**
 	 * Whether `users.findUsers` is implemented: `findMany` answers in one query
 	 * when it is, and with `findUser`, a few ids at a time, when it is not.

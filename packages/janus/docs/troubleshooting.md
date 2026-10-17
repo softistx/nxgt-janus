@@ -75,7 +75,7 @@ How the messages are shaped:
 - [`TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`](#token_stale--call-the-token-was-sent-to-an-e-mail-the-user-no-longer-has)
 - [`INVALID_CURSOR` — `<call>: this cursor was not minted by this store …`](#invalid_cursor--call-this-cursor-was-not-minted-by-this-store-or-was-minted-for-another-ordering-n-characters)
 - [`<call>: limit must be an integer of at least 1, or absent`](#call-limit-must-be-an-integer-of-at-least-1-or-absent)
-- [`UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions …`](#unsupported--collectexpired-storesessions-does-not-implement-deleteexpiredsessions--its-store-expires-sessions-on-its-own-or-implement-the-method)
+- [`UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions, nor store.tokens deleteExpiredTokens …`](#unsupported--collectexpired-storesessions-does-not-implement-deleteexpiredsessions-nor-storetokens-deleteexpiredtokens--their-stores-expire-records-on-their-own-or-implement-the-methods)
 - [`<call>: the <type> type does not sign in with a password …`](#call-the-type-type-does-not-sign-in-with-a-password--add-password--login--to-it)
 - [`authenticate()` answers `null` although a valid cookie was sent](#authenticate-answers-null-although-a-valid-cookie-was-sent)
 
@@ -297,10 +297,10 @@ janus({ ..., hasher: scryptHasher(), verifiers: [legacyBcrypt] }); // not [scryp
 
 ### `janus: store.<slot> has no method <method>, which the port requires`
 
-Also: `janus: store.<slot> is missing`, `janus: store must be an object with users, sessions and tokens`, `janus: store.sessions.deleteExpiredSessions must be a function or absent`, `janus: store.users.findUsers must be a function or absent`.
+Also: `janus: store.<slot> is missing`, `janus: store must be an object with users, sessions and tokens`, `janus: store.sessions.deleteExpiredSessions must be a function or absent`, `janus: store.tokens.deleteExpiredTokens must be a function or absent`, `janus: store.users.findUsers must be a function or absent`.
 
 **When:** `janus({...})`, from JavaScript or with a store typed loosely. TypeScript refuses a partial store at compile time and names the method.
-**Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. Two methods are optional — `sessions.deleteExpiredSessions` and `users.findUsers` — and each is absent, or a function: a value in its place (`findUsers: true`, a property copied from a config) is a wiring mistake, not an absent capability.
+**Why:** `store` is `{ users, sessions, tokens }`, and each slot must answer every method of the port. Three methods are optional — `sessions.deleteExpiredSessions`, `tokens.deleteExpiredTokens` and `users.findUsers` — and each is absent, or a function: a value in its place (`findUsers: true`, a property copied from a config) is a wiring mistake, not an absent capability.
 An adapter written for an earlier `@nxgt/janus` reports the method a later
 release added to the port: `store.tokens has no method countAttempt` for one
 written against 0.3 (the method came in 0.4), and
@@ -1069,11 +1069,11 @@ const page = await access.list(user, 'view', 'record', {
 });
 ```
 
-### `UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions — its store expires sessions on its own, or implement the method`
+### `UNSUPPORTED` — `collectExpired: store.sessions does not implement deleteExpiredSessions, nor store.tokens deleteExpiredTokens — their stores expire records on their own, or implement the methods`
 
 **When:** `auth.collectExpired()`.
-**Why:** the sessions store does not implement the optional `deleteExpiredSessions` — usually because it expires sessions itself (a MongoDB TTL index, a Redis `EXPIRE`).
-**Fix:** do not schedule `collectExpired` for that store. Expiry does not depend on it: the core compares `expiresAt` on every `authenticate`.
+**Why:** neither the sessions store implements the optional `deleteExpiredSessions` nor the tokens store the optional `deleteExpiredTokens` — usually because they expire records themselves (a MongoDB TTL index, a Redis `EXPIRE`). With one of the two, `collectExpired` collects that one and does not throw.
+**Fix:** do not schedule `collectExpired` for those stores. Expiry does not depend on it: the core compares `expiresAt` on every `authenticate` and on every redemption. If your database has no TTL, implement the methods ([adapters](guide/adapters.md#tokenstoredeleteexpiredtokens-optional)).
 
 ### `<call>: the <type> type does not sign in with a password — add password: { login } to it`
 

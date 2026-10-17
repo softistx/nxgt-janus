@@ -329,10 +329,21 @@ a link or a code already in the person's inbox still works afterwards.
 const removed: number = await auth.collectExpired();
 ```
 
-Deletes lapsed sessions, for a store that keeps them. It rejects with
-`UNSUPPORTED` when the sessions store does not implement the optional
-`deleteExpiredSessions` — a store with its own TTL, such as
-`@nxgt/janus-mongo`'s, does not. The reference store implements it.
+Deletes lapsed sessions and lapsed one-time tokens, from the stores that keep
+them, and answers how many in all. The tokens include the sign-in and mail
+throttles' counts, which are ordinary tokens. It runs whichever of the
+optional `sessions.deleteExpiredSessions` and `tokens.deleteExpiredTokens` the
+stores implement, sessions first, and rejects with `UNSUPPORTED` only when
+neither does — a store with its own TTL, such as `@nxgt/janus-mongo`'s, does
+not implement them. The reference store implements both.
+
+A token is deleted once its `expiresAt` is at or before now, spent or not;
+one that has not lapsed is never deleted, so a throttle keeps counting and a
+link still redeems until its time is up. After a token is collected, its link
+answers `TOKEN_UNKNOWN` rather than `TOKEN_EXPIRED` or `TOKEN_SPENT`, as it
+already does on a store with a TTL. A failure in the tokens store, after the
+sessions went, is `STORE_FAILED`; both deletions are idempotent, so call it
+again.
 
 ## Testing expiry
 

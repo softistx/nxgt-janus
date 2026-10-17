@@ -172,7 +172,7 @@ has each key in detail.
   (`JANUS_KIT_COLLECTIONS_DRIFTED`), so a rollback still starts.
 - **`kit.auth.collectExpired()` answers `UNSUPPORTED` on `/mongo`**: a TTL
   index removes lapsed sessions and tokens there. Schedule it on PostgreSQL
-  only.
+  only, where it deletes both.
 - **A MongoDB URL without a database in its path uses `test`**, the driver's
   default. Name Janus's database in the URL: `mongodb://…/janus`.
 - **A MongoDB that does not answer fails after 5 seconds**, measured: the

@@ -52,8 +52,9 @@ export type RedisStores = Pick<JanusStores, 'sessions' | 'tokens'>;
  * ```
  *
  * **Redis expires them itself**: every session and token key expires at its
- * own `expiresAt`. So `sessions.deleteExpiredSessions` is not implemented,
- * and `auth.collectExpired()` answers `UNSUPPORTED` — there is nothing to
+ * own `expiresAt`. So `sessions.deleteExpiredSessions` and
+ * `tokens.deleteExpiredTokens` are not implemented, and
+ * `auth.collectExpired()` answers `UNSUPPORTED` — there is nothing to
  * collect. **Every method that writes is one Lua script**, atomic as the port
  * asks, so `consumeToken` is never a read and then a write.
  *

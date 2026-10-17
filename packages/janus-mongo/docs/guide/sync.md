@@ -162,8 +162,8 @@ only while no user has been given codes, which `@nxgt/janus` does from
 MongoDB's TTL monitor runs every sixty seconds, so a lapsed session can stay
 readable for up to a minute. The core compares `expiresAt` on every read, and
 that is what expires it; the TTL index only keeps storage tidy. It is also why
-`deleteExpiredSessions` is not implemented, and `auth.collectExpired()` answers
-`UNSUPPORTED` with this adapter.
+`deleteExpiredSessions` and `deleteExpiredTokens` are not implemented, and
+`auth.collectExpired()` answers `UNSUPPORTED` with this adapter.
 
 ## See also
 

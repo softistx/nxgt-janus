@@ -32,8 +32,8 @@ import type { JanusStores } from './port/types';
  *   Rule 2 of the port, enforced at run time for the JavaScript adapter the
  *   compiler never saw.
  *
- * The optional `deleteExpiredSessions` is guarded when present and left absent
- * when absent, so capability detection still reads the truth.
+ * The optional `deleteExpiredSessions` and `deleteExpiredTokens` are guarded
+ * when present and left absent when absent, so capability detection still reads the truth.
  */
 export function guardStores(stores: JanusStores): JanusStores {
 	return {

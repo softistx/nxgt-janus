@@ -108,8 +108,8 @@ All three are measured on PostgreSQL 17 and 15 on every CI run.
 
 Every method of the port is implemented, **including both optional ones**.
 `deleteExpiredSessions`: PostgreSQL has no TTL, so
-`auth.collectExpired()` is how lapsed sessions leave the table; schedule it.
-The [migrations page](migrations.md#collecting-lapsed-sessions) shows how.
+`auth.collectExpired()` is how lapsed sessions and tokens leave their tables; schedule it.
+The [migrations page](migrations.md#collecting-lapsed-sessions-and-tokens) shows how.
 `findUsers` (since 0.7): one `select … where id in (…)` on the primary key,
 so `auth.<type>.findMany(ids)` reads up to 100 users in one round trip.
 

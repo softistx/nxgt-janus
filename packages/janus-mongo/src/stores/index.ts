@@ -29,9 +29,10 @@ import { userStore } from './users';
  * collection: `@nxgt/mongo` names no update conditioned on anything but its
  * own lock, and the port needs `version`, `revokedAt` and `kind`.
  *
- * `sessions.deleteExpiredSessions` is not implemented: a TTL index drops lapsed
- * sessions, so `sessions.collectExpired()` answers `UNSUPPORTED` — which is
- * what the port asks of a store with its own expiry.
+ * `sessions.deleteExpiredSessions` and `tokens.deleteExpiredTokens` are not
+ * implemented: a TTL index drops lapsed sessions and tokens, so
+ * `auth.collectExpired()` answers `UNSUPPORTED` — which is what the port asks
+ * of a store with its own expiry.
  */
 export function createMongoStores(db: Db): JanusStores {
 	return {

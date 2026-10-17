@@ -67,5 +67,18 @@ export function memoryTokenStore(): TokenStore {
 
 			return deleted;
 		},
+
+		async deleteExpiredTokens(before) {
+			let deleted = 0;
+
+			for (const [tokenHash, stored] of byTokenHash) {
+				if (stored.expiresAt.getTime() <= before.getTime()) {
+					byTokenHash.delete(tokenHash);
+					deleted += 1;
+				}
+			}
+
+			return deleted;
+		},
 	};
 }

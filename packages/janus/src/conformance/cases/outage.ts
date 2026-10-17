@@ -5,7 +5,7 @@ import { at, sessionRecord, tokenRecord, userRecord } from '../fixtures';
 import type { CaseContext, ConformanceCase, PortMethod } from '../types';
 
 /**
- * **The invariant, as cases.** For each of the fifteen methods whose honest
+ * **The invariant, as cases.** For each of the sixteen methods whose honest
  * answer can be "nothing" — `null`, `false`, `0`, an empty page or list — a
  * store that cannot answer must **reject**, and the rejection must not be
  * `NOT_FOUND`.
@@ -171,4 +171,15 @@ export const outageCases: readonly ConformanceCase[] = [
 		({ stores }) => stores.tokens.deleteUserTokens(user.id),
 		seed,
 	),
+	{
+		// Optional: a store with its own expiry has no such method.
+		...outage(
+			'tokens',
+			'deleteExpiredTokens',
+			async ({ stores }) =>
+				stores.tokens.deleteExpiredTokens?.call(stores.tokens, now),
+			seed,
+		),
+		needs: ['faults', 'deleteExpiredTokens'],
+	},
 ];

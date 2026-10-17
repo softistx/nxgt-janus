@@ -5,20 +5,13 @@ dates here, and the version something shipped in is the only number.
 
 ## Now
 
-Nothing between releases.
+Nothing yet.
 
 ## Next
 
 Nothing yet.
 
 ## Later
-
-- **Collecting lapsed one-time tokens** — `collectExpired()` deletes lapsed
-  sessions only. On a store with no TTL (PostgreSQL), lapsed tokens stay
-  until you delete them, and the sign-in throttle adds one per login tried
-  per window, and the mail throttle one per flow per address or user per
-  window. A port method to collect them, as sessions are, would let the
-  core do it.
 
 - **A batch read across types** — `findMany` reads one user type, as `find`
   does. The shared `findUser(id)` has no batch counterpart yet; one on the
@@ -76,6 +69,13 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Collecting lapsed one-time tokens, v0.25.0** — `collectExpired()` deletes
+  lapsed sessions and, through a new optional `TokenStore.deleteExpiredTokens`,
+  lapsed one-time tokens too: the sign-in and mail throttles' counts
+  included, which a store with no TTL (PostgreSQL) kept for ever, one per
+  login tried per window and one per flow per address or user per window.
+  The reference store and `@nxgt/janus-drizzle` 0.9 implement it; MongoDB and
+  Redis expire tokens themselves and do not.
 - **Finding a user, or creating them, v0.24.0** —
   `auth.<type>.findOrCreate(key, input)` answers `{ user, created }`: the
   holder of the key — the login on a type with a password, the e-mail on one

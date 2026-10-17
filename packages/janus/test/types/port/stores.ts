@@ -1,7 +1,7 @@
 /**
  * The stores and what their methods answer: a missing method, an absence as
  * undefined, answers too poor to act on, the wrong store in a slot. Cases
- * 1–5, 16, 24 and 25 of the twenty-five — see `fixtures.ts`.
+ * 1–5, 16, 24, 25 and 26 of the twenty-six — see `fixtures.ts`.
  */
 
 import { createMemoryStores } from '../../../src/auth/port/memory';
@@ -86,6 +86,15 @@ const nullBatch: UserStore = {
 	findUsers: async () => null,
 };
 
+// ── 26. deleteExpiredTokens answering nothing ─────────────────────────────
+// `Promise<void>` would let a collector that deleted nothing report success;
+// `collectExpired()` adds the count to the sessions' and answers the sum.
+const silentCollect: TokenStore = {
+	...tokens,
+	// @ts-expect-error deleteExpiredTokens answers how many tokens it deleted
+	deleteExpiredTokens: async () => {},
+};
+
 // ── And the shapes that MUST keep compiling ─────────────────────────────────
 
 // A step-up's write answers the record, or null once revoked.
@@ -95,6 +104,8 @@ const reauthenticated: Promise<SessionRecord | null> =
 // The optional capabilities may be absent.
 const { deleteExpiredSessions: _, ...withoutCollect } = sessions;
 const minimalSessions: SessionStore = withoutCollect;
+const { deleteExpiredTokens: ___, ...withoutTokenCollect } = tokens;
+const minimalTokens: TokenStore = withoutTokenCollect;
 const { findUsers: __, ...withoutBatch } = users;
 const minimalUsers: UserStore = withoutBatch;
 
@@ -128,9 +139,11 @@ export const checked = {
 		numberCount,
 		booleanReauth,
 		nullBatch,
+		silentCollect,
 	],
 	allowed: [
 		minimalSessions,
+		minimalTokens,
 		minimalUsers,
 		reference,
 		ClassStore,

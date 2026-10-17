@@ -89,8 +89,8 @@ Every session and token key expires at its own `expiresAt`, set with
 Redis deletes it then. The core decides expiry on every read anyway, so a
 lapsed session is refused whether Redis has deleted it yet or not.
 
-This is why `sessions.deleteExpiredSessions` is not implemented, and
-`auth.collectExpired()` answers `UNSUPPORTED`: there is nothing left to
+This is why `sessions.deleteExpiredSessions` and `tokens.deleteExpiredTokens`
+are not implemented, and `auth.collectExpired()` answers `UNSUPPORTED`: there is nothing left to
 collect.
 
 A revoked session stays until its expiry, so that its revocation is what a

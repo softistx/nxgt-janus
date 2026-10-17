@@ -4,7 +4,7 @@ This page covers:
 - adding the five tables to the schema drizzle-kit reads;
 - what the migration creates;
 - upgrading: the migration a new version of the tables needs;
-- collecting lapsed sessions;
+- collecting lapsed sessions and tokens;
 - what the database holds.
 
 The core never manages a schema, and the stores create nothing per request.
@@ -272,21 +272,63 @@ violates check constraint "tokens_kind"`. An instance still on 0.7 writes no
 token's `address` holds the new address and `code_hash` the address it
 replaces, keyed by the token's secret.
 
-## Collecting lapsed sessions
+### To 0.9: an index on `tokens.expires_at`
+
+0.9 implements `tokens.deleteExpiredTokens`, so `auth.collectExpired()` now
+deletes lapsed tokens too. The tables gain one index, and **the migration is
+recommended, not required**: the adapter runs without it, but then every
+collection scans the whole `tokens` table.
+
+```sql
+CREATE INDEX "tokens_expires_at" ON "tokens" ("expires_at");
+```
+
+That is the statement drizzle-kit writes from the 0.8 tables to the 0.9
+ones (`"janus"."tokens"` with a PostgreSQL schema). It rewrites no row, and
+deploys before or after the code: an instance still on 0.8 never deletes a
+token, so the two run side by side. Three things to know:
+
+- **Drop a hand-made index first.** The earlier advice was to run
+  `create index on tokens (expires_at)` yourself; PostgreSQL named it
+  `tokens_expires_at_idx`. drizzle-kit does not know it, so it writes
+  `tokens_expires_at` beside it and the table keeps two indexes on one column.
+  `drop index tokens_expires_at_idx;` in the same migration (`drop index
+  janus.tokens_expires_at_idx;` with a schema of their own).
+- **`CREATE INDEX` blocks writes while it builds**, and sign-ins write to
+  `tokens` (the throttles' counts). On a large table, build it off-peak, or
+  build it `CONCURRENTLY` yourself, outside the migration, under the exact
+  name `tokens_expires_at` (`create index concurrently tokens_expires_at on
+  "janus"."tokens" (expires_at);`, schema-qualified when the tables have a
+  schema of their own). It cannot run in the migrator's transaction
+  (PostgreSQL error 25001). drizzle-kit compares snapshots, not the database,
+  so it still writes the plain `CREATE INDEX`, which would fail with
+  `relation "tokens_expires_at" already exists`: edit the generated statement
+  to `CREATE INDEX IF NOT EXISTS "tokens_expires_at" …`.
+- **The first `collectExpired()` deletes the whole backlog** in one
+  statement, every lapsed throttle row since the table was created. Run it
+  off-peak the first time.
+
+## Collecting lapsed sessions and tokens
 
 PostgreSQL has no TTL. A lapsed session is refused on every read, but it stays
-in `sessions` until something deletes it. `auth.collectExpired()`
-deletes every session whose `expiresAt` has passed, and returns how many:
+in `sessions` until something deletes it, and so does a lapsed token.
+`auth.collectExpired()` deletes every session and every one-time token whose
+`expiresAt` has passed, and returns how many in all:
 
 ```ts
 // Hourly, from whatever runs your scheduled jobs.
 const collected = await auth.collectExpired();
-console.info(`janus: ${collected} lapsed sessions deleted`);
+console.info(`janus: ${collected} lapsed sessions and tokens deleted`);
 ```
 
-`expires_at` is indexed, so this is one indexed `delete`. Spent and lapsed
-one-time tokens stay until their user is deleted; there are few of them per
-user.
+`expires_at` is indexed on both tables (on `tokens` only once the [0.9
+migration](#to-09-an-index-on-tokensexpires_at) is applied), so each is one
+indexed `delete`. The
+tokens are not few: `@nxgt/janus`'s sign-in throttle adds a row per login
+tried and per 15-minute window, a login nobody holds included, and its mail
+throttle one per flow, address or user and window. A token is deleted spent
+or not, once its `expiresAt` has passed and never before; after that a link
+answers `TOKEN_UNKNOWN` rather than `TOKEN_EXPIRED`.
 
 ## Reading the tables yourself
 
