@@ -69,7 +69,7 @@ nxgt-telemetry — the range is `>=<floor> <1`: `>=0.17.0 <1`, `>=0.3.1 <1`,
 (`^0.4.2` stops at `0.5.0`), and every minor upstream would then force a
 release here. The same package sits in `devDependencies`, and `bun.lock` holds
 the version the `ci` job's specs run on — npm's `latest` when the lock was last
-refreshed: on 2026-10-23, `@nxgt/redis` 0.9.2, `@nxgt/mongo` 0.22.0,
+refreshed: on 2026-10-23, `@nxgt/redis` 0.9.3, `@nxgt/mongo` 0.23.0,
 `@nxgt/drizzle` 0.6.5 and `@nxgt/telemetry` 0.2.2 — the first three peer
 `typescript` `^6.0.3 || ^7.0.0`; `@nxgt/telemetry` 0.2.2 still peers
 `^6.0.3`. The test servers stay this repository's own `test/server.ts`, not
