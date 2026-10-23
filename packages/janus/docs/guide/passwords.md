@@ -247,6 +247,40 @@ if (!(await limiter.consume(`sign-in:${clientAddress}`))) {
 const signedIn = await auth.signIn({ email, password });
 ```
 
+## Resetting a password at the root of several types
+
+`auth.resetPassword.confirm(token, password)` at the root of an instance with
+several user types is for a page that follows a reset link without knowing the
+user's type. A type's own `confirm` refuses a short password **before** it
+spends the token, so the visitor keeps the link. At the root the type is only
+known after the spend, so the rule that stands in for it is the **strictest
+`minLength`** among the types with a password — a password type with no
+e-mail counts too, since the root cannot tell; it can never be reset, but its
+rule still applies at the root:
+
+```ts
+janus({
+	users: {
+		admin: { schema: Account, password: { login: 'email' } },                    // 8
+		member: { schema: Account, password: { login: 'email', minLength: 12 } },   // 12
+	},
+	// ...
+});
+
+await auth.resetPassword.confirm(token, 'ten chars!');
+// PASSWORD_TOO_SHORT, minLength 12, userType 'member' — the link is not spent
+await auth.admin.resetPassword.confirm(token, 'ten chars!'); // an admin's own rule: accepted
+```
+
+- A refused password never costs the link. The hash is computed once, before
+  the spend.
+- A more lenient type sees the stricter rule at the root only. The two are the
+  same when every type has the same `minLength`.
+- `PASSWORD_TOO_SHORT` at the root reports the strictest `minLength`, and the
+  `userType` of the type that set it. Show the message, not the type.
+- When no type has both a password and an e-mail the root has no
+  `resetPassword`.
+
 ## What never happens
 
 - The plain password is never stored, and never appears in an error message.

@@ -39,36 +39,48 @@ export function verifyEmailFlows(
 			return issueEmailToken(context, type, 'verifyEmail', record, where);
 		},
 
-		async confirm(secret) {
-			const where = at('verifyEmail.confirm');
-			const { token, user } = await redeemEmailToken(
-				context,
-				type,
-				'verifyEmail',
-				secret,
-				where,
-			);
-			let newlyVerified = false;
-			const written = await writeUser(
-				context,
-				user.id,
-				type,
-				undefined,
-				where,
-				(record, now) => {
-					// Checked again on the record written: an e-mail changed
-					// since the read above is not the one the link proved.
-					refuseStale(type, record, token, where, 'token');
-					newlyVerified = record.emailVerifiedAt === null;
-					return { emailVerifiedAt: now };
-				},
-			);
-			if (newlyVerified) {
-				await emit(context, 'user.emailVerified', written, written.updatedAt);
-			}
-			return toUser(written);
-		},
+		confirm: (secret) =>
+			confirmVerify(context, type, secret, at('verifyEmail.confirm')),
 
 		proveFirst: proveFirstFlow(context, type, at),
 	};
+}
+
+/**
+ * Redeems a verification token: marks the e-mail verified. `asked` is the type
+ * whose `confirm` was called, or null for the root's, where the user's own type
+ * answers.
+ */
+export async function confirmVerify(
+	context: Context,
+	asked: ResolvedType | null,
+	secret: string,
+	where: string,
+): Promise<AnyUser> {
+	const { token, user, type } = await redeemEmailToken(
+		context,
+		asked,
+		'verifyEmail',
+		secret,
+		where,
+	);
+	let newlyVerified = false;
+	const written = await writeUser(
+		context,
+		user.id,
+		type,
+		undefined,
+		where,
+		(record, now) => {
+			// Checked again on the record written: an e-mail changed
+			// since the read above is not the one the link proved.
+			refuseStale(type, record, token, where, 'token');
+			newlyVerified = record.emailVerifiedAt === null;
+			return { emailVerifiedAt: now };
+		},
+	);
+	if (newlyVerified) {
+		await emit(context, 'user.emailVerified', written, written.updatedAt);
+	}
+	return toUser(written);
 }

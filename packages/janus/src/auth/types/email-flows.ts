@@ -98,6 +98,11 @@ export interface VerifyEmailApi<U> {
 		/**
 		 * Redeems a token and marks the e-mail verified. A token sent to an
 		 * e-mail the user has since changed is `TOKEN_STALE`.
+		 *
+		 * **With several user types**, a token issued to a user of another type
+		 * is `TOKEN_UNKNOWN` here, and it is spent. A page that does not know
+		 * the type — an anonymous confirmation page — calls the root's
+		 * `janus.verifyEmail.confirm` instead.
 		 */
 		confirm(token: string): Promise<U>;
 		/**
@@ -188,6 +193,11 @@ export interface ResetPasswordApi<U> {
 		 * reset token of the user is spent, as by `changePassword` and
 		 * `setPassword`. Opens no session: call `signIn` next if that is your
 		 * policy.
+		 *
+		 * **With several user types**, a token issued to a user of another type
+		 * is `TOKEN_UNKNOWN` here, and it is spent. A page that does not know
+		 * the type — an anonymous reset page — calls the root's
+		 * `janus.resetPassword.confirm` instead.
 		 */
 		confirm(token: string, password: string): Promise<U>;
 	};

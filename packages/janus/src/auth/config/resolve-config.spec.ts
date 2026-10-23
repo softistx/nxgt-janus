@@ -92,6 +92,16 @@ describe('refuses, with a bare TypeError, what only wiring produces', () => {
 			'"changeEmail" cannot name a user type',
 		],
 		[
+			'a type named like the root verifyEmail',
+			wire({ users: { verifyEmail: { schema: person } } }),
+			'"verifyEmail" cannot name a user type',
+		],
+		[
+			'a type named like the root resetPassword',
+			wire({ users: { resetPassword: { schema: person } } }),
+			'"resetPassword" cannot name a user type',
+		],
+		[
 			'a type name that is not camelCase',
 			wire({ users: { 'front-desk': { schema: person } } }),
 			'camelCase',

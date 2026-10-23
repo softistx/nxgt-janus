@@ -34,4 +34,6 @@ export const RESERVED_TYPES = [
 	'collectExpired',
 	'types',
 	'changeEmail',
+	'verifyEmail',
+	'resetPassword',
 ] as const;

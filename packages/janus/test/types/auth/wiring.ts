@@ -1,6 +1,6 @@
 /**
- * Wiring `janus()`: logins, schemas and configurations it refuses. Cases 1–9 of
- * the ninety-two — see `fixtures.ts`.
+ * Wiring `janus()`: logins, schemas and configurations it refuses. Cases 1–9 and 92–94 of
+ * the one hundred and two — see `fixtures.ts`.
  */
 
 import { z } from 'zod';
@@ -77,6 +77,24 @@ janus({
 	users: {
 		// @ts-expect-error auth.changeEmail would be either
 		changeEmail: { schema: Patient },
+	},
+	store,
+});
+
+// ── 93. A user type named like the root verifyEmail of several types ───────
+janus({
+	users: {
+		// @ts-expect-error auth.verifyEmail would be either
+		verifyEmail: { schema: Patient },
+	},
+	store,
+});
+
+// ── 94. A user type named like the root resetPassword of several types ─────
+janus({
+	users: {
+		// @ts-expect-error auth.resetPassword would be either
+		resetPassword: { schema: Patient },
 	},
 	store,
 });

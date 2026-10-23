@@ -49,6 +49,8 @@ export { assertFresh } from './sessions/fresh';
 export type { StandardSchemaV1 } from './standard-schema';
 export type {
 	AnyTypeChangeEmailApi,
+	AnyTypeResetPasswordApi,
+	AnyTypeVerifyEmailApi,
 	Authenticated,
 	ChangeEmailApi,
 	Checked,

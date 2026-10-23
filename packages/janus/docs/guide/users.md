@@ -168,7 +168,7 @@ and `schemaVersion`, with the defaults above. A login is unique **per type**:
 the same e-mail may hold a patient user and a staff user. A type name is
 camelCase, and may not be one of `janus()`'s own methods (`authenticate`,
 `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`,
-`collectExpired`, `types`, `changeEmail`) — a compile error, and a `TypeError` for a
+`collectExpired`, `types`, `changeEmail`, `verifyEmail`, `resetPassword`) — a compile error, and a `TypeError` for a
 JavaScript caller.
 
 ## What each user type answers

@@ -1,6 +1,6 @@
 /**
  * Signing up and in with the wrong login, without a password, or on a type
- * that has none. Cases 10–15 of the ninety-two — see `fixtures.ts`.
+ * that has none. Cases 10–15 of the one hundred and two — see `fixtures.ts`.
  */
 
 import { clinic, one } from './fixtures';

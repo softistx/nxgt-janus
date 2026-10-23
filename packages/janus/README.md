@@ -320,13 +320,13 @@ await auth.signIn({ email, password });            // { status: 'signedIn', user
 await auth.authenticate(request);                  // { user, session, token, renewed } | null
 await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
-await auth.verifyEmail.confirm(token);
+await auth.verifyEmail.confirm(token);             // several types: also at the root, see Confirming a link at the root
 await auth.verifyEmail.proveFirst(user);           // privileged: FirstProof — { user, proved }; drops a squatter's password and factor
 // { token, email, expiresAt } — email is the NEW address; gate it behind a fresh sign-in
 await auth.changeEmail.send(user, newEmail);
 await auth.changeEmail.confirm(token); // the user, moved to the new address and verified
 await auth.resetPassword.request(email);           // … | null
-await auth.resetPassword.confirm(token, newPassword);
+await auth.resetPassword.confirm(token, newPassword); // several types: also at the root, see Confirming a link at the root
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
 await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user, session, token }
 await auth.magicLink.request(email);               // { token, email, expiresAt, user } | null
@@ -816,6 +816,28 @@ there. Without janus-mail, send it with your own mailer.
 
 [The e-mail flows guide](docs/guide/email-flows.md#changeemail) has a Hono
 route for each step, with the notice to the former address.
+
+### Confirming a link at the root of several types
+
+A type's own `confirm` — `auth.admin.verifyEmail.confirm`,
+`auth.admin.resetPassword.confirm`, `auth.admin.changeEmail.confirm` — answers
+`TOKEN_UNKNOWN` for another type's token, **and spends it**. A page that
+follows a link without knowing the type calls the root's, from a `POST`:
+
+```ts
+await auth.admin.verifyEmail.send(admin);
+const verified = await auth.verifyEmail.confirm(token);              // AnyTypeVerifyEmailApi: a type has an e-mail
+const reset = await auth.resetPassword.confirm(token, newPassword);  // AnyTypeResetPasswordApi: a type has a login and an e-mail
+const changed = await auth.changeEmail.confirm(token);               // AnyTypeChangeEmailApi: a type has an e-mail
+```
+
+Each reads the user the token was issued to, whatever their type, and does
+what their type's `confirm` does: the same write, events and refusals, and
+`type` in the answer says which type it was. `send`, `proveFirst`, `request`
+and `prepare` stay on each type. No type may be named `verifyEmail`,
+`resetPassword` or `changeEmail`. **The root reset checks the password against
+the strictest `minLength`** before it spends the link — see
+[Traps](#traps).
 
 ### Requests in two steps — `prepare`
 
@@ -1416,6 +1438,21 @@ runner-less layer.
 
 ## Traps
 
+**A type's own `confirm` spends another type's token; the root's does not
+need the type.** With several user types, `auth.admin.verifyEmail.confirm`,
+`resetPassword.confirm` and `changeEmail.confirm` answer `TOKEN_UNKNOWN` for a
+token issued to a member, and the token is spent — the right type then answers
+`TOKEN_SPENT`. A page that does not know the type calls the root's `confirm`
+([Confirming a link at the root](#confirming-a-link-at-the-root-of-several-types)).
+
+**The root `resetPassword.confirm` applies the strictest `minLength` of the
+types with a password** — a password type with no e-mail counts too, since the
+root cannot tell: it can never be reset, but its rule still applies at the
+root. It checks the password before the token is spent, so a refused password
+never costs the link; a type with a shorter rule sees the stricter one at the
+root only, and `PASSWORD_TOO_SHORT` reports that `minLength` and the `userType`
+that set it. The type's own `confirm` applies its own.
+
 **Once `secondFactor` is configured, switch on `signIn`'s `status`** — and
 on `signInCode.confirm`'s, `magicLink.confirm`'s and `signInProven`'s. A user whose factor is active gets
 `{ status: 'secondFactor', challenge, expiresAt, userId }`, with no `token`
@@ -1813,7 +1850,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and eighty-five plausible mistakes, one hundred and eighty-five refused at compile time — and
+**One hundred and ninety-five plausible mistakes, one hundred and ninety-five refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1821,10 +1858,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-six, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (ninety-two, on `janus()`, from the point of view of
+it), `test/types/auth/` (one hundred and two, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, four on `findOrCreate`) and `test/types/permissions/` (fifty-two, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`) and `test/types/permissions/` (fifty-two, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible
