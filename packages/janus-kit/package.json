@@ -64,7 +64,7 @@
 		"@nxgt/janus-drizzle": "workspace:^",
 		"@nxgt/janus-mongo": "workspace:^",
 		"@nxgt/janus-telemetry": "workspace:^",
-		"@nxgt/mongo": "^0.19.3",
+		"@nxgt/mongo": "^0.20.0",
 		"@nxgt/redis": "0.9.0",
 		"@nxgt/telemetry": "0.2.2",
 		"@types/bun": "^1.4.2",
