@@ -1,4 +1,5 @@
 import { describe, it } from 'bun:test';
+import type { ConformanceRunner } from '@nxgt/janus/conformance';
 import {
 	describeJanusStores,
 	describeRelationStores,
@@ -40,10 +41,23 @@ const LAYOUTS: readonly {
 	},
 ];
 
+// The kit opens and closes a database inside each case (create, then drop), so
+// under load they count against the case's own timeout.
+const CASE_TIMEOUT_MS = 30_000;
+
+const runner: ConformanceRunner = {
+	describe,
+	it: Object.assign(
+		(name: string, body: () => Promise<void>) =>
+			it(name, body, CASE_TIMEOUT_MS),
+		{ skip: it.skip },
+	),
+};
+
 for (const { name, options } of LAYOUTS) {
 	describeJanusStores({
 		name,
-		runner: { describe, it },
+		runner,
 		harness: {
 			async open() {
 				// A database per case: nothing one case writes is seen by the next.
@@ -63,7 +77,7 @@ for (const { name, options } of LAYOUTS) {
 
 	describeRelationStores({
 		name,
-		runner: { describe, it },
+		runner,
 		harness: {
 			async open() {
 				const test = await openTestDb(options);
