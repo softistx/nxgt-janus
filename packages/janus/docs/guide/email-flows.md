@@ -140,6 +140,10 @@ nothing is written.
 A confirm that verifies the e-mail sends a [`user.emailVerified`
 event](events.md); one for an e-mail already verified sends nothing.
 
+Changing the e-mail with `update` sets `emailVerified` back to `false` — and
+the next sign-in by code or link then [drops the password and the second
+factor, and signs out every session](magic-link.md#an-account-someone-else-registered).
+
 **With several user types**, a type's own `confirm` answers `TOKEN_UNKNOWN`
 for a token issued to another type's user, and spends it. A page that does
 not know the type calls the root's `confirm`, which reads the user the token
@@ -153,9 +157,6 @@ be named `verifyEmail`.
 // one anonymous page for every type
 const verified = await auth.verifyEmail.confirm(token); // verified.type: 'admin' | 'member'
 ```
-Changing the e-mail with `update` sets `emailVerified` back to `false` — and
-the next sign-in by code or link then [drops the password and the second
-factor, and signs out every session](magic-link.md#an-account-someone-else-registered).
 
 ## Proving an e-mail on your own proof — `proveFirst`
 
@@ -427,7 +428,9 @@ password and an e-mail, which is why no type may be named `resetPassword`.
 
 The type is only known once the token is spent, so the root checks the
 password **before** that against the **strictest `minLength`** of the types
-that have a password and an e-mail: a refused password never costs the link.
+with a password — a password type with no e-mail counts too, since the root
+cannot tell; it can never be reset, but its rule still applies at the root. A
+refused password never costs the link.
 A type with a shorter rule sees the stricter one at the root only — its own
 `confirm` applies its own. See [the password
 policy](passwords.md#resetting-a-password-at-the-root-of-several-types).

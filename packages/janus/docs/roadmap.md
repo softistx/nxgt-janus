@@ -74,7 +74,7 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `auth.resetPassword.confirm(token, password)` confirm a verification or a
   reset link for a page that does not know the user's type, as
   `changeEmail.confirm` does. The root reset checks the password against the
-  strictest `minLength` of the types that can reset one before it spends the
+  strictest `minLength` of the types with a password before it spends the
   link, so a refused password never costs it. A type's own `confirm` still
   answers `TOKEN_UNKNOWN`, and spends the token, for another type's link; no
   user type may be named `verifyEmail` or `resetPassword`.

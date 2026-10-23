@@ -719,7 +719,7 @@ if (error instanceof UserInvalidError) {
 
 **When:** `signUp`, `setPassword`, `changePassword`, `resetPassword.confirm`.
 **Why:** the type's `password.minLength` (8 by default). `resetPassword.confirm` checks this **before** spending the token, so the visitor can retry with the same link.
-At the root of several user types, `auth.resetPassword.confirm` checks the **strictest** `minLength` among the types that have a password and an e-mail, since the type is only known after the token is spent: `error.minLength` is that one and `error.userType` the type that set it, and a password a more lenient type would accept can be refused there. The token is still not spent.
+At the root of several user types, `auth.resetPassword.confirm` checks the **strictest** `minLength` among the types with a password (one with no e-mail counts too, since the root cannot tell: it can never be reset, but its rule still applies at the root), since the type is only known after the token is spent: `error.minLength` is that one and `error.userType` the type that set it, and a password a more lenient type would accept can be refused there. The token is still not spent.
 **Fix:** answer 400 with `error.minLength`, or change the policy: `password: { login: 'email', minLength: 12 }`.
 
 ### `CREDENTIALS_INVALID` — `<call>: the login and the password do not match`

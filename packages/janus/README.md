@@ -320,13 +320,13 @@ await auth.signIn({ email, password });            // { status: 'signedIn', user
 await auth.authenticate(request);                  // { user, session, token, renewed } | null
 await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
-await auth.verifyEmail.confirm(token);             // with several types, also at the root: see Traps
+await auth.verifyEmail.confirm(token);             // several types: also at the root, see Confirming a link at the root
 await auth.verifyEmail.proveFirst(user);           // privileged: FirstProof — { user, proved }; drops a squatter's password and factor
 // { token, email, expiresAt } — email is the NEW address; gate it behind a fresh sign-in
 await auth.changeEmail.send(user, newEmail);
 await auth.changeEmail.confirm(token); // the user, moved to the new address and verified
 await auth.resetPassword.request(email);           // … | null
-await auth.resetPassword.confirm(token, newPassword); // with several types, also at the root: see Traps
+await auth.resetPassword.confirm(token, newPassword); // several types: also at the root, see Confirming a link at the root
 await auth.signInCode.request(email);              // { code, challenge, email, expiresAt, user } | null
 await auth.signInCode.confirm(challenge, code);    // { status: 'signedIn', user, session, token }
 await auth.magicLink.request(email);               // { token, email, expiresAt, user } | null
@@ -813,29 +813,31 @@ there. Without janus-mail, send it with your own mailer.
 
   It exists when at least one type has an e-mail, so a type cannot be named
   `changeEmail`. Its type is `AnyTypeChangeEmailApi`.
-- **`verifyEmail.confirm` and `resetPassword.confirm` do the same.** A type's
-  own `confirm` answers `TOKEN_UNKNOWN` for another type's token, and spends
-  it. A page that follows a verification or reset link without knowing the
-  type calls the root's `auth.verifyEmail.confirm(token)` (when a type has an
-  e-mail; `AnyTypeVerifyEmailApi`) or `auth.resetPassword.confirm(token,
-  password)` (when a type has a password and an e-mail;
-  `AnyTypeResetPasswordApi`), from a `POST`. Both read the user the token was
-  issued to and do what their type's `confirm` does; `type` in the answer
-  says which. `send`, `proveFirst`, `request` and `prepare` stay on each
-  type, and no type may be named `verifyEmail` or `resetPassword`. **The root
-  reset checks the password against the strictest `minLength`** of the types
-  that have a password and an e-mail, before it spends the link, so a refused
-  password never costs the visitor their link; a type with a shorter rule
-  sees the stricter one at the root only, and `PASSWORD_TOO_SHORT` reports
-  that `minLength` and the `userType` that set it:
-
-  ```ts
-  await auth.member.resetPassword.request(email);
-  const reset = await auth.resetPassword.confirm(token, newPassword); // reset.type === 'member'
-  ```
 
 [The e-mail flows guide](docs/guide/email-flows.md#changeemail) has a Hono
 route for each step, with the notice to the former address.
+
+### Confirming a link at the root of several types
+
+A type's own `confirm` — `auth.admin.verifyEmail.confirm`,
+`auth.admin.resetPassword.confirm`, `auth.admin.changeEmail.confirm` — answers
+`TOKEN_UNKNOWN` for another type's token, **and spends it**. A page that
+follows a link without knowing the type calls the root's, from a `POST`:
+
+```ts
+await auth.admin.verifyEmail.send(admin);
+const verified = await auth.verifyEmail.confirm(token);              // AnyTypeVerifyEmailApi: a type has an e-mail
+const reset = await auth.resetPassword.confirm(token, newPassword);  // AnyTypeResetPasswordApi: a type has a login and an e-mail
+const changed = await auth.changeEmail.confirm(token);               // AnyTypeChangeEmailApi: a type has an e-mail
+```
+
+Each reads the user the token was issued to, whatever their type, and does
+what their type's `confirm` does: the same write, events and refusals, and
+`type` in the answer says which type it was. `send`, `proveFirst`, `request`
+and `prepare` stay on each type. No type may be named `verifyEmail`,
+`resetPassword` or `changeEmail`. **The root reset checks the password against
+the strictest `minLength`** before it spends the link — see
+[Traps](#traps).
 
 ### Requests in two steps — `prepare`
 
@@ -1435,6 +1437,21 @@ each of the six methods — a write that rejects must have changed nothing.
 runner-less layer.
 
 ## Traps
+
+**A type's own `confirm` spends another type's token; the root's does not
+need the type.** With several user types, `auth.admin.verifyEmail.confirm`,
+`resetPassword.confirm` and `changeEmail.confirm` answer `TOKEN_UNKNOWN` for a
+token issued to a member, and the token is spent — the right type then answers
+`TOKEN_SPENT`. A page that does not know the type calls the root's `confirm`
+([Confirming a link at the root](#confirming-a-link-at-the-root-of-several-types)).
+
+**The root `resetPassword.confirm` applies the strictest `minLength` of the
+types with a password** — a password type with no e-mail counts too, since the
+root cannot tell: it can never be reset, but its rule still applies at the
+root. It checks the password before the token is spent, so a refused password
+never costs the link; a type with a shorter rule sees the stricter one at the
+root only, and `PASSWORD_TOO_SHORT` reports that `minLength` and the `userType`
+that set it. The type's own `confirm` applies its own.
 
 **Once `secondFactor` is configured, switch on `signIn`'s `status`** — and
 on `signInCode.confirm`'s, `magicLink.confirm`'s and `signInProven`'s. A user whose factor is active gets

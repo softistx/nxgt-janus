@@ -254,7 +254,9 @@ several user types is for a page that follows a reset link without knowing the
 user's type. A type's own `confirm` refuses a short password **before** it
 spends the token, so the visitor keeps the link. At the root the type is only
 known after the spend, so the rule that stands in for it is the **strictest
-`minLength`** among the types that have a password and an e-mail:
+`minLength`** among the types with a password — a password type with no
+e-mail counts too, since the root cannot tell; it can never be reset, but its
+rule still applies at the root:
 
 ```ts
 janus({
