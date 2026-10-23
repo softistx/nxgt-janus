@@ -14,7 +14,8 @@
  * `mail-throttle.ts`, `prepared.ts`, `proven-sign-in.ts`,
  * `find-by-email.ts`, `prove-first.ts`, `change-email.ts`,
  * `root-confirm.ts` and `find-or-create.ts`,
- * with the shapes that must keep compiling in `allowed.ts` — the event
+ * with the shapes that must keep compiling in `allowed.ts` and
+ * `allowed-sign-in.ts` — the event
  * listener's, the step-up's, the throttles' and the devices' beside their
  * refusals. Add a
  * case whenever the surface gains something it should refuse; never delete

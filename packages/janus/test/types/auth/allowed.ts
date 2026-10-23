@@ -1,12 +1,12 @@
 /**
  * The shapes that MUST keep compiling, seen from the application: signing up,
- * narrowing by type, the flows each type has, and a second factor read
- * through `status`. No refusal lives here — see `fixtures.ts` for the files
- * that hold them.
+ * narrowing by type, the flows each type has and `findMany`. The sign-in
+ * shapes are in `allowed-sign-in.ts`. No refusal lives here — see
+ * `fixtures.ts` for the files that hold them.
  */
 
 import type { User } from '../../../src/index';
-import { clinic, one, request, twoFactor } from './fixtures';
+import { clinic, one, request } from './fixtures';
 
 async function allowed() {
 	const { user, token, session } = await one.signUp({
@@ -40,39 +40,6 @@ async function allowed() {
 		email: 'g@b.test',
 	});
 
-	// With a second factor, `status` says which answer `signIn` gave.
-	const result = await twoFactor.patient.signIn({
-		email: 'a@b.test',
-		password: 'secret123',
-	});
-	const signedIn =
-		result.status === 'signedIn'
-			? result
-			: await twoFactor.patient.secondFactor.confirm(
-					result.challenge,
-					'123456',
-				);
-	const patientToken: string = signedIn.token;
-	const enrolment: { secret: string; uri: string } =
-		await twoFactor.patient.secondFactor.enroll(signedIn.user);
-	const active: boolean = signedIn.user.hasSecondFactor;
-	// Without a second factor, a code signs a patient straight in.
-	const patientByCode: string = (
-		await clinic.patient.signInCode.confirm('challenge', '123456')
-	).token;
-	// A guest has no password, so no second factor: a code signs them in.
-	const guestToken: string = (
-		await twoFactor.guest.signInCode.confirm('challenge', '123456')
-	).token;
-	// And so does a link — a patient's, once narrowed on `status`.
-	const guestByLink: string = (await twoFactor.guest.magicLink.confirm('token'))
-		.token;
-	const linked = await twoFactor.patient.magicLink.confirm('token');
-	const patientByLink: string | null =
-		linked.status === 'signedIn' ? linked.token : null;
-	const link = await clinic.patient.magicLink.request('a@b.test');
-	const sent: string | undefined = link?.token;
-
 	// findMany takes a readonly list, and answers the type's own users.
 	const ids: readonly string[] = ['0190e3b4-0000-7000-8000-000000000000'];
 	const listed = await clinic.staff.findMany(ids);
@@ -88,14 +55,6 @@ async function allowed() {
 		badge,
 		guest,
 		one.cookie.name,
-		patientToken,
-		enrolment,
-		active,
-		guestToken,
-		patientByCode,
-		guestByLink,
-		patientByLink,
-		sent,
 		services,
 		byId,
 	];
