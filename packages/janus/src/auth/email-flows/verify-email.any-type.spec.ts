@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import { hasher } from '../../../test/auth';
+import { changingEmailAfterRedeem } from '../../../test/changing-email';
 import { rejection } from '../../../test/rejection';
 import { fixedClock } from '../../time/clock';
 import type { UserEvent } from '../events';
 import { janus } from '../janus';
 import { createMemoryStores } from '../port/memory';
 import { hashSecret } from '../secrets';
-import { changingEmailAfterRedeem } from './changing-email.fixtures';
 
 const Account = z.strictObject({ email: z.email(), name: z.string() });
 

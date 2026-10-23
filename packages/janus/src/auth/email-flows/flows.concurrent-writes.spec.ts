@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { ada, hasher, password, setup } from '../../../test/auth';
+import { changingEmailAfterRedeem } from '../../../test/changing-email';
 import { rejection } from '../../../test/rejection';
 import { createMemoryStores } from '../port/memory';
 import type { JanusStores } from '../port/types';
-import { changingEmailAfterRedeem } from './changing-email.fixtures';
 
 describe('an e-mail changed while a link is redeemed', () => {
 	it('verifies nothing', async () => {

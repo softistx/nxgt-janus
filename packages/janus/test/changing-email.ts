@@ -1,5 +1,5 @@
-import { createMemoryStores } from '../port/memory';
-import type { JanusStores } from '../port/types';
+import { createMemoryStores } from '../src/auth/port/memory';
+import type { JanusStores } from '../src/auth/port/types';
 
 /**
  * A store where the user's e-mail changes **between the two reads** of a
