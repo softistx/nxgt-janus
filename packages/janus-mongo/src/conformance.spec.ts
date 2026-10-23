@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, it } from 'bun:test';
-import type { StoreFaults } from '@nxgt/janus/conformance';
+import type { ConformanceRunner, StoreFaults } from '@nxgt/janus/conformance';
 import {
 	describeJanusStores,
 	describeRelationStores,
@@ -37,6 +37,19 @@ const COMMAND_OF: Record<string, readonly string[]> = {
 	deleteUserTokens: ['delete'],
 };
 
+// The kit opens and closes the stores inside each case (index creation, then
+// dropDatabase), so under load they count against the case's own timeout.
+const CASE_TIMEOUT_MS = 30_000;
+
+const runner: ConformanceRunner = {
+	describe,
+	it: Object.assign(
+		(name: string, body: () => Promise<void>) =>
+			it(name, body, CASE_TIMEOUT_MS),
+		{ skip: it.skip },
+	),
+};
+
 let server: TestServer;
 let opened = 0;
 
@@ -45,13 +58,14 @@ beforeAll(async () => {
 	server = await startMongo();
 }, 120_000);
 
+// Stopping the replica set waits on mongod, which a loaded machine slows past 5 s.
 afterAll(async () => {
 	await server.stop();
-});
+}, 30_000);
 
 describeJanusStores({
 	name: '@nxgt/janus-mongo',
-	runner: { describe, it },
+	runner,
 	harness: {
 		async open() {
 			// A database per case: nothing one case writes is seen by the next.
@@ -95,7 +109,7 @@ const RELATION_COMMAND_OF: Record<string, readonly string[]> = {
 
 describeRelationStores({
 	name: '@nxgt/janus-mongo',
-	runner: { describe, it },
+	runner,
 	harness: {
 		async open() {
 			opened += 1;
