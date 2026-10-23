@@ -102,8 +102,8 @@
         "@nxgt/janus-drizzle": "workspace:^",
         "@nxgt/janus-mongo": "workspace:^",
         "@nxgt/janus-telemetry": "workspace:^",
-        "@nxgt/mongo": "^0.19.3",
-        "@nxgt/redis": "0.9.0",
+        "@nxgt/mongo": "^0.20.0",
+        "@nxgt/redis": "0.9.2",
         "@nxgt/telemetry": "0.2.2",
         "@types/bun": "^1.4.2",
         "drizzle-kit": "1.0.0-rc.4",
@@ -164,7 +164,7 @@
       "version": "0.9.4",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
-        "@nxgt/mongo": "^0.19.3",
+        "@nxgt/mongo": "^0.20.0",
         "@types/bun": "^1.4.2",
         "mongodb": "^7.6.0",
         "mongodb-memory-server-core": "11.2.0",
@@ -183,7 +183,7 @@
       "version": "0.4.16",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
-        "@nxgt/redis": "0.9.0",
+        "@nxgt/redis": "0.9.2",
         "@types/bun": "^1.4.2",
         "redis-memory-server": "0.17.1",
         "zod": "^4.6.5",
@@ -228,7 +228,7 @@
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@nxgt/janus-webhooks": "workspace:^",
-        "@nxgt/redis": "0.9.0",
+        "@nxgt/redis": "0.9.2",
         "@types/bun": "^1.4.2",
         "redis-memory-server": "0.17.1",
         "zod": "^4.6.5",
@@ -485,9 +485,9 @@
 
     "@nxgt/mail-ui": ["@nxgt/mail-ui@1.0.1", "", { "dependencies": { "unplugin-vue-components": "^32.1.0" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@nxgt/mail-config": "^1.0.1", "typescript": "^6.0.3", "vue": "^3.5.0" } }, "sha512-ZPFWWMuX7pQocKuuXyX2rZqAZcAiIlxHphQgA0tnXuolpYHeZWtDGkR9es5L2eDvgMJKSy2axkF3Zg3pKRXZEA=="],
 
-    "@nxgt/mongo": ["@nxgt/mongo@0.19.3", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-D1oEbv12QNrOxl/OTeG00OIoxAZ1E/lzREe+fuW1CtQNLnub5hD6UBE4AVsBKXvZGxB/WlMLeDB+e9abnFEhWg=="],
+    "@nxgt/mongo": ["@nxgt/mongo@0.20.0", "", { "peerDependencies": { "mongodb": ">=7.0.0 <8", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" } }, "sha512-VER6WV7D4IGoh8ot4WtKEd2qtmVSqAPJDfHii28th4A2OL8I9fW84gskDiO9/YGljLZZ3PzqiHEw3Tvn27ChMA=="],
 
-    "@nxgt/redis": ["@nxgt/redis@0.9.0", "", { "peerDependencies": { "redis-memory-server": ">=0.17.1 <0.18", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" }, "optionalPeers": ["redis-memory-server"] }, "sha512-q8okgrWtquWDk63cfpALeebOvot/6ZEjhtrGS3ovW+fcBE9nlCYjzxy15YknOb+GyP80k+p2famB3fGuliQwLQ=="],
+    "@nxgt/redis": ["@nxgt/redis@0.9.2", "", { "peerDependencies": { "redis-memory-server": ">=0.17.1 <0.18", "typescript": "^6.0.3 || ^7.0.0", "zod": ">=4.6.5 <5" }, "optionalPeers": ["redis-memory-server"] }, "sha512-kP4+RfI4FBxpMIGLEf6m8WnkO4ih8PEVpABxwR8qIsSx5UwU3Xkv8sAAiaLZQ/pAhLTAZtqhGGNrBTQf+Gb3yg=="],
 
     "@nxgt/telemetry": ["@nxgt/telemetry@0.2.2", "", { "peerDependencies": { "typescript": "^6.0.3" } }, "sha512-x2qzmdk6yKRK7rz2pDsIoD6wHDAmCyqXQbTh199N9epBufggBzU5WV4+31851Qy+8MRRY0qNC/k62F4erIBTlw=="],
 
