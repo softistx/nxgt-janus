@@ -14,9 +14,10 @@ beforeAll(async () => {
 	server = await startMongo();
 }, 120_000);
 
+// Stopping the replica set waits on mongod, which a loaded machine slows past 5 s.
 afterAll(async () => {
 	await server.stop();
-});
+}, 30_000);
 
 const at = new Date('2026-01-01T00:00:00.000Z');
 
