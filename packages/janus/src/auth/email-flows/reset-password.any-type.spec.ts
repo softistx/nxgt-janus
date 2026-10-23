@@ -7,6 +7,7 @@ import type { UserEvent } from '../events';
 import { janus } from '../janus';
 import { createMemoryStores } from '../port/memory';
 import { hashSecret } from '../secrets';
+import { changingEmailAfterRedeem } from './changing-email.fixtures';
 
 const Account = z.strictObject({ email: z.email(), name: z.string() });
 
@@ -65,8 +66,10 @@ describe('resetPassword.confirm at the root of several types', () => {
 			await rejection(auth.admin.signIn({ email: ADMIN.email, password: OLD })),
 		).toMatchObject({ code: 'CREDENTIALS_INVALID' });
 		expect(await auth.authenticate(bearer(token))).toBeNull();
-		expect(received.map((event) => event.type)).toContain('user.passwordReset');
-		expect(received.map((event) => event.type)).toContain('user.emailVerified');
+		expect(received.map((event) => event.type)).toEqual([
+			'user.passwordReset',
+			'user.emailVerified',
+		]);
 	});
 
 	it('resets a member through the same root', async () => {
@@ -211,6 +214,89 @@ describe('resetPassword.confirm at the root of several types', () => {
 
 		expect(
 			await rejection(auth.resetPassword.confirm(secret, FRESH)),
+		).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+	});
+
+	it('is TOKEN_STALE when the e-mail moves between the read and the write', async () => {
+		const store = changingEmailAfterRedeem('other@example.test');
+		const auth = janus({
+			users: {
+				admin: { schema: Account, password: { login: 'email' } },
+				member: { schema: Account, password: { login: 'email' } },
+			},
+			store,
+			hasher,
+		});
+		const { user } = await auth.admin.signUp({ ...ADMIN, password: OLD });
+		const requested = await auth.admin.resetPassword.request(ADMIN.email);
+
+		expect(
+			await rejection(
+				auth.resetPassword.confirm(requested?.token ?? '', FRESH),
+			),
+		).toMatchObject({ code: 'TOKEN_STALE' });
+		await auth.admin.signIn({ email: 'other@example.test', password: OLD });
+		expect((await auth.admin.get(user.id)).email).toBe('other@example.test');
+	});
+
+	it('does not redeem a verification token, and that token still works afterwards', async () => {
+		const { auth } = threeTypes();
+		const { user } = await auth.admin.signUp({ ...ADMIN, password: OLD });
+		const sent = await auth.admin.verifyEmail.send(user);
+
+		expect(
+			await rejection(auth.resetPassword.confirm(sent.token, FRESH)),
+		).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+		expect((await auth.verifyEmail.confirm(sent.token)).emailVerified).toBe(
+			true,
+		);
+	});
+
+	it('counts a password type with no e-mail: its minLength binds the root, and the admin keeps the link', async () => {
+		const auth = janus({
+			users: {
+				admin: { schema: Account, password: { login: 'email' } },
+				staff: {
+					schema: z.strictObject({ username: z.string() }),
+					password: { login: 'username', minLength: 20 },
+				},
+			},
+			store: createMemoryStores(),
+			hasher,
+		});
+		await auth.admin.signUp({ ...ADMIN, password: OLD });
+		const requested = await auth.admin.resetPassword.request(ADMIN.email);
+		const token = requested?.token ?? '';
+
+		expect(
+			await rejection(auth.resetPassword.confirm(token, 'twelve chars')),
+		).toMatchObject({
+			code: 'PASSWORD_TOO_SHORT',
+			minLength: 20,
+			userType: 'staff',
+		});
+		const reset = await auth.resetPassword.confirm(
+			token,
+			'a password of twenty chars',
+		);
+		expect(reset.type).toBe('admin');
+	});
+
+	it('answers TOKEN_UNKNOWN, not a wiring error, when no type has a password and no hasher is wired', async () => {
+		const auth = janus({
+			users: {
+				guest: { schema: z.strictObject({ email: z.email() }) },
+				visitor: { schema: z.strictObject({ email: z.email() }) },
+			},
+			store: createMemoryStores(),
+		});
+
+		// Not in the types, since no type can reset: a JavaScript caller's view.
+		const root = Reflect.get(auth, 'resetPassword');
+		const confirm = Reflect.get(root, 'confirm');
+
+		expect(
+			await rejection(Reflect.apply(confirm, root, ['forged', FRESH])),
 		).toMatchObject({ code: 'TOKEN_UNKNOWN' });
 	});
 });

@@ -20,9 +20,10 @@ import { endWhatThePasswordOpened } from '../password-written';
 import { redeemEmailToken } from './email-token';
 
 /**
- * The type whose password rule is the strictest among those that can reset
- * one — a password and an e-mail — or null when there is none. The first
- * declared wins a tie.
+ * The type whose password rule is the strictest among those with a password,
+ * or null when none has one. A password type with no e-mail counts too: the
+ * root cannot tell, and such a user can never be reset, but its rule still
+ * applies at the root. The first declared wins a tie.
  */
 function strictestType(context: Context): ResolvedType | null {
 	let strictest: ResolvedType | null = null;
@@ -41,8 +42,8 @@ function strictestType(context: Context): ResolvedType | null {
  * Redeems a reset token: sets the password, proves the e-mail, signs out
  * everywhere. `asked` is the type whose `confirm` was called, or null for the
  * root's: the password must then meet the strictest `minLength` of the types
- * that can reset one, before the token is spent, and the user's own type
- * answers after.
+ * with a password, before the token is spent, and the user's own type answers
+ * after.
  */
 export async function confirmReset(
 	context: Context,
@@ -57,7 +58,10 @@ export async function confirmReset(
 	const gate = asked ?? strictestType(context);
 	if (asked !== null) passwordRule(asked, where);
 	if (gate !== null) checkPassword(gate, password, where);
-	const hash = await requireHasher(context, where).hash(password);
+	// No type with a password at the root: nothing can be reset, the spend
+	// below answers it, and no hasher is needed (or wired) for that.
+	const hash =
+		gate === null ? '' : await requireHasher(context, where).hash(password);
 
 	const { token, user, type } = await redeemEmailToken(
 		context,

@@ -7,6 +7,7 @@ import type { UserEvent } from '../events';
 import { janus } from '../janus';
 import { createMemoryStores } from '../port/memory';
 import { hashSecret } from '../secrets';
+import { changingEmailAfterRedeem } from './changing-email.fixtures';
 
 const Account = z.strictObject({ email: z.email(), name: z.string() });
 
@@ -157,5 +158,39 @@ describe('verifyEmail.confirm at the root of several types', () => {
 		expect(await rejection(auth.verifyEmail.confirm(secret))).toMatchObject({
 			code: 'TOKEN_UNKNOWN',
 		});
+	});
+
+	it('is TOKEN_STALE when the e-mail moves between the read and the write', async () => {
+		const store = changingEmailAfterRedeem('other@example.test');
+		const auth = janus({
+			users: {
+				admin: { schema: Account, password: { login: 'email' } },
+				member: { schema: Account, password: { login: 'email' } },
+			},
+			store,
+			hasher,
+		});
+		const admin = await auth.admin.create(ADMIN);
+		const sent = await auth.admin.verifyEmail.send(admin);
+
+		expect(await rejection(auth.verifyEmail.confirm(sent.token))).toMatchObject(
+			{ code: 'TOKEN_STALE' },
+		);
+		expect((await auth.admin.get(admin.id)).emailVerified).toBe(false);
+	});
+
+	it('does not redeem a reset token, and that token still works afterwards', async () => {
+		const { auth } = twoTypes();
+		await auth.admin.signUp({ ...ADMIN, password: 'a long password' });
+		const reset = await auth.admin.resetPassword.request(ADMIN.email);
+
+		expect(
+			await rejection(auth.verifyEmail.confirm(reset?.token ?? '')),
+		).toMatchObject({ code: 'TOKEN_UNKNOWN' });
+		const done = await auth.resetPassword.confirm(
+			reset?.token ?? '',
+			'another long password',
+		);
+		expect(done.type).toBe('admin');
 	});
 });

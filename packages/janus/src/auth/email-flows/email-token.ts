@@ -6,7 +6,7 @@
 
 import { NotFoundError } from '../../errors/janus-error';
 import type { ResolvedType } from '../config';
-import { type Context, emailOf, findRecord } from '../context';
+import { type Context, emailOf } from '../context';
 import {
 	issueOneTime,
 	refuseStale,
@@ -15,6 +15,7 @@ import {
 } from '../one-time';
 import type { TokenKind, TokenRecord, UserRecord } from '../port/types';
 import type { IssuedToken } from '../types';
+import { ownerOf } from './owner-of';
 
 /**
  * Spends a token and says why it cannot be used, when it cannot. A user
@@ -33,10 +34,7 @@ export async function redeemEmailToken(
 	where: string,
 ): Promise<{ token: TokenRecord; user: UserRecord; type: ResolvedType }> {
 	const token = await spendOneTime(context, secret, kind, where, 'token');
-	const user = await findRecord(context, token.userId, type?.name ?? null);
-	const owner = type ?? context.config.types.get(user?.type ?? '');
-	if (user === null || owner === undefined)
-		throw unknownOneTime(where, 'token');
+	const { user, type: owner } = await ownerOf(context, type, token, where);
 	// A type with no e-mail field has no such flow: its users are as good as
 	// unknown here, as through their own type.
 	if (type === null && emailOf(owner, user.fields) === null)

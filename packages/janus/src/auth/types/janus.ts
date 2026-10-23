@@ -8,8 +8,6 @@
 import type { JanusConfig, MultiTypeConfig, SingleTypeConfig } from '../config';
 import type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 import type {
-	AnyTypeResetPasswordApi,
-	AnyTypeVerifyEmailApi,
 	ResetPasswordApi,
 	SignInCodeApi,
 	VerifyEmailApi,
@@ -27,12 +25,14 @@ import type {
 import type { MagicLinkApi } from './magic-link';
 import type { PasswordApi } from './password';
 import type { ProvenSignInApi } from './proven-sign-in';
+import type { AnyTypeResetPasswordApi } from './reset-password';
 import type { SecondFactorApi } from './second-factor';
 import type { Authenticated, RequestLike, Session } from './session';
 import type { SignedIn, SignInResult } from './sign-in';
 import type { StepUpApi, StepUpByApp, StepUpByEmail } from './step-up';
 import type { UserRef } from './user';
 import type { UserTypeApi } from './user-type';
+import type { AnyTypeVerifyEmailApi } from './verify-email';
 
 /**
  * What a sign-in other than the password's answers — a code, a link, or

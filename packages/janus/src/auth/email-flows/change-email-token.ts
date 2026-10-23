@@ -10,11 +10,12 @@
 
 import { TokenError, UserInvalidError } from '../../errors/janus-error';
 import { normalizeEmail, type ResolvedType } from '../config';
-import { type Context, emailOf, findRecord, validateFields } from '../context';
+import { type Context, emailOf, validateFields } from '../context';
 import { issueOneTime, spendOneTime, unknownOneTime } from '../one-time';
 import type { TokenRecord, UserRecord } from '../port/types';
 import { hashSecret, mintSecret } from '../secrets';
 import type { IssuedToken } from '../types';
+import { ownerOf } from './owner-of';
 
 /** What binds a token to the address it replaces. */
 export const formerHash = (secret: string, former: string | null): string =>
@@ -133,10 +134,7 @@ export async function redeemChangeEmailToken(
 		where,
 		'token',
 	);
-	const user = await findRecord(context, token.userId, type?.name ?? null);
-	const owner = type ?? context.config.types.get(user?.type ?? '');
-	if (user === null || owner === undefined)
-		throw unknownOneTime(where, 'token');
+	const { user, type: owner } = await ownerOf(context, type, token, where);
 	// A type with no e-mail field has no changeEmail: its users are as good as
 	// unknown here, as through their own type, which has no such flow.
 	if (emailOf(owner, user.fields) === null)
