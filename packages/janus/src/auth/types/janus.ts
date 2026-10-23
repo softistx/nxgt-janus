@@ -8,6 +8,8 @@
 import type { JanusConfig, MultiTypeConfig, SingleTypeConfig } from '../config';
 import type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 import type {
+	AnyTypeResetPasswordApi,
+	AnyTypeVerifyEmailApi,
 	ResetPasswordApi,
 	SignInCodeApi,
 	VerifyEmailApi,
@@ -163,13 +165,27 @@ export interface SharedApi<U extends { readonly type: string }> {
 type TwoFactorOf<C> = 'secondFactor' extends keyof C ? true : false;
 
 /**
- * The users of the types that have an e-mail, which `changeEmail.confirm` at
- * the root of several types answers; nothing when no type has one.
+ * The users of the types that have an e-mail, which `verifyEmail.confirm` and
+ * `changeEmail.confirm` at the root of several types answer; nothing when no
+ * type has one.
  */
-type ChangeEmailUsers<C extends MultiTypeConfig> = {
+type EmailUsers<C extends MultiTypeConfig> = {
 	[K in keyof C['users'] & string]: [EmailOf<C['users'][K]>] extends [never]
 		? never
 		: UserOfType<K, C['users'][K]>;
+}[keyof C['users'] & string];
+
+/**
+ * The users of the types that have both a login and an e-mail, as `TypeApi`
+ * gates `ResetPasswordApi`: the ones `resetPassword.confirm` at the root
+ * answers; nothing when no type has both.
+ */
+type ResetPasswordUsers<C extends MultiTypeConfig> = {
+	[K in keyof C['users'] & string]: [LoginOf<C['users'][K]>] extends [never]
+		? never
+		: [EmailOf<C['users'][K]>] extends [never]
+			? never
+			: UserOfType<K, C['users'][K]>;
 }[keyof C['users'] & string];
 
 /** What `janus(config)` answers. */
@@ -181,9 +197,13 @@ export type Janus<C extends JanusConfig> = SharedApi<UserOf<C>> &
 					C['users'][K],
 					TwoFactorOf<C>
 				>;
-			} & ([ChangeEmailUsers<C>] extends [never]
+			} & ([EmailUsers<C>] extends [never]
 				? unknown
-				: AnyTypeChangeEmailApi<ChangeEmailUsers<C>>)
+				: AnyTypeChangeEmailApi<EmailUsers<C>> &
+						AnyTypeVerifyEmailApi<EmailUsers<C>>) &
+				([ResetPasswordUsers<C>] extends [never]
+					? unknown
+					: AnyTypeResetPasswordApi<ResetPasswordUsers<C>>)
 		: C extends SingleTypeConfig
 			? TypeApi<'user', SingleAsType<C>, TwoFactorOf<C>>
 			: never);

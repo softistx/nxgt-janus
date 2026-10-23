@@ -11,6 +11,8 @@
 export type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 export type { Checked } from './checks';
 export type {
+	AnyTypeResetPasswordApi,
+	AnyTypeVerifyEmailApi,
 	FirstProof,
 	IssuedCode,
 	IssuedToken,

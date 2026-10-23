@@ -69,6 +69,15 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Root `verifyEmail.confirm` and `resetPassword.confirm` for instances with
+  several user types, v0.28.0** — `auth.verifyEmail.confirm(token)` and
+  `auth.resetPassword.confirm(token, password)` confirm a verification or a
+  reset link for a page that does not know the user's type, as
+  `changeEmail.confirm` does. The root reset checks the password against the
+  strictest `minLength` of the types that can reset one before it spends the
+  link, so a refused password never costs it. A type's own `confirm` still
+  answers `TOKEN_UNKNOWN`, and spends the token, for another type's link; no
+  user type may be named `verifyEmail` or `resetPassword`.
 - **`changePassword` counts in the sign-in throttle, v0.27.0** — each call is
   one more password tried at the user's login, in the budget `signIn` counts
   in: past the limit it answers `CREDENTIALS_INVALID` with `reason:
@@ -141,11 +150,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   and compared as the e-mail flows do; nothing is counted, issued or
   written. It is the lookup before `signInProven` when an invitation holds
   an address. Server-side only: it tells whether an account exists.
-- **Signing in on the application's own proof, v0.20.0** —
-  `auth.<type>.signInProven(user, { device })` signs in a user the
-  application proved itself — an invitation token it issued — and answers
-  what every sign-in answers: a session, or a second-factor challenge, with
-  the device and `USER_INACTIVE` handled alike. It sends no e-mail, counts
-  in no throttle and spends no link already sent, so accepting an
-  invitation no longer goes through `magicLink.request` and its mail
-  throttle. Privileged: never with an id a request supplied.

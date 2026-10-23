@@ -20,20 +20,30 @@ import type { IssuedToken } from '../types';
  * Spends a token and says why it cannot be used, when it cannot. A user
  * gone since, or of another type, is as good as no token; a token sent to
  * an e-mail the user no longer has is stale.
+ *
+ * With `type` null the user's own type answers — whichever it is, provided it
+ * has an e-mail: a page that does not know the type confirms the link, and
+ * `type` in the answer is the one the user has.
  */
 export async function redeemEmailToken(
 	context: Context,
-	type: ResolvedType,
+	type: ResolvedType | null,
 	kind: TokenKind,
 	secret: string,
 	where: string,
-): Promise<{ token: TokenRecord; user: UserRecord }> {
+): Promise<{ token: TokenRecord; user: UserRecord; type: ResolvedType }> {
 	const token = await spendOneTime(context, secret, kind, where, 'token');
-	const user = await findRecord(context, token.userId, type.name);
-	if (user === null) throw unknownOneTime(where, 'token');
+	const user = await findRecord(context, token.userId, type?.name ?? null);
+	const owner = type ?? context.config.types.get(user?.type ?? '');
+	if (user === null || owner === undefined)
+		throw unknownOneTime(where, 'token');
+	// A type with no e-mail field has no such flow: its users are as good as
+	// unknown here, as through their own type.
+	if (type === null && emailOf(owner, user.fields) === null)
+		throw unknownOneTime(where, 'token');
 
-	refuseStale(type, user, token, where, 'token');
-	return { token, user };
+	refuseStale(owner, user, token, where, 'token');
+	return { token, user, type: owner };
 }
 
 /** Issues a one-time token for the user's current e-mail. */

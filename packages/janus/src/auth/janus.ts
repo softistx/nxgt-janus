@@ -4,6 +4,8 @@ import { type JanusConfig, resolveConfig } from './config';
 import { warnThrottleWindow } from './config/warn-throttle-window';
 import { createContext } from './context';
 import { anyTypeChangeEmail } from './email-flows/any-type-change-email';
+import { anyTypeResetPassword } from './email-flows/any-type-reset-password';
+import { anyTypeVerifyEmail } from './email-flows/any-type-verify-email';
 import { resolveEvents } from './events';
 import { guardStores } from './outage';
 import { assertStores } from './port/assert-stores';
@@ -108,6 +110,8 @@ export function janus<const C extends JanusConfig>(
 				...shared,
 				...types,
 				...anyTypeChangeEmail(context),
+				...anyTypeVerifyEmail(context),
+				...anyTypeResetPassword(context),
 			};
 	return surface as unknown as Janus<C>;
 }
