@@ -10,9 +10,10 @@ beforeAll(async () => {
 	server = await startMongo();
 }, 120_000);
 
+// Stopping the replica set waits on mongod, which a loaded machine slows past 5 s.
 afterAll(async () => {
 	await server.stop();
-});
+}, 30_000);
 
 /** The stores, counting the users store's reads by id. */
 function counting(stores: JanusStores) {

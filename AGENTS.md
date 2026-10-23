@@ -21,9 +21,9 @@ reason most of this file exists: a published entry point is a promise, and
 than claimed.
 
 The owner's global rules in `~/.claude/CLAUDE.md` apply here: worktrees,
-integration branches, merges and releases, and questions to the owner. This
-file states only what is this repository's own and declares no departure from
-them.
+commits, integration branches, merges and releases, and questions to the
+owner. This file states only what is this repository's own and declares no
+departure from them.
 
 Read this file, then the README of the package you touch —
 `packages/<name>/README.md`, starting with `packages/janus/README.md`.
@@ -821,28 +821,29 @@ before the command answers `128 + <signal>` without running it.
 
 ## Commits and merges
 
-**A commit's subject is `<type>(<package>): <Summary>`**, as the history
-practises it:
+**A commit's subject follows Conventional Commits**, as `~/.claude/CLAUDE.md`
+"Commits" sets it: `type(scope)!: description`, the description starting with a
+lowercase letter. What is this repository's own:
 
-- **`<type>`** is one of `feat`, `fix`, `docs`, `test`, `refactor`, `chore`,
-  `ci`, `build` — and `revert`, used once, for #17. A `!` after the scope
-  marks a breaking change: `feat(janus-drizzle)!: Unprefixed tables, …`.
-  `build` is build configuration: tsconfig, bundler, packaging.
-- **`<package>`** is the package's directory name, without `@nxgt/`:
-  `fix(janus-webhooks): …`, or `docs(janus, janus-telemetry): …` for two. The
-  scope names the package whose changelog the change belongs to. The early
+- **The scope is the package's directory name**, without `@nxgt/`:
+  `fix(janus-webhooks): …`, or `docs(janus, janus-telemetry): …` for two. It
+  names the package whose changelog the change belongs to. The early
   `feat(permissions)` commits named a module, not a package; that is not
   repeated.
 - **No scope** for a change to the repository rather than to one package:
   `ci:` for the workflows and the setup action, `chore:` for the skeleton, the
   changeset scripts and a package made publishable, `docs:` for this file and
-  for documentation across packages.
-- **`<Summary>`** is a capitalised sentence, with no final period, saying what
-  the change does: `fix(janus): Name the subject's type, not its id, in
-  list()'s missing-lookup error`. A summary that opens on an identifier keeps
-  the identifier's case: `fix(janus-hono): bindJanus binds what permission()
-  takes`.
-- The body says why, and what was measured.
+  for documentation across packages. `build` is build configuration:
+  tsconfig, bundler, packaging.
+- **A `!` after the scope** marks a breaking change:
+  `feat(janus-drizzle)!: unprefixed tables, …`.
+- **An identifier keeps its case** at the start of the description:
+  `fix(janus-hono): bindJanus binds what permission() takes`. The description
+  has no final period.
+- **The body says why, and what was measured.**
+- **History before 2026-10-23 used capitalised summaries**
+  (`fix(janus): Name the subject's type, …`); a review does not flag those
+  commits.
 
 **A pull request is merged with a merge commit** (`Merge pull request #N from
 …`), never squashed or rebased, and a branch behind `develop` is brought up to
