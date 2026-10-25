@@ -55,6 +55,7 @@ interface UserBase<Type extends string = string> {
 	readonly active: boolean;
 	readonly hasPassword: boolean; // the hash itself never reaches a user
 	readonly hasSecondFactor: boolean; // an active second factor: signIn asks for a code
+	readonly avatar: { id: string; updatedAt: Date } | null; // null until the application sets one
 	readonly version: number;      // one more on every write
 	readonly createdAt: Date;
 	readonly updatedAt: Date;

@@ -369,7 +369,7 @@ else reaches the store and is asynchronous.
 
 - **A user is your schema's fields, at the top level**, plus what `janus` sets:
   `id`, `type`, `emailVerified`, `active`, `hasPassword`, `hasSecondFactor`,
-  `version`, `createdAt`, `updatedAt`. A schema declaring one of those, or a `password`, is
+  `avatar`, `version`, `createdAt`, `updatedAt`. A schema declaring one of those, or a `password`, is
   refused at compile time. The password hash never reaches a user.
 - **Schemas** are any [Standard Schema](https://standardschema.dev) — Zod 4,
   Valibot, ArkType. There is no validation peer. The output must be JSON, and a

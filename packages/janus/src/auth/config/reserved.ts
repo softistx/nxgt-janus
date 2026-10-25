@@ -17,6 +17,7 @@ export const RESERVED_FIELDS = [
 	'active',
 	'hasPassword',
 	'hasSecondFactor',
+	'avatar',
 	'version',
 	'createdAt',
 	'updatedAt',

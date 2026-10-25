@@ -19,6 +19,7 @@ export function user(overrides: Partial<UserRecord> = {}): UserRecord {
 		logins: ['a@b.test'],
 		password: { hash: '$argon2id$v=19$…', updatedAt: at(1) },
 		secondFactor: null,
+		avatar: null,
 		emailVerifiedAt: null,
 		version: 0,
 		createdAt: at(1),

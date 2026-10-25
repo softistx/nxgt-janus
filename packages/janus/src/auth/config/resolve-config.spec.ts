@@ -117,6 +117,11 @@ describe('refuses, with a bare TypeError, what only wiring produces', () => {
 			'"id" is a field janus sets itself',
 		],
 		[
+			'a login that names the avatar slot',
+			wire({ user: person, password: { login: 'avatar' }, hasher }),
+			'"avatar" is a field janus sets itself',
+		],
+		[
 			'an unknown normalisation',
 			wire({
 				user: person,

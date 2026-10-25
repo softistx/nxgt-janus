@@ -2,6 +2,7 @@ import { StoreConflict } from '../../../errors/janus-error';
 import { equal, isNull, isOurs, rejects } from '../../assert';
 import { at, userRecord } from '../../fixtures';
 import type { ConformanceCase } from '../../types';
+import { avatarSlotCase } from './avatar';
 import {
 	recoveryCodes,
 	secondFactor,
@@ -81,6 +82,7 @@ export const userPatchCases: readonly ConformanceCase[] = [
 		},
 	},
 	secondFactorSlotCase,
+	avatarSlotCase,
 	{
 		id: 'users.loginsMove',
 		group,

@@ -28,6 +28,11 @@ export interface UserBase<Type extends string = string> {
 	 * does not ask for it.
 	 */
 	readonly hasSecondFactor: boolean;
+	/**
+	 * The user's avatar, or `null`. `id` is the application's own key for the
+	 * image and changes with it, so it can serve as a cache-buster.
+	 */
+	readonly avatar: { readonly id: string; readonly updatedAt: Date } | null;
 	/** One more on every write: what `ifVersion` is compared against. */
 	readonly version: number;
 	readonly createdAt: Date;
