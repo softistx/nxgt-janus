@@ -69,6 +69,18 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Account avatars, v0.29.0** — `auth.<type>.avatar.set(user, { id })` and
+  `avatar.remove(user)` record which image is an account's, and `user.avatar`
+  (`{ id, updatedAt } | null`) reads it back on every adapter. Janus keeps
+  only the id your application chose, never the bytes: you store, serve and
+  delete the image, `user.avatarChanged` and `user.avatarRemoved` hand you the
+  `formerAvatarId` to delete, and the image is read through your own
+  authenticated route, never a public URL. The
+  [avatars guide](guide/avatars.md) has the upload, remove and proxy routes
+  and the rule that an account is visible to the members of an organization it
+  belongs to. `@nxgt/janus-mongo` needs `syncMongoStores(db)` and
+  `@nxgt/janus-drizzle` a migration first.
+
 - **Root `verifyEmail.confirm` and `resetPassword.confirm` for instances with
   several user types, v0.28.0** — `auth.verifyEmail.confirm(token)` and
   `auth.resetPassword.confirm(token, password)` confirm a verification or a
@@ -143,10 +155,3 @@ before is in the [CHANGELOG](../CHANGELOG.md).
   `{ user, proved }`. Nothing is counted, sent or issued. An invitation is
   accepted in this order: find or create, `proveFirst`, `setPassword`,
   `signInProven`. Privileged: never with an id a request supplied.
-- **Finding a user by e-mail on every type, v0.21.0** —
-  `auth.<type>.findByEmail(email)` answers the user of the type holding the
-  address, or `null`, on every type with an e-mail — a type with no
-  password included, which has no `findByLogin`. The address is normalised
-  and compared as the e-mail flows do; nothing is counted, issued or
-  written. It is the lookup before `signInProven` when an invitation holds
-  an address. Server-side only: it tells whether an account exists.

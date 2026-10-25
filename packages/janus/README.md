@@ -1183,7 +1183,9 @@ id. The user comes back as `user.avatar`, from `get`, `find`, `getUser` and
 | `avatar.remove(user, { ifVersion? })` | writes `null` and answers the user; a user with none writes and sends nothing; else sends `user.avatarRemoved` with `formerAvatarId` | `NOT_FOUND`, `VERSION_CONFLICT` |
 
 The `id` is a non-empty string of at most 512 characters; janus never parses
-it. The name `avatar` can no longer name a user type.
+it. The name `avatar` can no longer name a user type. The routes around it —
+upload, remove, a proxy that streams the image behind your session, and who
+may see it — are in [the avatars guide](docs/guide/avatars.md).
 
 ### User events — `events`
 
@@ -1909,6 +1911,7 @@ that sends one, since it is awaited: queue the event and return.
 ## Documentation
 
 - [Guides](docs/README.md) — one page per area, every option with an example
+- [Account avatars](docs/guide/avatars.md) — the upload, remove and proxy routes, who may see a picture, and the failure order
 - [Devices](docs/guide/devices.md) — a sign-in from a new device: the token, the cookie, the notice
 - [Troubleshooting](docs/troubleshooting.md) — by the error message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
