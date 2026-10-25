@@ -19,10 +19,23 @@
  *   `useServer()`, a connection authenticated from its `connectionParams`
  *   or its upgrade request.
  *
+ * - `janusAvatarTypeDefs`, `toJanusAvatar(user)` and `avatarResolvers({ url })`
+ *   — the opt-in `JanusAvatar` type, its `url(size:)` pointing at your own
+ *   authenticated route (`graphql/janus-avatar.graphqls`).
+ *
  * It defines no error class: a denial is a `GraphQLError`, and what it lets
  * through is `@nxgt/janus`'s own.
  */
 
+export {
+	type AvatarOwner,
+	type AvatarParent,
+	type AvatarResolvers,
+	type AvatarResolversOptions,
+	avatarResolvers,
+	toJanusAvatar,
+} from './avatar';
+export { janusAvatarTypeDefs } from './avatar.sdl';
 export { janusConnection } from './connection/connection';
 export type {
 	ConnectionContext,
