@@ -64,7 +64,7 @@ does — one event per write, rather than two a listener would have to tell
 apart. Switch on `type`: the thirteen are a closed set, and TypeScript refuses a
 fourteenth. A new type is a compile error in a `switch` that exhausts them — the
 two recovery-code types, added in 0.10, the two change types, added in
-0.14, `user.newDeviceSignedIn`, added in 0.17, and the two avatar types,
+0.14, `user.newDeviceSignedIn`, added in 0.17, and the two avatar types, added in 0.29,
 each broke such a `switch` until it handled them.
 
 ```ts
@@ -91,7 +91,7 @@ function onUserEvent(event: UserEvent): void {
 		case 'user.avatarChanged':
 		case 'user.avatarRemoved':
 			// formerAvatarId is null on a first set: nothing to delete — see below
-			return event.formerAvatarId == null ? undefined : deleteImage(event.formerAvatarId);
+			return event.formerAvatarId == null ? undefined : store.remove({ imageId: event.formerAvatarId });
 		case 'user.deleted':
 			return forgetEverywhere(event.userId);
 	}
@@ -230,7 +230,7 @@ the id, so this is how the application learns which image to delete from its
 storage once the record no longer points at it. It is absent from every other
 type, and `@nxgt/janus-webhooks` strips it as it strips `formerEmail`:
 delete the image from the `events` listener, in the process that wrote — the
-`deleteImage` case in the listener at the top of this page, and the
+`store.remove` case in the listener at the top of this page, and the
 [README's avatar example](../../README.md#avatars--avatar), do exactly this; the whole recipe is in [account avatars](avatars.md).
 
 A receiver that only gets webhooks never sees `formerAvatarId`, and janus keeps
