@@ -31,6 +31,7 @@ describe('rehash on sign-in', () => {
 			logins: [ada.email],
 			password: { hash: await legacy.hash(password), updatedAt: createdAt },
 			secondFactor: null,
+			avatar: null,
 			emailVerifiedAt: null,
 			version: 0,
 			createdAt,

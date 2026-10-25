@@ -34,6 +34,7 @@ export function toUserDocument(record: UserRecord): UserDocument {
 						...record.secondFactor,
 						recoveryCodes: [...record.secondFactor.recoveryCodes],
 					},
+		avatar: record.avatar,
 		emailVerifiedAt: record.emailVerifiedAt,
 		version: record.version,
 		createdAt: record.createdAt,
@@ -56,6 +57,7 @@ export function toUserSet(patch: UserPatch): Record<string, unknown> {
 		'logins',
 		'password',
 		'secondFactor',
+		'avatar',
 		'emailVerifiedAt',
 	] as const) {
 		if (patch[field] !== undefined) set[field] = patch[field];
@@ -67,6 +69,7 @@ export function toUserSet(patch: UserPatch): Record<string, unknown> {
 export function toUser(document: UserDocument): UserRecord {
 	const password = document.password;
 	const secondFactor = document.secondFactor ?? null;
+	const avatar = document.avatar ?? null;
 	return {
 		id: document._id as Id,
 		type: document.type,
@@ -88,6 +91,8 @@ export function toUser(document: UserDocument): UserRecord {
 						lastStep: secondFactor.lastStep,
 						recoveryCodes: [...(secondFactor.recoveryCodes ?? [])],
 					},
+		avatar:
+			avatar === null ? null : { id: avatar.id, updatedAt: avatar.updatedAt },
 		emailVerifiedAt: document.emailVerifiedAt,
 		version: document.version,
 		createdAt: document.createdAt,

@@ -70,6 +70,8 @@ CREATE TABLE "users" (
 	"second_factor_confirmed_at" timestamp(3) with time zone,
 	"second_factor_last_step" integer,
 	"second_factor_recovery_codes" text[],
+	"avatar_id" text,
+	"avatar_updated_at" timestamp(3) with time zone,
 	"email_verified_at" timestamp(3) with time zone,
 	"version" integer NOT NULL,
 	"created_at" timestamp(3) with time zone NOT NULL,
@@ -77,7 +79,8 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_id_type_unique" UNIQUE("id","type"),
 	CONSTRAINT "users_password_whole" CHECK (("password_hash" is null) = ("password_updated_at" is null)),
 	CONSTRAINT "users_second_factor_whole" CHECK (("second_factor_method" is null) = ("second_factor_secret" is null) and ("second_factor_method" is not null or ("second_factor_confirmed_at" is null and "second_factor_last_step" is null and "second_factor_recovery_codes" is null))),
-	CONSTRAINT "users_second_factor_values" CHECK ("second_factor_method" in ('totp') and "second_factor_last_step" >= 0)
+	CONSTRAINT "users_second_factor_values" CHECK ("second_factor_method" in ('totp') and "second_factor_last_step" >= 0),
+	CONSTRAINT "users_avatar_whole" CHECK (("avatar_id" is null) = ("avatar_updated_at" is null))
 );
 CREATE TABLE "logins" (
 	"type" text collate "C",
@@ -307,6 +310,28 @@ token, so the two run side by side. Three things to know:
 - **The first `collectExpired()` deletes the whole backlog** in one
   statement, every lapsed throttle row since the table was created. Run it
   off-peak the first time.
+
+### To 0.10: the avatar
+
+**A migration is required.** Two nullable columns and a check that a user has
+both or neither, so no row is rewritten and every existing user reads as
+having no avatar:
+
+```sql
+ALTER TABLE "users" ADD COLUMN "avatar_id" text;
+ALTER TABLE "users" ADD COLUMN "avatar_updated_at" timestamp(3) with time zone;
+ALTER TABLE "users" ADD CONSTRAINT "users_avatar_whole" CHECK (("avatar_id" is null) = ("avatar_updated_at" is null));
+```
+
+Those are the statements drizzle-kit writes from the 0.9 tables to the 0.10
+ones (`"janus"."users"` with a PostgreSQL schema). Adding the check validates
+every row, under a lock on `users` for the length of one scan; the rows
+already satisfy it, since the columns are new. Deployed before the migration,
+every query on `users` fails with `STORE_FAILED`, caused by `column
+"avatar_id" does not exist`.
+
+Nothing writes the avatar yet: `@nxgt/janus` reads and stores the slot, and
+the operations that set and remove one arrive in a later minor.
 
 ## Collecting lapsed sessions and tokens
 

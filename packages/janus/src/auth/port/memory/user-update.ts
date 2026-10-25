@@ -82,6 +82,7 @@ function applyPatch(stored: UserRecord, patch: UserPatch): UserRecord {
 			patch.secondFactor === undefined
 				? stored.secondFactor
 				: patch.secondFactor,
+		avatar: patch.avatar === undefined ? stored.avatar : patch.avatar,
 		emailVerifiedAt:
 			patch.emailVerifiedAt === undefined
 				? stored.emailVerifiedAt

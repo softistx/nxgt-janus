@@ -70,6 +70,7 @@ export type { SessionId, SessionRecord, SessionStore } from './sessions';
 export type { JanusStores, StoreCapabilities } from './stores';
 export type { TokenKind, TokenRecord, TokenStore } from './tokens';
 export type {
+	AvatarRecord,
 	UserPageRequest,
 	UserPatch,
 	UserRecord,

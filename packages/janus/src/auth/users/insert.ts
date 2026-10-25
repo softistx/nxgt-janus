@@ -48,6 +48,7 @@ export async function insert(
 		logins: loginsOf(type, fields, where),
 		password: hash,
 		secondFactor: null,
+		avatar: null,
 		emailVerifiedAt: null,
 		version: 0,
 		createdAt: now,

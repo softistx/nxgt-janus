@@ -12,6 +12,18 @@ import type { PasswordRecord, SecondFactorRecord } from './credentials';
 import type { JsonObject } from './json';
 
 /**
+ * A user's avatar, as a store holds it: which image, and when it was set.
+ *
+ * `id` is opaque to a store and to the core — the application picks it, for
+ * example an image key with its content hash. A new image gets a new `id`, so
+ * it doubles as a cache-buster. A store keeps both fields verbatim.
+ */
+export interface AvatarRecord {
+	readonly id: string;
+	readonly updatedAt: Date;
+}
+
+/**
  * A user, as a store holds it.
  *
  * Everything is `readonly`: the core hands records to application code, and a
@@ -51,6 +63,8 @@ export interface UserRecord {
 	readonly password: PasswordRecord | null;
 	/** `null` when the user has no second factor. */
 	readonly secondFactor: SecondFactorRecord | null;
+	/** `null` when the user has no avatar. */
+	readonly avatar: AvatarRecord | null;
 	/**
 	 * When the user proved they hold their current e-mail, or `null`. The core
 	 * sets it back to `null` in the same write that changes the e-mail.
@@ -79,7 +93,7 @@ export interface UserRecord {
  * the record it just read, under `ifVersion`, so no write is lost by it.
  *
  * `password: null` removes the password; a patch that does not name `password`
- * keeps it.
+ * keeps it. `secondFactor` and `avatar` follow the same rule.
  *
  * `id`, `type`, `version` and `createdAt` are not patchable. `updatedAt` is
  * **required**, and comes from the core's clock rather than the database's, so
@@ -97,6 +111,7 @@ export interface UserPatch {
 	readonly logins?: readonly string[];
 	readonly password?: PasswordRecord | null;
 	readonly secondFactor?: SecondFactorRecord | null;
+	readonly avatar?: AvatarRecord | null;
 	readonly emailVerifiedAt?: Date | null;
 }
 

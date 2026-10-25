@@ -27,6 +27,7 @@ export { janus } from './janus';
 export { assertStores } from './port/assert-stores';
 export { createMemoryStores } from './port/memory';
 export type {
+	AvatarRecord,
 	JanusStores,
 	Json,
 	JsonObject,

@@ -22,7 +22,7 @@ afterAll(async () => {
 const at = new Date('2026-01-01T00:00:00.000Z');
 
 describe('createMongoStores(), beyond the port suite', () => {
-	it('reads documents written before 0.3 as no second factor, no code and no attempts', async () => {
+	it('reads documents written before 0.3 as no second factor, no avatar, no code and no attempts', async () => {
 		const db = server.client.db('janusLegacy');
 		await syncMongoStores(db);
 		const { users, tokens } = createMongoStores(db);
@@ -36,6 +36,7 @@ describe('createMongoStores(), beyond the port suite', () => {
 			logins: ['ada@example.test'],
 			password: null,
 			secondFactor: null,
+			avatar: null,
 			emailVerifiedAt: null,
 			version: 0,
 			createdAt: at,
@@ -56,7 +57,7 @@ describe('createMongoStores(), beyond the port suite', () => {
 		const unset = await Promise.all([
 			getCollection(db, usersCollection).raw.updateOne(
 				{ _id: user.id },
-				{ $unset: { secondFactor: '' } },
+				{ $unset: { secondFactor: '', avatar: '' } },
 			),
 			getCollection(db, tokensCollection).raw.updateOne(
 				{ _id: 'legacy' },
@@ -65,7 +66,15 @@ describe('createMongoStores(), beyond the port suite', () => {
 		]);
 		expect(unset.map((outcome) => outcome.modifiedCount)).toEqual([1, 1]);
 
-		expect(await users.findUser(user.id)).toMatchObject({ secondFactor: null });
+		expect(await users.findUser(user.id)).toMatchObject({
+			secondFactor: null,
+			avatar: null,
+		});
+		// A write to such a document passes the validator: no field is required.
+		const later = new Date('2026-02-01T00:00:00.000Z');
+		expect(
+			await users.updateUser(user.id, { active: false, updatedAt: later }, 0),
+		).toMatchObject({ active: false, avatar: null, version: 1 });
 		expect(await tokens.countAttempt('legacy', 'resetPassword')).toMatchObject({
 			codeHash: null,
 			attempts: 1,
@@ -93,6 +102,7 @@ describe('createMongoStores(), beyond the port suite', () => {
 			logins: ['ada@example.test'],
 			password: null,
 			secondFactor,
+			avatar: null,
 			emailVerifiedAt: null,
 			version: 0,
 			createdAt: at,

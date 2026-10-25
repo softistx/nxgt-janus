@@ -55,6 +55,7 @@ interface UserBase<Type extends string = string> {
 	readonly active: boolean;
 	readonly hasPassword: boolean; // the hash itself never reaches a user
 	readonly hasSecondFactor: boolean; // an active second factor: signIn asks for a code
+	readonly avatar: { id: string; updatedAt: Date } | null; // null until the application sets one
 	readonly version: number;      // one more on every write
 	readonly createdAt: Date;
 	readonly updatedAt: Date;
@@ -63,7 +64,8 @@ type User<Type extends string = string, Fields = object> = Readonly<Fields> & Us
 ```
 
 A schema that declares one of those keys, or `password`, is refused at compile
-time. A schema is any [Standard Schema](https://standardschema.dev) (Zod 4,
+time. `avatar` is `{ id, updatedAt } | null`: janus keeps only the opaque `id`
+the application chose, and the image lives in the application's own storage. A schema is any [Standard Schema](https://standardschema.dev) (Zod 4,
 Valibot, ArkType), and its output must be JSON: a schema that produces a
 `Date` is refused at compile time, because a `Date` round-trips through one
 database and not the next. An optional field left `undefined` is dropped
