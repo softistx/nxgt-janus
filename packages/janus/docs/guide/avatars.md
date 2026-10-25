@@ -16,7 +16,9 @@ The image side below is written with [`@nxgt/image`](https://www.npmjs.com/packa
 0.1 and its `@nxgt/image/s3` subpath over `@nxgt/s3`, **for example**: any
 storage works, since janus keeps only the id. Its calls — `defineImageSet`,
 `bindImageStore`, `store.replace`, `store.remove`, `store.bytes` — are the
-ones the recipe uses; swap them for your own storage calls.
+ones the recipe uses; swap them for your own storage calls. `@nxgt/image` runs
+on Bun 1.4.1 or later only, and its bucket must accept `image/webp` and a
+`maxSize` of at least the largest size: see its README and `docs/guide/storing.md`.
 
 ## What you decide, and what janus does
 
@@ -45,9 +47,11 @@ const avatarBucket = defineBucket({
 	key: (p: { imageId: string; size: number }) => `avatars/${p.imageId}/${p.size}.webp`,
 });
 
+const s3Config = { endpoint: env.S3_ENDPOINT, accessKeyId: env.S3_KEY, secretAccessKey: env.S3_SECRET };
+
 export const store = bindImageStore(
 	defineImageSet({ sizes }), // limits, quality: see the @nxgt/image README
-	bindBucket(avatarBucket, s3Config), // s3Config: endpoint and keys from your environment; never a public default acl
+	bindBucket(avatarBucket, s3Config), // never with a public default acl
 );
 // store.replace({ imageId }, input)  — decode, resize, write every size
 // store.remove({ imageId })          — delete every size
@@ -169,7 +173,9 @@ app.get('/avatars/:userId/:size', async (c) => {
 	if (c.req.header('If-None-Match') === etag) {
 		return c.body(null, 304, { ETag: etag, 'Cache-Control': cache });
 	}
-	return new Response(await store.bytes({ imageId: user.avatar.id }, size), {
+	const bytes = await store.bytes({ imageId: user.avatar.id }, size);
+	if (bytes === undefined) return c.body(null, 404); // the record outlived its bytes
+	return new Response(bytes, {
 		headers: {
 			'Content-Type': 'image/webp',
 			'Cache-Control': cache, // private: never a shared cache or a CDN
