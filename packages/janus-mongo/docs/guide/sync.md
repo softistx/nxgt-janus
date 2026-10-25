@@ -153,9 +153,10 @@ first write of a `changeEmail` token only; from 0.9 to 0.10, only the write
 of an avatar. No document
 is rewritten either way.
 
-**0.10 adds the `avatar` slot, and nothing writes it yet.** `@nxgt/janus`
-stores and returns it, and the operations that set and remove one arrive in a
-later minor. Run the sync anyway, so the validator is ready when they do.
+**0.10 adds the `avatar` slot, which `avatar.set` writes.** `@nxgt/janus`
+stores and returns it. Run the sync before deploying a version that calls
+`avatar.set`: the strict validator the previous sync wrote refuses the field,
+and the write fails with `STORE_FAILED`.
 
 **From 0.4 to 0.5, finish the rollout before users hold recovery codes.** An
 instance still on 0.4 reads a second factor without its `recoveryCodes`, and

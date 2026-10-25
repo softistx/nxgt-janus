@@ -170,8 +170,8 @@ An adapter that stored users before this field existed reads its absence as
 rule: absent keeps it, `null` removes it, a value replaces it whole. `id` is
 opaque to a store — the application's key for the image — so keep it byte for
 byte, and keep `updatedAt` to the millisecond. A user stored before the slot
-existed reads as `null`, never `undefined`. Nothing writes it yet: the
-operations that set and remove an avatar arrive in a later minor.
+existed reads as `null`, never `undefined`. `avatar.set` and `avatar.remove`
+write it.
 
 ### `SessionStore` and `TokenStore`
 

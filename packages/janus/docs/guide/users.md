@@ -170,7 +170,7 @@ and `schemaVersion`, with the defaults above. A login is unique **per type**:
 the same e-mail may hold a patient user and a staff user. A type name is
 camelCase, and may not be one of `janus()`'s own methods (`authenticate`,
 `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`,
-`collectExpired`, `types`, `changeEmail`, `verifyEmail`, `resetPassword`) — a compile error, and a `TypeError` for a
+`collectExpired`, `types`, `avatar`, `changeEmail`, `verifyEmail`, `resetPassword`) — a compile error, and a `TypeError` for a
 JavaScript caller.
 
 ## What each user type answers
@@ -187,6 +187,8 @@ In the one-type form these are on `auth` itself; with several types, on
 | `list({ after?, limit? })` | `CursorPage<User>`, in creation order | `INVALID_CURSOR` |
 | `update(user, patch, { ifVersion? })` | the user as written; sends `user.emailChanged` when the e-mail changed; to move a user to a proved address, use [`changeEmail`](email-flows.md#changeemail) | `USER_INVALID`, `LOGIN_TAKEN`, `VERSION_CONFLICT`, `NOT_FOUND` |
 | `setActive(user, active, { ifVersion? })` | the user as written | `VERSION_CONFLICT`, `NOT_FOUND` |
+| `avatar.set(user, { id }, { ifVersion? })` | the user as written, with `avatar: { id, updatedAt }`; the id the user already has writes and sends nothing; else sends `user.avatarChanged` with `formerAvatarId`. Janus keeps the id, never the image: store the bytes first, under a fresh id (`crypto.randomUUID()`) — see [the README](../../README.md#avatars--avatar) | `AVATAR_ID_INVALID` (not a non-empty string of at most 512 characters, before anything is read), `VERSION_CONFLICT`, `NOT_FOUND` |
+| `avatar.remove(user, { ifVersion? })` | the user as written, with `avatar: null`; a user with none writes and sends nothing; else sends `user.avatarRemoved` with `formerAvatarId` | `VERSION_CONFLICT`, `NOT_FOUND` |
 | `delete(user)` | `true`, or `false` for an unknown id or one of another type | |
 | `signInProven(user, { device? })` | **privileged** — after a proof your server verified, such as an invitation token: what `signIn` answers, a session or a second-factor challenge; no credential checked, nothing sent, counted or spent — see [sessions](sessions.md#signing-in-on-your-own-proof--signinproven) | `NOT_FOUND`, `USER_INACTIVE` |
 

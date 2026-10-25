@@ -230,7 +230,7 @@ the price of storing nothing.
 ## The event: `user.newDeviceSignedIn`
 
 A sign-in from a new device sends
-[`user.newDeviceSignedIn`](events.md#the-eleven-types) to `janus({ events })`:
+[`user.newDeviceSignedIn`](events.md#the-thirteen-types) to `janus({ events })`:
 
 ```ts
 {
@@ -425,7 +425,7 @@ a `secondFactor`, and `SignedIn<U>` everywhere else. `DevicesConfig`,
 
 ## See also
 
-- [User events](events.md) — `user.newDeviceSignedIn` among the eleven types, and when the listener runs
+- [User events](events.md) — `user.newDeviceSignedIn` among the thirteen types, and when the listener runs
 - [The second factor](second-factor.md#confirming-the-code-at-sign-in) — the challenge the device is given again after
 - [Sessions](sessions.md) — the session cookie, beside the device cookie
 - [`@nxgt/janus-hono`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-hono/docs/guide/routes.md#the-device-cookie) — `deviceOf` and `sendSession`'s device cookie

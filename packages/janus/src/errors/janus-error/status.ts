@@ -40,6 +40,7 @@ export function statusOf(code: JanusErrorCode): JanusErrorStatus {
 		case 'SECOND_FACTOR_ACTIVE':
 			return 409;
 		case 'USER_INVALID':
+		case 'AVATAR_ID_INVALID':
 		case 'PASSWORD_TOO_SHORT':
 		case 'HASH_UNSUPPORTED':
 		case 'INVALID_CURSOR':

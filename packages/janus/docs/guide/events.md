@@ -39,7 +39,7 @@ received[0];
 The words — **user event**, **listener** — are defined in
 [the vocabulary](vocabulary.md#identities).
 
-## The eleven types
+## The thirteen types
 
 | `type` | Sent by | Not sent |
 | --- | --- | --- |
@@ -53,17 +53,19 @@ The words — **user event**, **listener** — are defined in
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes`: the codes the user held stopped working | for `activate`, whose first codes come with `user.secondFactorEnabled`; for a code refused |
 | `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent — even if opening the session then fails | for a recovery code refused. How many are left is not in the event: `secondFactor.recoveryCodesLeft(event.userId)` reads it |
 | `user.newDeviceSignedIn` | `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm`, `magicLink.confirm` and `signInProven`, given a `device` whose token did not prove this user signed in there — once the sign-in is complete. It carries `sessionId`, the new session's. See [devices](devices.md) | for `signUp`, which mints the first token; for a call given no `device`; for a known device; for a challenge, which opens no session; for a sign-in refused — a wrong password, or a `signIn` refused after its session opened because a password was written meanwhile |
+| `user.avatarChanged` | `avatar.set`, when it wrote an id different from the user's current one. It carries `formerAvatarId`, the id replaced, `null` for a first avatar | for the same id set again; for a refused id (`AVATAR_ID_INVALID`) |
+| `user.avatarRemoved` | `avatar.remove`, when the user had an avatar. It carries `formerAvatarId`, the id it had | for a user with no avatar |
 | `user.deleted` | `delete`, when it deleted the user | for a replay that finds nobody, or an id of another user type |
 
 A reset whose link verifies the e-mail sends both, `user.passwordReset`
 first. **A reset does not also send `user.passwordChanged`**: a listener that
 cares about every new password handles both types, as the `switch` below
 does — one event per write, rather than two a listener would have to tell
-apart. Switch on `type`: the eleven are a closed set, and TypeScript refuses a
-twelfth. A new type is a compile error in a `switch` that exhausts them — the
+apart. Switch on `type`: the thirteen are a closed set, and TypeScript refuses a
+fourteenth. A new type is a compile error in a `switch` that exhausts them — the
 two recovery-code types, added in 0.10, the two change types, added in
-0.14, and `user.newDeviceSignedIn`, added in 0.17, each broke such a `switch`
-until it handled them.
+0.14, `user.newDeviceSignedIn`, added in 0.17, and the two avatar types,
+each broke such a `switch` until it handled them.
 
 ```ts
 function onUserEvent(event: UserEvent): void {
@@ -86,6 +88,10 @@ function onUserEvent(event: UserEvent): void {
 			return warnTheUser(event.userId); // a sign-in without their phone — see below
 		case 'user.newDeviceSignedIn':
 			return warnTheUser(event.userId); // @nxgt/janus-mail's newSignIn — see below
+		case 'user.avatarChanged':
+		case 'user.avatarRemoved':
+			// formerAvatarId is null on a first set: nothing to delete — see below
+			return event.formerAvatarId == null ? undefined : deleteImage(event.formerAvatarId);
 		case 'user.deleted':
 			return forgetEverywhere(event.userId);
 	}
@@ -217,6 +223,21 @@ the session the new device opened, so a "this wasn't me" page can end that
 one. It is absent from every other type, and `@nxgt/janus-webhooks` strips
 it as it strips `formerEmail`.
 
+**The third is `formerAvatarId`, on `user.avatarChanged` and
+`user.avatarRemoved` only**: the avatar id the user had before — `null` on a
+first `avatar.set`, always a string on `user.avatarRemoved`. Janus keeps only
+the id, so this is how the application learns which image to delete from its
+storage once the record no longer points at it. It is absent from every other
+type, and `@nxgt/janus-webhooks` strips it as it strips `formerEmail`:
+delete the image from the `events` listener, in the process that wrote — the
+`deleteImage` case in the listener at the top of this page, and the
+[README's avatar example](../../README.md#avatars--avatar), do exactly this.
+
+A receiver that only gets webhooks never sees `formerAvatarId`, and janus keeps
+no former id to ask for. It must keep the id itself: read the user's current
+avatar id (`user.avatar?.id`) before calling `avatar.set` or `avatar.remove`,
+and delete that image once the call answered.
+
 `id` is minted for the event, a UUIDv7 that sorts by time. Deliver on it:
 a queue job id, a primary key, a webhook's `webhook-id` header. Two events
 never share one.
@@ -248,6 +269,7 @@ Where the listener runs within a flow, and what an outage does to it:
 | `changePassword`, `setPassword` | **after** the reset links and the second-factor challenges left open are spent | fails the call; the event is sent all the same, from a `finally` |
 | `signInCode.confirm`, `magicLink.confirm`, `verifyEmail.proveFirst` | on an e-mail never verified: **after** every session is revoked and the reset links and second-factor challenges left open are spent — before the write and again after it — and **before** the new session or second-factor challenge is opened. `user.passwordChanged` follows `user.emailVerified` when a password was dropped, then `user.secondFactorDisabled` when an active second factor was removed. An e-mail already verified sends nothing | fails the call; the events are sent all the same, from a `finally`. An outage in the sign-outs before the write fails the call with nothing written and nothing sent: the next code, link or `proveFirst` proves the e-mail again |
 | `secondFactor.activate`, `secondFactor.regenerateRecoveryCodes`, `secondFactor.disable` | after the write — the flow's last step | — |
+| `avatar.set`, `avatar.remove` | after the write — the flow's last step | — |
 | `secondFactor.recover` | after the recovery code is spent and the session opened — or failed to open | fails the call; the recovery code is spent and the event sent all the same, from a `finally` |
 | `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm`, `magicLink.confirm`, `signInProven` — `user.newDeviceSignedIn` | **last**, once the session is open and the sign-in complete: after `user.recoveryCodeUsed`, and after the events of a first proof of the e-mail | fails the call, and `user.newDeviceSignedIn` is not sent: it comes only once the sign-in is complete |
 | `resetPassword.confirm` | **after** the sessions opened with the old password are revoked, and the other reset links and the second-factor challenges left open are spent | fails the call; the events are sent all the same, from a `finally` |
@@ -338,6 +360,8 @@ type UserEventType =
 	| 'user.recoveryCodesRegenerated'
 	| 'user.recoveryCodeUsed'
 	| 'user.newDeviceSignedIn'
+	| 'user.avatarChanged'
+	| 'user.avatarRemoved'
 	| 'user.deleted';
 
 interface UserEvent {
@@ -348,6 +372,7 @@ interface UserEvent {
 	readonly userType: string;
 	readonly formerEmail?: string | null; // on user.emailChanged only: the address before, null for none
 	readonly sessionId?: string;          // on user.newDeviceSignedIn only: the session the new device opened
+	readonly formerAvatarId?: string | null; // on user.avatarChanged and user.avatarRemoved only: the avatar id before, null for none
 }
 
 type UserEventListener = (event: UserEvent) => void | Promise<void>;

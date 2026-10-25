@@ -90,7 +90,8 @@ interface SharedConfig {
 	 * `user.passwordReset`, `user.passwordChanged`, `user.emailChanged`,
 	 * `user.secondFactorEnabled`, `user.secondFactorDisabled`,
 	 * `user.recoveryCodesRegenerated`, `user.recoveryCodeUsed`,
-	 * `user.newDeviceSignedIn`, `user.deleted` — once the write landed,
+	 * `user.newDeviceSignedIn`, `user.avatarChanged`, `user.avatarRemoved`,
+	 * `user.deleted` — once the write landed,
 	 * and awaited before the flow answers. Any function will do;
 	 * `webhooks({ … })` from `@nxgt/janus-webhooks` signs and delivers them.
 	 */

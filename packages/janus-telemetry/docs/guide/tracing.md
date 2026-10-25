@@ -166,6 +166,12 @@ with the `user.id` they were called for — `janus.secondFactor.enrolled`,
 (`SECOND_FACTOR_ACTIVE`, a wrong first code) writes no event: its span
 carries `janus.refusal`, like any refusal.
 
+`avatar.set` and `avatar.remove` each write one event once they answered, with
+the `user.id` they were called for — `janus.avatar.set` and
+`janus.avatar.remove`, never the avatar id. A call that wrote nothing (the same
+id again, no avatar to remove) writes the event all the same: the `@nxgt/janus`
+user event is the one that says a write happened.
+
 ### A recovery code
 
 A sign-in with a recovery code instead of the app's code is the same two

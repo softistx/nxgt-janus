@@ -8,6 +8,7 @@
  * dragging a type parameter through every internal function.
  */
 
+export type { AnyTypeAvatarApi, AvatarApi } from './avatar';
 export type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 export type { Checked } from './checks';
 export type {

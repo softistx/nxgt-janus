@@ -54,7 +54,9 @@ export async function getRecord(
  * One write that follows a read, under a version: the core reads the user,
  * checks `ifVersion` against what it read, computes the patch from the record,
  * and writes under the version it read. A user who changed in between is
- * `VERSION_CONFLICT`, and nothing is written.
+ * `VERSION_CONFLICT`, and nothing is written. A patch of `null` writes
+ * nothing either: the flow found there was nothing to change, and the record
+ * as read is the answer.
  */
 export async function writeUser(
 	context: Context,
@@ -65,7 +67,10 @@ export async function writeUser(
 	patchOf: (
 		record: UserRecord,
 		now: Date,
-	) => Omit<UserPatch, 'updatedAt'> | Promise<Omit<UserPatch, 'updatedAt'>>,
+	) =>
+		| Omit<UserPatch, 'updatedAt'>
+		| null
+		| Promise<Omit<UserPatch, 'updatedAt'> | null>,
 ): Promise<UserRecord> {
 	const id = idOf(user);
 	const record = await getRecord(context, id, type.name, where);
@@ -86,6 +91,7 @@ export async function writeUser(
 
 	const now = context.clock.now();
 	const patch = await patchOf(record, now);
+	if (patch === null) return record;
 	return context.store.users.updateUser(
 		record.id,
 		{ ...patch, updatedAt: now },

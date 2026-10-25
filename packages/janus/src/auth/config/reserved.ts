@@ -34,6 +34,7 @@ export const RESERVED_TYPES = [
 	'cookie',
 	'collectExpired',
 	'types',
+	'avatar',
 	'changeEmail',
 	'verifyEmail',
 	'resetPassword',

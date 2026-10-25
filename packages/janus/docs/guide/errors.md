@@ -21,7 +21,7 @@ this one. It answers `JanusErrorStatus`, a union of the nine statuses it can
 give (`400 | 401 | 403 | 404 | 409 | 429 | 500 | 501 | 503`), so a framework whose
 response takes a narrower type than `number` accepts it as it is.
 
-`JanusErrorCode` is a union of twenty-one string literals, and `statusOf` is a
+`JanusErrorCode` is a union of twenty-two string literals, and `statusOf` is a
 `switch` over it that is exhaustive: when a code is added, it stops compiling
 instead of answering `undefined` — and so does a `switch` of your own.
 
@@ -53,6 +53,7 @@ that wired the library, so no handler needs to tell it apart.
 | `LOGIN_TAKEN` | `StoreConflict` (`on: 'login'`) | 409 | Another user of the same type holds the login — on `changeEmail.confirm`, the new address | `login`, `userType` |
 | `VERSION_CONFLICT` | `StoreConflict` (`on: 'version'`) | 409 | `ifVersion` no longer matches; nothing was written. From `secondFactor.confirm` or `recover`, the same code used by two sign-ins at once: the other opened the session. From `verifyEmail.proveFirst`, which already retried once: the user was written again during the retry, or the write changed the e-mail address; nothing was proved | `expectedVersion`, `actualVersion` |
 | `USER_INVALID` | `UserInvalidError` | 400 | The fields failed the schema | `issues`, field by field |
+| `AVATAR_ID_INVALID` | `AvatarInvalidError` | 400 | The id given to `avatar.set` is not a non-empty string of at most 512 characters. Nothing was read or written | `operation` — never the id |
 | `PASSWORD_TOO_SHORT` | `CredentialError` | 400 | Below `password.minLength` | `minLength` — never the password |
 | `CREDENTIALS_INVALID` | `CredentialError` | 401 | Unknown login, no password, or the wrong one — **one code for the three** — and any password, the right one included, at a login past its attempts in the window — see [throttling](passwords.md#password-guessing-is-throttled) | `reason`, for your logs only; `retryAfter`, the seconds until the next window, when throttled |
 | `HASH_UNSUPPORTED` | `CredentialError` | 400 | A stored hash no wired hasher reads | `hashPrefix` — never the hash |

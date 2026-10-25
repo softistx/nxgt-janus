@@ -57,6 +57,12 @@ export type JanusErrorCode =
 	 */
 	| 'USER_INVALID'
 	/**
+	 * The avatar id given to `avatar.set` is not a non-empty string of at most
+	 * 512 characters. Nothing was read or written. Reports the shape, never the
+	 * id.
+	 */
+	| 'AVATAR_ID_INVALID'
+	/**
 	 * The password is shorter than the policy's minimum. Reports the policy,
 	 * never the password.
 	 */
