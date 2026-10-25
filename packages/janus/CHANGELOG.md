@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.29.1
+
+### Patch Changes
+
+- [#263](https://github.com/softistx/nxgt-janus/pull/263) [`c5b5b59`](https://github.com/softistx/nxgt-janus/commit/c5b5b59ffe2cdc0c871446c99ec3f9fb82e88e11) Thanks [@SteveGT96](https://github.com/SteveGT96)! - The avatars guide now follows the published `@nxgt/image` 0.1.0: `bindImageStore` comes from `@nxgt/image/s3` and takes a `@nxgt/s3` bucket bound with `bindBucket`, keyed by a fresh `imageId` per upload.
+
 ## 0.29.0
 
 ### Minor Changes
