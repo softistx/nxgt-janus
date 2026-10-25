@@ -6,7 +6,7 @@
  */
 
 import type { JanusConfig, MultiTypeConfig, SingleTypeConfig } from '../config';
-import type { AnyTypeAvatarApi, AvatarApi } from './avatar';
+import type { AvatarApi } from './avatar';
 import type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 import type {
 	ResetPasswordApi,
@@ -199,7 +199,7 @@ export type Janus<C extends JanusConfig> = SharedApi<UserOf<C>> &
 					C['users'][K],
 					TwoFactorOf<C>
 				>;
-			} & AnyTypeAvatarApi<UserOf<C>> &
+			} & AvatarApi<UserOf<C>> &
 				([EmailUsers<C>] extends [never]
 					? unknown
 					: AnyTypeChangeEmailApi<EmailUsers<C>> &

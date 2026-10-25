@@ -1,7 +1,7 @@
 /**
  * Changing an e-mail: a type with no e-mail has no `changeEmail`, and `send`
  * and `confirm` take and answer what they say. Cases 82–84 and 89–91 of the
- * one hundred and six — see `fixtures.ts`.
+ * one hundred and seven — see `fixtures.ts`.
  */
 
 import { janus } from '../../../src/index';

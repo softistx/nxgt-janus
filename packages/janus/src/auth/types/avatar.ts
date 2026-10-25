@@ -12,7 +12,12 @@ import type { UserRef, WriteOptions } from './user';
  * What every user type answers for the avatar of its users. **Janus stores
  * only the id the application chose** — an opaque string, never parsed — and
  * never the image: storing, processing, serving and deleting the bytes is the
- * application's. Read it back as `user.avatar` (`{ id, updatedAt } | null`).
+ * application's. Read it back as `user.avatar` ({@link UserAvatar} or `null`).
+ *
+ * An instance with several user types answers the same `avatar` at its root,
+ * for the page that holds a user's id and does not know their type: it reads
+ * the user to find the type, then does what that type's `avatar` does, and
+ * the answer's `type` says which it was. `NOT_FOUND` for a user of no type.
  *
  * These are server-side methods, like `update`: **no access check, no
  * freshness check**. Whether a request may change this user's avatar, and who
@@ -64,11 +69,3 @@ export interface AvatarApi<U> {
 		remove(user: UserRef, options?: WriteOptions): Promise<U>;
 	};
 }
-
-/**
- * What an instance with several user types answers at its root: the same
- * `avatar`, for the page that holds a user's id and does not know their type.
- * It reads the user to find the type, then does what that type's `avatar`
- * does; the answer's `type` says which it was. `NOT_FOUND` for a user of no type.
- */
-export type AnyTypeAvatarApi<U> = AvatarApi<U>;

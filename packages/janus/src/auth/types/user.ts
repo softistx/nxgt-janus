@@ -7,6 +7,16 @@
 
 import type { Id } from '../../ids/id';
 
+/**
+ * A user's avatar as application code sees it: which image, and when it was
+ * set. The same two fields as the port's `AvatarRecord`, kept apart so a
+ * change to what a store holds is not a change to what the application reads.
+ */
+export interface UserAvatar {
+	readonly id: string;
+	readonly updatedAt: Date;
+}
+
 /** What every user carries beside the application's own fields. */
 export interface UserBase<Type extends string = string> {
 	readonly id: Id;
@@ -32,7 +42,7 @@ export interface UserBase<Type extends string = string> {
 	 * The user's avatar, or `null`. `id` is the application's own key for the
 	 * image and changes with it, so it can serve as a cache-buster.
 	 */
-	readonly avatar: { readonly id: string; readonly updatedAt: Date } | null;
+	readonly avatar: UserAvatar | null;
 	/** One more on every write: what `ifVersion` is compared against. */
 	readonly version: number;
 	readonly createdAt: Date;

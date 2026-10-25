@@ -1,14 +1,14 @@
 /**
  * The avatar of a user — `avatar.set` and `avatar.remove`: an id that is
- * missing or no string, a remove that takes an avatar, and the name `avatar`
- * given to a user type. Cases 103–106 of the one hundred and six — see
+ * missing or no string, a remove that takes an avatar, the name `avatar`
+ * given to a user type, and a schema declaring it. Cases 103–107 of the one hundred and seven — see
  * `fixtures.ts`. The shapes that must keep compiling are at the end of this
  * file.
  */
 
 import { z } from 'zod';
 import { janus } from '../../../src/index';
-import { clinic, one, store } from './fixtures';
+import { clinic, hasher, one, store } from './fixtures';
 
 async function avatar() {
 	// ── 103. An avatar without its id ───────────────────────────────────
@@ -30,6 +30,15 @@ async function avatar() {
 			avatar: { schema: z.object({ name: z.string() }) },
 		},
 		store,
+	});
+
+	// ── 107. A schema declaring avatar ──────────────────────────────────
+	janus({
+		// @ts-expect-error avatar is janus's own field: a schema cannot declare it
+		user: z.object({ email: z.email(), avatar: z.string() }),
+		password: { login: 'email' },
+		store,
+		hasher,
 	});
 }
 

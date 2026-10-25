@@ -26,6 +26,8 @@ describe('avatar.set refuses', () => {
 	it.each([
 		['an empty id', { id: '' }],
 		['an id of 513 characters', { id: 'a'.repeat(513) }],
+		['an id with a NUL character', { id: 'img\u0000-1' }],
+		['an id with a lone surrogate', { id: 'img-\ud800' }],
 		['an id that is a number', { id: 42 }],
 		['no id', {}],
 		['an avatar that is a string', 'img-1'],
@@ -43,9 +45,16 @@ describe('avatar.set refuses', () => {
 
 		const message = error instanceof Error ? error.message : '';
 		expect(message).toBe(
-			'avatar.set: the avatar id must be a non-empty string of at most 512 characters',
+			'avatar.set: the avatar id must be a non-empty string of at most 512 characters that every store can keep',
 		);
 		expect(message).not.toContain('xxxxx');
+	});
+
+	it('does not repeat an unstorable id either', async () => {
+		const { error } = await refused({ id: 'secret\u0000id' });
+
+		const message = error instanceof Error ? error.message : '';
+		expect(message).not.toContain('secret');
 	});
 
 	it('leaves the avatar as it was', async () => {

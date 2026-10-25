@@ -9,8 +9,8 @@ export class UserInvalidError extends JanusError {
 }
 
 /** The avatar id given to `avatar.set` is not an acceptable id. */
-export class AvatarInvalidError extends JanusError {
-	override name = 'AvatarInvalidError';
+export class AvatarIdInvalidError extends JanusError {
+	override name = 'AvatarIdInvalidError';
 	override readonly code = 'AVATAR_ID_INVALID' as const;
 }
 

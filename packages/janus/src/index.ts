@@ -23,7 +23,7 @@
 
 export * from './auth/index';
 export {
-	AvatarInvalidError,
+	AvatarIdInvalidError,
 	CredentialError,
 	type CredentialRefusal,
 	InvalidCursorError,
