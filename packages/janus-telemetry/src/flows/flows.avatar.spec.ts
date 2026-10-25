@@ -18,16 +18,17 @@ describe('instrumentJanus()', () => {
 		const written = logs.filter((log) => log.name.startsWith('janus.avatar.'));
 		expect(written.map((log) => [log.name, log.attributes])).toEqual([
 			['janus.avatar.set', { 'janus.user.type': 'patient', 'user.id': id }],
-			['janus.avatar.remove', { 'janus.user.type': 'patient', 'user.id': id }],
+			['janus.avatar.removed', { 'janus.user.type': 'patient', 'user.id': id }],
 		]);
 		expect(JSON.stringify(all)).not.toContain(secretId);
 	});
 
 	it('names an avatar id that is refused as a refusal, and writes no avatar event', async () => {
 		const { auth } = setup();
-		const { logs, spans } = await collect(async () => {
+		const refused = 'x'.repeat(513);
+		const { logs, spans, all } = await collect(async () => {
 			const { id } = await auth.patient.create({ email: 'ada@example.test' });
-			await rejection(auth.patient.avatar.set(id, { id: 'x'.repeat(513) }));
+			await rejection(auth.patient.avatar.set(id, { id: refused }));
 		});
 
 		expect(logs.some((log) => log.name.startsWith('janus.avatar.'))).toBe(
@@ -37,5 +38,23 @@ describe('instrumentJanus()', () => {
 			spans.find((span) => span.name === 'janus.patient.avatar.set')
 				?.attributes['janus.refusal'],
 		).toBe('AVATAR_ID_INVALID');
+		expect(JSON.stringify(all)).not.toContain(refused);
+	});
+
+	it('writes the user type of the answer when called at the root', async () => {
+		const { auth } = setup();
+		let id = '';
+		const { logs } = await collect(async () => {
+			const staff = await auth.staff.create({ username: 'sam' });
+			id = staff.id;
+			await auth.avatar.set(staff.id, { id: 'img-1' });
+			await auth.avatar.remove(staff.id);
+		});
+
+		const written = logs.filter((log) => log.name.startsWith('janus.avatar.'));
+		expect(written.map((log) => [log.name, log.attributes])).toEqual([
+			['janus.avatar.set', { 'janus.user.type': 'staff', 'user.id': id }],
+			['janus.avatar.removed', { 'janus.user.type': 'staff', 'user.id': id }],
+		]);
 	});
 });
