@@ -51,7 +51,7 @@ export const users = defineCollection({
 			})
 			.nullable()
 			.optional(),
-		/** Absent on a user written before the avatar slot — read as `null`. */
+		/** Absent on a user written before 0.10, which added the avatar slot — read as `null`. */
 		avatar: z.object({ id: z.string(), updatedAt: at }).nullable().optional(),
 		emailVerifiedAt: at.nullable(),
 		version: z.int().nonnegative(),

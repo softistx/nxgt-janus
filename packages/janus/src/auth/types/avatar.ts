@@ -24,9 +24,10 @@ import type { UserRef, WriteOptions } from './user';
  * may see it, is for the application to decide before it calls them.
  *
  * ```ts
- * const id = crypto.randomUUID();        // a fresh id for every upload
- * await storage.put(`avatars/${id}`, bytes);   // the bytes first …
- * await auth.user.avatar.set(userId, { id }); // … then the record
+ * const id = crypto.randomUUID();              // a fresh id for every upload
+ * await store.replace({ imageId: id }, bytes);   // the bytes first …
+ * await auth.avatar.set(userId, { id });         // … then the record
+ * // with several user types: auth.patient.avatar.set(userId, { id })
  * ```
  */
 export interface AvatarApi<U> {
@@ -51,8 +52,11 @@ export interface AvatarApi<U> {
 		 * deletes the former image.
 		 *
 		 * `AVATAR_ID_INVALID` when `id` is not a non-empty string of at most 512
-		 * characters, before anything is read. `NOT_FOUND` for an unknown user;
-		 * `VERSION_CONFLICT` when `ifVersion` is stale.
+		 * characters that every store can keep, before anything is read.
+		 * `NOT_FOUND` for an unknown user. `VERSION_CONFLICT` when `ifVersion` is
+		 * stale, and also when another write landed between this call's read and
+		 * its write, with or without an `ifVersion`: **delete the image you just
+		 * uploaded on any failure**, since nothing points at it.
 		 */
 		set(
 			user: UserRef,
@@ -64,7 +68,7 @@ export interface AvatarApi<U> {
 		 * avatar writes nothing and emits nothing. Otherwise `user.avatarRemoved`
 		 * is emitted with `formerAvatarId`, the id it had: delete that image
 		 * from your storage. `NOT_FOUND` for an unknown user; `VERSION_CONFLICT`
-		 * when `ifVersion` is stale.
+		 * when `ifVersion` is stale or another write landed in between.
 		 */
 		remove(user: UserRef, options?: WriteOptions): Promise<U>;
 	};
