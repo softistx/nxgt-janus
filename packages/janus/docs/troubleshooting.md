@@ -40,6 +40,7 @@ How the messages are shaped:
 - [`janus: secondFactor.issuer must name your application …`](#janus-secondfactorissuer-must-name-your-application--the-authenticator-app-shows-it-beside-the-account)
 - [`janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 …`](#janus-secondfactorkeys-the-key-id-is-not-32-bytes-in-base64--make-one-with-openssl-rand--base64-32)
 - [`"hasSecondFactor" is a field janus sets itself; rename it`](#hassecondfactor-is-a-field-janus-sets-itself-rename-it)
+- [`"avatar" is a field janus sets itself; rename it`](#avatar-is-a-field-janus-sets-itself-rename-it)
 - [`janus: devices.keys: …`](#janus-deviceskeys-expected-at-least-one-key---id-key--the-first-seals)
 - [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
 - [`janus: signIn.throttle …` wiring messages](#janus-signinthrottle-wiring-messages)
@@ -457,6 +458,12 @@ janus({
 **When:** `tsc`, on the `janus({...})` call, when your schema declares a `hasSecondFactor` field. This version added it to the fields janus sets on every user.
 **Why:** `user.hasSecondFactor` is janus's own answer: whether the user's second factor is active. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
 **Fix:** rename the field in your schema, and read `user.hasSecondFactor` for janus's answer.
+
+### `"avatar" is a field janus sets itself; rename it`
+
+**When:** `tsc`, on the `janus({...})` call, when your schema declares an `avatar` field. This version added it to the fields janus sets on every user.
+**Why:** `user.avatar` is janus's own answer: `{ id, updatedAt }` for the picture the application chose, or `null`. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
+**Fix:** rename the field in your schema (`photoUrl`, say), and read `user.avatar` for janus's answer.
 
 ### `janus: events must be a function that takes a user event — webhooks({ … }) from @nxgt/janus-webhooks, or your own`
 

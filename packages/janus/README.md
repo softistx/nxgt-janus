@@ -371,6 +371,8 @@ else reaches the store and is asynchronous.
   `id`, `type`, `emailVerified`, `active`, `hasPassword`, `hasSecondFactor`,
   `avatar`, `version`, `createdAt`, `updatedAt`. A schema declaring one of those, or a `password`, is
   refused at compile time. The password hash never reaches a user.
+  `avatar` is `{ id, updatedAt } | null`: janus keeps only the opaque `id` your
+  application chose, and the image itself lives in your own storage.
 - **Schemas** are any [Standard Schema](https://standardschema.dev) — Zod 4,
   Valibot, ArkType. There is no validation peer. The output must be JSON, and a
   schema producing a `Date` is refused at compile time.
