@@ -185,7 +185,7 @@ if (error instanceof JanusError) {
 | `NOT_FOUND` | 404 |
 | `LOGIN_TAKEN`, `VERSION_CONFLICT` | 409 |
 | `USER_INVALID` | 400, field by field from `issues` |
-| `AVATAR_ID_INVALID` | 400 — the id given to `avatar.set` is not a non-empty string of at most 512 characters |
+| `AVATAR_ID_INVALID` | 400 — the id given to `avatar.set` is not a non-empty string of at most 512 characters that every store can keep |
 | `PASSWORD_TOO_SHORT`, `HASH_UNSUPPORTED` | 400 |
 | `CREDENTIALS_INVALID` | 401 — one code for an unknown login, no password, a wrong one and a login throttled for too many; `retryAfter`, when set, belongs in the body and a `Retry-After` header |
 | `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
@@ -199,7 +199,7 @@ if (error instanceof JanusError) {
 | `PERMISSION_DEPTH` | 500 — a permission check or list walked past `maxDepth`; not a denial |
 
 Each code has its class, all exported: `StoreFailure`, `StoreConflict` (`on:
-'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `AvatarInvalidError`, `CredentialError`,
+'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `AvatarIdInvalidError`, `CredentialError`,
 `UserInactiveError`, `StepUpRequiredError`, `MailThrottledError`, `TokenError` (the `TOKEN_*` codes and `CODE_INVALID`),
 `SecondFactorError`, `InvalidCursorError`, `UnsupportedError` and
 `PermissionDepthError`. `StoreFailure` and `StoreConflict` are exported
@@ -1145,7 +1145,7 @@ factor, the e-mail, key rotation, every error and a test.
 
 ### Avatars — `avatar`
 
-Janus stores **only the id** your application chose for a user's picture —
+Janus stores **only the id** your application chose for a user's avatar —
 never the image. Upload the bytes to your own storage under a **fresh id**,
 then point the user at it:
 
@@ -1158,23 +1158,25 @@ const auth = janus({
 			(event.type === 'user.avatarChanged' || event.type === 'user.avatarRemoved') &&
 			event.formerAvatarId != null
 		) {
-			await storage.remove(`avatars/${event.formerAvatarId}`);
+			await store.remove({ imageId: event.formerAvatarId });
 		}
 	},
 });
 
-const id = crypto.randomUUID();                       // a fresh id for every upload
-await storage.put(`avatars/${id}`, bytes);             // the bytes first …
-const user = await auth.user.avatar.set(userId, { id }); // … then the record
+const id = crypto.randomUUID();                    // a fresh id for every upload
+await store.replace({ imageId: id }, bytes);        // the bytes first …
+const user = await auth.avatar.set(userId, { id }); // … then the record
 user.avatar; // { id, updatedAt }
 
-await auth.user.avatar.remove(userId); // user.avatar is null
+await auth.avatar.remove(userId); // user.avatar is null
 ```
 
-`avatar` is on every user type (`auth.user.avatar` is `auth.avatar` in the
-single-type form), and, with several types, at the root too — `auth.avatar.set(userId,
+`store` is your image storage (`store.replace`, `store.remove` and
+`store.bytes` are the names [the guide](docs/guide/avatars.md) uses). `avatar`
+is on every user type: `auth.avatar` in the single-type form, `auth.patient.avatar`
+with several types, and with several types at the root too — `auth.avatar.set(userId,
 { id })` finds the user's type from the record, for a page that holds only an
-id. The user comes back as `user.avatar`, from `get`, `find`, `getUser` and
+id. Its type is `AvatarApi`, and `user.avatar` is a `UserAvatar | null`. The user comes back as `user.avatar`, from `get`, `find`, `getUser` and
 `findUser` alike.
 
 | Call | Does | Rejects with |
@@ -1182,7 +1184,7 @@ id. The user comes back as `user.avatar`, from `get`, `find`, `getUser` and
 | `avatar.set(user, { id }, { ifVersion? })` | writes `{ id, updatedAt: now }` and answers the user; the id the user already has writes and sends nothing; else sends `user.avatarChanged` with `formerAvatarId` | `AVATAR_ID_INVALID` before anything is read, `NOT_FOUND`, `VERSION_CONFLICT` |
 | `avatar.remove(user, { ifVersion? })` | writes `null` and answers the user; a user with none writes and sends nothing; else sends `user.avatarRemoved` with `formerAvatarId` | `NOT_FOUND`, `VERSION_CONFLICT` |
 
-The `id` is a non-empty string of at most 512 characters; janus never parses
+The `id` is a non-empty string of at most 512 characters that every store can keep; janus never parses
 it. The name `avatar` can no longer name a user type. The routes around it —
 upload, remove, a proxy that streams the image behind your session, and who
 may see it — are in [the avatars guide](docs/guide/avatars.md).
@@ -1240,7 +1242,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
   union of the thirteen types, so a `switch` on `event.type` is exhaustive —
   and a new type, like the two recovery-code ones in 0.10, the two change
-  ones in 0.14, `user.newDeviceSignedIn` in 0.17 or the two avatar ones,
+  ones in 0.14, `user.newDeviceSignedIn` in 0.17 or the two avatar ones in 0.29,
   breaks it until handled.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
@@ -1490,12 +1492,21 @@ runner-less layer.
 
 ## Traps
 
+**Upgrading: `avatar` is reserved, and a stored `fields.avatar` stops being read.**
+A schema field or a user type called `avatar` is refused, and the
+`fields.avatar` rows already hold is no longer read: `user.avatar` is janus's
+own answer. Rename the field, move the stored values, and deploy the adapter's
+migration or sync (`syncMongoStores(db)`, the drizzle migration) before the
+new janus, or with it. The move overwrites a target key a row already holds, so
+pick a name no row uses, or check first. The snippets are in
+[troubleshooting](docs/troubleshooting.md#avatar-is-a-field-janus-sets-itself-rename-it).
+
 **An avatar needs a fresh id for every upload, and its image stored first.**
 `avatar.set` records the id; it stores nothing. Write the bytes to your storage
 under a new id (`crypto.randomUUID()`), then call `set`: if the call fails the
 image is an orphan nobody points at, never a record pointing at missing bytes.
 Reusing the id of the current image lets a storage `replace` overwrite the
-picture the user is showing, and the later removal of the former image — the
+image the user is showing, and the later removal of the former image — the
 same id — delete the new one. The former id is in `user.avatarChanged` and
 `user.avatarRemoved` as `formerAvatarId`; `@nxgt/janus-webhooks` does not carry
 it, so delete the image from the `janus({ events })` listener.
@@ -1911,14 +1922,14 @@ that sends one, since it is awaited: queue the event and return.
 ## Documentation
 
 - [Guides](docs/README.md) — one page per area, every option with an example
-- [Account avatars](docs/guide/avatars.md) — the upload, remove and proxy routes, who may see a picture, and the failure order
+- [Account avatars](docs/guide/avatars.md) — the upload, remove and proxy routes, who may see an image, and the failure order
 - [Devices](docs/guide/devices.md) — a sign-in from a new device: the token, the cookie, the notice
 - [Troubleshooting](docs/troubleshooting.md) — by the error message you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 
 ## Type safety, counted
 
-**One hundred and ninety-nine plausible mistakes, one hundred and ninety-nine refused at compile time — and
+**Two hundred plausible mistakes, two hundred refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1926,10 +1937,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-six, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (one hundred and six, on `janus()`, from the point of view of
+it), `test/types/auth/` (one hundred and seven, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`, four on avatars) and `test/types/permissions/` (fifty-two, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`, five on avatars) and `test/types/permissions/` (fifty-two, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

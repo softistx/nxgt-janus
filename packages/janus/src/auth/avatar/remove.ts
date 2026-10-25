@@ -15,7 +15,7 @@ export async function removeAvatar(
 	options: WriteOptions | undefined,
 	where: string,
 ): Promise<AnyUser> {
-	const former: { id: string | null } = { id: null };
+	const outcome: { former: string | null } = { former: null };
 	const written = await writeUser(
 		context,
 		user,
@@ -23,13 +23,13 @@ export async function removeAvatar(
 		options,
 		where,
 		(record) => {
-			former.id = record.avatar?.id ?? null;
-			return former.id === null ? null : { avatar: null };
+			outcome.former = record.avatar?.id ?? null;
+			return outcome.former === null ? null : { avatar: null };
 		},
 	);
-	if (former.id !== null) {
+	if (outcome.former !== null) {
 		await emit(context, 'user.avatarRemoved', written, written.updatedAt, {
-			formerAvatarId: former.id,
+			formerAvatarId: outcome.former,
 		});
 	}
 	return toUser(written);

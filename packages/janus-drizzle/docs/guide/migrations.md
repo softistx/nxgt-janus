@@ -326,9 +326,17 @@ ALTER TABLE "users" ADD CONSTRAINT "users_avatar_whole" CHECK (("avatar_id" is n
 Those are the statements drizzle-kit writes from the 0.9 tables to the 0.10
 ones (`"janus"."users"` with a PostgreSQL schema). Adding the check validates
 every row, under a lock on `users` for the length of one scan; the rows
-already satisfy it, since the columns are new. Deployed before the migration,
-every query on `users` fails with `STORE_FAILED`, caused by `column
-"avatar_id" does not exist`.
+already satisfy it, since the columns are new. On a large table, add it
+without the scan and validate afterwards, under the same name, which takes a
+lock that lets reads and writes through:
+
+```sql
+ALTER TABLE "users" ADD CONSTRAINT "users_avatar_whole" CHECK (("avatar_id" is null) = ("avatar_updated_at" is null)) NOT VALID;
+ALTER TABLE "users" VALIDATE CONSTRAINT "users_avatar_whole";
+```
+
+Deployed before the migration, every query on `users` fails with
+`STORE_FAILED`, caused by `column "avatar_id" does not exist`.
 
 `avatar.set` writes these columns and `avatar.remove` clears them. Apply the
 migration before deploying a version that reads or writes users: the columns

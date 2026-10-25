@@ -168,7 +168,7 @@ carries `janus.refusal`, like any refusal.
 
 `avatar.set` and `avatar.remove` each write one event once they answered, with
 the `user.id` they were called for — `janus.avatar.set` and
-`janus.avatar.remove`, never the avatar id. A call that wrote nothing (the same
+`janus.avatar.removed`, never the avatar id. Both carry the `janus.user.type` of the user the call answered, the root form's included. A call that wrote nothing (the same
 id again, no avatar to remove) writes the event all the same: the `@nxgt/janus`
 user event is the one that says a write happened.
 

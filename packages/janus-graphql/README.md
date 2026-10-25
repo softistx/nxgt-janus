@@ -95,7 +95,7 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `janusConnection({ auth, access?, type?, clock?, upgrade? })` | Subscriptions over graphql-ws: `onConnect` for its `useServer()`, which accepts a connection whose `connectionParams.authorization` — else whose upgrade request's headers or cookie — authenticates, as a user of `type` when given, and refuses any other `4403`; an outage rejects, closed `4500`. Each operation's `ctx.janus` then authenticates from that credential, so the directives hold unchanged. `context` builds `{ janus }` for a server without Yoga; `upgrade` reads the upgrade request where the transport's `extra` does not carry it — Bun |
 | `janusAvatarTypeDefs` | Opt-in SDL: `type JanusAvatar { id: ID!, updatedAt: String!, url(size: Int!): String! }` — `updatedAt` an ISO-8601 string, so no scalar is needed. The same text as `graphql/janus-avatar.graphqls`. Put `avatar: JanusAvatar` on your own types |
 | `toJanusAvatar(user)` | The parent of an `avatar: JanusAvatar` field: `null` when `user.avatar` is `null`, else the user's id, the avatar's id and its date. Checks nothing about who asks |
-| `avatarResolvers({ url })` | The resolvers of `JanusAvatar`: `updatedAt` as an ISO-8601 string, and `url(size:)` from your `url({ userId, id }, size)`. A `size` below 1 is `BAD_USER_INPUT`, 400, before `url` is called |
+| `avatarResolvers({ url })` | The resolvers of `JanusAvatar`: `updatedAt` as an ISO-8601 string, and `url(size:)` from your `url(avatar, size)`, where `avatar` is the `AvatarParent` (`userId`, `id`, `updatedAt`). A `size` below 1 is `BAD_USER_INPUT`, 400, before `url` is called |
 | `janusMaskError({ report?, fallback? })` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback`. `report` is called once with every `JanusError` answered 5xx — a directive's and a helper's too — and cannot change the answer. `janusMaskError(fallback)`, the fallback alone, still works |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
 | `denial(code, message?)` | A denial of your own: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404. For a stale session, call `requireFresh()`, whose `STEP_UP_REQUIRED` is `@nxgt/janus`'s |
@@ -180,7 +180,7 @@ const typeDefs = /* GraphQL */ `
 createSchema({
 	typeDefs: [janusTypeDefs, janusAvatarTypeDefs, typeDefs],
 	resolvers: {
-		...avatarResolvers({ url: ({ userId, id }, size) => `/avatars/${userId}/${size}?v=${id}` }),
+		...avatarResolvers({ url: ({ userId, id }, size) => `/avatars/${userId}/${size}?v=${encodeURIComponent(id)}` }),
 		Query: { viewer: (_, __, ctx) => requireUser(ctx) },
 		Viewer: { avatar: (user) => toJanusAvatar(user) },
 	},
@@ -379,7 +379,7 @@ createYoga({
 
 ## Type safety, counted
 
-Thirty-seven plausible mistakes are refused by the compiler, each with a
+Forty-one plausible mistakes are refused by the compiler, each with a
 `@ts-expect-error` case in `test/types/`:
 
 - five in `context.ts`: reading the user or the session where either may be
@@ -409,7 +409,9 @@ Thirty-seven plausible mistakes are refused by the compiler, each with a
   instance does not know, the `permissions()` instance as `auth`, or a
   timestamp as its `clock`; `ctx.janus.access` from a connection given no
   `access`, a field of another user type once narrowed, and an `upgrade`
-  answering a token rather than a request.
+  answering a token rather than a request;
+- four in `avatar.ts`: `avatarResolvers()` given no `url`, a `url` answering a
+  number or a promise, and `toJanusAvatar()` given an object with no `avatar`.
 
 `plugin.ts` also holds this README's quick start, and `connection.ts` the
 graphql-ws wiring — Yoga's recipe, without Yoga, and Bun's `upgrade` —

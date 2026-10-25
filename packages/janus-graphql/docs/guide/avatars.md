@@ -18,6 +18,7 @@ import {
 	avatarResolvers,
 	janusAvatarTypeDefs,
 	janusTypeDefs,
+	requireUser,
 	toJanusAvatar,
 } from '@nxgt/janus-graphql';
 import { createSchema } from 'graphql-yoga';
@@ -38,7 +39,7 @@ export const schema = createSchema({
 	resolvers: {
 		...avatarResolvers({
 			// where the app's own route lives: it checks the session and the access rule
-			url: ({ userId, id }, size) => `/avatars/${userId}/${size}?v=${id}`,
+			url: ({ userId, id }, size) => `/avatars/${userId}/${size}?v=${encodeURIComponent(id)}`,
 		}),
 		Query: { viewer: (_, __, ctx) => requireUser(ctx) },
 		Viewer: { avatar: (user) => toJanusAvatar(user) },
@@ -71,9 +72,11 @@ avatar, else the parent `JanusAvatar`'s resolvers read.
 
 ## The `url` function
 
-`url(avatar, size)` receives `{ userId, id }` — the account and its current
-avatar id — and the size. Answer the path of **a route of yours** and put the
-id in it (`?v=${id}`): a new upload has a new id, so the browser's cache fetches
+`url(avatar, size)` receives the `AvatarParent` — `{ userId, id, updatedAt }`:
+the account, its current avatar id and when it was set; a route needs
+at least the first two — and the size. Answer the path of **a route of yours** and put the
+id in it (`?v=${encodeURIComponent(id)}`; ids are the application's own
+strings, so encode them): a new upload has a new id, so the browser's cache fetches
 the new image and keeps the old one for the old URL.
 
 `size` reaches `url` as a positive integer. GraphQL itself refuses a value
@@ -90,7 +93,10 @@ avatar: JanusAvatar @permission(name: "viewAvatar", type: "user", id: "parent.id
 ```
 
 `@permission` with `id: "parent.id"` asks `access.can` about the parent itself,
-so no loader is needed. A loader is required only for an `args.*` id, or a
+so no loader is needed. That is right only when the field's parent object is
+the janus user: on a `Member` type whose parent is a membership row,
+`parent.id` is the membership's, not the account's — name the account's id
+field or guard in the resolver. A loader is required only for an `args.*` id, or a
 `parent.<field>` other than `id`, on a type whose `fromField` reads the
 object. A denied field is an error (`NOT_FOUND`). To answer `null` instead, check in the
 resolver:
@@ -110,8 +116,8 @@ asks makes the URL a public one.
 ## Traps
 
 - **The URL must point at a route that checks the session and the access
-  rule.** Never a public bucket URL, and never a signed one: neither needs a
-  session, and neither can be revoked when a membership ends.
+  rule**, never a public or signed bucket URL — the reason is in
+  [`@nxgt/janus`'s avatars guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/avatars.md).
 - **`toJanusAvatar` and `avatarResolvers` check nothing.** Guard the field.
 - **The size is not capped here.** `url(size: 100000)` is a string like any
   other; your route refuses the sizes it does not store.

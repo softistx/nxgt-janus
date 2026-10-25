@@ -12,16 +12,22 @@ import type { UserRef, WriteOptions } from './user';
  * What every user type answers for the avatar of its users. **Janus stores
  * only the id the application chose** — an opaque string, never parsed — and
  * never the image: storing, processing, serving and deleting the bytes is the
- * application's. Read it back as `user.avatar` (`{ id, updatedAt } | null`).
+ * application's. Read it back as `user.avatar` ({@link UserAvatar} or `null`).
+ *
+ * An instance with several user types answers the same `avatar` at its root,
+ * for the page that holds a user's id and does not know their type: it reads
+ * the user to find the type, then does what that type's `avatar` does, and
+ * the answer's `type` says which it was. `NOT_FOUND` for a user of no type.
  *
  * These are server-side methods, like `update`: **no access check, no
  * freshness check**. Whether a request may change this user's avatar, and who
  * may see it, is for the application to decide before it calls them.
  *
  * ```ts
- * const id = crypto.randomUUID();        // a fresh id for every upload
- * await storage.put(`avatars/${id}`, bytes);   // the bytes first …
- * await auth.user.avatar.set(userId, { id }); // … then the record
+ * const id = crypto.randomUUID();              // a fresh id for every upload
+ * await store.replace({ imageId: id }, bytes);   // the bytes first …
+ * await auth.avatar.set(userId, { id });         // … then the record
+ * // with several user types: auth.patient.avatar.set(userId, { id })
  * ```
  */
 export interface AvatarApi<U> {
@@ -46,8 +52,11 @@ export interface AvatarApi<U> {
 		 * deletes the former image.
 		 *
 		 * `AVATAR_ID_INVALID` when `id` is not a non-empty string of at most 512
-		 * characters, before anything is read. `NOT_FOUND` for an unknown user;
-		 * `VERSION_CONFLICT` when `ifVersion` is stale.
+		 * characters that every store can keep, before anything is read.
+		 * `NOT_FOUND` for an unknown user. `VERSION_CONFLICT` when `ifVersion` is
+		 * stale, and also when another write landed between this call's read and
+		 * its write, with or without an `ifVersion`: **delete the image you just
+		 * uploaded on any failure**, since nothing points at it.
 		 */
 		set(
 			user: UserRef,
@@ -59,16 +68,8 @@ export interface AvatarApi<U> {
 		 * avatar writes nothing and emits nothing. Otherwise `user.avatarRemoved`
 		 * is emitted with `formerAvatarId`, the id it had: delete that image
 		 * from your storage. `NOT_FOUND` for an unknown user; `VERSION_CONFLICT`
-		 * when `ifVersion` is stale.
+		 * when `ifVersion` is stale or another write landed in between.
 		 */
 		remove(user: UserRef, options?: WriteOptions): Promise<U>;
 	};
 }
-
-/**
- * What an instance with several user types answers at its root: the same
- * `avatar`, for the page that holds a user's id and does not know their type.
- * It reads the user to find the type, then does what that type's `avatar`
- * does; the answer's `type` says which it was. `NOT_FOUND` for a user of no type.
- */
-export type AnyTypeAvatarApi<U> = AvatarApi<U>;

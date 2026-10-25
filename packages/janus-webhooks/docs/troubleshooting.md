@@ -839,7 +839,8 @@ purpose it never says which check failed. In order of likelihood:
   answers `null` for `user.secondFactorEnabled` and
   `user.secondFactorDisabled`, and before 0.4.0 for
   `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`, and before
-  0.6.0 for `user.passwordChanged` and `user.emailChanged`, and before 0.8.0
+  0.6.0 for `user.passwordChanged` and `user.emailChanged`, and before 0.7.0
+  for `user.newDeviceSignedIn`, and before 0.8.0
   for `user.avatarChanged` and `user.avatarRemoved`. Upgrade the receiver before the sender, or
   give its endpoint the `types` it knows.
 

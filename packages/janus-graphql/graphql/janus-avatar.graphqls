@@ -1,5 +1,5 @@
 """
-The picture of an account, as the application's resolvers hand it out.
+The image of an account, as the application's resolvers hand it out.
 `updatedAt` is an ISO-8601 string, so the type needs no scalar.
 """
 type JanusAvatar {

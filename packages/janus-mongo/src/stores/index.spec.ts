@@ -121,4 +121,36 @@ describe('createMongoStores(), beyond the port suite', () => {
 		});
 		await db.dropDatabase();
 	});
+
+	it('inserts a user with no avatar under a validator from before 0.10', async () => {
+		const db = server.client.db('janusPreAvatarValidator');
+		await syncMongoStores(db);
+		const [listed] = await db
+			.listCollections({ name: usersCollection.name }, { nameOnly: false })
+			.toArray();
+		const validator = structuredClone(listed?.options?.['validator']);
+		// The validator 0.9 synced: no `avatar` among the properties.
+		delete validator.$jsonSchema.properties.avatar;
+		await db.command({ collMod: usersCollection.name, validator });
+		const { users } = createMongoStores(db);
+
+		const user = await users.insertUser({
+			id: mintId(),
+			type: 'user',
+			schemaVersion: '1',
+			active: true,
+			fields: { email: 'ada@example.test' },
+			logins: ['ada@example.test'],
+			password: null,
+			secondFactor: null,
+			avatar: null,
+			emailVerifiedAt: null,
+			version: 0,
+			createdAt: at,
+			updatedAt: at,
+		});
+
+		expect(await users.findUser(user.id)).toMatchObject({ avatar: null });
+		await db.dropDatabase();
+	});
 });

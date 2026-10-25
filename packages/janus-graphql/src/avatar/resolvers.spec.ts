@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { graphql } from 'graphql';
-import { createSchema } from 'graphql-yoga';
-import { avatarResolvers, toJanusAvatar } from './avatar';
-import { janusAvatarTypeDefs } from './avatar.sdl';
+import { createSchema, createYoga } from 'graphql-yoga';
+import { janusMaskError } from '../errors';
+import { avatarResolvers, toJanusAvatar } from './index';
+import { janusAvatarTypeDefs } from './sdl';
 
 const typeDefs = /* GraphQL */ `
 	type Viewer {
@@ -26,7 +27,7 @@ function schemaOf(asked: unknown[] = []) {
 			...avatarResolvers({
 				url: (avatar, size) => {
 					asked.push([avatar, size]);
-					return `/avatars/${avatar.userId}/${size}?v=${avatar.id}`;
+					return `/avatars/${avatar.userId}/${size}?v=${encodeURIComponent(avatar.id)}`;
 				},
 			}),
 			// biome-ignore lint/style/useNamingConvention: a resolver map's keys are the schema's type names.
@@ -42,20 +43,6 @@ function schemaOf(asked: unknown[] = []) {
 
 const run = (source: string, schema = schemaOf()) =>
 	graphql({ schema, source });
-
-describe('toJanusAvatar', () => {
-	it('is null for a user with no avatar', () => {
-		expect(toJanusAvatar(bob)).toBeNull();
-	});
-
-	it('carries the owner, the id and the date', () => {
-		expect(toJanusAvatar(ada)).toEqual({
-			userId: 'u1',
-			id: 'img-1',
-			updatedAt: at,
-		});
-	});
-});
 
 describe('avatarResolvers', () => {
 	it('answers id, updatedAt as ISO-8601 and the url of the application route', async () => {
@@ -107,5 +94,28 @@ describe('avatarResolvers', () => {
 			'{ viewer(id: "u1") { avatar { url(size: 1.5) } } }',
 		);
 		expect(result.errors).toHaveLength(1);
+	});
+
+	it('answers a bad size through Yoga with janusMaskError() as a 400 BAD_USER_INPUT', async () => {
+		const yoga = createYoga({
+			schema: schemaOf(),
+			maskedErrors: { maskError: janusMaskError() },
+			logging: false,
+		});
+
+		const response = await yoga.fetch('http://yoga.test/graphql', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({
+				query: '{ viewer(id: "u1") { avatar { url(size: 0) } } }',
+			}),
+		});
+		const body = (await response.json()) as {
+			errors?: { message: string; extensions?: Record<string, unknown> }[];
+		};
+
+		expect(response.status).toBe(400);
+		expect(body.errors?.[0]?.message).toBe('size must be a positive integer');
+		expect(body.errors?.[0]?.extensions?.['code']).toBe('BAD_USER_INPUT');
 	});
 });

@@ -57,7 +57,7 @@ How the messages are shaped:
 - [`findMany` answers fewer users than ids](#findmany-answers-fewer-users-than-ids)
 - [`findByEmail` answers `null` for an address somebody holds](#findbyemail-answers-null-for-an-address-somebody-holds)
 - [`NOT_FOUND` — `<call>: no <type> has this id`](#not_found--call-no-type-has-this-id)
-- [`AVATAR_ID_INVALID` — `<call>: the avatar id must be a non-empty string of at most 512 characters`](#avatar_id_invalid--call-the-avatar-id-must-be-a-non-empty-string-of-at-most-512-characters)
+- [`AVATAR_ID_INVALID` — `<call>: the avatar id must be a non-empty string of at most 512 characters that every store can keep`](#avatar_id_invalid--call-the-avatar-id-must-be-a-non-empty-string-of-at-most-512-characters-that-every-store-can-keep)
 - [`LOGIN_TAKEN` — `<call>: the login is taken by another <type>`](#login_taken--call-the-login-is-taken-by-another-type)
 - [`VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`](#version_conflict--call-expected-version-n-found-m)
 - [`USER_INVALID` — `<call>: the fields do not match the <type> schema …`](#user_invalid--call-the-fields-do-not-match-the-type-schema-n-issues-at-paths)
@@ -462,9 +462,28 @@ janus({
 
 ### `"avatar" is a field janus sets itself; rename it`
 
-**When:** `tsc`, on the `janus({...})` call, when your schema declares an `avatar` field. This version added it to the fields janus sets on every user.
-**Why:** `user.avatar` is janus's own answer: `{ id, updatedAt }` for the picture the application chose, or `null`. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
-**Fix:** rename the field in your schema (`photoUrl`, say), and read `user.avatar` for janus's answer.
+**When:** `tsc`, on the `janus({...})` call, when your schema declares an `avatar` field. 0.29 added it to the fields janus sets on every user.
+**Why:** `user.avatar` is janus's own answer: `{ id, updatedAt }` for the image the application chose, or `null`. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
+**Fix:** rename the field in your schema (`photoUrl`, say), and read `user.avatar` for janus's answer. `avatar` is also a reserved **user type** name, since the root answers `auth.avatar.set`: a type called `avatar` is refused the same way as one named like a method.
+
+Values already stored under the old name stop being read, since `user.avatar` is janus's now. Move them **before** deploying, and deploy `@nxgt/janus` with its store adapter together (an older adapter returns no avatar slot):
+
+```js
+// MongoDB
+db.users.updateMany(
+  { 'fields.avatar': { $exists: true } },
+  { $rename: { 'fields.avatar': 'fields.photoUrl' } },
+);
+```
+
+```sql
+-- PostgreSQL, @nxgt/janus-drizzle: the fields are the jsonb column "users"."fields"
+UPDATE "users"
+SET "fields" = ("fields" - 'avatar') || jsonb_build_object('photoUrl', "fields" -> 'avatar')
+WHERE jsonb_exists("fields", 'avatar');
+```
+
+The move overwrites a target key a row already holds: pick a name no row uses, or check first.
 
 ### `janus: events must be a function that takes a user event — webhooks({ … }) from @nxgt/janus-webhooks, or your own`
 
@@ -632,16 +651,16 @@ An outage is never `null` here: it rejects with `STORE_FAILED`.
 const user = await auth.find(id); // null when there is nobody
 ```
 
-### `AVATAR_ID_INVALID` — `<call>: the avatar id must be a non-empty string of at most 512 characters`
+### `AVATAR_ID_INVALID` — `<call>: the avatar id must be a non-empty string of at most 512 characters that every store can keep`
 
-**When:** `avatar.set`, as `avatar.set` or `<type>.avatar.set` — before the user is read. Most often an id the upload step did not produce: `undefined` from a failed storage call, an empty string, or a whole URL longer than 512 characters.
-**Why:** the id is what the application finds its image by, and janus only has to store it: a non-empty string of at most 512 characters, never parsed. The message names the shape and never the id.
+**When:** `avatar.set`, as `avatar.set` or `<type>.avatar.set` — before the user is read. Most often an id the upload step did not produce: `undefined` from a failed storage call, an empty string, a whole URL longer than 512 characters, or a string with a NUL or a lone surrogate.
+**Why:** the id is what the application finds its image by, and janus only has to store it: a non-empty string of at most 512 characters that every store can keep, never parsed. The message names the shape and never the id.
 **Fix:** pass the fresh id you stored the image under — and set it only after the upload succeeded:
 
 ```ts
 const id = crypto.randomUUID();
-await storage.put(`avatars/${id}`, bytes);
-await auth.user.avatar.set(userId, { id });
+await store.replace({ imageId: id }, bytes);
+await auth.avatar.set(userId, { id }); // auth.<type>.avatar.set with several types
 ```
 
 ### `LOGIN_TAKEN` — `<call>: the login is taken by another <type>`

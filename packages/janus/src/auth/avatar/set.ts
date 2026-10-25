@@ -20,8 +20,10 @@ export async function setAvatar(
 	where: string,
 ): Promise<AnyUser> {
 	const id = avatarIdOf(avatar, where);
-	let formerAvatarId: string | null = null;
-	let changed = false;
+	const outcome: { former: string | null; changed: boolean } = {
+		former: null,
+		changed: false,
+	};
 	const written = await writeUser(
 		context,
 		user,
@@ -29,15 +31,15 @@ export async function setAvatar(
 		options,
 		where,
 		(record, now) => {
-			formerAvatarId = record.avatar?.id ?? null;
-			if (formerAvatarId === id) return null;
-			changed = true;
+			outcome.former = record.avatar?.id ?? null;
+			if (outcome.former === id) return null;
+			outcome.changed = true;
 			return { avatar: { id, updatedAt: now } };
 		},
 	);
-	if (changed) {
+	if (outcome.changed) {
 		await emit(context, 'user.avatarChanged', written, written.updatedAt, {
-			formerAvatarId,
+			formerAvatarId: outcome.former,
 		});
 	}
 	return toUser(written);

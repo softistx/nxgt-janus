@@ -70,6 +70,41 @@ describe('avatar at the root of several user types', () => {
 		expect(error).toMatchObject({ code: 'NOT_FOUND', operation: 'avatar.set' });
 	});
 
+	it('is NOT_FOUND for a record of a type this configuration does not declare, writing nothing', async () => {
+		const { auth, received, store } = several();
+		const at = new Date('2026-01-01T00:00:00.000Z');
+		const id = '0199a0db-f800-7000-8000-000000000003';
+		await store.users.insertUser({
+			id,
+			type: 'retired',
+			schemaVersion: '1',
+			active: true,
+			fields: { name: 'Old' },
+			logins: [],
+			password: null,
+			secondFactor: null,
+			avatar: null,
+			emailVerifiedAt: null,
+			version: 0,
+			createdAt: at,
+			updatedAt: at,
+		});
+
+		const error = await rejection(auth.avatar.set(id, { id: 'x' }));
+		const removed = await rejection(auth.avatar.remove(id));
+
+		expect(error).toMatchObject({ code: 'NOT_FOUND', operation: 'avatar.set' });
+		expect(removed).toMatchObject({
+			code: 'NOT_FOUND',
+			operation: 'avatar.remove',
+		});
+		expect(await store.users.findUser(id)).toMatchObject({
+			avatar: null,
+			version: 0,
+		});
+		expect(received).toHaveLength(0);
+	});
+
 	it('names a type as the single-type form does not: avatar is the root only', () => {
 		const { auth } = several();
 

@@ -34,7 +34,10 @@ export function toUserDocument(record: UserRecord): UserDocument {
 						...record.secondFactor,
 						recoveryCodes: [...record.secondFactor.recoveryCodes],
 					},
-		avatar: record.avatar,
+		// Left out when null: the reader maps absent to null, and a collection
+		// whose validator predates the slot (`syncMongoStores` not yet run)
+		// still accepts every write that does not set an avatar.
+		...(record.avatar === null ? {} : { avatar: record.avatar }),
 		emailVerifiedAt: record.emailVerifiedAt,
 		version: record.version,
 		createdAt: record.createdAt,

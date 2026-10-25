@@ -1,7 +1,7 @@
 /**
  * Sign-in links: a type with no e-mail, a session read off a link that may
  * still ask for a factor, a token read off a request that found nobody, and
- * a link confirmed like a sign-in code. Cases 51–54 of the one hundred and six — see
+ * a link confirmed like a sign-in code. Cases 51–54 of the one hundred and seven — see
  * `fixtures.ts`. The shapes that must keep compiling are in `allowed.ts` and
  * `allowed-sign-in.ts`.
  */

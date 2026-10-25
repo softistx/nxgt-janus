@@ -1,7 +1,7 @@
 /**
  * Confirming a verification or a reset link at the root of several types: the
  * root exists only where a type can answer it, `confirm` takes what it says,
- * and answers the types that can. Cases 95–102 of the one hundred and six —
+ * and answers the types that can. Cases 95–102 of the one hundred and seven —
  * see `fixtures.ts`.
  */
 
