@@ -231,7 +231,7 @@ storage once the record no longer points at it. It is absent from every other
 type, and `@nxgt/janus-webhooks` strips it as it strips `formerEmail`:
 delete the image from the `events` listener, in the process that wrote — the
 `deleteImage` case in the listener at the top of this page, and the
-[README's avatar example](../../README.md#avatars--avatar), do exactly this.
+[README's avatar example](../../README.md#avatars--avatar), do exactly this; the whole recipe is in [account avatars](avatars.md).
 
 A receiver that only gets webhooks never sees `formerAvatarId`, and janus keeps
 no former id to ask for. It must keep the id itself: read the user's current
@@ -388,6 +388,7 @@ see [troubleshooting](../troubleshooting.md#janus-events-must-be-a-function-that
 - [E-mail verification, password reset and changing an e-mail](email-flows.md) — the flows that send `user.emailVerified`, `user.passwordReset` and, with `changeEmail`, `user.emailChanged`
 - [The second factor](second-factor.md) — `activate` and `disable`, which send `user.secondFactorEnabled` and `user.secondFactorDisabled` — sent too by the first proof of an e-mail by a [code](sign-in-code.md) or a [link](magic-link.md#an-account-someone-else-registered); [recovery codes](second-factor.md#recovery-codes), which send `user.recoveryCodesRegenerated` and `user.recoveryCodeUsed`
 - [Devices](devices.md) — the sign-ins that send `user.newDeviceSignedIn`, the device token and the cookie
+- [Account avatars](avatars.md) — what to do with `formerAvatarId`, step by step
 - [Users](users.md) — `create`, `signUp`, `update`, `delete`
 - [Passwords](passwords.md) — `changePassword` and `setPassword`, which send `user.passwordChanged`
 - [Troubleshooting](../troubleshooting.md) — `JANUS_EVENT_FAILED`

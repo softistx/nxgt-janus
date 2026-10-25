@@ -1,8 +1,10 @@
 /**
  * Every refusal as a `GraphQLError` whose `extensions` carry a `code` and the
  * HTTP status Yoga answers with: `{ code, http: { status } }`. This package
- * defines no error class of its own — a denial is a `GraphQLError`, and what
- * `@nxgt/janus` throws stays its own until `janusMaskError()` reads it.
+ * defines no error class of its own — every denial goes through `denial()`
+ * and is a `GraphQLError`, and what `@nxgt/janus` throws stays its own until
+ * `janusMaskError()` reads it. The one other error built here is
+ * `avatarResolvers`' refusal of a bad `size` (`BAD_USER_INPUT`, in `avatar.ts`).
  */
 
 import { JanusError, type JanusErrorStatus, statusOf } from '@nxgt/janus';

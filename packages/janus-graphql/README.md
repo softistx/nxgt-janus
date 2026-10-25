@@ -93,11 +93,14 @@ that reads files — `node_modules/@nxgt/janus-graphql/graphql/janus.graphqls`.
 | `requireFresh(ctx, maxAge)` | The request's session, once it proved who it is less than `maxAge` ago — a duration with its unit, `'10m'`, never a bare number — or a denial: `UNAUTHENTICATED`, `STEP_UP_REQUIRED` |
 | `can(ctx, permission, object, options?)` | `access.can` for the request's user, typed as `access.can` is. Anonymous answers `false`. Shares the request's checks with `@permission`: one question, one check per request |
 | `janusConnection({ auth, access?, type?, clock?, upgrade? })` | Subscriptions over graphql-ws: `onConnect` for its `useServer()`, which accepts a connection whose `connectionParams.authorization` — else whose upgrade request's headers or cookie — authenticates, as a user of `type` when given, and refuses any other `4403`; an outage rejects, closed `4500`. Each operation's `ctx.janus` then authenticates from that credential, so the directives hold unchanged. `context` builds `{ janus }` for a server without Yoga; `upgrade` reads the upgrade request where the transport's `extra` does not carry it — Bun |
+| `janusAvatarTypeDefs` | Opt-in SDL: `type JanusAvatar { id: ID!, updatedAt: String!, url(size: Int!): String! }` — `updatedAt` an ISO-8601 string, so no scalar is needed. The same text as `graphql/janus-avatar.graphqls`. Put `avatar: JanusAvatar` on your own types |
+| `toJanusAvatar(user)` | The parent of an `avatar: JanusAvatar` field: `null` when `user.avatar` is `null`, else the user's id, the avatar's id and its date. Checks nothing about who asks |
+| `avatarResolvers({ url })` | The resolvers of `JanusAvatar`: `updatedAt` as an ISO-8601 string, and `url(size:)` from your `url({ userId, id }, size)`. A `size` below 1 is `BAD_USER_INPUT`, 400, before `url` is called |
 | `janusMaskError({ report?, fallback? })` | Yoga's `maskedErrors.maskError`: a `JanusError` a resolver let through answered with its code and status; anything else to `fallback`. `report` is called once with every `JanusError` answered 5xx — a directive's and a helper's too — and cannot change the answer. `janusMaskError(fallback)`, the fallback alone, still works |
 | `janusGraphQLError(error)` | A `JanusError` as the `GraphQLError` the client reads: its code, its status, and only what the client can act on |
 | `denial(code, message?)` | A denial of your own: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404. For a stale session, call `requireFresh()`, whose `STEP_UP_REQUIRED` is `@nxgt/janus`'s |
 | `JanusContext<typeof auth, typeof access?, Type?>` | What `useJanus()` adds to the context, for your resolvers' `ctx` |
-| `JanusOptions`, `JanusOnContext`, `JanusConnectionOptions`, `JanusConnection`, `ConnectionContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError`, `JanusMaskErrorOptions` | The types of the arguments and answers above |
+| `JanusOptions`, `JanusOnContext`, `JanusConnectionOptions`, `JanusConnection`, `ConnectionContext`, `JanusDirectivesOptions`, `Loaders`, `Conditions`, `LoadedObject`, `RequireUserOptions`, `Auth`, `UserOfAuth`, `DenialCode`, `MaskError`, `JanusMaskErrorOptions`, `AvatarOwner`, `AvatarParent`, `AvatarResolvers`, `AvatarResolversOptions` | The types of the arguments and answers above |
 
 ## Directives
 
@@ -146,6 +149,47 @@ check. What no request could pass — an object type or a permission the
 model does not declare, a malformed `id:`, an argument the field does not
 take, a missing loader or condition, a `maxAge` not above zero — is a
 `TypeError` at start-up naming the field. Detail: [the directives guide](docs/guide/directives.md).
+
+## Avatars
+
+```graphql
+type Viewer {
+	avatar: JanusAvatar @permission(name: "viewAvatar", type: "user", id: "parent.id")
+}
+```
+
+```ts
+import {
+	avatarResolvers,
+	janusAvatarTypeDefs,
+	janusTypeDefs,
+	requireUser,
+	toJanusAvatar,
+} from '@nxgt/janus-graphql';
+import { createSchema } from 'graphql-yoga';
+
+const typeDefs = /* GraphQL */ `
+	type Viewer {
+		avatar: JanusAvatar @permission(name: "viewAvatar", type: "user", id: "parent.id")
+	}
+	type Query {
+		viewer: Viewer @authenticated
+	}
+`;
+
+createSchema({
+	typeDefs: [janusTypeDefs, janusAvatarTypeDefs, typeDefs],
+	resolvers: {
+		...avatarResolvers({ url: ({ userId, id }, size) => `/avatars/${userId}/${size}?v=${id}` }),
+		Query: { viewer: (_, __, ctx) => requireUser(ctx) },
+		Viewer: { avatar: (user) => toJanusAvatar(user) },
+	},
+});
+```
+
+`url(size:)` is the path of **your own route**, which checks the session and
+the access rule before it streams the image; janus keeps only the avatar's id.
+Detail: [the avatars guide](docs/guide/avatars.md).
 
 ## Subscriptions over graphql-ws
 
@@ -319,13 +363,17 @@ createYoga({
   events keep coming past `maxAge`; that `@fresh` is not asked again on
   each one, as `@permission` is. A `@fresh` on the payload's type or its
   fields is asked on every event, like any field.
+- **An avatar's `url` must point at a route that checks the session and the
+  access rule.** A public bucket URL or a signed one needs no session and
+  outlives the membership that allowed it. `@permission` on the field decides
+  who learns the URL; only the route decides who gets the bytes.
 - **A denial of a list field's item fails the whole list** where the item is
   non-null (`[Doctor!]!`), as GraphQL's null propagation always does. Guard
   the list field, or make the item nullable.
 
 ## Documentation
 
-- [Guides](docs/README.md) — the directives, the step-up over GraphQL, subscriptions over graphql-ws, the context and the lazy user, errors as statuses, telemetry, and federation
+- [Guides](docs/README.md) — the directives, account avatars, the step-up over GraphQL, subscriptions over graphql-ws, the context and the lazy user, errors as statuses, telemetry, and federation
 - [Troubleshooting](docs/troubleshooting.md) — by the message or status you see
 - [Roadmap](docs/roadmap.md) — what is next, and what is not planned
 

@@ -11,6 +11,7 @@ give the detail.
 | [The context](guide/context.md) | You are reading the user in a resolver, narrowing it to a user type, checking a permission or freshness yourself with `requireUser()`, `requireFresh()` and `can()`, wondering when the renewed session cookie is sent, or passing the device cookie from a sign-in mutation |
 | [Errors](guide/errors.md) | You want to know what a client receives for a denial or an outage, what the status of the response is, how `janusMaskError()` fits Yoga's masking, and how `report` logs every outage |
 | [Telemetry](guide/telemetry.md) | You want a span per authentication and per permission check, with `@nxgt/janus-telemetry` |
+| [Account avatars](guide/avatars.md) | Accounts have an avatar: `JanusAvatar`, `toJanusAvatar()`, `avatarResolvers({ url })`, the `url(size:)` that points at your own authenticated route, and guarding the field |
 | [Federation](guide/federation.md) | The server is a subgraph: where the directives are checked, what the router must forward, and `@composeDirective` |
 | [Troubleshooting](troubleshooting.md) | A query answers something you did not expect, the server refuses to start, or the compiler refuses a resolver |
 | [Roadmap](roadmap.md) | You want to know what is coming — anonymous graphql-ws connections — and what is deliberately not planned |
