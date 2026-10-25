@@ -8,7 +8,7 @@
 
 Write a user's avatar: `auth.<type>.avatar.set(user, { id }, { ifVersion? })` and `avatar.remove(user, { ifVersion? })` (on the root, `auth.avatar.set`, with several user types, finding the type from the user's record). Janus stores only the id your application chose; upload the image to your own storage first, under a fresh id such as `crypto.randomUUID()`, then call `set`. The user comes back with `user.avatar`.
 
-- `set` refuses an id that is not a non-empty string of at most 512 characters with the new `AVATAR_ID_INVALID` (400, `AvatarIdInvalidError`), before reading anything. Setting the id the user already has, or removing an absent avatar, writes and sends nothing.
+- `set` refuses an id that is not a non-empty string of at most 512 characters that every store can keep, with the new `AVATAR_ID_INVALID` (400, `AvatarIdInvalidError`), before reading anything. Setting the id the user already has, or removing an absent avatar, writes and sends nothing.
 - Two new user events, `user.avatarChanged` and `user.avatarRemoved`, carry `formerAvatarId`: the id of the image the write let go, which is how your listener deletes it from storage. `UserEventType` gains both, so a `switch` on `event.type` that was exhaustive needs two cases. `formerAvatarId` stays in the process that wrote the event, as `formerEmail` does.
 - `avatar` can no longer name a user type (a compile error, and a `TypeError` for a JavaScript caller).
 - These are server-side methods with no access or freshness check, like `update`: whether a request may change an avatar is the application's to decide.

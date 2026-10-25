@@ -456,7 +456,7 @@ janus({
 
 ### `"hasSecondFactor" is a field janus sets itself; rename it`
 
-**When:** `tsc`, on the `janus({...})` call, when your schema declares a `hasSecondFactor` field. 0.29 added it to the fields janus sets on every user.
+**When:** `tsc`, on the `janus({...})` call, when your schema declares a `hasSecondFactor` field. This version added it to the fields janus sets on every user.
 **Why:** `user.hasSecondFactor` is janus's own answer: whether the user's second factor is active. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
 **Fix:** rename the field in your schema, and read `user.hasSecondFactor` for janus's answer.
 
@@ -482,6 +482,8 @@ UPDATE "users"
 SET "fields" = ("fields" - 'avatar') || jsonb_build_object('photoUrl', "fields" -> 'avatar')
 WHERE jsonb_exists("fields", 'avatar');
 ```
+
+The move overwrites a target key a row already holds: pick a name no row uses, or check first.
 
 ### `janus: events must be a function that takes a user event — webhooks({ … }) from @nxgt/janus-webhooks, or your own`
 

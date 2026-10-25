@@ -8,7 +8,7 @@ A user record gains an `avatar` slot: `{ id, updatedAt } | null`, patched like `
 
 A store written for the port must now round-trip `avatar`, and the new case checks it.
 
-- **`@nxgt/janus-mongo`**: run `syncMongoStores(db)` before deploying, since the `users` validator is strict and must admit `avatar`. A document without the field reads as `avatar: null`; no document is rewritten.
+- **`@nxgt/janus-mongo`**: run `syncMongoStores(db)` before deploying, since the `users` validator is strict and must admit `avatar`. Until it has run, only a write that sets an avatar fails, with `STORE_FAILED` caused by `Document failed validation`; sign-up and every other write pass. A document without the field reads as `avatar: null`; no document is rewritten.
 - **`@nxgt/janus-drizzle`**: a migration is required. `users` gains the nullable columns `avatar_id` and `avatar_updated_at` and the check `users_avatar_whole` (both or neither); generate it with `drizzle-kit generate`, or apply the SQL in the migrations guide. Deployed before it, queries on `users` fail with `STORE_FAILED`.
 
 **Breaking: `avatar` is now a reserved name.** `avatar` is a reserved field name, and, once `avatar.set` and `avatar.remove` ship (see the operations changeset), a reserved user type name. A schema that declares an `avatar` field no longer compiles, a request carrying one is refused `USER_INVALID`, and the `fields.avatar` already stored for existing users stops being read: `user.avatar` is now janus's own answer. Rename the schema field and move the stored values **before** deploying, and upgrade `@nxgt/janus` and its store adapter in the same deploy (an older adapter returns no avatar slot).
@@ -27,3 +27,5 @@ UPDATE "users"
 SET "fields" = ("fields" - 'avatar') || jsonb_build_object('photoUrl', "fields" -> 'avatar')
 WHERE jsonb_exists("fields", 'avatar');
 ```
+
+The move overwrites a target key a row already holds: pick a name no row uses, or check first.

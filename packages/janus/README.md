@@ -1492,6 +1492,15 @@ runner-less layer.
 
 ## Traps
 
+**Upgrading: `avatar` is reserved, and a stored `fields.avatar` stops being read.**
+A schema field or a user type called `avatar` is refused, and the
+`fields.avatar` rows already hold is no longer read: `user.avatar` is janus's
+own answer. Rename the field, move the stored values, and deploy the adapter's
+migration or sync (`syncMongoStores(db)`, the drizzle migration) before the
+new janus, or with it. The move overwrites a target key a row already holds, so
+pick a name no row uses, or check first. The snippets are in
+[troubleshooting](docs/troubleshooting.md#avatar-is-a-field-janus-sets-itself-rename-it).
+
 **An avatar needs a fresh id for every upload, and its image stored first.**
 `avatar.set` records the id; it stores nothing. Write the bytes to your storage
 under a new id (`crypto.randomUUID()`), then call `set`: if the call fails the
@@ -1920,7 +1929,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and ninety-nine plausible mistakes, one hundred and ninety-nine refused at compile time — and
+**Two hundred plausible mistakes, two hundred refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per

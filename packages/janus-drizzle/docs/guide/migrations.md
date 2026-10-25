@@ -335,9 +335,8 @@ ALTER TABLE "users" ADD CONSTRAINT "users_avatar_whole" CHECK (("avatar_id" is n
 ALTER TABLE "users" VALIDATE CONSTRAINT "users_avatar_whole";
 ```
 
-Deployed before the migration,
-every query on `users` fails with `STORE_FAILED`, caused by `column
-"avatar_id" does not exist`.
+Deployed before the migration, every query on `users` fails with
+`STORE_FAILED`, caused by `column "avatar_id" does not exist`.
 
 `avatar.set` writes these columns and `avatar.remove` clears them. Apply the
 migration before deploying a version that reads or writes users: the columns
