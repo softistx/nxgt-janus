@@ -43,15 +43,6 @@ function schemaOf(asked: unknown[] = []) {
 const run = (source: string, schema = schemaOf()) =>
 	graphql({ schema, source });
 
-describe('janusAvatarTypeDefs', () => {
-	it('is graphql/janus-avatar.graphqls, byte for byte', async () => {
-		const shipped = await Bun.file(
-			new URL('../graphql/janus-avatar.graphqls', import.meta.url),
-		).text();
-		expect(janusAvatarTypeDefs).toBe(shipped);
-	});
-});
-
 describe('toJanusAvatar', () => {
 	it('is null for a user with no avatar', () => {
 		expect(toJanusAvatar(bob)).toBeNull();

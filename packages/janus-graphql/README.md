@@ -159,10 +159,29 @@ type Viewer {
 ```
 
 ```ts
+import {
+	avatarResolvers,
+	janusAvatarTypeDefs,
+	janusTypeDefs,
+	requireUser,
+	toJanusAvatar,
+} from '@nxgt/janus-graphql';
+import { createSchema } from 'graphql-yoga';
+
+const typeDefs = /* GraphQL */ `
+	type Viewer {
+		avatar: JanusAvatar @permission(name: "viewAvatar", type: "user", id: "parent.id")
+	}
+	type Query {
+		viewer: Viewer @authenticated
+	}
+`;
+
 createSchema({
 	typeDefs: [janusTypeDefs, janusAvatarTypeDefs, typeDefs],
 	resolvers: {
 		...avatarResolvers({ url: ({ userId, id }, size) => `/avatars/${userId}/${size}?v=${id}` }),
+		Query: { viewer: (_, __, ctx) => requireUser(ctx) },
 		Viewer: { avatar: (user) => toJanusAvatar(user) },
 	},
 });

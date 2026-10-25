@@ -1,7 +1,7 @@
 /**
  * The opt-in avatar type as SDL: put it beside your own type definitions when
  * accounts have pictures. The same text ships as
- * `graphql/janus-avatar.graphqls` — `avatar.spec.ts` holds that the two are
+ * `graphql/janus-avatar.graphqls` — `avatar.sdl.spec.ts` holds that the two are
  * identical.
  *
  * `updatedAt` is an ISO-8601 `String` rather than a `DateTime`: the package

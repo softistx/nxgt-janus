@@ -23,8 +23,9 @@
  *   — the opt-in `JanusAvatar` type, its `url(size:)` pointing at your own
  *   authenticated route (`graphql/janus-avatar.graphqls`).
  *
- * It defines no error class: a denial is a `GraphQLError`, and what it lets
- * through is `@nxgt/janus`'s own.
+ * It defines no error class: every denial goes through `denial()` and is a
+ * `GraphQLError` (the one other error is `avatarResolvers`' bad-size
+ * `BAD_USER_INPUT`), and what it lets through is `@nxgt/janus`'s own.
  */
 
 export {

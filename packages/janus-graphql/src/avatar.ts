@@ -86,6 +86,7 @@ export function avatarResolvers(
 			updatedAt: (avatar) => avatar.updatedAt.toISOString(),
 			url: (avatar, { size }) => {
 				if (!Number.isSafeInteger(size) || size < 1) {
+					// Not denial(): that one speaks of access (401/403/404), this is a bad argument.
 					throw new GraphQLError('size must be a positive integer', {
 						extensions: { code: 'BAD_USER_INPUT', http: { status: 400 } },
 					});

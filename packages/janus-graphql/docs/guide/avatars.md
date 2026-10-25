@@ -89,9 +89,10 @@ The field is as open as you leave it. Guard it as any other:
 avatar: JanusAvatar @permission(name: "viewAvatar", type: "user", id: "parent.id")
 ```
 
-`@permission` asks `access.can` about `parent.id`, and a type with a
-`fromField` needs a loader: `loaders: { user: (id) => auth.user.find(id) }`. A
-denied field is an error (`NOT_FOUND`). To answer `null` instead, check in the
+`@permission` with `id: "parent.id"` asks `access.can` about the parent itself,
+so no loader is needed. A loader is required only for an `args.*` id, or a
+`parent.<field>` other than `id`, on a type whose `fromField` reads the
+object. A denied field is an error (`NOT_FOUND`). To answer `null` instead, check in the
 resolver:
 
 ```ts
@@ -114,3 +115,9 @@ asks makes the URL a public one.
 - **`toJanusAvatar` and `avatarResolvers` check nothing.** Guard the field.
 - **The size is not capped here.** `url(size: 100000)` is a string like any
   other; your route refuses the sizes it does not store.
+
+## See also
+
+- [`@nxgt/janus`'s avatars guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus/docs/guide/avatars.md) — the upload and proxy routes, and the privacy recipe
+- [Directives](directives.md) — `@permission`, its ids and its loaders
+- [Troubleshooting](../troubleshooting.md#bad_user_input-400-size-must-be-a-positive-integer) — the `size must be a positive integer` error

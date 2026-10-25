@@ -11,8 +11,8 @@ The calls it adds are `auth.<type>.avatar.set` and `auth.<type>.avatar.remove`
 (the reference is in [the README](../../README.md#avatars--avatar)); the
 avatar is read back as `user.avatar`, `{ id, updatedAt } | null`.
 
-The image side below is written with `@nxgt/image` **for example**: any
-storage works, since janus keeps only the id. Its names — `defineImageSet`,
+The image side below is written with `@nxgt/image` (nxgt-data's image
+package) **for example**: any storage works, since janus keeps only the id. Its names — `defineImageSet`,
 `bindImageStore`, `store.replace`, `store.remove`, `store.bytes` — are the
 ones the recipe uses; swap them for your own storage calls.
 
@@ -221,7 +221,7 @@ const canViewAvatar = (viewer: { type: 'user'; id: string }, owner: { type: 'use
 outage: answer the outage 503, never 404.
 
 **And on the GraphQL field**, with
-[`@nxgt/janus-graphql`](../../../janus-graphql/docs/guide/avatars.md), either
+[`@nxgt/janus-graphql`](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-graphql/docs/guide/avatars.md), either
 the directive or `can()`:
 
 ```graphql
@@ -231,9 +231,10 @@ type Member {
 }
 ```
 
-`user` has a `fromField`, so `useJanus()` needs a loader to build the object
-the check reads: `loaders: { user: (id) => auth.user.find(id) }`. A denied
-field is an error (`NOT_FOUND` by default); to answer `null` instead, call
+`id: "parent.id"` checks the parent itself, so no loader is needed here. A
+loader (`loaders: { user: (id) => auth.user.find(id) }`) is required only
+for an `args.*` id, or a `parent.<field>` other than `id`, on a type whose
+`fromField` reads the object. A denied field is an error (`NOT_FOUND` by default); to answer `null` instead, call
 `can(ctx, 'viewAvatar', user)` in the field's resolver and return `null`.
 
 ## 5. Failure order and traps
@@ -258,7 +259,7 @@ field is an error (`NOT_FOUND` by default); to answer `null` instead, call
   anyone holding the link, an ex-member included, keeps seeing the picture.
   The proxy route is what makes the rule above hold.
 - **Deploy the schema first.** `avatar` is a column or a document field:
-  run the [drizzle migration](../../../janus-drizzle/docs/guide/migrations.md)
+  run the [drizzle migration](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-drizzle/docs/guide/migrations.md)
   or `syncMongoStores(db)` before the release that calls `avatar.set`; before
   it, a query on `users` fails with `STORE_FAILED`.
 - **Delete the account's image with the account.** `user.deleted` carries
@@ -270,4 +271,4 @@ field is an error (`NOT_FOUND` by default); to answer `null` instead, call
 - [User events](events.md) — `user.avatarChanged`, `user.avatarRemoved` and `formerAvatarId`
 - [Users](users.md) — `user.avatar` and the reserved name
 - [Permissions](permissions.md) — `defineModel`, `fromField`, `grant`, `can`
-- [`@nxgt/janus-graphql`'s avatar guide](../../../janus-graphql/docs/guide/avatars.md) — the `JanusAvatar` type and its `url(size:)`
+- [`@nxgt/janus-graphql`'s avatar guide](https://github.com/softistx/nxgt-janus/blob/develop/packages/janus-graphql/docs/guide/avatars.md) — the `JanusAvatar` type and its `url(size:)`
