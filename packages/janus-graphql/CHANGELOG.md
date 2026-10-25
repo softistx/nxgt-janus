@@ -1,5 +1,16 @@
 # @nxgt/janus-graphql
 
+## 0.7.0
+
+### Minor Changes
+
+- [#259](https://github.com/softistx/nxgt-janus/pull/259) [`355e65d`](https://github.com/softistx/nxgt-janus/commit/355e65d01718ce4a62c36ee53bfa109359213e42) Thanks [@SteveGT96](https://github.com/SteveGT96)! - An opt-in avatar surface: `janusAvatarTypeDefs` (also `graphql/janus-avatar.graphqls`), `type JanusAvatar { id: ID!, updatedAt: String!, url(size: Int!): String! }`, with `toJanusAvatar(user)` for the parent of an `avatar: JanusAvatar` field of your own types and `avatarResolvers({ url })` for its fields. `url` builds the path of your own authenticated route — never a public URL — and `updatedAt` is an ISO-8601 string, so no scalar is needed. A `size` below 1 is refused `BAD_USER_INPUT`, 400. Needs `@nxgt/janus` 0.29.0 for `user.avatar`. Nothing changes for a server that does not import them.
+
+### Patch Changes
+
+- Updated dependencies [[`a88acf0`](https://github.com/softistx/nxgt-janus/commit/a88acf0f4e364f413a2b3ad0ae1d11494ffb0241), [`a953d84`](https://github.com/softistx/nxgt-janus/commit/a953d845ff61140be80af7fd3eb805876f1e1b38)]:
+  - @nxgt/janus@0.29.0
+
 ## 0.6.11
 
 ### Patch Changes
