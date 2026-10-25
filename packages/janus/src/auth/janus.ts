@@ -1,5 +1,6 @@
 import { guardRelations } from '../stores/guard';
 import { systemClock } from '../time/clock';
+import { anyTypeAvatar } from './avatar';
 import { type JanusConfig, resolveConfig } from './config';
 import { warnThrottleWindow } from './config/warn-throttle-window';
 import { createContext } from './context';
@@ -109,6 +110,7 @@ export function janus<const C extends JanusConfig>(
 		: {
 				...shared,
 				...types,
+				...anyTypeAvatar(context),
 				...anyTypeChangeEmail(context),
 				...anyTypeVerifyEmail(context),
 				...anyTypeResetPassword(context),

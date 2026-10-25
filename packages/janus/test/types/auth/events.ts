@@ -2,7 +2,7 @@
  * User events: a listener that is not a function, an event type Janus never
  * sends, a field an event never carries, the new address an e-mail change
  * does not carry, the former one read as if always there — and the listener
- * that must keep compiling. Cases 32–34, 43 and 44 of the one hundred and two — see
+ * that must keep compiling. Cases 32–34, 43 and 44 of the one hundred and six — see
  * `fixtures.ts`.
  */
 
@@ -23,7 +23,7 @@ function events() {
 		store,
 		events(event) {
 			// ── 33. An event type Janus never sends ──────────────────────
-			// @ts-expect-error there is no user.updated: the ten are a closed set
+			// @ts-expect-error there is no user.updated: the types are a closed set
 			if (event.type === 'user.updated') return;
 
 			// ── 34. A field an event never carries ───────────────────────
@@ -46,7 +46,7 @@ function events() {
 
 // ── And the shape that MUST keep compiling ──────────────────────────────────
 
-// A listener that switches on the ten types, and one that is async; the
+// A listener that switches on every type, and one that is async; the
 // former address read once it is known to be one.
 const listening = janus({
 	user: Patient,
@@ -61,6 +61,8 @@ const listening = janus({
 			case 'user.secondFactorDisabled':
 			case 'user.recoveryCodesRegenerated':
 			case 'user.recoveryCodeUsed':
+			case 'user.avatarChanged':
+			case 'user.avatarRemoved':
 			case 'user.deleted': {
 				const who: string = event.userId;
 				const when: Date = event.occurredAt;

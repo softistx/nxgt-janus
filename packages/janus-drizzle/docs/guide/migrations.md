@@ -330,8 +330,9 @@ already satisfy it, since the columns are new. Deployed before the migration,
 every query on `users` fails with `STORE_FAILED`, caused by `column
 "avatar_id" does not exist`.
 
-Nothing writes the avatar yet: `@nxgt/janus` reads and stores the slot, and
-the operations that set and remove one arrive in a later minor.
+`avatar.set` writes these columns and `avatar.remove` clears them. Apply the
+migration before deploying a version that reads or writes users: the columns
+are read on every query on `users`, not only when an avatar is set.
 
 ## Collecting lapsed sessions and tokens
 

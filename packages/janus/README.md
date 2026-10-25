@@ -165,7 +165,7 @@ async function signIn(email: string, password: string): Promise<Response> {
 ```
 
 `JanusError` is the base of everything thrown at call time. It extends `Error`,
-so no consumer has to order their `catch` blocks. `code` is a union of twenty-one
+so no consumer has to order their `catch` blocks. `code` is a union of twenty-two
 string literals, so a `switch` over it is exhaustive and adding a code breaks the
 compilation of callers that exhaust it. `statusOf(code)` answers the status
 below, as `JanusErrorStatus` — a union of the nine literals, which a
@@ -185,6 +185,7 @@ if (error instanceof JanusError) {
 | `NOT_FOUND` | 404 |
 | `LOGIN_TAKEN`, `VERSION_CONFLICT` | 409 |
 | `USER_INVALID` | 400, field by field from `issues` |
+| `AVATAR_ID_INVALID` | 400 — the id given to `avatar.set` is not a non-empty string of at most 512 characters |
 | `PASSWORD_TOO_SHORT`, `HASH_UNSUPPORTED` | 400 |
 | `CREDENTIALS_INVALID` | 401 — one code for an unknown login, no password, a wrong one and a login throttled for too many; `retryAfter`, when set, belongs in the body and a `Retry-After` header |
 | `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
@@ -198,7 +199,7 @@ if (error instanceof JanusError) {
 | `PERMISSION_DEPTH` | 500 — a permission check or list walked past `maxDepth`; not a denial |
 
 Each code has its class, all exported: `StoreFailure`, `StoreConflict` (`on:
-'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `CredentialError`,
+'login' | 'version'`), `NotFoundError`, `UserInvalidError`, `AvatarInvalidError`, `CredentialError`,
 `UserInactiveError`, `StepUpRequiredError`, `MailThrottledError`, `TokenError` (the `TOKEN_*` codes and `CODE_INVALID`),
 `SecondFactorError`, `InvalidCursorError`, `UnsupportedError` and
 `PermissionDepthError`. `StoreFailure` and `StoreConflict` are exported
@@ -372,7 +373,8 @@ else reaches the store and is asynchronous.
   `avatar`, `version`, `createdAt`, `updatedAt`. A schema declaring one of those, or a `password`, is
   refused at compile time. The password hash never reaches a user.
   `avatar` is `{ id, updatedAt } | null`: janus keeps only the opaque `id` your
-  application chose, and the image itself lives in your own storage.
+  application chose, and the image itself lives in your own storage; write it
+  with [`avatar.set`](#avatars--avatar).
 - **Schemas** are any [Standard Schema](https://standardschema.dev) — Zod 4,
   Valibot, ArkType. There is no validation peer. The output must be JSON, and a
   schema producing a `Date` is refused at compile time.
@@ -1141,6 +1143,48 @@ token janus signs, and presents it at its next sign-in.
 [The devices guide](docs/guide/devices.md) has the cookie, the second
 factor, the e-mail, key rotation, every error and a test.
 
+### Avatars — `avatar`
+
+Janus stores **only the id** your application chose for a user's picture —
+never the image. Upload the bytes to your own storage under a **fresh id**,
+then point the user at it:
+
+```ts
+const auth = janus({
+	...config,
+	// Once the record points at the new image, delete the one it let go.
+	async events(event) {
+		if (
+			(event.type === 'user.avatarChanged' || event.type === 'user.avatarRemoved') &&
+			event.formerAvatarId != null
+		) {
+			await storage.remove(`avatars/${event.formerAvatarId}`);
+		}
+	},
+});
+
+const id = crypto.randomUUID();                       // a fresh id for every upload
+await storage.put(`avatars/${id}`, bytes);             // the bytes first …
+const user = await auth.user.avatar.set(userId, { id }); // … then the record
+user.avatar; // { id, updatedAt }
+
+await auth.user.avatar.remove(userId); // user.avatar is null
+```
+
+`avatar` is on every user type (`auth.user.avatar` is `auth.avatar` in the
+single-type form), and, with several types, at the root too — `auth.avatar.set(userId,
+{ id })` finds the user's type from the record, for a page that holds only an
+id. The user comes back as `user.avatar`, from `get`, `find`, `getUser` and
+`findUser` alike.
+
+| Call | Does | Rejects with |
+| --- | --- | --- |
+| `avatar.set(user, { id }, { ifVersion? })` | writes `{ id, updatedAt: now }` and answers the user; the id the user already has writes and sends nothing; else sends `user.avatarChanged` with `formerAvatarId` | `AVATAR_ID_INVALID` before anything is read, `NOT_FOUND`, `VERSION_CONFLICT` |
+| `avatar.remove(user, { ifVersion? })` | writes `null` and answers the user; a user with none writes and sends nothing; else sends `user.avatarRemoved` with `formerAvatarId` | `NOT_FOUND`, `VERSION_CONFLICT` |
+
+The `id` is a non-empty string of at most 512 characters; janus never parses
+it. The name `avatar` can no longer name a user type.
+
 ### User events — `events`
 
 ```ts
@@ -1175,23 +1219,27 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.recoveryCodesRegenerated` | `secondFactor.regenerateRecoveryCodes` — not `activate`, whose codes come with `user.secondFactorEnabled` |
 | `user.recoveryCodeUsed` | `secondFactor.recover`, once the recovery code is spent: a sign-in without the user's phone |
 | `user.newDeviceSignedIn` | `signIn`, `secondFactor.confirm`, `secondFactor.recover`, `signInCode.confirm` and `magicLink.confirm`, given a `device` its token did not prove, once the sign-in is complete — carrying `sessionId`, the new session's. Never `signUp`, nor a call given no device |
+| `user.avatarChanged` | `avatar.set`, when it wrote a different id — carrying `formerAvatarId`, the id replaced (`null` for a first avatar) |
+| `user.avatarRemoved` | `avatar.remove`, when the user had one — carrying `formerAvatarId` |
 | `user.deleted` | `delete`, once — a replay that deletes nobody sends nothing |
 
 - **The user is named by id, and nothing else**: no login, no field, no
   password, no token. Whoever receives the event reads the rest from where it
-  is kept, if they may. Two exceptions: `user.emailChanged` carries
+  is kept, if they may. Three exceptions: `user.emailChanged` carries
   `formerEmail`, which nothing keeps once the write landed, so a notice can
-  reach the inbox the account just left; and `user.newDeviceSignedIn`
-  carries `sessionId`, the session the new device holds.
-  `@nxgt/janus-webhooks` posts neither.
+  reach the inbox the account just left; `user.newDeviceSignedIn`
+  carries `sessionId`, the session the new device holds; and the two avatar
+  events carry `formerAvatarId`, the image the write let go.
+  `@nxgt/janus-webhooks` posts none of them.
 - **Each event has an `id` of its own**, a UUIDv7: the key to deliver it once.
 - **The listener runs after the write, and is awaited** before the
   flow answers, so a durable queue has the event by then. `occurredAt` is the
   write's own time. A refused flow sends nothing.
 - **Typed**: `events` is a `UserEventListener`; `UserEventType` is the closed
-  union of the eleven types, so a `switch` on `event.type` is exhaustive —
+  union of the thirteen types, so a `switch` on `event.type` is exhaustive —
   and a new type, like the two recovery-code ones in 0.10, the two change
-  ones in 0.14 or `user.newDeviceSignedIn` in 0.17, breaks it until handled.
+  ones in 0.14, `user.newDeviceSignedIn` in 0.17 or the two avatar ones,
+  breaks it until handled.
 - **A listener that throws fails no flow** — the write happened. It is a
   `JANUS_EVENT_FAILED` warning naming the event's type, its id and the user's
   id, never the failure's message.
@@ -1228,7 +1276,7 @@ async events(event) {
 
 To post them as signed webhooks:
 [`@nxgt/janus-webhooks`](https://www.npmjs.com/package/@nxgt/janus-webhooks).
-[The user events guide](docs/guide/events.md) has the listener, the eleven
+[The user events guide](docs/guide/events.md) has the listener, the thirteen
 types, mail for a recovery code used or a password or e-mail changed, what a failure costs, and a test.
 
 ### Permissions — `@nxgt/janus/permissions`
@@ -1439,6 +1487,21 @@ each of the six methods — a write that rejects must have changed nothing.
 runner-less layer.
 
 ## Traps
+
+**An avatar needs a fresh id for every upload, and its image stored first.**
+`avatar.set` records the id; it stores nothing. Write the bytes to your storage
+under a new id (`crypto.randomUUID()`), then call `set`: if the call fails the
+image is an orphan nobody points at, never a record pointing at missing bytes.
+Reusing the id of the current image lets a storage `replace` overwrite the
+picture the user is showing, and the later removal of the former image — the
+same id — delete the new one. The former id is in `user.avatarChanged` and
+`user.avatarRemoved` as `formerAvatarId`; `@nxgt/janus-webhooks` does not carry
+it, so delete the image from the `janus({ events })` listener.
+
+**`avatar.set` and `avatar.remove` check nothing about who asks.** They are
+server-side methods, like `update`: no session, no step-up, no ownership. Who
+may change a user's avatar, and who may see one, is the application's to
+decide before it calls them — janus holds an id, not an access rule.
 
 **A type's own `confirm` spends another type's token; the root's does not
 need the type.** With several user types, `auth.admin.verifyEmail.confirm`,
@@ -1852,7 +1915,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**One hundred and ninety-five plausible mistakes, one hundred and ninety-five refused at compile time — and
+**One hundred and ninety-nine plausible mistakes, one hundred and ninety-nine refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1860,10 +1923,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-six, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (one hundred and two, on `janus()`, from the point of view of
+it), `test/types/auth/` (one hundred and six, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`) and `test/types/permissions/` (fifty-two, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`, four on avatars) and `test/types/permissions/` (fifty-two, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

@@ -13,6 +13,7 @@ export { JanusError } from './base';
 export type { JanusErrorCode } from './codes';
 export type { CredentialRefusal, Issue, JanusErrorOptions } from './options';
 export {
+	AvatarInvalidError,
 	CredentialError,
 	InvalidCursorError,
 	MailThrottledError,

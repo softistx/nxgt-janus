@@ -4,7 +4,7 @@
 "@nxgt/janus-drizzle": minor
 ---
 
-A user record gains an `avatar` slot: `{ id, updatedAt } | null`, patched like `secondFactor` (absent keeps it, a value replaces it whole, `null` removes it). `@nxgt/janus` exports `AvatarRecord`, the app-facing `User` carries `avatar`, `avatar` joins the reserved field names (a schema declaring it is refused), the memory store keeps it, and the conformance suite gains `users.avatarSlot`. **Nothing writes the slot yet**: the operations that set and remove an avatar land in a later minor, so every user reads `avatar: null` until then.
+A user record gains an `avatar` slot: `{ id, updatedAt } | null`, patched like `secondFactor` (absent keeps it, a value replaces it whole, `null` removes it). `@nxgt/janus` exports `AvatarRecord`, the app-facing `User` carries `avatar`, `avatar` joins the reserved field names (a schema declaring it is refused), the memory store keeps it, and the conformance suite gains `users.avatarSlot`. `avatar.set` and `avatar.remove` write it (see the operations changeset), and a user nobody has set an avatar for reads `avatar: null`.
 
 A store written for the port must now round-trip `avatar`, and the new case checks it.
 

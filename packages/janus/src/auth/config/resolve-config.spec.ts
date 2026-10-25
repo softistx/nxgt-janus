@@ -87,6 +87,11 @@ describe('refuses, with a bare TypeError, what only wiring produces', () => {
 			'"cookie" cannot name a user type',
 		],
 		[
+			'a type named like the root avatar',
+			wire({ users: { avatar: { schema: person } } }),
+			'"avatar" cannot name a user type',
+		],
+		[
 			'a type named like the root changeEmail',
 			wire({ users: { changeEmail: { schema: person } } }),
 			'"changeEmail" cannot name a user type',

@@ -134,6 +134,15 @@ export const WRITTEN: Readonly<
 	'secondFactor.disable': (call, outcome) => {
 		if (outcome.ok) log.info(events.secondFactorDisabled(argumentUser(call)));
 	},
+	// Named for the call, not the write: the same id again, or no avatar to
+	// remove, answers ok and writes nothing, and the answer (the user) cannot
+	// tell the two apart. Never the id: it names an image.
+	'avatar.set': (call, outcome) => {
+		if (outcome.ok) log.info(events.avatarSet(argumentUser(call)));
+	},
+	'avatar.remove': (call, outcome) => {
+		if (outcome.ok) log.info(events.avatarRemove(argumentUser(call)));
+	},
 	signOut: (_call, outcome) => {
 		if (outcome.ok && outcome.value === true) log.info(events.signedOut());
 	},

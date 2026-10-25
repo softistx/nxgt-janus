@@ -1,4 +1,5 @@
 import type { At } from '../at';
+import { avatarFlows } from '../avatar';
 import type { ResolvedType } from '../config';
 import type { Context } from '../context';
 import { emailFlows } from '../email-flows';
@@ -29,6 +30,7 @@ export function typeApi(context: Context, type: ResolvedType): AnyTypeApi {
 		...passwordFlows(context, type, at, secondFactor.finish),
 		...provenSignInFlows(context, type, at, secondFactor.finish),
 
+		avatar: avatarFlows(context, type, at),
 		secondFactor: secondFactor.api,
 		signInCode,
 		magicLink: magicLinkFlows(context, type, at, secondFactor.finish),
