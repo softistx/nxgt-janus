@@ -40,6 +40,9 @@ export function usersTable(table: TableFactory) {
 			 * codes.
 			 */
 			secondFactorRecoveryCodes: text('second_factor_recovery_codes').array(),
+			/** The avatar's opaque id, or `null` for none. */
+			avatarId: text('avatar_id'),
+			avatarUpdatedAt: at('avatar_updated_at'),
 			emailVerifiedAt: at('email_verified_at'),
 			version: integer('version').notNull(),
 			createdAt: at('created_at').notNull(),
@@ -62,6 +65,11 @@ export function usersTable(table: TableFactory) {
 			check(
 				'users_second_factor_whole',
 				sql`(${t.secondFactorMethod} is null) = (${t.secondFactorSecret} is null) and (${t.secondFactorMethod} is not null or (${t.secondFactorConfirmedAt} is null and ${t.secondFactorLastStep} is null and ${t.secondFactorRecoveryCodes} is null))`,
+			),
+			/** An avatar is an id and when it was set, or neither. */
+			check(
+				'users_avatar_whole',
+				sql`(${t.avatarId} is null) = (${t.avatarUpdatedAt} is null)`,
 			),
 			/** `'totp'` is the one method; a step counts up from the epoch. */
 			check(
