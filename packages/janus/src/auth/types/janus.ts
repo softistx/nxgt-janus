@@ -6,6 +6,7 @@
  */
 
 import type { JanusConfig, MultiTypeConfig, SingleTypeConfig } from '../config';
+import type { AvatarApi } from './avatar';
 import type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 import type {
 	ResetPasswordApi,
@@ -59,6 +60,7 @@ export type TypeApi<
 	Def,
 	TwoFactor extends boolean = false,
 > = UserTypeApi<UserOfType<Name, Def>, FieldsInput<Def>> &
+	AvatarApi<UserOfType<Name, Def>> &
 	ProvenSignInApi<UserOfType<Name, Def>, SignInAnswer<Name, Def, TwoFactor>> &
 	([LoginOf<Def>] extends [never]
 		? unknown
@@ -197,10 +199,11 @@ export type Janus<C extends JanusConfig> = SharedApi<UserOf<C>> &
 					C['users'][K],
 					TwoFactorOf<C>
 				>;
-			} & ([EmailUsers<C>] extends [never]
-				? unknown
-				: AnyTypeChangeEmailApi<EmailUsers<C>> &
-						AnyTypeVerifyEmailApi<EmailUsers<C>>) &
+			} & AvatarApi<UserOf<C>> &
+				([EmailUsers<C>] extends [never]
+					? unknown
+					: AnyTypeChangeEmailApi<EmailUsers<C>> &
+							AnyTypeVerifyEmailApi<EmailUsers<C>>) &
 				([ResetPasswordUsers<C>] extends [never]
 					? unknown
 					: AnyTypeResetPasswordApi<ResetPasswordUsers<C>>)

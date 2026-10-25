@@ -42,6 +42,7 @@ for what causes each.
 **In a response**
 - [`UNAUTHENTICATED` for a signed-in user](#unauthenticated-for-a-signed-in-user)
 - [`MAIL_THROTTLED`, 429, `Too many requests, retry later`](#mail_throttled-429-too-many-requests-retry-later)
+- [`BAD_USER_INPUT`, 400, `size must be a positive integer`](#bad_user_input-400-size-must-be-a-positive-integer)
 - [`CREDENTIALS_INVALID` with `retryAfter`, 401, for the right password](#credentials_invalid-with-retryafter-401-for-the-right-password)
 - [`FORBIDDEN` where the user should be allowed](#forbidden-where-the-user-should-be-allowed)
 - [`STEP_UP_REQUIRED`, 403](#step_up_required-403)
@@ -388,6 +389,22 @@ rate limits. To change
 the limit, `janus({ mail: { throttle: { attempts, window } } })`; in a test
 over a `fixedClock`, advance the clock past `retryAfter`, or wire
 `mail: { throttle: false }`.
+
+### `BAD_USER_INPUT`, 400, `size must be a positive integer`
+
+`JanusAvatar.url(size:)` was asked with `0` or a negative number. `avatarResolvers()`
+refuses it before your `url` function runs, with `extensions.code`
+`BAD_USER_INPUT` and `http.status` 400 — the one error of this package that is
+neither a denial nor a `JanusError`.
+
+Ask for a size your route stores:
+
+```graphql
+{ viewer { avatar { url(size: 64) } } }
+```
+
+A positive size your route does not store is not this error: the URL is built,
+and the route answers 404.
 
 ### `CREDENTIALS_INVALID` with `retryAfter`, 401, for the right password
 

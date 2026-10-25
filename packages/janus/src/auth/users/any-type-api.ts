@@ -1,5 +1,6 @@
 import type { AnyUser } from '../context';
 import type {
+	AvatarApi,
 	ChangeEmailApi,
 	FindByEmailApi,
 	FindOrCreateApi,
@@ -20,6 +21,7 @@ import type { Input } from './flow-types';
 
 /** Everything one user type answers. Which flows it has is decided by its types; all are built. */
 export type AnyTypeApi = UserTypeApi<AnyUser, Input> &
+	AvatarApi<AnyUser> &
 	PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> &
 	SecondFactorApi<AnyUser> &
 	ProvenSignInApi<AnyUser, SignInResult<AnyUser>> &

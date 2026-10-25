@@ -25,7 +25,7 @@ export const auth = janus({
 	password: { login: 'email' },
 	store: createMemoryStores(),
 	hasher: scryptHasher(),
-	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.passwordChanged, user.emailChanged, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.newDeviceSignedIn, user.deleted
+	events: listener, // every user.created, user.emailVerified, user.passwordReset, user.passwordChanged, user.emailChanged, user.secondFactorEnabled, user.secondFactorDisabled, user.recoveryCodesRegenerated, user.recoveryCodeUsed, user.newDeviceSignedIn, user.avatarChanged, user.avatarRemoved, user.deleted
 });
 
 process.on('SIGTERM', async () => {
@@ -88,7 +88,7 @@ and what fails it.
 
 `webhooks({ endpoints })` answers the listener `janus({ events })` takes,
 with a `close()` for shutdown. It posts each user event to every endpoint
-whose `types` include it — all eleven types when `types` is absent:
+whose `types` include it — all thirteen types when `types` is absent:
 
 ```ts
 import { webhooks } from '@nxgt/janus-webhooks';
@@ -260,7 +260,8 @@ given up — `@nxgt/janus-webhooks` before 0.3.0 knows neither
 `user.secondFactorEnabled` nor `user.secondFactorDisabled`, and before 0.4.0
 neither `user.recoveryCodesRegenerated` nor `user.recoveryCodeUsed`, and
 before 0.6.0 neither `user.passwordChanged` nor `user.emailChanged`, and
-before 0.7.0 not `user.newDeviceSignedIn`. Until every receiver is upgraded,
+before 0.7.0 not `user.newDeviceSignedIn`, and before 0.8.0 neither
+`user.avatarChanged` nor `user.avatarRemoved`. Until every receiver is upgraded,
 give its endpoint the `types` it knows:
 
 ```ts
@@ -309,6 +310,10 @@ const auth = janus({
 	},
 });
 ```
+
+**`user.avatarChanged` and `user.avatarRemoved` are posted without their
+`formerAvatarId`**, for the same reason: an image id stays in the process.
+Delete the former image from the `janus({ events })` listener.
 
 **`user.newDeviceSignedIn` is posted without its `sessionId`**, for the same
 reason: a session id stays in the process. Send the new-sign-in notice from

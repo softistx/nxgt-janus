@@ -22,6 +22,7 @@ export function toUserRow(record: UserRecord): UserInsert {
 		passwordHash: record.password?.hash ?? null,
 		passwordUpdatedAt: record.password?.updatedAt ?? null,
 		...toSecondFactorColumns(record.secondFactor),
+		...toAvatarColumns(record.avatar),
 		emailVerifiedAt: record.emailVerifiedAt,
 		version: record.version,
 		createdAt: record.createdAt,
@@ -52,7 +53,18 @@ export function toUserSet(patch: UserPatch): Partial<UserInsert> {
 	if (patch.secondFactor !== undefined) {
 		Object.assign(set, toSecondFactorColumns(patch.secondFactor));
 	}
+	if (patch.avatar !== undefined) {
+		Object.assign(set, toAvatarColumns(patch.avatar));
+	}
 	return set;
+}
+
+/** An avatar as its two columns, both `null` for none. */
+function toAvatarColumns(avatar: UserRecord['avatar']) {
+	return {
+		avatarId: avatar?.id ?? null,
+		avatarUpdatedAt: avatar?.updatedAt ?? null,
+	};
 }
 
 /**
@@ -94,6 +106,10 @@ export function toUser(row: UserRow): UserRecord {
 						lastStep: row.secondFactorLastStep,
 						recoveryCodes: [...(row.secondFactorRecoveryCodes ?? [])],
 					},
+		avatar:
+			row.avatarId === null || row.avatarUpdatedAt === null
+				? null
+				: { id: row.avatarId, updatedAt: row.avatarUpdatedAt },
 		emailVerifiedAt: row.emailVerifiedAt,
 		version: row.version,
 		createdAt: row.createdAt,

@@ -29,6 +29,8 @@ export const events = {
 	recoveryCodesRegenerated: event(
 		'janus.secondFactor.recoveryCodesRegenerated',
 	),
+	avatarSet: event('janus.avatar.set'),
+	avatarRemoved: event('janus.avatar.removed'),
 	signedOut: event('janus.signOut'),
 	signedOutEverywhere: event('janus.signOutEverywhere'),
 	userDeleted: event('janus.user.deleted'),

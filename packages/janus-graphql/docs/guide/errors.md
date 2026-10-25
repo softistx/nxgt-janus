@@ -35,6 +35,7 @@ Yoga reads `extensions.http.status` to answer the HTTP response, and strips
 | `STEP_UP_REQUIRED` | 403 | `Forbidden` | A session older than `@fresh(maxAge)` or `requireFresh(ctx, maxAge)` allows: the client asks for a step-up — see [the step-up over GraphQL](step-up.md) |
 | `NOT_FOUND` | 404 | `Not found` | `@permission`'s default denial, a loader answering `null`, an id `@permission` could not read — and `denial('NOT_FOUND')` |
 | `SERVICE_UNAVAILABLE` | 503 | `The service is unavailable, retry later` | A store could not answer: `STORE_FAILED` |
+| `BAD_USER_INPUT` | 400 | `size must be a positive integer` | `JanusAvatar.url(size:)` asked with a size below 1 — see [account avatars](avatars.md) |
 | any other `JanusErrorCode` | its `statusOf(code)` | fixed per status: `Invalid request` 400, `Invalid credentials` 401 (`CREDENTIALS_INVALID`, `CODE_INVALID`), `Forbidden` 403, `Not found` 404, `Conflict` 409, `Internal server error` 500 and 501 | A `JanusError` a resolver let through — `CREDENTIALS_INVALID` 401, `LOGIN_TAKEN` 409, `TOKEN_EXPIRED` 400, … |
 
 The status of every `JanusErrorCode` is `@nxgt/janus`'s

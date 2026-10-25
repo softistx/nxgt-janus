@@ -87,6 +87,11 @@ describe('refuses, with a bare TypeError, what only wiring produces', () => {
 			'"cookie" cannot name a user type',
 		],
 		[
+			'a type named like the root avatar',
+			wire({ users: { avatar: { schema: person } } }),
+			'"avatar" cannot name a user type',
+		],
+		[
 			'a type named like the root changeEmail',
 			wire({ users: { changeEmail: { schema: person } } }),
 			'"changeEmail" cannot name a user type',
@@ -115,6 +120,11 @@ describe('refuses, with a bare TypeError, what only wiring produces', () => {
 			'a login that names a field janus sets',
 			wire({ user: person, password: { login: 'id' }, hasher }),
 			'"id" is a field janus sets itself',
+		],
+		[
+			'a login that names the avatar slot',
+			wire({ user: person, password: { login: 'avatar' }, hasher }),
+			'"avatar" is a field janus sets itself',
 		],
 		[
 			'an unknown normalisation',

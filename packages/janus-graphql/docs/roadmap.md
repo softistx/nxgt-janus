@@ -40,6 +40,14 @@ Nothing yet.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **Account avatars, v0.7.0.** An opt-in `JanusAvatar` type
+  (`janusAvatarTypeDefs`, also `graphql/janus-avatar.graphqls`) for the
+  avatar `@nxgt/janus` 0.29.0 records: `toJanusAvatar(user)` is the parent of
+  an `avatar: JanusAvatar` field of yours, and `avatarResolvers({ url })`
+  answers `updatedAt` as an ISO-8601 string and `url(size:)` as the path of
+  your own authenticated route — never a public URL. A `size` below 1 is
+  `BAD_USER_INPUT`, 400. Guard the field with `@permission` or `can()`.
+
 - **A throttled e-mail request's `retryAfter`, v0.6.0.**
   `janusGraphQLError()` answers `@nxgt/janus`'s `MAIL_THROTTLED` with 429,
   `retryAfter` in `extensions`, a `Retry-After` header in

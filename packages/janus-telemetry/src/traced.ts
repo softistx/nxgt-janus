@@ -18,6 +18,7 @@ function kindOf(code: JanusErrorCode): 'failure' | 'refusal' {
 		case 'LOGIN_TAKEN':
 		case 'VERSION_CONFLICT':
 		case 'USER_INVALID':
+		case 'AVATAR_ID_INVALID':
 		case 'PASSWORD_TOO_SHORT':
 		case 'CREDENTIALS_INVALID':
 		case 'USER_INACTIVE':

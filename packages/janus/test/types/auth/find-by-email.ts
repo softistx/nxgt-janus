@@ -1,7 +1,7 @@
 /**
  * Finding a user by e-mail — `findByEmail`: asked of a type with no e-mail,
  * its answer read without its `null`, and the user handed over instead of
- * the address. Cases 76–78 of the one hundred and two — see `fixtures.ts`. The
+ * the address. Cases 76–78 of the one hundred and seven — see `fixtures.ts`. The
  * shapes that must keep compiling are at the end of this file.
  */
 

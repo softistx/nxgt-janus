@@ -220,6 +220,7 @@ The refusals need no `try`: `janusErrors()` answers them.
 | Thrown | Answered |
 | --- | --- |
 | `USER_INVALID` | 400 `{ code, issues }`, the fields that failed |
+| `AVATAR_ID_INVALID` | 400 `{ code }` — an avatar id that is not a non-empty string of at most 512 characters that every store can keep |
 | `PASSWORD_TOO_SHORT` | 400 `{ code, minLength }` |
 | `LOGIN_TAKEN` | 409 `{ code }` |
 | `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password; `{ code, retryAfter }` and a `Retry-After` header once the login is throttled |

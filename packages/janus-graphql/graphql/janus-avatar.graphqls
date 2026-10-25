@@ -1,0 +1,19 @@
+"""
+The image of an account, as the application's resolvers hand it out.
+`updatedAt` is an ISO-8601 string, so the type needs no scalar.
+"""
+type JanusAvatar {
+	"""
+	The id the application stored the image under; changes with every upload.
+	"""
+	id: ID!
+	"""
+	When the avatar was set, as an ISO-8601 string.
+	"""
+	updatedAt: String!
+	"""
+	The URL of the application's own route that streams the image at this
+	size, behind its session and access check. Never a public URL.
+	"""
+	url(size: Int!): String!
+}

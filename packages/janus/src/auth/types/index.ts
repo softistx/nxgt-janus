@@ -8,6 +8,7 @@
  * dragging a type parameter through every internal function.
  */
 
+export type { AvatarApi } from './avatar';
 export type { AnyTypeChangeEmailApi, ChangeEmailApi } from './change-email';
 export type { Checked } from './checks';
 export type {
@@ -52,6 +53,12 @@ export type {
 	SignInResult,
 } from './sign-in';
 export type { StepUpApi, StepUpByApp, StepUpByEmail } from './step-up';
-export type { User, UserBase, UserRef, WriteOptions } from './user';
+export type {
+	User,
+	UserAvatar,
+	UserBase,
+	UserRef,
+	WriteOptions,
+} from './user';
 export type { UserTypeApi } from './user-type';
 export type { AnyTypeVerifyEmailApi } from './verify-email';

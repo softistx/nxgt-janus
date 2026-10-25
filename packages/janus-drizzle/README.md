@@ -186,6 +186,11 @@ a code, in the order written; no codes are `null`, read as `[]`.
   Drop a hand-made `tokens (expires_at)` index first, or the column keeps two.
   [To 0.9](docs/guide/migrations.md#to-09-an-index-on-tokensexpires_at) shows
   the statement.
+- **Upgrading to 0.10 needs a migration.** `users` gains the nullable columns
+  `avatar_id` and `avatar_updated_at` and the check `users_avatar_whole`. Until
+  they exist, every query on `users` fails with `STORE_FAILED`, not only an
+  avatar write. [To 0.10](docs/guide/migrations.md#to-010-the-avatar) shows the
+  SQL.
 - **A unique violation on anything but a login is a `StoreFailure`, not
   `LOGIN_TAKEN`.** Such a violation is an adapter bug. Reporting it as a taken
   login would tell somebody their e-mail is in use when it is not.

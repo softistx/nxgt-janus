@@ -8,6 +8,12 @@ export class UserInvalidError extends JanusError {
 	override readonly code = 'USER_INVALID' as const;
 }
 
+/** The avatar id given to `avatar.set` is not an acceptable id. */
+export class AvatarIdInvalidError extends JanusError {
+	override name = 'AvatarIdInvalidError';
+	override readonly code = 'AVATAR_ID_INVALID' as const;
+}
+
 /** A password too short, credentials that do not match, or a hash format nobody reads. */
 export class CredentialError extends JanusError {
 	override name = 'CredentialError';

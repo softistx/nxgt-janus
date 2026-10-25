@@ -30,6 +30,7 @@ export function userRecord(overrides: Partial<UserRecord> = {}): UserRecord {
 			updatedAt: at('2026-01-01T00:00:00.000Z'),
 		},
 		secondFactor: null,
+		avatar: null,
 		emailVerifiedAt: null,
 		version: 0,
 		createdAt: at('2026-01-01T00:00:00.000Z'),

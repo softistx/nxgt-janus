@@ -164,6 +164,15 @@ const remove: UserPatch = { updatedAt: new Date(), secondFactor: null };
 An adapter that stored users before this field existed reads its absence as
 `null`, never `undefined` (rule 2): a user with no second factor holds `null`.
 
+#### A user's avatar
+
+`UserRecord.avatar` is `{ id, updatedAt } | null` and follows the same patch
+rule: absent keeps it, `null` removes it, a value replaces it whole. `id` is
+opaque to a store — the application's key for the image — so keep it byte for
+byte, and keep `updatedAt` to the millisecond. A user stored before the slot
+existed reads as `null`, never `undefined`. `avatar.set` and `avatar.remove`
+write it.
+
 ### `SessionStore` and `TokenStore`
 
 ```ts
@@ -472,7 +481,7 @@ An adapter **defines no error class**. It throws `@nxgt/janus`'s own
 copy of each class and `instanceof` holds in the application. A cursor it
 cannot read is `invalidCursor(where, cursor)`. Records, patches and page
 requests are exported as types: `UserRecord`, `UserPatch`, `UserPageRequest`,
-`PasswordRecord`, `SecondFactorRecord`, `SessionRecord`, `TokenRecord`, `TokenKind`, `Json`,
+`AvatarRecord`, `PasswordRecord`, `SecondFactorRecord`, `SessionRecord`, `TokenRecord`, `TokenKind`, `Json`,
 `JsonObject`, and `ObjectPageRequest`, `RelationChanges` from
 `@nxgt/janus/permissions`.
 
@@ -502,12 +511,13 @@ stores: a case that leaks into the next is the hardest failure to debug.
 
 The suites import no test framework and no assertion library.
 
-The second factor, attempts and a user's tokens spent have their own cases — skip one by its id
+The second factor, the avatar, attempts and a user's tokens spent have their own cases — skip one by its id
 while you work on it, never to ship:
 
 | Case | Checks |
 | --- | --- |
 | `users.secondFactorSlot` | round-trip, recovery codes in order and `[]` as a factor with no codes, never as `null`; a patch not naming it keeps it; one naming it replaces the codes whole; `null` removes it, codes included, and a factor written after has none |
+| `users.avatarSlot` | round-trip, the id verbatim and the date to the millisecond; a patch not naming it keeps it; one naming it replaces it whole; `null` removes it |
 | `tokens.countAttempt` | two calls answer `attempts` 1 then 2, `codeHash` as written; `consumeToken` answers the count |
 | `tokens.countAttemptConcurrency` | twenty concurrent calls answer 1 to 20, each once |
 | `tokens.countAttemptRace` | attempts racing one redemption: the counts answered unspent are 1 to the final count, and every answer after the spend carries that final count |

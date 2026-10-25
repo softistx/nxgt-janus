@@ -134,6 +134,12 @@ spend the same one.
   the sync has run, the first write of such a token fails with
   `STORE_FAILED`, caused by `Document failed validation`. No document is
   rewritten.
+- **Upgrading to 0.10: run the sync before deploying.** The `avatar` slot —
+  `@nxgt/janus` 0.29's — is new, and the strict validator the previous sync
+  wrote refuses it: until `syncMongoAdapter(db)` has run, only a write that sets
+  an avatar fails, with `STORE_FAILED`, caused by `Document failed validation`.
+  Sign-up and every other write pass, and no document is rewritten.
+  [The sync guide](docs/guide/sync.md) has the detail.
 - **The TTL indexes are storage hygiene, not the expiry.** MongoDB's TTL monitor
   runs every sixty seconds, so a lapsed session can stay readable for up to a
   minute. The core compares `expiresAt` on every read, and that is what expires

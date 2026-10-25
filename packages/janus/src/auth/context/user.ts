@@ -20,6 +20,10 @@ export function toUser(record: UserRecord): AnyUser {
 		active: record.active,
 		hasPassword: record.password !== null,
 		hasSecondFactor: record.secondFactor?.confirmedAt != null,
+		avatar:
+			record.avatar === null
+				? null
+				: { id: record.avatar.id, updatedAt: record.avatar.updatedAt },
 		version: record.version,
 		createdAt: record.createdAt,
 		updatedAt: record.updatedAt,

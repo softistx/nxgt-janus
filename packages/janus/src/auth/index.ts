@@ -27,6 +27,7 @@ export { janus } from './janus';
 export { assertStores } from './port/assert-stores';
 export { createMemoryStores } from './port/memory';
 export type {
+	AvatarRecord,
 	JanusStores,
 	Json,
 	JsonObject,
@@ -52,6 +53,7 @@ export type {
 	AnyTypeResetPasswordApi,
 	AnyTypeVerifyEmailApi,
 	Authenticated,
+	AvatarApi,
 	ChangeEmailApi,
 	Checked,
 	EmailOf,
@@ -88,6 +90,7 @@ export type {
 	TypeApi,
 	TypesOf,
 	User,
+	UserAvatar,
 	UserBase,
 	UserOf,
 	UserRef,

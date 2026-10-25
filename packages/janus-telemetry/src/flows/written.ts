@@ -134,6 +134,19 @@ export const WRITTEN: Readonly<
 	'secondFactor.disable': (call, outcome) => {
 		if (outcome.ok) log.info(events.secondFactorDisabled(argumentUser(call)));
 	},
+	// Named for the call, not the write: the same id again, or no avatar to
+	// remove, answers ok and writes nothing, and the answer (the user) cannot
+	// tell the two apart. The user comes from the answer, so the root form,
+	// which has no type of its own, still names it. Never the id: it names an
+	// image.
+	'avatar.set': (call, outcome) => {
+		if (outcome.ok) log.info(events.avatarSet(userFields(call, outcome.value)));
+	},
+	'avatar.remove': (call, outcome) => {
+		if (outcome.ok) {
+			log.info(events.avatarRemoved(userFields(call, outcome.value)));
+		}
+	},
 	signOut: (_call, outcome) => {
 		if (outcome.ok && outcome.value === true) log.info(events.signedOut());
 	},

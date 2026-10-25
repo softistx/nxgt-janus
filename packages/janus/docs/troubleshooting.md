@@ -40,6 +40,7 @@ How the messages are shaped:
 - [`janus: secondFactor.issuer must name your application …`](#janus-secondfactorissuer-must-name-your-application--the-authenticator-app-shows-it-beside-the-account)
 - [`janus: secondFactor.keys: the key "<id>" is not 32 bytes in base64 …`](#janus-secondfactorkeys-the-key-id-is-not-32-bytes-in-base64--make-one-with-openssl-rand--base64-32)
 - [`"hasSecondFactor" is a field janus sets itself; rename it`](#hassecondfactor-is-a-field-janus-sets-itself-rename-it)
+- [`"avatar" is a field janus sets itself; rename it`](#avatar-is-a-field-janus-sets-itself-rename-it)
 - [`janus: devices.keys: …`](#janus-deviceskeys-expected-at-least-one-key---id-key--the-first-seals)
 - [`janus: events must be a function that takes a user event …`](#janus-events-must-be-a-function-that-takes-a-user-event--webhooks---from-nxgtjanus-webhooks-or-your-own)
 - [`janus: signIn.throttle …` wiring messages](#janus-signinthrottle-wiring-messages)
@@ -56,6 +57,7 @@ How the messages are shaped:
 - [`findMany` answers fewer users than ids](#findmany-answers-fewer-users-than-ids)
 - [`findByEmail` answers `null` for an address somebody holds](#findbyemail-answers-null-for-an-address-somebody-holds)
 - [`NOT_FOUND` — `<call>: no <type> has this id`](#not_found--call-no-type-has-this-id)
+- [`AVATAR_ID_INVALID` — `<call>: the avatar id must be a non-empty string of at most 512 characters that every store can keep`](#avatar_id_invalid--call-the-avatar-id-must-be-a-non-empty-string-of-at-most-512-characters-that-every-store-can-keep)
 - [`LOGIN_TAKEN` — `<call>: the login is taken by another <type>`](#login_taken--call-the-login-is-taken-by-another-type)
 - [`VERSION_CONFLICT` — `<call>: expected version <n>, found <m>`](#version_conflict--call-expected-version-n-found-m)
 - [`USER_INVALID` — `<call>: the fields do not match the <type> schema …`](#user_invalid--call-the-fields-do-not-match-the-type-schema-n-issues-at-paths)
@@ -366,7 +368,7 @@ janus({ user: z.object({ username: z.string() }), password: { login: 'username' 
 Also `janus: "<name>" cannot name a user type — janus() answers a method of that name` and `janus: users declares no user type`.
 
 **When:** `janus({ users: {...} })`.
-**Why:** each type becomes a property of what `janus()` answers — `auth.staff` — so it must be a name, and not one of the shared methods (`authenticate`, `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`, `collectExpired`, `types`, `changeEmail`, `verifyEmail`, `resetPassword`).
+**Why:** each type becomes a property of what `janus()` answers — `auth.staff` — so it must be a name, and not one of the shared methods (`authenticate`, `signOut`, `signOutEverywhere`, `findUser`, `getUser`, `cookie`, `collectExpired`, `types`, `avatar`, `changeEmail`, `verifyEmail`, `resetPassword`).
 **Fix:** `users: { staffMember: {...} }`, not `'staff-member'`, `cookie` or `changeEmail`.
 
 ### `janus: session.lifespan: "<value>" is not a duration; write a number followed by ms, s, m, h or d — for example "15m" or "720h"`
@@ -457,6 +459,31 @@ janus({
 **When:** `tsc`, on the `janus({...})` call, when your schema declares a `hasSecondFactor` field. This version added it to the fields janus sets on every user.
 **Why:** `user.hasSecondFactor` is janus's own answer: whether the user's second factor is active. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
 **Fix:** rename the field in your schema, and read `user.hasSecondFactor` for janus's answer.
+
+### `"avatar" is a field janus sets itself; rename it`
+
+**When:** `tsc`, on the `janus({...})` call, when your schema declares an `avatar` field. 0.29 added it to the fields janus sets on every user.
+**Why:** `user.avatar` is janus's own answer: `{ id, updatedAt }` for the image the application chose, or `null`. A field of yours with that name would be shadowed. From JavaScript, a validated input holding it is refused with `USER_INVALID` and the issue `set by janus, not by a request`.
+**Fix:** rename the field in your schema (`photoUrl`, say), and read `user.avatar` for janus's answer. `avatar` is also a reserved **user type** name, since the root answers `auth.avatar.set`: a type called `avatar` is refused the same way as one named like a method.
+
+Values already stored under the old name stop being read, since `user.avatar` is janus's now. Move them **before** deploying, and deploy `@nxgt/janus` with its store adapter together (an older adapter returns no avatar slot):
+
+```js
+// MongoDB
+db.users.updateMany(
+  { 'fields.avatar': { $exists: true } },
+  { $rename: { 'fields.avatar': 'fields.photoUrl' } },
+);
+```
+
+```sql
+-- PostgreSQL, @nxgt/janus-drizzle: the fields are the jsonb column "users"."fields"
+UPDATE "users"
+SET "fields" = ("fields" - 'avatar') || jsonb_build_object('photoUrl', "fields" -> 'avatar')
+WHERE jsonb_exists("fields", 'avatar');
+```
+
+The move overwrites a target key a row already holds: pick a name no row uses, or check first.
 
 ### `janus: events must be a function that takes a user event — webhooks({ … }) from @nxgt/janus-webhooks, or your own`
 
@@ -622,6 +649,18 @@ An outage is never `null` here: it rejects with `STORE_FAILED`.
 
 ```ts
 const user = await auth.find(id); // null when there is nobody
+```
+
+### `AVATAR_ID_INVALID` — `<call>: the avatar id must be a non-empty string of at most 512 characters that every store can keep`
+
+**When:** `avatar.set`, as `avatar.set` or `<type>.avatar.set` — before the user is read. Most often an id the upload step did not produce: `undefined` from a failed storage call, an empty string, a whole URL longer than 512 characters, or a string with a NUL or a lone surrogate.
+**Why:** the id is what the application finds its image by, and janus only has to store it: a non-empty string of at most 512 characters that every store can keep, never parsed. The message names the shape and never the id.
+**Fix:** pass the fresh id you stored the image under — and set it only after the upload succeeded:
+
+```ts
+const id = crypto.randomUUID();
+await store.replace({ imageId: id }, bytes);
+await auth.avatar.set(userId, { id }); // auth.<type>.avatar.set with several types
 ```
 
 ### `LOGIN_TAKEN` — `<call>: the login is taken by another <type>`

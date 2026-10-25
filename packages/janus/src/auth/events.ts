@@ -35,6 +35,11 @@ import type { Context } from './context';
  *   `secondFactor.recover`, `signInCode.confirm`, `magicLink.confirm` and
  *   `signInProven`, when given a `device` its token did not prove. Never by
  *   `signUp`, nor without a `device`. Carries `sessionId`;
+ * - `user.avatarChanged` — by `avatar.set`, when it wrote a different id than
+ *   the user had. The same id again is no write and no event. Carries
+ *   `formerAvatarId`: how the application deletes the image it replaced;
+ * - `user.avatarRemoved` — by `avatar.remove`, when the user had an avatar.
+ *   Carries `formerAvatarId`, the id it had;
  * - `user.deleted` — by `delete`, once; a replay that finds nobody is none.
  */
 export type UserEventType =
@@ -48,15 +53,18 @@ export type UserEventType =
 	| 'user.recoveryCodesRegenerated'
 	| 'user.recoveryCodeUsed'
 	| 'user.newDeviceSignedIn'
+	| 'user.avatarChanged'
+	| 'user.avatarRemoved'
 	| 'user.deleted';
 
 /**
  * A user event: **the user named by id, and nothing else** — no login, no
  * field, no password, no token. Whoever receives it reads the rest from where
- * it is kept, if they may. Two exceptions: `formerEmail` on
+ * it is kept, if they may. Three exceptions: `formerEmail` on
  * `user.emailChanged` — once the write landed, the old address is kept
- * nowhere — and `sessionId` on `user.newDeviceSignedIn`, the session the new
- * device holds.
+ * nowhere — `sessionId` on `user.newDeviceSignedIn`, the session the new
+ * device holds, and `formerAvatarId` on the two avatar events, the id of the
+ * image the write let go.
  */
 export interface UserEvent {
 	/** A UUIDv7 minted for this event: the key to deliver it once. */
@@ -82,10 +90,21 @@ export interface UserEvent {
 	 * type, and from an event a webhook delivered.
 	 */
 	readonly sessionId?: string;
+	/**
+	 * On `user.avatarChanged` and `user.avatarRemoved` only: the avatar id the
+	 * user had before — `null` on a first `avatar.set` — so the application can
+	 * delete that image from its storage. Always a string on
+	 * `user.avatarRemoved`. Absent from every other type, and from an event a
+	 * webhook delivered.
+	 */
+	readonly formerAvatarId?: string | null;
 }
 
-/** What an event carries beyond the user, on the two types that do. */
-export type EventExtras = Pick<UserEvent, 'formerEmail' | 'sessionId'>;
+/** What an event carries beyond the user, on the types that do. */
+export type EventExtras = Pick<
+	UserEvent,
+	'formerEmail' | 'sessionId' | 'formerAvatarId'
+>;
 
 /**
  * What `janus({ events })` takes: called once per event, **after** the write
