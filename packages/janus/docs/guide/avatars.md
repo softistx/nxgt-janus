@@ -12,8 +12,9 @@ of one user type (with several, `auth.<type>.avatar.set`, and the same at the
 root for a page that holds only an id; the reference is in [the README](../../README.md#avatars--avatar)); the
 avatar is read back as `user.avatar`, `{ id, updatedAt } | null`.
 
-The image side below is written with `@nxgt/image` (nxgt-data's image
-package) **for example**: any storage works, since janus keeps only the id. Its names — `defineImageSet`,
+The image side below is written with [`@nxgt/image`](https://www.npmjs.com/package/@nxgt/image)
+0.1 and its `@nxgt/image/s3` subpath over `@nxgt/s3`, **for example**: any
+storage works, since janus keeps only the id. Its calls — `defineImageSet`,
 `bindImageStore`, `store.replace`, `store.remove`, `store.bytes` — are the
 ones the recipe uses; swap them for your own storage calls.
 
@@ -32,17 +33,22 @@ ones the recipe uses; swap them for your own storage calls.
 ## The image store
 
 ```ts
-import { bindImageStore, defineImageSet, ImageError } from '@nxgt/image';
+import { defineImageSet, ImageError } from '@nxgt/image';
+import { bindImageStore } from '@nxgt/image/s3';
+import { bindBucket, defineBucket } from '@nxgt/s3';
 
 const sizes = [256, 64]; // the only sizes the proxy route will serve
 
-const avatars = defineImageSet({
-	sizes,
-	// …the rest of your set: format, limits, the key of each size
-	// (for example `avatars/${imageId}/${size}.webp`)
+const avatarBucket = defineBucket({
+	bucket: 'avatars',
+	// a fresh imageId per upload, so a new image never lands on the former one's keys
+	key: (p: { imageId: string; size: number }) => `avatars/${p.imageId}/${p.size}.webp`,
 });
 
-export const store = bindImageStore(avatars, bucket); // bucket: your storage
+export const store = bindImageStore(
+	defineImageSet({ sizes }), // limits, quality: see the @nxgt/image README
+	bindBucket(avatarBucket, s3Config), // s3Config: endpoint and keys from your environment; never a public default acl
+);
 // store.replace({ imageId }, input)  — decode, resize, write every size
 // store.remove({ imageId })          — delete every size
 // store.bytes({ imageId }, size)     — the stored bytes of one size
