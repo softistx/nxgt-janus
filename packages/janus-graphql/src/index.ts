@@ -34,9 +34,9 @@ export {
 	type AvatarResolvers,
 	type AvatarResolversOptions,
 	avatarResolvers,
+	janusAvatarTypeDefs,
 	toJanusAvatar,
 } from './avatar';
-export { janusAvatarTypeDefs } from './avatar.sdl';
 export { janusConnection } from './connection/connection';
 export type {
 	ConnectionContext,

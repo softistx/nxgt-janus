@@ -1,7 +1,7 @@
 /**
  * The opt-in avatar type as SDL: put it beside your own type definitions when
- * accounts have pictures. The same text ships as
- * `graphql/janus-avatar.graphqls` — `avatar.sdl.spec.ts` holds that the two are
+ * accounts have avatars. The same text ships as
+ * `graphql/janus-avatar.graphqls` — `sdl.spec.ts` holds that the two are
  * identical.
  *
  * `updatedAt` is an ISO-8601 `String` rather than a `DateTime`: the package
@@ -13,7 +13,7 @@
  * ```
  */
 export const janusAvatarTypeDefs: string = `"""
-The picture of an account, as the application's resolvers hand it out.
+The image of an account, as the application's resolvers hand it out.
 \`updatedAt\` is an ISO-8601 string, so the type needs no scalar.
 """
 type JanusAvatar {
