@@ -1,4 +1,5 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { concurrencyOf, limit } from './concurrency-limit';
 import type { PasswordHasher } from './config';
 
 /**
@@ -18,12 +19,20 @@ import type { PasswordHasher } from './config';
  * `cost` is log2(N). Lower it only in tests: 10 is fast and still exercises
  * every line.
  *
+ * **Concurrency.** Each call holds about 128 MiB while it runs, so a burst of
+ * verifies — a credential-stuffing run, including the dummy verify of an unknown
+ * e-mail — would otherwise allocate without bound. `concurrency` caps how many
+ * `hash` and `verify` calls run at once, per hasher (default 2, about 256 MiB);
+ * calls past the cap wait their turn, in order. The application's sign-in
+ * throttle still applies on top.
+ *
  * A hash written with other parameters than these is rewritten with these the
  * next time its owner signs in (`needsRehash`), so raising `cost` reaches every
  * active user without a migration.
  */
 export function scryptHasher(options?: {
 	readonly cost?: number;
+	readonly concurrency?: number;
 }): PasswordHasher {
 	const cost = options?.cost ?? 17;
 	if (!Number.isInteger(cost) || cost < 10 || cost > 20) {
@@ -32,42 +41,46 @@ export function scryptHasher(options?: {
 		);
 	}
 
+	const run = limit(concurrencyOf('scryptHasher', options?.concurrency, 2));
+
 	return {
 		prefix: SCRYPT_PREFIX,
-		async hash(plain) {
-			const salt = randomBytes(16);
-			const key = await derive(plain, salt, cost, 8, 1);
-			return `${SCRYPT_PREFIX}ln=${cost},r=8,p=1$${salt.toString('base64')}$${key.toString('base64')}`;
-		},
-		async verify(plain, hash) {
-			const parsed = SCRYPT_HASH.exec(hash);
-			// A hash this hasher cannot parse is not a wrong password, and not
-			// something to guess at: the core picked this verifier by prefix, so
-			// the stored hash is corrupt.
-			if (parsed === null) {
-				throw new TypeError(
-					'scryptHasher: the stored hash has the $scrypt$ prefix and not its format',
+		hash: (plain) =>
+			run(async () => {
+				const salt = randomBytes(16);
+				const key = await derive(plain, salt, cost, 8, 1);
+				return `${SCRYPT_PREFIX}ln=${cost},r=8,p=1$${salt.toString('base64')}$${key.toString('base64')}`;
+			}),
+		verify: (plain, hash) =>
+			run(async () => {
+				const parsed = SCRYPT_HASH.exec(hash);
+				// A hash this hasher cannot parse is not a wrong password, and not
+				// something to guess at: the core picked this verifier by prefix, so
+				// the stored hash is corrupt.
+				if (parsed === null) {
+					throw new TypeError(
+						'scryptHasher: the stored hash has the $scrypt$ prefix and not its format',
+					);
+				}
+				const [, ln, r, p, salt, key] = parsed as unknown as [
+					string,
+					string,
+					string,
+					string,
+					string,
+					string,
+				];
+				const expected = Buffer.from(key, 'base64');
+				const actual = await derive(
+					plain,
+					Buffer.from(salt, 'base64'),
+					Number(ln),
+					Number(r),
+					Number(p),
+					expected.length,
 				);
-			}
-			const [, ln, r, p, salt, key] = parsed as unknown as [
-				string,
-				string,
-				string,
-				string,
-				string,
-				string,
-			];
-			const expected = Buffer.from(key, 'base64');
-			const actual = await derive(
-				plain,
-				Buffer.from(salt, 'base64'),
-				Number(ln),
-				Number(r),
-				Number(p),
-				expected.length,
-			);
-			return timingSafeEqual(actual, expected);
-		},
+				return timingSafeEqual(actual, expected);
+			}),
 		needsRehash(hash) {
 			const parsed = SCRYPT_HASH.exec(hash);
 			// Unparseable is verify's refusal to make, not a reason to rewrite.
@@ -114,8 +127,19 @@ function derive(
  * so the package imports cleanly under Node. On Node, `scryptHasher()` is the
  * hasher; a hash written here reads anywhere a verifier for `$argon2id$` is
  * wired, so a database can move between the two runtimes.
+ *
+ * **Concurrency.** Each call holds 64 MiB (`memoryCost`) while it runs, so a
+ * burst of verifies — a credential-stuffing run, including the dummy verify of
+ * an unknown e-mail — would otherwise allocate without bound. `concurrency`
+ * caps how many `hash` and `verify` calls run at once, per hasher (default 4,
+ * about 256 MiB); calls past the cap wait their turn, in order. The
+ * application's sign-in throttle still applies on top.
  */
-export function bunHasher(): PasswordHasher {
+export function bunHasher(options?: {
+	readonly concurrency?: number;
+}): PasswordHasher {
+	const run = limit(concurrencyOf('bunHasher', options?.concurrency, 4));
+
 	// `typeof` on an undeclared global is 'undefined' rather than a throw, so
 	// this line is safe under Node.
 	const password: BunPassword | undefined =
@@ -129,8 +153,8 @@ export function bunHasher(): PasswordHasher {
 
 	return {
 		prefix: '$argon2id$',
-		hash: (plain) => password.hash(plain, ARGON2ID),
-		verify: (plain, hash) => password.verify(plain, hash),
+		hash: (plain) => run(() => password.hash(plain, ARGON2ID)),
+		verify: (plain, hash) => run(() => password.verify(plain, hash)),
 		needsRehash: (hash) => !hash.startsWith(ARGON2ID_PARAMETERS),
 	};
 }
