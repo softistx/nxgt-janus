@@ -460,8 +460,8 @@ OWASP's parameters (N = 2^17, r = 8, p = 1). `bunHasher()` is argon2id through
 `Bun.password`, on Bun only. Each hasher caps how many hashes and verifies run at
 once, because every call holds memory (about 128 MiB for scrypt, 64 MiB for
 argon2id): `{ concurrency }` defaults to 2 for `scryptHasher()` and 4 for
-`bunHasher()`, and calls past the cap wait their turn. There is no silent fallback: a user type with a
-password and no `hasher` is refused at wiring. Hashes describe themselves
+`bunHasher()`, and calls past the cap wait their turn. There is no silent
+fallback: a user type with a password and no `hasher` is refused at wiring. Hashes describe themselves
 (`$scrypt$ln=17,r=8,p=1$…`, `$argon2id$…`). Wire the hashers a database was
 written with as `verifiers`, and every one of them can verify while exactly one
 hashes.

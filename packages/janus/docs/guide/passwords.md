@@ -39,7 +39,9 @@ imports cleanly under Node, because nothing reads `Bun` until then.
 of sign-ins (the dummy verify of an unknown e-mail included) would otherwise
 allocate without bound. Each hasher runs at most `concurrency` calls at once
 (an integer from 1 to 64; about 256 MiB at the defaults) and queues the rest in
-order. The sign-in throttle still applies.
+order. The cap belongs to each hasher instance: a `hasher` and the `verifiers`
+wired beside it during a migration each have their own, so their peaks add up.
+The sign-in throttle still applies.
 
 ```ts
 const hasher = scryptHasher({ concurrency: 4 }); // 4 x 128 MiB

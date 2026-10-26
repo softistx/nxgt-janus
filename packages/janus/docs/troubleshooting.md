@@ -29,7 +29,7 @@ How the messages are shaped:
 - [`janus: a user type signs in with a password and no hasher is wired …`](#janus-a-user-type-signs-in-with-a-password-and-no-hasher-is-wired--pass-hasher-scrypthasher-or-bunhasher-on-bun-there-is-no-silent-fallback)
 - [`bunHasher: Bun.password is not available …`](#bunhasher-bunpassword-is-not-available--this-runtime-is-not-bun-wire-scrypthasher-instead)
 - [`scryptHasher: cost is log2(N), an integer from 10 to 20 …`](#scrypthasher-cost-is-log2n-an-integer-from-10-to-20--17-is-the-recommended-value)
-- [`scryptHasher: concurrency is …` / `bunHasher: concurrency is …`](#hasher-concurrency-is-how-many-hashes-may-run-at-once-an-integer-from-1-to-64)
+- [`scryptHasher: concurrency is …` / `bunHasher: concurrency is …`](#scrypthasher-concurrency-is-how-many-hashes-may-run-at-once-an-integer-from-1-to-64--2-is-the-default)
 - [`janus: two hashers claim the prefix "<prefix>" …`](#janus-two-hashers-claim-the-prefix-prefix--which-one-verifies-would-depend-on-their-order)
 - [`janus: store.<slot> has no method <method>, which the port requires`](#janus-storeslot-has-no-method-method-which-the-port-requires)
 - [`janus: relations must be a relation store — relations.deleteEntity is missing`](#janus-relations-must-be-a-relation-store--relationsdeleteentity-is-missing)
@@ -286,9 +286,9 @@ const hasher = typeof Bun === 'undefined' ? scryptHasher() : bunHasher();
 **Why:** `cost` is the exponent, not N: `cost: 131072` asks for 2^131072.
 **Fix:** leave it out in production (17). In tests, `scryptHasher({ cost: 10 })` is fast and still runs every line.
 
-### `hasher: concurrency is how many hashes may run at once, an integer from 1 to 64`
+### `scryptHasher: concurrency is how many hashes may run at once, an integer from 1 to 64 — 2 is the default`
 
-Reads `scryptHasher: concurrency is …` or `bunHasher: concurrency is …`.
+Also: `bunHasher: concurrency is how many hashes may run at once, an integer from 1 to 64 — 4 is the default`.
 
 **When:** `scryptHasher({ concurrency })` or `bunHasher({ concurrency })`.
 **Why:** each `hash` and `verify` holds memory while it runs (about 128 MiB for scrypt, 64 MiB for argon2id), so the hasher runs at most `concurrency` at once and queues the rest. The value must be an integer from 1 to 64.
