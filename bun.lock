@@ -15,7 +15,7 @@
     },
     "packages/janus": {
       "name": "@nxgt/janus",
-      "version": "0.29.1",
+      "version": "0.29.2",
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "typescript-6": "npm:typescript@~6.0.3",
