@@ -29,11 +29,23 @@ A user type with a password and no `hasher` is refused at wiring with a
 
 | Hasher | Runs on | Hash | Parameters |
 | --- | --- | --- | --- |
-| `scryptHasher({ cost? })` | Node and Bun, no dependency | `$scrypt$ln=17,r=8,p=1$<salt>$<key>` | OWASP's: `cost` is log2(N), `17` by default, `10` to `20`; about 128 MiB per hash |
-| `bunHasher()` | Bun only, through `Bun.password` | `$argon2id$v=19$m=65536,t=2,p=1$…` | Pinned, so a change of default in a Bun release is not inherited silently |
+| `scryptHasher({ cost?, concurrency? })` | Node and Bun, no dependency | `$scrypt$ln=17,r=8,p=1$<salt>$<key>` | OWASP's: `cost` is log2(N), `17` by default, `10` to `20`; about 128 MiB per hash; `concurrency` defaults to 2 |
+| `bunHasher({ concurrency? })` | Bun only, through `Bun.password` | `$argon2id$v=19$m=65536,t=2,p=1$…` | Pinned, so a change of default in a Bun release is not inherited silently; 64 MiB per hash, `concurrency` defaults to 4 |
 
 `bunHasher()` throws a `TypeError` when called outside Bun; the package still
 imports cleanly under Node, because nothing reads `Bun` until then.
+
+**Concurrency.** Each hash or verify holds that memory while it runs, so a burst
+of sign-ins (the dummy verify of an unknown e-mail included) would otherwise
+allocate without bound. Each hasher runs at most `concurrency` calls at once
+(an integer from 1 to 64; about 256 MiB at the defaults) and queues the rest in
+order. The cap belongs to each hasher instance: a `hasher` and the `verifiers`
+wired beside it during a migration each have their own, so their peaks add up.
+The sign-in throttle still applies.
+
+```ts
+const hasher = scryptHasher({ concurrency: 4 }); // 4 x 128 MiB
+```
 
 Lower `cost` only in tests — `10` is fast and still exercises every line:
 

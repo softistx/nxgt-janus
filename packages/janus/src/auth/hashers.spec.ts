@@ -50,6 +50,15 @@ describe('scryptHasher', () => {
 		expect(() => scryptHasher({ cost: 17.5 })).toThrow(TypeError);
 	});
 
+	it('refuses a concurrency outside 1 to 64', () => {
+		for (const concurrency of [0, 65, 2.5, Number.NaN]) {
+			expect(() => scryptHasher({ cost: 10, concurrency })).toThrow(
+				/^scryptHasher: concurrency is/,
+			);
+		}
+		expect(() => scryptHasher({ cost: 10, concurrency: 64 })).not.toThrow();
+	});
+
 	it('refuses a corrupt hash rather than calling it a wrong password', async () => {
 		const error = await scryptHasher({ cost: 10 })
 			.verify('x', '$scrypt$garbage')
@@ -84,5 +93,14 @@ describe('bunHasher', () => {
 		expect(hash).toStartWith('$argon2id$v=19$m=65536,t=2,p=1$');
 		expect(hasher.needsRehash?.(hash)).toBe(false);
 		expect(hasher.needsRehash?.(weaker)).toBe(true);
+	});
+
+	it('refuses a concurrency outside 1 to 64', () => {
+		for (const concurrency of [0, 65, 2.5, Number.NaN]) {
+			expect(() => bunHasher({ concurrency })).toThrow(
+				/^bunHasher: concurrency is/,
+			);
+		}
+		expect(() => bunHasher({ concurrency: 64 })).not.toThrow();
 	});
 });
