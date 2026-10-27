@@ -15,9 +15,10 @@ import {
 	writeUser,
 } from '../context';
 import { emit } from '../events';
+import { proveFirstEmail } from '../first-proof';
 import { countMailByUser } from '../mail-requests';
 import { refuseStale } from '../one-time';
-import type { VerifyEmailApi } from '../types';
+import type { VerifyEmailApi, VerifyEmailOptions } from '../types';
 import { issueEmailToken, redeemEmailToken } from './email-token';
 import { proveFirstFlow } from './prove-first';
 
@@ -39,8 +40,8 @@ export function verifyEmailFlows(
 			return issueEmailToken(context, type, 'verifyEmail', record, where);
 		},
 
-		confirm: (secret) =>
-			confirmVerify(context, type, secret, at('verifyEmail.confirm')),
+		confirm: (secret, options) =>
+			confirmVerify(context, type, secret, at('verifyEmail.confirm'), options),
 
 		proveFirst: proveFirstFlow(context, type, at),
 	};
@@ -49,13 +50,16 @@ export function verifyEmailFlows(
 /**
  * Redeems a verification token: marks the e-mail verified. `asked` is the type
  * whose `confirm` was called, or null for the root's, where the user's own type
- * answers.
+ * answers. With `options.firstProof`, an address never proved is proved as
+ * `magicLink.confirm` does (`../first-proof`): the password and the second
+ * factor set before the proof are dropped and every session is revoked.
  */
 export async function confirmVerify(
 	context: Context,
 	asked: ResolvedType | null,
 	secret: string,
 	where: string,
+	options?: VerifyEmailOptions,
 ): Promise<AnyUser> {
 	const { token, user, type } = await redeemEmailToken(
 		context,
@@ -64,6 +68,11 @@ export async function confirmVerify(
 		secret,
 		where,
 	);
+	if (options?.firstProof === true && user.emailVerifiedAt === null) {
+		// The token was checked against this very record; the proof is
+		// written under its version, so an address changed since conflicts.
+		return toUser(await proveFirstEmail(context, type, user, where));
+	}
 	let newlyVerified = false;
 	const written = await writeUser(
 		context,

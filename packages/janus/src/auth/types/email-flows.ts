@@ -103,8 +103,22 @@ export interface VerifyEmailApi<U> {
 		 * is `TOKEN_UNKNOWN` here, and it is spent. A page that does not know
 		 * the type — an anonymous confirmation page — calls the root's
 		 * `janus.verifyEmail.confirm` instead.
+		 *
+		 * **`{ firstProof: true }` makes the link a first proof of the
+		 * address.** With open sign-up, somebody can register an address they
+		 * do not own and choose its password; the real owner then follows the
+		 * link. For an e-mail never proved, the option applies what
+		 * `magicLink.confirm` does: one write marks it verified and drops the
+		 * password and the second factor (active or waiting, with its recovery
+		 * codes), every session is revoked and the reset links and
+		 * second-factor challenges are spent, before and after the write; it
+		 * sends `user.emailVerified`, then `user.passwordChanged` and
+		 * `user.secondFactorDisabled` when they apply. The owner then sets a
+		 * new password through `resetPassword`. An e-mail already proved is
+		 * confirmed as without the option, and nothing is dropped. Without the
+		 * option, the password and factor are kept, as before.
 		 */
-		confirm(token: string): Promise<U>;
+		confirm(token: string, options?: VerifyEmailOptions): Promise<U>;
 		/**
 		 * Applies the first proof of the user's e-mail **the application made
 		 * itself** — an invitation token it issued to the address and the
@@ -149,6 +163,12 @@ export interface VerifyEmailApi<U> {
 		 */
 		proveFirst(user: UserRef): Promise<FirstProof<U>>;
 	};
+}
+
+/** Options of `verifyEmail.confirm`. */
+export interface VerifyEmailOptions {
+	/** Treat the link as the first proof of an address never proved: drop the password and second factor set before it. */
+	readonly firstProof?: boolean;
 }
 
 /** What `verifyEmail.proveFirst` answers: the user, and whether this call proved the e-mail. */

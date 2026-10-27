@@ -122,7 +122,7 @@ with or without a password — see [sign-in codes](sign-in-code.md) and
 ```ts
 readonly verifyEmail: {
 	send(user: UserRef): Promise<IssuedToken>; // { token, email, expiresAt }
-	confirm(token: string): Promise<User>;
+	confirm(token: string, options?: { firstProof?: boolean }): Promise<User>;
 	proveFirst(user: UserRef): Promise<FirstProof<User>>; // { user, proved } — privileged, below
 };
 ```
@@ -157,6 +157,32 @@ be named `verifyEmail`.
 // one anonymous page for every type
 const verified = await auth.verifyEmail.confirm(token); // verified.type: 'admin' | 'member'
 ```
+
+## Making the verification link a first proof — `confirm(token, { firstProof: true })`
+
+With open sign-up, somebody can register an address they do not own and choose
+its password (and enrol a second factor). The real holder then clicks the
+verification link: a plain `confirm(token)` marks the address verified and
+**keeps** that password, that factor and the sessions. Pass `firstProof: true`
+and, for an address never proved, the link does what `magicLink.confirm` does:
+
+```ts
+// POST handler behind the link
+const user = await auth.verifyEmail.confirm(token, { firstProof: true });
+// the squatter's password and second factor are gone, every session is revoked;
+// the holder sets a password through resetPassword
+```
+
+One write marks the e-mail verified and drops the password and the second
+factor (active or waiting, with its recovery codes); every session is revoked
+and the reset links and second-factor challenges are spent, before and after
+the write. Events: `user.emailVerified`, then `user.passwordChanged` and
+`user.secondFactorDisabled` when something was dropped. An address **already
+proved** is confirmed exactly as without the option, and a stale token is still
+`TOKEN_STALE`. The option is opt-in: without it nothing changes. It works at the
+root of several types too. Use it when the link is the first thing that proves
+the address (sign-up sends the link); leave it off for a link a signed-in user
+asked for on an address they already proved elsewhere.
 
 ## Proving an e-mail on your own proof — `proveFirst`
 

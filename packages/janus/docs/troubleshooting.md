@@ -694,6 +694,8 @@ const user = await auth.get(id);
 await auth.update(user, { name }, { ifVersion: user.version });
 ```
 
+**From `verifyEmail.confirm(token, { firstProof: true })`**: the user was written between the read that found the e-mail never proved and the proof. Nothing was proved and the token is spent; send a new link.
+
 **From `verifyEmail.proveFirst`**, with no `ifVersion` of yours: either the
 `User` you passed carries an address that is no longer the user's (nothing is
 proved, on the first read already; a bare id skips this check and proves the

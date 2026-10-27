@@ -35,6 +35,22 @@ const MEMBER = { email: 'member@example.test', name: 'Max' };
 const HOUR = 3_600_000;
 
 describe('verifyEmail.confirm at the root of several types', () => {
+	it('with { firstProof: true } drops the password set before the proof', async () => {
+		const { auth } = twoTypes();
+		const { user } = await auth.admin.signUp({
+			...ADMIN,
+			password: 'a long password',
+		});
+		const sent = await auth.admin.verifyEmail.send(user);
+
+		const verified = await auth.verifyEmail.confirm(sent.token, {
+			firstProof: true,
+		});
+
+		expect(verified.emailVerified).toBe(true);
+		expect((await auth.admin.get(user.id)).hasPassword).toBe(false);
+	});
+
 	it('verifies an admin whose type the page does not know, with its event', async () => {
 		const { auth, received } = twoTypes();
 		const admin = await auth.admin.create(ADMIN);
