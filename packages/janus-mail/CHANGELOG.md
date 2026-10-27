@@ -1,5 +1,11 @@
 # @nxgt/janus-mail
 
+## 0.12.0
+
+### Minor Changes
+
+- [#285](https://github.com/softistx/nxgt-janus/pull/285) [`2f3328f`](https://github.com/softistx/nxgt-janus/commit/2f3328f20398519d36e526fe9804df12be310d6d) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Inline the default e-mails in the package's JavaScript, so an application can bundle `@nxgt/janus-mail` (`bun build`, esbuild, Vite) without losing its `mails/` folder. New requirement: a writable `TMPDIR` at the first render, where the e-mails are written to a private folder, read and removed (a plain `Error` naming it otherwise). The `mails/` folder is no longer shipped. Fixes [#284](https://github.com/softistx/nxgt-janus/issues/284).
+
 ## 0.11.3
 
 ### Patch Changes
