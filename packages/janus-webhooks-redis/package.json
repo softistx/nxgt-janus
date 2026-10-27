@@ -52,7 +52,7 @@
 		"@nxgt/janus": "workspace:^",
 		"@nxgt/janus-webhooks": "workspace:^",
 		"@nxgt/redis": "0.9.3",
-		"@types/bun": "^1.4.2",
+		"@types/bun": "^1.4.4",
 		"redis-memory-server": "0.17.1",
 		"zod": "^4.6.5"
 	},
