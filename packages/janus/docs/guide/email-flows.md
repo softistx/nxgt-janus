@@ -122,7 +122,7 @@ with or without a password — see [sign-in codes](sign-in-code.md) and
 ```ts
 readonly verifyEmail: {
 	send(user: UserRef): Promise<IssuedToken>; // { token, email, expiresAt }
-	confirm(token: string): Promise<User>;
+	confirm(token: string, options?: { firstProof?: boolean }): Promise<User>;
 	proveFirst(user: UserRef): Promise<FirstProof<User>>; // { user, proved } — privileged, below
 };
 ```
@@ -158,9 +158,40 @@ be named `verifyEmail`.
 const verified = await auth.verifyEmail.confirm(token); // verified.type: 'admin' | 'member'
 ```
 
+## Making the verification link a first proof — `confirm(token, { firstProof: true })`
+
+With open sign-up, somebody can register an address they do not own and choose
+its password (and enrol a second factor). The real holder then clicks the
+verification link: a plain `confirm(token)` marks the address verified and
+**keeps** that password, that factor and the sessions. Pass `firstProof: true`
+and, for an address never proved, the link does what `magicLink.confirm` does:
+
+```ts
+// POST handler behind the link
+const user = await auth.verifyEmail.confirm(token, { firstProof: true });
+// the squatter's password and second factor are gone, every session is revoked;
+// the holder sets a password through resetPassword
+```
+
+One write marks the e-mail verified and drops the password and the second
+factor (active or waiting, with its recovery codes); every session is revoked
+and the reset links and second-factor challenges are spent, before and after
+the write. Events: `user.emailVerified`, then `user.passwordChanged` and
+`user.secondFactorDisabled` when something was dropped. An address **already
+proved** is confirmed exactly as without the option, and a stale token is still
+`TOKEN_STALE`. The option is opt-in: without it nothing changes. It works at the
+root of several types too. Use it when the link is the first thing that proves
+the address (sign-up sends the link). **The trade-off:** a genuine user who
+signed up and has not verified yet also loses their password, second factor and
+sessions when they follow the link, and sets a new password through
+`resetPassword`. Leave the option off where you would rather keep that
+credential. If a write lands between reading the link's user and the proof, the
+call fails with `VERSION_CONFLICT`, the link is spent and nothing is proved:
+send a new link (unlike `proveFirst`, `confirm` does not retry).
+
 ## Proving an e-mail on your own proof — `proveFirst`
 
-`verifyEmail.confirm` proves an address and changes nothing else: the user
+`verifyEmail.confirm` proves an address and, by default, changes nothing else (pass [`firstProof: true`](#making-the-verification-link-a-first-proof--confirmtoken--firstproof-true-) to drop a squatter's credential): the user
 asked for the link from inside their own account. A first sign-in by link
 or code goes further, since anybody may have signed up with the address
 before its holder ([why](magic-link.md#an-account-someone-else-registered)).

@@ -5,6 +5,8 @@
  * Part of what `janus()` hands back; `./index` gathers it.
  */
 
+import type { VerifyEmailOptions } from './email-flows';
+
 /**
  * What an instance with several user types answers at its root when at least
  * one has an e-mail: the confirmation of a verification link, whatever the
@@ -26,9 +28,11 @@ export interface AnyTypeVerifyEmailApi<U> {
 		 * was sent to is `TOKEN_STALE`. A user written in between is
 		 * `VERSION_CONFLICT`.
 		 *
+		 * `options.firstProof` works as on each type's `confirm`.
+		 *
 		 * `send` and `proveFirst` stay on each type:
 		 * `janus.admin.verifyEmail.send(...)`.
 		 */
-		confirm(token: string): Promise<U>;
+		confirm(token: string, options?: VerifyEmailOptions): Promise<U>;
 	};
 }

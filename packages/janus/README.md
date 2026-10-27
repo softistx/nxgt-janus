@@ -322,6 +322,7 @@ await auth.authenticate(request);                  // { user, session, token, re
 await auth.signOut(request);
 await auth.verifyEmail.send(user);                 // { token, email, expiresAt } — sending it is yours
 await auth.verifyEmail.confirm(token);             // several types: also at the root, see Confirming a link at the root
+await auth.verifyEmail.confirm(token, { firstProof: true }); // the link is a first proof: drops a squatter's password and factor
 await auth.verifyEmail.proveFirst(user);           // privileged: FirstProof — { user, proved }; drops a squatter's password and factor
 // { token, email, expiresAt } — email is the NEW address; gate it behind a fresh sign-in
 await auth.changeEmail.send(user, newEmail);
@@ -1217,7 +1218,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `type` | Sent by |
 | --- | --- |
 | `user.created` | `create`, `signUp` |
-| `user.emailVerified` | `verifyEmail.confirm` and `verifyEmail.proveFirst`; `changeEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
+| `user.emailVerified` | `verifyEmail.confirm` (with `{ firstProof: true }` it also drops a squatter's password and factor, like the next) and `verifyEmail.proveFirst`; `changeEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
 | `user.passwordChanged` | `changePassword`, `setPassword`; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
 | `user.emailChanged` | `update` and `changeEmail.confirm`, when they changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
@@ -1942,7 +1943,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**Two hundred and five plausible mistakes, two hundred and five refused at compile time — and
+**Two hundred and nine plausible mistakes, two hundred and nine refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
