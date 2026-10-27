@@ -17,10 +17,6 @@ Nothing between releases.
 
 ## Later
 
-- **Rendering from memory, for edge runtimes** — the inlined default e-mails
-  rendered without writing them to a temporary folder first, so the package
-  runs where there is no file system (needs a renderer in `@nxgt/mail` that
-  takes the files rather than a folder).
 - **More built-in languages** — each one a catalogue of the presets'
   messages, so a locale beyond `en` and `fr` no longer requires every
   template.

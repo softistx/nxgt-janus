@@ -6,7 +6,7 @@
  * Then, from the manifest:
  *
  * - it **fails unless the manifest's format is the one `@nxgt/mail-i18n`
- *   writes, and one `@nxgt/mail` 0.1.0 reads** — the peer is `>=0.1.0 <2`, and
+ *   writes, and one `@nxgt/mail` 1.1.0 reads** — the peer is `>=1.1.0 <2`, and
  *   a renderer reads every format up to its own, so a newer format would
  *   break an application on the floor;
  * - it **fails unless exactly the fourteen e-mails** of Janus's flows were built,
@@ -24,6 +24,7 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { MANIFEST_FORMAT as PEER_MANIFEST_FORMAT } from '@nxgt/mail/renderer';
 import { MANIFEST_FORMAT } from '@nxgt/mail-i18n';
 import { $ } from 'bun';
 import { branchesOf, codesLeftMessage, codesLeftModule } from './codes-left';
@@ -61,14 +62,6 @@ const CODES_LEFT_MODULE = fileURLToPath(
 	new URL('../src/generated/codes-left.ts', import.meta.url),
 );
 
-/**
- * The newest manifest format the oldest `@nxgt/mail` the peer admits reads:
- * `>=0.1.0 <2`, and 0.1.0 through 0.5.0 read format 1 only. They export no
- * `MANIFEST_FORMAT`, so the number is written here, and raising it means
- * raising the peer's floor to the first `@nxgt/mail` that reads the new format.
- */
-export const PEER_FLOOR_READS = 1;
-
 /** The part of the manifest this script reads. */
 interface BuiltManifest {
 	readonly formatVersion?: unknown;
@@ -86,7 +79,7 @@ interface BuiltManifest {
 export function formatProblem(
 	manifest: BuiltManifest,
 	written: number,
-	readable: number = PEER_FLOOR_READS,
+	readable: number = PEER_MANIFEST_FORMAT,
 ): string | null {
 	const format = manifest.formatVersion;
 	if (format !== written) {
@@ -97,7 +90,7 @@ export function formatProblem(
 	}
 	if (format > readable) {
 		return (
-			`build-mail: mails/mail-manifest.json is manifest format ${format}, and @nxgt/mail 0.1.0, ` +
+			`build-mail: mails/mail-manifest.json is manifest format ${format}, and @nxgt/mail 1.1.0, ` +
 			`the peer's floor, reads up to ${readable} — raise the @nxgt/mail peer's floor to the first version that reads it`
 		);
 	}

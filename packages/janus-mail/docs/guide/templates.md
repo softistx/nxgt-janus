@@ -180,7 +180,7 @@ const templates: Partial<JanusMailTemplates> = {
 ```
 
 The default templates share one renderer, created the first time one of
-them renders: that is when the inlined e-mails are written to the temporary folder, once.
+them renders: that is when it is built from the inlined e-mails, in memory, once.
 
 ## What the defaults say
 

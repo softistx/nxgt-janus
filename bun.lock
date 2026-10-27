@@ -143,7 +143,7 @@
         "@maizzle/framework": "6.1.7",
         "@maizzle/tailwindcss": "1.5.6",
         "@nxgt/janus": "workspace:^",
-        "@nxgt/mail": "1.0.2",
+        "@nxgt/mail": "1.1.0",
         "@nxgt/mail-config": "1.0.3",
         "@nxgt/mail-i18n": "1.0.2",
         "@nxgt/mail-presets": "1.3.0",
@@ -155,7 +155,7 @@
       },
       "peerDependencies": {
         "@nxgt/janus": "workspace:^",
-        "@nxgt/mail": ">=0.1.0 <2",
+        "@nxgt/mail": ">=1.1.0 <2",
         "typescript": "^6.0.3 || ^7.0.0",
       },
     },
@@ -475,7 +475,7 @@
 
     "@nxgt/janus-webhooks-redis": ["@nxgt/janus-webhooks-redis@workspace:packages/janus-webhooks-redis"],
 
-    "@nxgt/mail": ["@nxgt/mail@1.0.2", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-32KwcN7X9BOOWA8d2PDRMIwcRTSQurUiit8pP2RBEdQ3Wtyd8dsp7udBQzik4EEtvrZrjoIDexajdS3+GU+z9w=="],
+    "@nxgt/mail": ["@nxgt/mail@1.1.0", "", { "peerDependencies": { "@opentelemetry/api": "^1.9.0", "typescript": "^6.0.3 || ^7.0.0" }, "optionalPeers": ["@opentelemetry/api"] }, "sha512-ALdFRmViYhKHtwrTslFJjbnqG0oVNlubpsWSNuP4VeMfYdx8mqkbCuquOm7DXJneGjvG9hurMLKPxzYo83IxXQ=="],
 
     "@nxgt/mail-config": ["@nxgt/mail-config@1.0.3", "", { "dependencies": { "defu": "^6.1.4" }, "peerDependencies": { "@maizzle/framework": "^6.1.7", "@maizzle/tailwindcss": "^1.5.6", "typescript": "^6.0.3 || ^7.0.0" } }, "sha512-3+FoJj6Mp6Kas2oAOgFnHcMC6zhO6CRiVM5fliRbMsExMXd3KQ2MTp+RmfC1Qvo1acngI3cgNjPzBNrdeznJaw=="],
 
