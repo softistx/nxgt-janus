@@ -15,7 +15,7 @@
     },
     "packages/janus": {
       "name": "@nxgt/janus",
-      "version": "0.30.0",
+      "version": "0.31.0",
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "typescript-6": "npm:typescript@~6.0.3",
@@ -27,7 +27,7 @@
     },
     "packages/janus-drizzle": {
       "name": "@nxgt/janus-drizzle",
-      "version": "0.11.0",
+      "version": "0.11.1",
       "devDependencies": {
         "@electric-sql/pglite": "0.5.8",
         "@nxgt/drizzle": "0.6.5",
@@ -49,7 +49,7 @@
     },
     "packages/janus-graphql": {
       "name": "@nxgt/janus-graphql",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "devDependencies": {
         "@envelop/core": "^5.6.1",
         "@graphql-tools/utils": "^12.0.1",
@@ -76,7 +76,7 @@
     },
     "packages/janus-hono": {
       "name": "@nxgt/janus-hono",
-      "version": "0.7.13",
+      "version": "0.7.14",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@types/bun": "^1.4.2",
@@ -91,7 +91,7 @@
     },
     "packages/janus-kit": {
       "name": "@nxgt/janus-kit",
-      "version": "0.1.30",
+      "version": "0.1.31",
       "dependencies": {
         "@nxgt/janus-redis": "workspace:^",
       },
@@ -137,7 +137,7 @@
     },
     "packages/janus-mail": {
       "name": "@nxgt/janus-mail",
-      "version": "0.11.0",
+      "version": "0.11.1",
       "devDependencies": {
         "@formatjs/icu-messageformat-parser": "3.5.20",
         "@maizzle/framework": "6.1.7",
@@ -161,7 +161,7 @@
     },
     "packages/janus-mongo": {
       "name": "@nxgt/janus-mongo",
-      "version": "0.11.0",
+      "version": "0.11.1",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@nxgt/mongo": "^0.23.1",
@@ -180,7 +180,7 @@
     },
     "packages/janus-redis": {
       "name": "@nxgt/janus-redis",
-      "version": "0.4.19",
+      "version": "0.4.20",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@nxgt/redis": "0.9.3",
@@ -196,7 +196,7 @@
     },
     "packages/janus-telemetry": {
       "name": "@nxgt/janus-telemetry",
-      "version": "0.14.1",
+      "version": "0.14.2",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@nxgt/telemetry": "0.2.2",
@@ -211,7 +211,7 @@
     },
     "packages/janus-webhooks": {
       "name": "@nxgt/janus-webhooks",
-      "version": "0.8.1",
+      "version": "0.8.2",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@types/bun": "^1.4.2",
@@ -224,7 +224,7 @@
     },
     "packages/janus-webhooks-redis": {
       "name": "@nxgt/janus-webhooks-redis",
-      "version": "0.6.1",
+      "version": "0.6.2",
       "devDependencies": {
         "@nxgt/janus": "workspace:^",
         "@nxgt/janus-webhooks": "workspace:^",
