@@ -2129,7 +2129,7 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: <type> is a user type the model does not declare as an object type, so <type>#<relation> is no subject set` | `setOf(user, relation)` names a relation on that user: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
 | `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. Also with `revoke:` and `replace:` — `replace: "<relation>" is not a relation of <type>`, even for an empty list. |
 | `list: the type must be an object type of the model` | The third argument is a type name: `'record'`. |
-| `holders: scanLimit must be a positive integer, or Infinity` | Also `holders: matchesMany must answer one boolean per holder, in order` — answer an array as long as the batch. |
+| `holders: scanLimit must be a positive integer, or Infinity` | Also `holders: matchesMany must answer one boolean per holder, in order` — answer an array as long as the batch — and `holders: matches and matchesMany are exclusive, pass one`, and `holders: matchesMany must be a function, or absent`. |
 | `list: after must be the nextCursor of a page, or null` | Pass `nextCursor` back as it came. |
 
 ### `defineModel: …`

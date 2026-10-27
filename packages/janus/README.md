@@ -1403,6 +1403,17 @@ at most `scanLimit` holders (500 by default), then answers what it kept with a
 `nextCursor` to resume, so a page can hold fewer than `first`. Follow
 `nextCursor` until it is `null`.
 
+```ts
+const page = await access.holders(platform, 'admins', {
+  first: 20,
+  scanLimit: 200,
+  matchesMany: async (hs) => {
+    const found = await users.findMany(hs.map((h) => h.id));
+    return hs.map((h) => found.some((u) => u.id === h.id && u.active));
+  },
+});
+```
+
 The [permissions guide](docs/guide/permissions.md#holders) has the options.
 
 **A user type may also be an object type**: declare `staff` under `types`, and
@@ -1948,7 +1959,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**Two hundred and five plausible mistakes, two hundred and five refused at compile time — and
+**Two hundred and eight plausible mistakes, two hundred and eight refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
