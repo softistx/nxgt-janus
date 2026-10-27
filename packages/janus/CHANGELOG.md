@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.33.0
+
+### Minor Changes
+
+- [#281](https://github.com/softistx/nxgt-janus/pull/281) [`082162c`](https://github.com/softistx/nxgt-janus/commit/082162c2446a5930db18696b5c9e5183a3749846) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `user.passwordChanged` carries `first: boolean`: `true` when the user had no password before (`setPassword` on an account created without a credential), `false` for a change and for a first proof that dropped a password. A listener that sends a "your password was changed" notice skips it when `first` is `true` (fixes [#280](https://github.com/softistx/nxgt-janus/issues/280)).
+
 ## 0.32.0
 
 ### Minor Changes
