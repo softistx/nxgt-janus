@@ -402,7 +402,10 @@ second resolution mode to keep working is a promise nobody measures.
 generates code: `src/generated/mail.ts`, `src/generated/locales.ts` and
 `src/generated/codes-left.ts`, written by its build, and `biome.json`'s `files.includes` has `!**/generated` beside
 `!**/dist`. The output is **committed**, so a package type-checks without
-running its generator; CI rebuilds it and diffs `packages/*/src/generated`
+running its generator — except `src/generated/inline-mails.ts` (the e-mails as
+strings, about 380 KB, gitignored), a declared divergence: too large to commit,
+so CI and the release build it before type-checking, and a fresh checkout runs
+`bun run build` in `packages/janus-mail` first; CI rebuilds it and diffs `packages/*/src/generated`
 against the commit right after the build, so a stale committed copy fails
 there. Since `@nxgt/mail-i18n` 0.2.0, the header it writes into
 `generated/mail.ts` says *never committed: git-ignore it* — its advice to an
@@ -433,16 +436,15 @@ a peer. The `maizzle` bin runs on the `node` on the `PATH`, even under
 (`postcss-merge-longhand` 9 calls `Set.prototype.difference`): under Node 20
 the mail build fails, while sending stays on Node 20 or later.
 
-**What a build writes outside `dist/` goes beside it, never in it.** The root
-`build.ts` removes from `dist/` every file it did not write — that is how a
-deleted module stops shipping — so the built e-mails live in
-`packages/janus-mail/mails/`, listed in `files` and ignored by the package's
-`.gitignore`. The module that resolves the folder (`src/mails.ts`,
-`new URL('../mails/', import.meta.url)`) sits directly under `src/`, so the
-same path is right from `src/` in the specs and from `dist/index.js` in the
-tarball; a second entry point would bundle it into `dist/chunks/` and break
-that, which the package's artifact spec would catch. `verify:artifacts`
-checks that every `files` entry is in the packed tarball.
+**The built e-mails are inlined in the JavaScript, never found by path.** A
+path from `import.meta.url` breaks once an application bundles the package, so
+`scripts/build-mail.ts` writes every file of `packages/janus-mail/mails/`
+(gitignored, not in `files`) into `src/generated/inline-mails.ts`, which
+`src/mails.ts` imports. `@nxgt/mail`'s renderer reads a folder only, so the
+first render writes them to a private `mkdtemp` folder, creates the renderer
+and removes the folder — temporary, until softistx/nxgt-mail#112. The package's
+`bundled.spec.ts` bundles an entry with `bun build` and runs it; the artifact
+spec renders from `dist/` alone.
 
 `bunfig.toml` carries the npm token, **never `.npmrc`** — an undefined variable
 in an `.npmrc` sends an **empty** token, and the registry calls that a 401.

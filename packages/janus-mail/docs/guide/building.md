@@ -181,8 +181,9 @@ folder at run time; an earlier version resolved `new URL('../mails/',
 import.meta.url)`, which a bundle moved.
 
 `@nxgt/mail`'s renderer reads a folder, so the first render writes the inlined
-files once to `<tmpdir>/nxgt-janus-mail-<hash of the content>/`, aside and
-renamed into place, and every later process of the same build reuses it.
+files to a private `mkdtemp` folder under `os.tmpdir()`, creates the renderer
+(which reads everything), and removes the folder — a workaround until
+softistx/nxgt-mail#112 lets it take the files.
 `src/bundled.spec.ts` bundles a tiny entry with `bun build` and runs it.
 `mails/` is no longer in `files`.
 

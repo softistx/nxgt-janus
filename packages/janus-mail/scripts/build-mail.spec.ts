@@ -3,6 +3,7 @@ import {
 	EXPECTED_EMAILS,
 	emailsProblem,
 	formatProblem,
+	inlineMailsModule,
 	localesModule,
 	PEER_FLOOR_READS,
 } from './build-mail';
@@ -71,5 +72,29 @@ describe('localesModule', () => {
 			'export type JanusMailLocale = (typeof LOCALES)[number];',
 		);
 		expect(source.endsWith('\n')).toBe(true);
+	});
+});
+
+describe('inlineMailsModule', () => {
+	test('writes each file as a string, sorted by path', async () => {
+		const source = inlineMailsModule({
+			'fr/b.txt': 'deux "quoted"\nligne',
+			'en/a.html': '<p>one</p>',
+		});
+		expect(source.indexOf('"en/a.html"')).toBeLessThan(
+			source.indexOf('"fr/b.txt"'),
+		);
+		const dir = await Bun.$`mktemp -d`.text();
+		const file = `${dir.trim()}/inline.ts`;
+		await Bun.write(file, source);
+		const { INLINE_MAILS } = await import(file);
+		expect(INLINE_MAILS).toEqual({
+			'en/a.html': '<p>one</p>',
+			'fr/b.txt': 'deux "quoted"\nligne',
+		});
+	});
+
+	test('is empty for no file', () => {
+		expect(inlineMailsModule({})).toContain('INLINE_MAILS');
 	});
 });

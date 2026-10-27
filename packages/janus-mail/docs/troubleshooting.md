@@ -57,7 +57,7 @@ How the messages are shaped:
 - [`render: <email>: link must be a string or a finite number`](#render-email-link-must-be-a-string-or-a-finite-number)
 - [`MAIL_REFUSED` — from the mailer](#mail_refused--from-the-mailer)
 - [`MAIL_FAILED` — `MailFailure`](#mail_failed--mailfailure)
-- [`createMailRenderer: …/mail-manifest.json cannot be read`](#createmailrenderer-mail-manifestjson-cannot-be-read)
+- [`janus-mail: cannot write the default e-mails under … — make TMPDIR writable, or pass every template yourself`](#janus-mail-cannot-write-the-default-e-mails-under--make-tmpdir-writable-or-pass-every-template-yourself)
 - [`Could not resolve "node:fs"` on an edge runtime](#could-not-resolve-nodefs-on-an-edge-runtime)
 - [An e-mail stays light in dark mode](#an-e-mail-stays-light-in-dark-mode)
 - [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
@@ -551,16 +551,18 @@ process, pass a mailer wrapped in `@nxgt/mail`'s `withRetry` (0.8 or later); onc
 attempts run out it rejects with the last `MailFailure`, `attempts` on it —
 see [Retrying and tracing the mailer](guide/sending.md#retrying-and-tracing-the-mailer).
 
-### `createMailRenderer: …/mail-manifest.json cannot be read`
+### `janus-mail: cannot write the default e-mails under … — make TMPDIR writable, or pass every template yourself`
 
-A plain `Error`, the first time a default template renders. Since 0.11.4 the
-default e-mails are inlined in the package's JavaScript and written to the
-system's temporary folder on first use, so a bundled application finds them;
-this error now means that folder could not be written or was emptied while the
-process ran. Make the temporary folder (`TMPDIR`) writable, or pass every
-template yourself. On 0.11.3 or earlier, the package read a `mails/` folder
-beside its code: bundling it moved that lookup into your bundle. Upgrade, or
-mark it external and deploy `node_modules/@nxgt/janus-mail/` whole.
+A plain `Error`, the first time a default template renders; the system's error
+(`EACCES`, `ENOENT`, `EROFS`) is its `cause`. `@nxgt/mail`'s renderer reads a
+folder, so the package writes the inlined e-mails to a private folder under
+`os.tmpdir()`, reads them and removes it. Point `TMPDIR` at a writable folder,
+or pass every template yourself, which never touches it.
+
+On 0.11.3 or earlier the error was `createMailRenderer: …/mails/mail-manifest.json
+cannot be read — run maizzle build, and deploy its output folder`: the package
+read a `mails/` folder beside its code, and bundling it moved that lookup into
+your bundle. Upgrade; no `mails/` is needed any more.
 
 ### `Could not resolve "node:fs"` on an edge runtime
 
