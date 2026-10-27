@@ -835,7 +835,7 @@ app.post('/verify-email', session(auth, { required: true }), async (c) => {
 
 app.post('/verify-email/confirm', async (c) => {
 	const { token } = await c.req.json();
-	await auth.verifyEmail.confirm(token, { firstProof: true }); // TOKEN_* → 400; firstProof also drops the password of a user who signed up and has not verified yet
+	await auth.verifyEmail.confirm(token, { firstProof: true }); // TOKEN_* → 400; VERSION_CONFLICT → 409 (send a new link); firstProof also drops the password of a user who signed up and has not verified yet
 	return c.body(null, 204);
 });
 

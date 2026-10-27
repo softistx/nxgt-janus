@@ -45,13 +45,18 @@ describe('verifyEmail.confirm with { firstProof: true }, on an e-mail never prov
 		const { auth } = context;
 		const { user } = await enrolled(context);
 		const link = await auth.verifyEmail.send(user);
+		received.length = 0;
 
 		const confirmed = await auth.verifyEmail.confirm(link.token, {
 			firstProof: true,
 		});
 
 		expect(confirmed.hasSecondFactor).toBe(false);
-		expect(types()).toContain('user.secondFactorDisabled');
+		expect(types()).toEqual([
+			'user.emailVerified',
+			'user.passwordChanged',
+			'user.secondFactorDisabled',
+		]);
 		expect(await auth.secondFactor.recoveryCodesLeft(user)).toBeNull();
 	});
 
