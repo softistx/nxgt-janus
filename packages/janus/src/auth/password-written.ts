@@ -53,7 +53,8 @@ export async function endWhatThePasswordOpened(
  * What a change and a set do once the password is written: end what the
  * old one opened, then send `user.passwordChanged` — from a `finally`, so an
  * outage ending them still reports the write, which a retry would not make
- * again. `first` is `true` when the user had no password before. A reset sends `user.passwordReset` instead, from its own flow.
+ * again. `first` is `true` when the user had no password before.
+ * A reset sends `user.passwordReset` instead, from its own flow.
  */
 export async function passwordChanged(
 	context: Context,
