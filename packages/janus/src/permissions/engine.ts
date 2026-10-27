@@ -28,6 +28,7 @@
 import { guardRelations } from '../stores/guard';
 import type { BoundModel } from './bound-model';
 import { can } from './can';
+import { holders } from './holders';
 import { tupleOf } from './input';
 import { list } from './list';
 import type { ModelConfig } from './model/config';
@@ -105,6 +106,14 @@ export function permissions<C extends ModelConfig>(
 		list: withBoundModel(list) as Permissions<C>['list'],
 		grant: change('grant') as Permissions<C>['grant'],
 		revoke: change('revoke') as Permissions<C>['revoke'],
+		holders: ((object, relation, page) =>
+			holders(
+				model,
+				store,
+				object,
+				relation as string,
+				page,
+			)) as Permissions<C>['holders'],
 		replace: ((object, relation, subjects) =>
 			replace(
 				model,

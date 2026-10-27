@@ -39,7 +39,14 @@ export {
 	type Lookup,
 	type ReversibleFromField,
 } from './model/from-field';
-export type { Grant, GrantableOf, HolderOf, Replace } from './model/grant';
+export type {
+	Grant,
+	GrantableOf,
+	HolderOf,
+	Holders,
+	HoldersPage,
+	Replace,
+} from './model/grant';
 export type { List, ListPage, LookupGap } from './model/list';
 export type { ObjectTypeOf, UserTypeOf } from './model/names';
 export type { Permissions } from './model/permissions';
@@ -50,6 +57,13 @@ export type {
 	SubjectRef,
 } from './model/refs';
 export { type When, when } from './model/when';
+export {
+	type HolderPageRequest,
+	holderCursor,
+	idMatches,
+	pageOfHolders,
+	readHolderCursor,
+} from './port/holders';
 export { createMemoryRelations } from './port/memory';
 export type {
 	ObjectPageRequest,

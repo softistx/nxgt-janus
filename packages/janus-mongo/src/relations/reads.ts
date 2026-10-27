@@ -5,7 +5,12 @@ import {
 	type RelationTuple,
 	type SubjectSet,
 } from '@nxgt/janus';
-import type { ObjectPageRequest } from '@nxgt/janus/permissions';
+import {
+	type HolderPageRequest,
+	holderCursor,
+	type ObjectPageRequest,
+	readHolderCursor,
+} from '@nxgt/janus/permissions';
 import type { Filter } from 'mongodb';
 import type { RelationDocument } from './collection';
 import type { RelationContext } from './context';
@@ -45,6 +50,57 @@ export async function findEntities(
 	return (await holding(context, object, relation, false)).map(
 		(subject): Entity => ({ type: subject.type, id: subject.id }),
 	);
+}
+
+/**
+ * A page of the entities holding a relation, by type then id, after the
+ * cursor, whose id contains the search (a literal, ignoring case).
+ */
+export async function findHolders(
+	{ collection }: RelationContext,
+	{ object, relation, after, limit, search }: HolderPageRequest,
+): Promise<CursorPage<Entity>> {
+	const from = after === null ? null : readHolderCursor('findHolders', after);
+	const filter: Filter<RelationDocument> = {
+		'_id.object.type': object.type,
+		'_id.object.id': object.id,
+		'_id.relation': relation,
+		// `null` matches the missing field: an entity, not a set.
+		'_id.subject.relation': null,
+		...(search === null
+			? {}
+			: {
+					'_id.subject.id': {
+						$regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+						$options: 'i',
+					},
+				}),
+		...(from === null
+			? {}
+			: {
+					$or: [
+						{ '_id.subject.type': { $gt: from.type } },
+						{
+							'_id.subject.type': from.type,
+							'_id.subject.id': { $gt: from.id },
+						},
+					],
+				}),
+	};
+	const found = await collection
+		.find(filter, { projection: { '_id.subject': 1 } })
+		.sort({ '_id.subject.type': 1, '_id.subject.id': 1 })
+		.limit(limit + 1)
+		.toArray();
+	const items = found
+		.slice(0, limit)
+		.map(({ _id }): Entity => ({ type: _id.subject.type, id: _id.subject.id }));
+	const last = items.at(-1);
+	return {
+		items,
+		nextCursor:
+			found.length > limit && last !== undefined ? holderCursor(last) : null,
+	};
 }
 
 /** One hop from an object: its subject sets, or its entities. */

@@ -1389,6 +1389,16 @@ store must answer every holder of a relation to `findEntities` and
 `findSubjectSets`, since `replace` reads them all; the
 [permissions guide](docs/guide/permissions.md#replace) has the details.
 
+To list who holds a relation, by pages and with a search, use `holders` — the
+`@nxgt/janus-mongo` and `@nxgt/janus-drizzle` stores page it in the database:
+
+```ts
+const page = await access.holders({ type: 'platform', id: 'main' }, 'admins', { first: 20, search: 'ada' });
+const next = await access.holders({ type: 'platform', id: 'main' }, 'admins', { first: 20, after: page.nextCursor });
+```
+
+The [permissions guide](docs/guide/permissions.md#holders) has the options.
+
 **A user type may also be an object type**: declare `staff` under `types`, and
 a staff member is an object too — who may edit them is a relation on them. See
 [permissions on a user](docs/guide/permissions.md#permissions-on-a-user).

@@ -25,6 +25,7 @@ describe('the relation suite itself', () => {
 			'outage.has',
 			'outage.findSubjectSets',
 			'outage.findEntities',
+			'outage.findHolders',
 			'outage.findObjects',
 			'outage.deleteEntity',
 		]);

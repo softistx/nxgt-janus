@@ -7,6 +7,7 @@ import {
 	type Subject,
 	type SubjectSet,
 } from '../../subjects/subject';
+import { pageOfHolders } from './holders';
 import type { ObjectPageRequest, RelationStore } from './types';
 
 /**
@@ -54,6 +55,16 @@ export function createMemoryRelations(): RelationStore {
 				}
 			}
 			return entities;
+		},
+
+		async findHolders({ object, relation, after, limit, search }) {
+			const entities: Entity[] = [];
+			for (const tuple of tuples.values()) {
+				if (on(tuple, object, relation) && !isSubjectSet(tuple.subject)) {
+					entities.push(tuple.subject);
+				}
+			}
+			return pageOfHolders(entities, { after, limit, search });
 		},
 
 		async findObjects(request) {

@@ -3,7 +3,13 @@ import type { RelationStore } from '@nxgt/janus/permissions';
 import { type DrizzleAdapterOptions, defineJanusTables } from '../tables';
 import { run } from '../translate';
 import type { RelationContext } from './context';
-import { findEntities, findObjects, findSubjectSets, has } from './reads';
+import {
+	findEntities,
+	findHolders,
+	findObjects,
+	findSubjectSets,
+	has,
+} from './reads';
 import { deleteEntity, write } from './writes';
 
 /**
@@ -36,6 +42,10 @@ export function createDrizzleRelations(
 			run$('findSubjectSets', () => findSubjectSets(context, object, relation)),
 		findEntities: (object, relation) =>
 			run$('findEntities', () => findEntities(context, object, relation)),
+		findHolders: ({ object, relation, after, limit, search }) =>
+			run$('findHolders', () =>
+				findHolders(context, { object, relation, after, limit, search }),
+			),
 		// The request is unpacked before `run$`, as `write`'s is and as it was
 		// before the split, so a malformed request throws the caller's
 		// TypeError at once instead of reading as an outage.

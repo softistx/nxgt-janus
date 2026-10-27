@@ -31,6 +31,7 @@ import type {
 	Subject,
 	SubjectSet,
 } from '../../subjects/subject';
+import type { HolderPageRequest } from './holders';
 
 /** What one {@link RelationStore.write} changes. */
 export interface RelationChanges {
@@ -89,6 +90,17 @@ export interface RelationStore {
 	 * `[]` when none; unordered.
 	 */
 	findEntities(object: Entity, relation: string): Promise<readonly Entity[]>;
+
+	/**
+	 * **Optional.** The single entities holding `relation` on `object`, by
+	 * pages, ordered by type then id, optionally those whose id contains
+	 * `search`. What `access.holders()` reads. A store without it still serves
+	 * `holders()`: the core pages `findEntities` in memory, which is right for
+	 * a handful of holders and does not scale for thousands, so an adapter over
+	 * a database implements it. An empty page, never `null`, for no holder; a
+	 * cursor `holderCursor` did not mint is `InvalidCursorError`.
+	 */
+	findHolders?(request: HolderPageRequest): Promise<CursorPage<Entity>>;
 
 	/**
 	 * The ids of the objects of one type on which `subject` holds `relation`

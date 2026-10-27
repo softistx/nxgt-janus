@@ -9,7 +9,13 @@ import type { Db } from 'mongodb';
 import { run } from '../translate';
 import { relations } from './collection';
 import type { RelationContext } from './context';
-import { findEntities, findObjects, findSubjectSets, has } from './reads';
+import {
+	findEntities,
+	findHolders,
+	findObjects,
+	findSubjectSets,
+	has,
+} from './reads';
 import { deleteEntity, write } from './writes';
 
 export { relations } from './collection';
@@ -45,6 +51,10 @@ export function createMongoRelations(db: Db): RelationStore {
 			run$('findSubjectSets', () => findSubjectSets(context, object, relation)),
 		findEntities: (object, relation) =>
 			run$('findEntities', () => findEntities(context, object, relation)),
+		findHolders: ({ object, relation, after, limit, search }) =>
+			run$('findHolders', () =>
+				findHolders(context, { object, relation, after, limit, search }),
+			),
 		// Unpacked before `run$`, as `write`'s is and as on develop, so a
 		// malformed request throws instead of reading as an outage.
 		findObjects: ({ type, relation, subject, after, limit }) =>
