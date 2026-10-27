@@ -77,10 +77,28 @@ export interface HoldersPage {
 	/**
 	 * Keeps the holders it answers `true` for, asked of each in order until the
 	 * page is full. For what the relation store cannot see: the holder's email
-	 * or name, read from the user store. Paging stays right; a selective
-	 * predicate costs more reads.
+	 * or name, read from the user store. Paging stays right; it is asked of one
+	 * holder at a time and stops once the page is full. A selective predicate
+	 * costs more reads, up to {@link HoldersPage.scanLimit} holders
+	 * per call. Exclusive with `matchesMany`.
 	 */
 	readonly matches?: (holder: Entity) => boolean | Promise<boolean>;
+	/**
+	 * `matches` for a batch: called with up to 100 holders in order, it answers
+	 * one boolean per holder, in the same order, so a caller reads a page's
+	 * users in one query. Exclusive with `matches`.
+	 */
+	readonly matchesMany?: (
+		holders: readonly Entity[],
+	) => readonly boolean[] | Promise<readonly boolean[]>;
+	/**
+	 * With `matches` or `matchesMany`: the most holders one call looks at, a
+	 * positive integer or `Infinity`; 500 when absent. When it is spent before
+	 * the page is full, the call answers the holders kept so far (possibly
+	 * none) with a `nextCursor` to resume from, so a page may hold fewer than
+	 * `first` and still not be the last: only a `null` `nextCursor` is.
+	 */
+	readonly scanLimit?: number;
 }
 
 /**

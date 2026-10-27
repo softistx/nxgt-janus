@@ -1398,6 +1398,23 @@ const page = await access.holders({ type: 'platform', id: 'main' }, 'admins', { 
 const next = await access.holders({ type: 'platform', id: 'main' }, 'admins', { first: 20, after: page.nextCursor });
 ```
 
+A filter on what the relation store cannot see is `matches` (one holder) or
+`matchesMany` (a batch of up to 100, so one user query per page); a call looks
+at most `scanLimit` holders (500 by default), then answers what it kept with a
+`nextCursor` to resume, so a page can hold fewer than `first`. Follow
+`nextCursor` until it is `null`.
+
+```ts
+const page = await access.holders(platform, 'admins', {
+  first: 20,
+  scanLimit: 200,
+  matchesMany: async (hs) => {
+    const found = await users.findMany(hs.map((h) => h.id));
+    return hs.map((h) => found.some((u) => u.id === h.id && u.active));
+  },
+});
+```
+
 The [permissions guide](docs/guide/permissions.md#holders) has the options.
 
 **A user type may also be an object type**: declare `staff` under `types`, and
@@ -1943,7 +1960,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**Two hundred and nine plausible mistakes, two hundred and nine refused at compile time — and
+**Two hundred and twelve plausible mistakes, two hundred and twelve refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per

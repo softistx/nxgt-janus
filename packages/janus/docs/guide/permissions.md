@@ -588,7 +588,7 @@ queue of its own.
 ### `holders`
 
 ```ts
-holders(object, relation, { first?, after?, search?, matches? }): Promise<CursorPage<Entity>>;
+holders(object, relation, { first?, after?, search?, matches?, matchesMany?, scanLimit? }): Promise<CursorPage<Entity>>;
 ```
 
 The single entities holding `relation` on `object`, ordered by type then id,
@@ -611,6 +611,26 @@ const next = await access.holders(platform, 'admins', { first: 20, search: 'ada'
   predicate over each holder (it may be async) that you answer from your user
   store: `matches: async (h) => (await users.find(h.id))?.email.includes(text)`.
   Paging stays right, and a selective predicate costs more reads.
+- `matchesMany(holders)` is `matches` for a batch: it receives up to 100
+  holders in order and answers one boolean per holder, in the same order, so
+  the page's users are read in one query:
+  `matchesMany: async (hs) => { const found = await users.findMany(hs.map((h) => h.id)); return hs.map((h) => found.some((u) => u.id === h.id && u.email.includes(text))); }`.
+  Pass `matches` or `matchesMany`, never both.
+- `scanLimit` bounds the cost of a call that has a predicate: it looks at most
+  that many holders (a positive integer or `Infinity`; 500 when absent). When
+  the limit is spent before `first` holders are kept, the call answers the
+  holders kept so far, possibly none, with a `nextCursor` to resume from. **A
+  page may therefore hold fewer than `first` and still not be the last: only a
+  `null` `nextCursor` ends the list.** Loop on `nextCursor` until it is null:
+
+```ts
+let after: string | null = null;
+do {
+  const page = await access.holders(platform, 'admins', { first: 20, matchesMany, scanLimit: 200, after });
+  show(page.items);
+  after = page.nextCursor;
+} while (after !== null);
+```
 - A store with `findHolders` pages in the database. One without it still
   works: the core pages `findEntities` in memory, which is fine for a handful
   of holders and does not scale for thousands.
