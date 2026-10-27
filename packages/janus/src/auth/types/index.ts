@@ -18,6 +18,7 @@ export type {
 	ResetPasswordApi,
 	SignInCodeApi,
 	VerifyEmailApi,
+	VerifyEmailOptions,
 } from './email-flows';
 export type { FindByEmailApi } from './find-by-email';
 export type { FindOrCreateApi } from './find-or-create';

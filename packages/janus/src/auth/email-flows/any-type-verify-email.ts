@@ -4,6 +4,7 @@
  */
 
 import type { AnyUser, Context } from '../context';
+import type { VerifyEmailOptions } from '../types';
 import { confirmVerify } from './verify-email';
 
 /**
@@ -13,12 +14,14 @@ import { confirmVerify } from './verify-email';
  * type: they need the user's type.
  */
 export function anyTypeVerifyEmail(context: Context): {
-	readonly verifyEmail: { confirm(token: string): Promise<AnyUser> };
+	readonly verifyEmail: {
+		confirm(token: string, options?: VerifyEmailOptions): Promise<AnyUser>;
+	};
 } {
 	return {
 		verifyEmail: {
-			confirm: (secret) =>
-				confirmVerify(context, null, secret, 'verifyEmail.confirm'),
+			confirm: (secret, options) =>
+				confirmVerify(context, null, secret, 'verifyEmail.confirm', options),
 		},
 	};
 }

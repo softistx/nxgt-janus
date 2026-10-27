@@ -1,5 +1,5 @@
 /**
- * `verifyEmail.proveFirst`'s shared setup, for the `prove-first.*.spec.ts`
+ * `verifyEmail.proveFirst`'s shared setup, for the `prove-first.*.spec.ts` and `verify-email.first-proof.spec.ts`
  * beside this file: an instance whose listener records what it hears, and
  * the squatter it is made for — somebody who signed up with Ada's address
  * and a password of their own. No case lives here.

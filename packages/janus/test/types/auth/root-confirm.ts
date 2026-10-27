@@ -21,8 +21,24 @@ async function verifyEmail() {
 	// @ts-expect-error the root confirms; sending needs the user's type
 	await clinic.verifyEmail.send('id');
 
-	// @ts-expect-error confirm takes the token alone
+	// @ts-expect-error confirm takes a token and an options object, not an e-mail
 	await clinic.verifyEmail.confirm('token', 'a@b.test');
+
+	// The first-proof option compiles on the root and on a type.
+	await clinic.verifyEmail.confirm('token', { firstProof: true });
+	await one.verifyEmail.confirm('token', { firstProof: true });
+
+	// @ts-expect-error a misspelled option would be a silent no-op
+	await clinic.verifyEmail.confirm('token', { firstproof: true });
+
+	// @ts-expect-error firstProof is a boolean
+	await clinic.verifyEmail.confirm('token', { firstProof: 'yes' });
+
+	// @ts-expect-error the options are an object, not a flag
+	await one.verifyEmail.confirm('token', true);
+
+	// @ts-expect-error a misspelled option on a type
+	await one.verifyEmail.confirm('token', { firstproof: true });
 
 	// Nothing at the root when no type has an e-mail.
 	const staffOnly = janus({
