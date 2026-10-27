@@ -1,5 +1,11 @@
 # @nxgt/janus-mail
 
+## 0.11.0
+
+### Minor Changes
+
+- [#272](https://github.com/softistx/nxgt-janus/pull/272) [`6c61553`](https://github.com/softistx/nxgt-janus/commit/6c6155340e997b104e88a283902c0fe8292ea7a2) Thanks [@SteveGT96](https://github.com/SteveGT96)! - `mail.signUpAttempted(to, { device?, time? })` e-mails the owner of an address someone tried to sign up with, for a sign-up that answers the same whether the address is new or taken. It is the new `signUpAttempted` template, built from `@nxgt/mail-presets` 1.3.0's `sign-up-attempted` in English and French, and links to `links.getStarted()`. A missing `device` or `time` reads "Unknown" ("Inconnu") in the send's locale. There are now fourteen templates: `templates` written for a locale beyond `en` and `fr` must add `signUpAttempted`.
+
 ## 0.10.7
 
 ### Patch Changes
