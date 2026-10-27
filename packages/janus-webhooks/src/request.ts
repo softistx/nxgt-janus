@@ -136,7 +136,8 @@ export function bodyFor(event: UserEvent, where: string): string {
 /**
  * What a webhook keeps of an event: the user named by id, and nothing else.
  * `formerEmail`, on `user.emailChanged`, and `sessionId`, on
- * `user.newDeviceSignedIn`, and `formerAvatarId`, on the two avatar events,
+ * `user.newDeviceSignedIn`, and `formerAvatarId`, on the two avatar events, and `first`, on
+ * `user.passwordChanged`,
  * stay in the process that wrote them — past here
  * they would sit in the queue, in every endpoint's logs and in
  * `onGivingUp`'s reports.
