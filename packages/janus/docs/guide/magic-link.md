@@ -60,7 +60,7 @@ token it issued and they followed — call
 the same sign-in, second factor included, with no e-mail sent, no mail
 throttle counted and no earlier link spent. Call
 [`verifyEmail.proveFirst`](email-flows.md#proving-an-e-mail-on-your-own-proof--provefirst)
-before it: the invitation reached the inbox, and a first proof drops what
+before it (or `verifyEmail.confirm(token, { firstProof: true })` when your own verification link is the proof): the invitation reached the inbox, and a first proof drops what
 somebody who signed up with the address left on it, as a link does. A `request` made only to be
 confirmed at once is counted per address, so five anonymous requests for the
 invitee's address would make the acceptance answer `MAIL_THROTTLED`.

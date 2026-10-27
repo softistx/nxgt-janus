@@ -835,7 +835,7 @@ app.post('/verify-email', session(auth, { required: true }), async (c) => {
 
 app.post('/verify-email/confirm', async (c) => {
 	const { token } = await c.req.json();
-	await auth.verifyEmail.confirm(token); // TOKEN_* → 400
+	await auth.verifyEmail.confirm(token, { firstProof: true }); // TOKEN_* → 400; firstProof drops a password someone set before the address was proved
 	return c.body(null, 204);
 });
 

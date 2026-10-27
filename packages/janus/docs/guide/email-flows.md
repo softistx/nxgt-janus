@@ -186,7 +186,7 @@ asked for on an address they already proved elsewhere.
 
 ## Proving an e-mail on your own proof — `proveFirst`
 
-`verifyEmail.confirm` proves an address and changes nothing else: the user
+`verifyEmail.confirm` proves an address and, by default, changes nothing else (pass [`firstProof: true`](#making-the-verification-link-a-first-proof--confirmtoken--firstproof-true-) to drop a squatter's credential): the user
 asked for the link from inside their own account. A first sign-in by link
 or code goes further, since anybody may have signed up with the address
 before its holder ([why](magic-link.md#an-account-someone-else-registered)).
