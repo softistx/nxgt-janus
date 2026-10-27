@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
 	EXPECTED_EMAILS,
 	emailsProblem,
@@ -84,14 +87,18 @@ describe('inlineMailsModule', () => {
 		expect(source.indexOf('"en/a.html"')).toBeLessThan(
 			source.indexOf('"fr/b.txt"'),
 		);
-		const dir = await Bun.$`mktemp -d`.text();
-		const file = `${dir.trim()}/inline.ts`;
-		await Bun.write(file, source);
-		const { INLINE_MAILS } = await import(file);
-		expect(INLINE_MAILS).toEqual({
-			'en/a.html': '<p>one</p>',
-			'fr/b.txt': 'deux "quoted"\nligne',
-		});
+		const dir = mkdtempSync(join(tmpdir(), 'inline-mails-spec-'));
+		try {
+			const file = join(dir, 'inline.ts');
+			await Bun.write(file, source);
+			const { INLINE_MAILS } = await import(file);
+			expect(INLINE_MAILS).toEqual({
+				'en/a.html': '<p>one</p>',
+				'fr/b.txt': 'deux "quoted"\nligne',
+			});
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 
 	test('is empty for no file', () => {
