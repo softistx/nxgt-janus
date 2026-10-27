@@ -685,7 +685,7 @@ notation, typed — `record:r1#teams@team:t1`, `team:t1#members@team:t2#members`
 
 ## The relation store
 
-`RelationStore` is six methods answering one-hop questions about stored tuples
+`RelationStore` is six methods (and an optional seventh, `findHolders`) answering one-hop questions about stored tuples
 — `write`, `has`, `findSubjectSets`, `findEntities`, `findObjects`,
 `deleteEntity`. The traversal is the core's. `createMemoryRelations()` is the
 reference implementation, and [Writing an adapter](adapters.md) covers the

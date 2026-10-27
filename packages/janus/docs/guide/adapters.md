@@ -32,7 +32,7 @@ describeJanusStores({
 | Port | Taken by | Methods |
 | --- | --- | --- |
 | `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 (+ 1 optional) + 7 (+ 1 optional) + 5 (+ 1 optional) |
-| `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 |
+| `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 (+ 1 optional) |
 
 They are separate on purpose: an application that only authenticates
 implements nothing for permissions, and each of the three user slots may come

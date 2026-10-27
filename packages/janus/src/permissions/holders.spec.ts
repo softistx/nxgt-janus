@@ -84,6 +84,19 @@ describe.each([
 		expect(last).toEqual({ items: staffNamed('u3'), nextCursor: null });
 	});
 
+	it('answers an empty page, never asks the store, for a search or cursor no store can keep', async () => {
+		const access = await seeded(open());
+		for (const search of ['a\u0000b', '\ud800']) {
+			expect(await access.holders(team, 'members', { search })).toEqual({
+				items: [],
+				nextCursor: null,
+			});
+		}
+		await expect(
+			access.holders(team, 'members', { after: '5:staff\u0000' }),
+		).rejects.toBeInstanceOf(InvalidCursorError);
+	});
+
 	it('answers an empty page for a relation nobody holds', async () => {
 		const access = setup(open());
 		expect(await access.holders(team, 'leads')).toEqual({

@@ -5,7 +5,12 @@
  */
 
 import type { CursorPage } from '../pagination/cursor-page';
-import { MAX_PAGE_SIZE, pageLimit } from '../pagination/cursor-page';
+import {
+	invalidCursor,
+	MAX_PAGE_SIZE,
+	pageLimit,
+} from '../pagination/cursor-page';
+import { isStorable } from '../stores/storable';
 import type { Entity } from '../subjects/subject';
 import { targetOf } from './input';
 import type { HoldersPage } from './model/grant';
@@ -38,6 +43,12 @@ export async function holders(
 	}
 	const { entity } = targetOf(model, object, relation, where);
 	const search = text === undefined || text === '' ? null : text;
+	// No stored id holds a NUL or a lone surrogate: nothing can match, and a
+	// database must not be asked (it would answer with an error, not a page).
+	if (search !== null && !isStorable(search)) {
+		return { items: [], nextCursor: null };
+	}
+	if (after !== null && !isStorable(after)) throw invalidCursor(where, after);
 
 	const read = async (
 		cursor: string | null,
