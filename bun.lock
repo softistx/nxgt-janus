@@ -137,7 +137,7 @@
     },
     "packages/janus-mail": {
       "name": "@nxgt/janus-mail",
-      "version": "0.11.3",
+      "version": "0.12.0",
       "devDependencies": {
         "@formatjs/icu-messageformat-parser": "3.5.20",
         "@maizzle/framework": "6.1.7",
