@@ -428,7 +428,7 @@ JavaScript, so `bun build`, esbuild or Vite can bundle `@nxgt/janus-mail` into
 your server file with no `mails/` folder to deploy. What the first render needs
 is a writable `TMPDIR`; without one it throws `janus-mail: cannot write the
 default e-mails under …`. See
-[troubleshooting](docs/troubleshooting.md#janus-mail-cannot-write-the-default-e-mails-under--make-tmpdir-writable-or-pass-every-template-yourself).
+[troubleshooting](docs/troubleshooting.md#janus-mail-cannot-write-the-default-e-mails).
 
 **A link answers a string, at once.** Each `links` function is called at
 send time and must return an `http(s)` or `mailto:` URL as a string: an

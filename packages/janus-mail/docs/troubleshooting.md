@@ -57,7 +57,7 @@ How the messages are shaped:
 - [`render: <email>: link must be a string or a finite number`](#render-email-link-must-be-a-string-or-a-finite-number)
 - [`MAIL_REFUSED` — from the mailer](#mail_refused--from-the-mailer)
 - [`MAIL_FAILED` — `MailFailure`](#mail_failed--mailfailure)
-- [`janus-mail: cannot write the default e-mails under … — make TMPDIR writable, or pass every template yourself`](#janus-mail-cannot-write-the-default-e-mails-under--make-tmpdir-writable-or-pass-every-template-yourself)
+- [`janus-mail: cannot write the default e-mails`](#janus-mail-cannot-write-the-default-e-mails)
 - [`Could not resolve "node:fs"` on an edge runtime](#could-not-resolve-nodefs-on-an-edge-runtime)
 - [An e-mail stays light in dark mode](#an-e-mail-stays-light-in-dark-mode)
 - [The button all but vanishes in dark mode](#the-button-all-but-vanishes-in-dark-mode)
@@ -551,9 +551,10 @@ process, pass a mailer wrapped in `@nxgt/mail`'s `withRetry` (0.8 or later); onc
 attempts run out it rejects with the last `MailFailure`, `attempts` on it —
 see [Retrying and tracing the mailer](guide/sending.md#retrying-and-tracing-the-mailer).
 
-### `janus-mail: cannot write the default e-mails under … — make TMPDIR writable, or pass every template yourself`
+### `janus-mail: cannot write the default e-mails`
 
-A plain `Error`, the first time a default template renders; the system's error
+A plain `Error`, the first time a default template renders, whose full message is
+`janus-mail: cannot write the default e-mails under <folder> — make TMPDIR writable, or pass every template yourself`; the system's error
 (`EACCES`, `ENOENT`, `EROFS`) is its `cause`. `@nxgt/mail`'s renderer reads a
 folder, so the package writes the inlined e-mails to a private folder under
 `os.tmpdir()`, reads them and removes it. Point `TMPDIR` at a writable folder,
