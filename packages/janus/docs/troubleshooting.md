@@ -157,6 +157,7 @@ How the messages are shaped:
 - [`replace: the subjects must be an array`](#replace-the-subjects-must-be-an-array)
 - [Two `replace` calls at once leave the union of their adds](#two-replace-calls-at-once-leave-the-union-of-their-adds)
 - [`replace` leaves extra holders on a capped relation store](#replace-leaves-extra-holders-on-a-capped-relation-store)
+- [`holders` answers a short or empty page that has a `nextCursor`](#holders-answers-a-short-or-empty-page-that-has-a-nextcursor)
 - [Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages](#other-can-list-grant-revoke-and-replace-messages)
 - [`defineModel: …`](#definemodel-)
 
@@ -2106,6 +2107,12 @@ With `revoke:` on a tuple stored before the model stopped admitting it, the tupl
 **Why:** `replace` reads every holder of the relation through `findEntities` and `findSubjectSets` and removes those the list does not name. An adapter that caps either answer (a `LIMIT`, a first page) hides the rest from it, so they are never removed.
 **Fix:** answer every holder from both methods, unpaged, and never cap. The relation-store conformance suite is the place to check an adapter.
 
+### `holders` answers a short or empty page that has a `nextCursor`
+
+**When:** `access.holders(object, relation, { matches })` or `{ matchesMany }` answers fewer than `first` holders, even none, and `nextCursor` is not `null`.
+**Why:** a call looks at most `scanLimit` holders (500 by default) so a filter that keeps few of them has a bounded cost. When the limit is spent it answers what it kept so far and the cursor to resume from. Only a `null` `nextCursor` ends the list.
+**Fix:** follow `nextCursor` until it is `null`. Read the page's users in one query with `matchesMany`, and raise `scanLimit` (or pass `Infinity`) only when a long call is acceptable. `holders: matches and matchesMany are exclusive` means both were passed: keep one.
+
 ### Other `can:`, `list:`, `grant:`, `revoke:` and `replace:` messages
 
 Each is a `TypeError` naming the call. TypeScript refuses most of them on the argument first.
@@ -2122,6 +2129,7 @@ Each is a `TypeError` naming the call. TypeScript refuses most of them on the ar
 | `<call>: <type> is a user type the model does not declare as an object type, so <type>#<relation> is no subject set` | `setOf(user, relation)` names a relation on that user: declare the user type under `types` too, with that relation — see [permissions on a user](guide/permissions.md#permissions-on-a-user). The compiler refuses it first. |
 | `grant: "<relation>" is not a relation of <type>` | Grant a relation, never a permission. Also with `revoke:` and `replace:` — `replace: "<relation>" is not a relation of <type>`, even for an empty list. |
 | `list: the type must be an object type of the model` | The third argument is a type name: `'record'`. |
+| `holders: scanLimit must be a positive integer, or Infinity` | Also `holders: matchesMany must answer one boolean per holder, in order` — answer an array as long as the batch. |
 | `list: after must be the nextCursor of a page, or null` | Pass `nextCursor` back as it came. |
 
 ### `defineModel: …`

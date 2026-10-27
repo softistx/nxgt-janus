@@ -18,6 +18,9 @@ import { holderCursor, pageOfHolders } from './port/holders';
 import type { RelationStore } from './port/types';
 import type { ResolvedModel } from './resolve/resolved';
 
+/** Holders one `holders()` call looks at with a predicate, unless `scanLimit` says otherwise. */
+const DEFAULT_SCAN_LIMIT = 500;
+
 export async function holders(
 	model: ResolvedModel,
 	store: RelationStore,
@@ -40,6 +43,24 @@ export async function holders(
 	const matches = options?.matches;
 	if (matches !== undefined && typeof matches !== 'function') {
 		throw new TypeError(`${where}: matches must be a function, or absent`);
+	}
+	const matchesMany = options?.matchesMany;
+	if (matchesMany !== undefined && typeof matchesMany !== 'function') {
+		throw new TypeError(`${where}: matchesMany must be a function, or absent`);
+	}
+	if (matches !== undefined && matchesMany !== undefined) {
+		throw new TypeError(
+			`${where}: matches and matchesMany are exclusive, pass one`,
+		);
+	}
+	const scanLimit = options?.scanLimit ?? DEFAULT_SCAN_LIMIT;
+	if (
+		scanLimit !== Number.POSITIVE_INFINITY &&
+		(!Number.isSafeInteger(scanLimit) || scanLimit < 1)
+	) {
+		throw new TypeError(
+			`${where}: scanLimit must be a positive integer, or Infinity`,
+		);
 	}
 	const { entity } = targetOf(model, object, relation, where);
 	const search = text === undefined || text === '' ? null : text;
@@ -67,23 +88,60 @@ export async function holders(
 		return pageOfHolders(all, { after: cursor, limit: size, search }, where);
 	};
 
-	if (matches === undefined) return read(after, limit);
+	if (matches === undefined && matchesMany === undefined) {
+		return read(after, limit);
+	}
+
+	const judge = async (
+		batch: readonly Entity[],
+	): Promise<readonly boolean[]> => {
+		if (matchesMany === undefined) {
+			const answers: boolean[] = [];
+			for (const holder of batch) {
+				answers.push(
+					Boolean(await (matches as NonNullable<typeof matches>)(holder)),
+				);
+			}
+			return answers;
+		}
+		const answers = await matchesMany(batch);
+		if (!Array.isArray(answers) || answers.length !== batch.length) {
+			throw new TypeError(
+				`${where}: matchesMany must answer one boolean per holder, in order`,
+			);
+		}
+		return answers;
+	};
 
 	// A predicate the store cannot see: read in the largest pages and keep
-	// what passes, until one more than the page is known.
+	// what passes, until one more than the page is known or the scan budget is
+	// spent (the holders kept so far, and a cursor after the last one looked at).
 	const kept: Entity[] = [];
 	let cursor = after;
+	let scanned = 0;
 	for (;;) {
 		const page = await read(cursor, MAX_PAGE_SIZE);
-		for (const holder of page.items) {
-			if (await matches(holder)) kept.push(holder);
-			if (kept.length > limit) break;
+		const room = Math.max(scanLimit - scanned, 0);
+		const batch = page.items.slice(0, room);
+		const answers = await judge(batch);
+		scanned += batch.length;
+		for (const [i, holder] of batch.entries()) {
+			if (answers[i]) kept.push(holder);
+			if (kept.length > limit) {
+				const items = kept.slice(0, limit);
+				return { items, nextCursor: holderCursor(items[limit - 1] as Entity) };
+			}
 		}
-		if (kept.length > limit) {
-			const items = kept.slice(0, limit);
-			return { items, nextCursor: holderCursor(items[limit - 1] as Entity) };
+		if (batch.length < page.items.length) {
+			return {
+				items: kept,
+				nextCursor: holderCursor(batch[batch.length - 1] as Entity),
+			};
 		}
 		if (page.nextCursor === null) return { items: kept, nextCursor: null };
+		if (scanned >= scanLimit) {
+			return { items: kept, nextCursor: page.nextCursor };
+		}
 		cursor = page.nextCursor;
 	}
 }

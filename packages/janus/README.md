@@ -1397,6 +1397,12 @@ const page = await access.holders({ type: 'platform', id: 'main' }, 'admins', { 
 const next = await access.holders({ type: 'platform', id: 'main' }, 'admins', { first: 20, after: page.nextCursor });
 ```
 
+A filter on what the relation store cannot see is `matches` (one holder) or
+`matchesMany` (a batch of up to 100, so one user query per page); a call looks
+at most `scanLimit` holders (500 by default), then answers what it kept with a
+`nextCursor` to resume, so a page can hold fewer than `first`. Follow
+`nextCursor` until it is `null`.
+
 The [permissions guide](docs/guide/permissions.md#holders) has the options.
 
 **A user type may also be an object type**: declare `staff` under `types`, and
