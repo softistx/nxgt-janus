@@ -4,7 +4,7 @@
  * e-mails still render, because they are inlined in the JavaScript.
  */
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -37,18 +37,12 @@ console.log(JSON.stringify({ subject, html, text }));
 		expect(built.stderr.toString()).not.toContain('error');
 		expect(built.exitCode).toBe(0);
 
-		const scratch = join(root, 'tmp');
-		await mkdir(scratch);
 		const run = Bun.spawnSync(['bun', join(app, 'out', 'entry.js')], {
 			cwd: root,
-			// biome-ignore lint/style/useNamingConvention: the environment variable's name
-			env: { ...process.env, TMPDIR: scratch },
 			stderr: 'pipe',
 		});
 		expect(run.stderr.toString()).toBe('');
 		expect(run.exitCode).toBe(0);
-		// Nothing is left in the temporary folder, so the real one stays clean.
-		expect(await readdir(scratch)).toEqual([]);
 		const sent = JSON.parse(run.stdout.toString());
 		expect(sent.subject).toMatch(/^Votre code de connexion\s*:\s*042817$/);
 		expect(sent.html).toContain('Acme');

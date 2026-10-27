@@ -54,7 +54,7 @@ nothing of it is loaded; and `typescript` (6 or 7). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
 The `@nxgt/mail` floor is tested, not claimed: the package's specs and its
-typecheck run on `@nxgt/mail` 0.1.0 as well, in the Floors job, on every CI
+typecheck run on `@nxgt/mail` 1.1.0 as well, in the Floors job, on every CI
 run.
 
 It reads its prebuilt e-mails with `node:fs`: **Node (20 or later), Bun or
@@ -416,19 +416,14 @@ the user only; pass `recoveryCodesLeft` as
 pass the sentence rather than the count: the build has no plural for it, and
 a count is a `TypeError` at send.
 
-**`node:fs` and a writable `TMPDIR` mean no edge runtime.** The default
-e-mails are inlined in the JavaScript, but `@nxgt/mail`'s renderer reads a
-folder: the first one sent writes them to a private folder under the system's
-temporary folder, reads them, and removes it. On an edge runtime, pass every
-template yourself — or wait for rendering from memory, on the
-[roadmap](docs/roadmap.md).
+**`node:fs` means no edge runtime, for now.** The default e-mails are inlined
+in the JavaScript and rendered from memory, but `@nxgt/mail/renderer` still
+imports `node:fs`. On an edge runtime, pass every template yourself.
 
 **Bundling the package is fine.** The e-mails travel inside the package's
 JavaScript, so `bun build`, esbuild or Vite can bundle `@nxgt/janus-mail` into
-your server file with no `mails/` folder to deploy. What the first render needs
-is a writable `TMPDIR`; without one it throws `janus-mail: cannot write the
-default e-mails under …`. See
-[troubleshooting](docs/troubleshooting.md#janus-mail-cannot-write-the-default-e-mails).
+your server file with no `mails/` folder to deploy. Nothing is
+written to disk at run time.
 
 **A link answers a string, at once.** Each `links` function is called at
 send time and must return an `http(s)` or `mailto:` URL as a string: an

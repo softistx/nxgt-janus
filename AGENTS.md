@@ -82,7 +82,7 @@ janus-mongo and the kit's mongo specs on @nxgt/mongo 0.17.0*, and the
 `@nxgt/redis` 0.3.1, `@nxgt/drizzle` 0.6.1 and `@nxgt/telemetry` 0.2.1 steps,
 each with the adapters that peer it and the kit's whole suite.
 `@nxgt/mail`, from
-nxgt-mail, peers `janus-mail` at `>=0.1.0 <2` — widened from `<1` when
+nxgt-mail, peers `janus-mail` at `>=1.1.0 <2` — widened from `<1` when
 nxgt-mail reached 1.0.0 (1.0 removed `withTelemetry`, `withRendererTelemetry`
 and `RetryOptions`, none of which `janus-mail` imports) — and the specs run
 on 1.0.2 from the lock (the patch that takes TypeScript 7 into its peer),
@@ -119,13 +119,13 @@ build refuses it as `missing — en, the fallback locale, has it`;
 in `fr` alone as `not a key of en, the fallback locale`. Nothing here
 names a key — `mail/locales/*.json` are `{}` — so the move built `mails/` byte
 for byte as before. An override added to a catalogue must use the presets'
-kebab-case key. The floor, 0.1.0, is tested in CI, step *Run janus-mail on
-@nxgt/mail 0.1.0* of the `floors` job: the `janus-mail` suite and its
+kebab-case key. The floor, 1.1.0, is tested in CI, step *Run janus-mail on
+@nxgt/mail 1.1.0* of the `floors` job: the `janus-mail` suite and its
 typecheck, rendering the `mails/` this build wrote, on the floor's tarball
 from npm, outside the lock — so every lock bump meets the floor as well as
 the latest. The `mails/` build reads the same under every `@nxgt/mail` in
 the range, and **the build checks that it will**: a renderer reads every
-manifest format up to its own, `@nxgt/mail` 0.1.0 reads format 1, and
+manifest format up to its own, `@nxgt/mail` 1.1.0 reads format 1, and
 `scripts/build-mail.ts` fails unless the manifest's `formatVersion` is
 `@nxgt/mail-i18n`'s `MANIFEST_FORMAT` and at most `PEER_FLOOR_READS`, 1. A new
 format from `@nxgt/mail-i18n` therefore fails the build here until the peer's
@@ -428,7 +428,7 @@ pinned exact and **direct** — under Bun's isolated install, a Tailwind that is
 only another package's dependency fails silently, and the build succeeds with
 no styles. The Maizzle project is `packages/janus-mail/mail/`; the package's
 `build` runs `scripts/build-mail.ts` (Maizzle, then checks that the manifest's format is one
-`@nxgt/mail` 0.1.0 reads and that exactly the
+`@nxgt/mail` 1.1.0 reads and that exactly the
 fourteen e-mails were built, then writes the generated files) before `../../build.ts`. No `postinstall`: nothing
 runs in a consumer's install. The run-time side is `@nxgt/mail`'s renderer,
 a peer. The `maizzle` bin runs on the `node` on the `PATH`, even under
@@ -440,9 +440,8 @@ the mail build fails, while sending stays on Node 20 or later.
 path from `import.meta.url` breaks once an application bundles the package, so
 `scripts/build-mail.ts` writes every file of `packages/janus-mail/mails/`
 (gitignored, not in `files`) into `src/generated/inline-mails.ts`, which
-`src/mails.ts` imports. `@nxgt/mail`'s renderer reads a folder only, so the
-first render writes them to a private `mkdtemp` folder, creates the renderer
-and removes the folder — temporary, until softistx/nxgt-mail#112. The package's
+`src/mails.ts` imports. The first render passes them to `@nxgt/mail`'s renderer
+as `createMailRenderer({ files })`, from memory. The package's
 `bundled.spec.ts` bundles an entry with `bun build` and runs it; the artifact
 spec renders from `dist/` alone.
 
@@ -606,14 +605,14 @@ The table that exists so a duplication is a decision rather than an accident.
   `bun.lock`. The peer is any lowercase npm name, scoped (`@nxgt/mongo`) or
   not (`graphql`) — an old name with capitals, such as `JSONStream`, is
   refused; so is a malformed one, or a version other than an exact one, before
-  anything is fetched. It runs `@nxgt/mail` 0.1.0 under
+  anything is fetched. It runs `@nxgt/mail` 1.1.0 under
   `janus-mail`, and `@nxgt/mongo` 0.17.0 under `janus-mongo` and the kit's
   mongo specs, `@nxgt/redis` 0.3.1 under `janus-redis`, `janus-webhooks-redis`
   and the kit, `@nxgt/drizzle` 0.6.1 under `janus-drizzle` and the kit, and
   `@nxgt/telemetry` 0.2.1 under `janus-telemetry` and the kit (added when the
   lock moved off those floors, 2026-10-11). A lock bump that lifts another
   peer above its floor adds a step here. Locally, the command the step runs, for instance
-  `bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
+  `bun scripts/run-on-peer-floor.ts @nxgt/mail@1.1.0 janus-mail --
   bash -c 'cd packages/janus-mail && bun test src scripts && bun run typecheck'`;
   a link it refuses as left by an interrupted run is fixed by `bun install`.
   A floor the rest of the workspace also resolves cannot be linked over:

@@ -45,7 +45,7 @@ describe('formatProblem', () => {
 		expect(formatProblem(built(1), 1)).toBeNull();
 	});
 
-	test("reads format 1 as all @nxgt/mail 0.1.0, the peer's floor, reads", () => {
+	test("reads format 1 as all @nxgt/mail 1.1.0, the peer's floor, reads", () => {
 		expect(PEER_FLOOR_READS).toBe(1);
 	});
 
@@ -61,7 +61,7 @@ describe('formatProblem', () => {
 
 	test("refuses a format newer than the peer's floor reads", () => {
 		expect(formatProblem(built(2), 2)).toBe(
-			"build-mail: mails/mail-manifest.json is manifest format 2, and @nxgt/mail 0.1.0, the peer's floor, reads up to 1 — raise the @nxgt/mail peer's floor to the first version that reads it",
+			"build-mail: mails/mail-manifest.json is manifest format 2, and @nxgt/mail 1.1.0, the peer's floor, reads up to 1 — raise the @nxgt/mail peer's floor to the first version that reads it",
 		);
 		expect(formatProblem(built(2), 2, 2)).toBeNull();
 	});

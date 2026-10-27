@@ -251,7 +251,7 @@ jobs:
   # Valkey; and @nxgt/janus-kit's drizzle specs, whose Redis is real, on Redis
   # 7.0 as well, since it promises the same floor. Each server floor is the
   # newest patch of its line. And, at the end of the job, the library peers'
-  # floors, `@nxgt/mail` 0.1.0, `@nxgt/mongo` 0.17.0, `@nxgt/redis` 0.3.1,
+  # floors, `@nxgt/mail` 1.1.0, `@nxgt/mongo` 0.17.0, `@nxgt/redis` 0.3.1,
   # `@nxgt/drizzle` 0.6.1, `@nxgt/telemetry` 0.2.1, and @nxgt/janus-graphql's
   # graphql 16.9.0, `@envelop/core` 5.0.0, `@graphql-tools/utils` 10.0.0 and
   # graphql-ws 6.0.0 — each the exact lower bound of its peer range, not the
@@ -347,16 +347,16 @@ jobs:
       # The library floors. Every `@nxgt/*` peer is `>=<floor> <1`, and the
       # job above runs the version bun.lock holds, npm's latest when the lock
       # was last refreshed; the newest end is the `Newest peers` job's. Every
-      # floor sits below the lock — `@nxgt/mail` 0.1.0, `@nxgt/mongo` 0.17.0,
+      # floor sits below the lock — `@nxgt/mail` 1.1.0, `@nxgt/mongo` 0.17.0,
       # `@nxgt/redis` 0.3.1, `@nxgt/drizzle` 0.6.1 and `@nxgt/telemetry`
       # 0.2.1 — so each runs here. The script points
       # the named packages' link to the peer at the floor's tarball, fetched
       # from npm outside the lock, runs the command, and puts the links back;
       # package.json and bun.lock are never touched. Typecheck too: a floor
       # can lack a type the code names, and only tsc says so.
-      - name: Run janus-mail on @nxgt/mail 0.1.0
+      - name: Run janus-mail on @nxgt/mail 1.1.0
         run: >-
-          bun scripts/run-on-peer-floor.ts @nxgt/mail@0.1.0 janus-mail --
+          bun scripts/run-on-peer-floor.ts @nxgt/mail@1.1.0 janus-mail --
           bash -c 'set -e; cd packages/janus-mail; bun test src scripts; bun run typecheck'
       # The mongod the job above caches, under a key of its own: that job runs
       # on ubuntu-latest and this one on 24.04, and mongodb-memory-server

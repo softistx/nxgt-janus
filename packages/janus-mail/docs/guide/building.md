@@ -102,13 +102,13 @@ The build's messages for the codes left:
 
 ## The manifest's format keeps the peer honest
 
-The package peers `@nxgt/mail` at `>=0.1.0 <2`, so the build it ships must
-be readable by `@nxgt/mail` 0.1.0 — the peer's floor, which the package's
+The package peers `@nxgt/mail` at `>=1.1.0 <2`, so the build it ships must
+be readable by `@nxgt/mail` 1.1.0 — the peer's floor, which the package's
 specs and its typecheck run on in the Floors job, on every CI run. The
 manifest says which format it is in — `formatVersion`, its first key,
 `MANIFEST_FORMAT` of the `@nxgt/mail-i18n` that built it — and a renderer
 reads every format up to its own.
-`@nxgt/mail` 0.1.0 through 1.0.2 read format 1, `@nxgt/mail-i18n` 1.0.2
+`@nxgt/mail` 1.1.0 reads format 1, `@nxgt/mail-i18n` 1.0.2
 still writes it, and a manifest without the field is format 1.
 
 `formatProblem` in `scripts/build-mail.ts` (spec'd beside it) fails the build
@@ -117,7 +117,7 @@ when:
 | Message | Cause | Fix |
 | --- | --- | --- |
 | `build-mail: mails/mail-manifest.json is manifest format 2, where @nxgt/mail-i18n writes 1 — a mails/ left by another build; run the build again` | `mails/` is not what this `@nxgt/mail-i18n` wrote | Run `bun run build:mail` again |
-| `build-mail: mails/mail-manifest.json is manifest format 2, and @nxgt/mail 0.1.0, the peer's floor, reads up to 1 — raise the @nxgt/mail peer's floor to the first version that reads it` | A new `@nxgt/mail-i18n` writes a format the floor cannot read | Raise the peer's floor, then `PEER_FLOOR_READS` with it |
+| `build-mail: mails/mail-manifest.json is manifest format 2, and @nxgt/mail 1.1.0, the peer's floor, reads up to 1 — raise the @nxgt/mail peer's floor to the first version that reads it` | A new `@nxgt/mail-i18n` writes a format the floor cannot read | Raise the peer's floor, then `PEER_FLOOR_READS` with it |
 
 `PEER_FLOOR_READS` is a constant, `1`, rather than `MANIFEST_FORMAT` from
 `@nxgt/mail/renderer`: the devDependency is newer than the floor, and
@@ -180,10 +180,9 @@ own file (`bun build`, esbuild, Vite) takes them along, and needs no `mails/`
 folder at run time; an earlier version resolved `new URL('../mails/',
 import.meta.url)`, which a bundle moved.
 
-`@nxgt/mail`'s renderer reads a folder, so the first render writes the inlined
-files to a private `mkdtemp` folder under `os.tmpdir()`, creates the renderer
-(which reads everything), and removes the folder — a workaround until
-softistx/nxgt-mail#112 lets it take the files.
+The first render hands the inlined files to `@nxgt/mail`'s renderer from
+memory, `createMailRenderer({ files })` (`@nxgt/mail` 1.1.0 or later); nothing
+is written to disk.
 `src/bundled.spec.ts` bundles a tiny entry with `bun build` and runs it.
 `mails/` is no longer in `files`.
 
