@@ -1,5 +1,12 @@
 # @nxgt/janus-hono
 
+## 0.7.14
+
+### Patch Changes
+
+- Updated dependencies [[`4399268`](https://github.com/softistx/nxgt-janus/commit/43992681462f21aa54f26016e68dd955cbefe06e)]:
+  - @nxgt/janus@0.31.0
+
 ## 0.7.13
 
 ### Patch Changes
