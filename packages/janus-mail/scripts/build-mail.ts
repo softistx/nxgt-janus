@@ -24,7 +24,7 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { MANIFEST_FORMAT as PEER_FLOOR_READS } from '@nxgt/mail/renderer';
+import { MANIFEST_FORMAT as PEER_MANIFEST_FORMAT } from '@nxgt/mail/renderer';
 import { MANIFEST_FORMAT } from '@nxgt/mail-i18n';
 import { $ } from 'bun';
 import { branchesOf, codesLeftMessage, codesLeftModule } from './codes-left';
@@ -62,7 +62,6 @@ const CODES_LEFT_MODULE = fileURLToPath(
 	new URL('../src/generated/codes-left.ts', import.meta.url),
 );
 
-
 /** The part of the manifest this script reads. */
 interface BuiltManifest {
 	readonly formatVersion?: unknown;
@@ -80,7 +79,7 @@ interface BuiltManifest {
 export function formatProblem(
 	manifest: BuiltManifest,
 	written: number,
-	readable: number = PEER_FLOOR_READS,
+	readable: number = PEER_MANIFEST_FORMAT,
 ): string | null {
 	const format = manifest.formatVersion;
 	if (format !== written) {
