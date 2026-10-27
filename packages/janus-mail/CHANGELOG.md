@@ -1,5 +1,11 @@
 # @nxgt/janus-mail
 
+## 0.13.0
+
+### Minor Changes
+
+- [#288](https://github.com/softistx/nxgt-janus/pull/288) [`75aee5b`](https://github.com/softistx/nxgt-janus/commit/75aee5ba51f15bbbc81f7db66882624e6360e3db) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Render the default e-mails from memory: the inlined templates go to `@nxgt/mail`'s `createMailRenderer({ files })`, so nothing is written to a temporary folder and `TMPDIR` no longer has to be writable. The `@nxgt/mail` peer floor rises to `>=1.1.0 <2`.
+
 ## 0.12.0
 
 ### Minor Changes
