@@ -26,6 +26,7 @@ interface EmailOf {
 	readonly recoveryCodeUsed: 'recovery-code-used';
 	readonly newSignIn: 'new-sign-in';
 	readonly welcome: 'welcome';
+	readonly signUpAttempted: 'sign-up-attempted';
 }
 
 type Equal<A, B> =
@@ -39,7 +40,7 @@ type Promised = {
 };
 type Built = { readonly [E in keyof MailEmails]: keyof MailEmails[E] };
 
-/** The same thirteen e-mails, each with the same variables. */
+/** The same fourteen e-mails, each with the same variables. */
 export const sameVariables: Equal<Promised, Built> = true;
 
 /** Every variable a template is given is one the build's renderer accepts. */
@@ -61,4 +62,5 @@ export const accepted: {
 	recoveryCodeUsed: true,
 	newSignIn: true,
 	welcome: true,
+	signUpAttempted: true,
 };

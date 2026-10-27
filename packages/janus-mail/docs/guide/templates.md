@@ -1,7 +1,7 @@
 # Templates
 
 This page is for changing what an e-mail says or looks like: what a template
-is given and answers, replacing some of the thirteen, using the defaults on their
+is given and answers, replacing some of the fourteen, using the defaults on their
 own, and what the defaults say.
 
 ```ts
@@ -72,13 +72,14 @@ e-mail.
 | `recoveryCodeUsed` | `brand`, `name`, `when`, `recoveryCodesLeft`, `link` | `mail.recoveryCodeUsed(to, { when, recoveryCodesLeft })` |
 | `newSignIn` | `brand`, `name`, `device`, `location`, `time`, `link` | `mail.newSignIn(to, { device, time, location? })` |
 | `welcome` | `brand`, `name`, `link` | `mail.welcome(to)` |
+| `signUpAttempted` | `brand`, `name`, `device`, `time`, `link` | `mail.signUpAttempted(to, { device?, time? })` |
 
 Every one also gets `locale`, one of `locales`. Every value is a string:
 `brand` from the options, `name` from the recipient, `link` from `links` —
 `links.secureAccount()` for the notices other than `recoveryCodeUsed` and
 for `stepUp`, `links.recoveryCodes()` (else
 `links.secureAccount()`) for `recoveryCodeUsed`, `links.getStarted()` for
-`welcome` — `code`, `newEmail`, `when`, `device` and `time` from the
+`welcome` and `signUpAttempted` — `code`, `newEmail`, `when`, `device` and `time` from the
 call, `location` from the call or, without one, "Unknown" in the
 send's locale — "Inconnu" in `fr`; for another locale, its
 language's text when it is `en` or `fr` (`fr-CA`), else `en`'s — and `expiresIn` derived from the flow's `expiresAt` in the locale, or
@@ -131,12 +132,12 @@ methods live on its prototype and are refused — see
 [troubleshooting](../troubleshooting.md#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-).
 
 `templates` is `Partial` while `locales` stays within `en` and `fr`: give
-any of the thirteen, and the defaults render the rest. Once `locales` holds
-another locale, it takes **all thirteen** — `stepUp` included, since 0.8,
+any of the fourteen, and the defaults render the rest. Once `locales` holds
+another locale, it takes **all fourteen** — `stepUp` included, since 0.8,
 `newSignIn`, since 0.9, and `changeEmail`, since 0.10 — see
 [Adding a locale](locales.md#adding-a-locale).
 
-`mail.templates` answers the thirteen in use — yours, and the defaults for the
+`mail.templates` answers the fourteen in use — yours, and the defaults for the
 rest — frozen:
 
 ```ts
@@ -158,7 +159,7 @@ const { subject, html, text } = await defaults.resetPassword({
 });
 ```
 
-It answers the thirteen defaults, typed for `'en' | 'fr'`, without a mailer:
+It answers the fourteen defaults, typed for `'en' | 'fr'`, without a mailer:
 to preview an e-mail, to wrap one — add a line to the default text, say — or
 to send one through something other than `janusMail()`. A default reused for
 a wider set of locales is a compile error: it could not render the one it
@@ -201,6 +202,7 @@ The defaults are [`@nxgt/mail-presets`](https://www.npmjs.com/package/@nxgt/mail
 | `recoveryCodeUsed` | `recovery-code-used` | A recovery code was used on your account | Un code de récupération a été utilisé sur votre compte |
 | `newSignIn` | `new-sign-in` | New sign-in to your account | Nouvelle connexion à votre compte |
 | `welcome` | `welcome` | Welcome, `Ada` | Bienvenue, `Ada` |
+| `signUpAttempted` | `sign-up-attempted` | Someone tried to sign up with your e-mail address | Quelqu'un a tenté de s'inscrire avec votre adresse e-mail |
 
 Each has a header and a footer with the brand, a heading, a greeting by name
 (but `signInCode` and `magicLink`), a button with its link and the link again in text for a

@@ -139,4 +139,4 @@ Built-in locales for more languages are on the [roadmap](../roadmap.md).
 
 - `@nxgt/mail`'s [locales guide](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail/docs/guide/locales.md)
   — `pickLocale` and `parseAcceptLanguage` in full.
-- [Templates](templates.md) — writing the thirteen for a new locale.
+- [Templates](templates.md) — writing the fourteen for a new locale.

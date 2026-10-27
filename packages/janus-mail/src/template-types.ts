@@ -116,9 +116,22 @@ export interface JanusMailVariables {
 		readonly name: string;
 		readonly link: string;
 	};
+	/**
+	 * `device` and `time` are the sender's text, in the recipient's locale;
+	 * where the sender knew neither, "Unknown" in the send's locale. `name` is
+	 * the existing account's, never the one typed by whoever tried. `link` is
+	 * where the owner signs in or resets the password.
+	 */
+	readonly signUpAttempted: {
+		readonly brand: string;
+		readonly name: string;
+		readonly device: string;
+		readonly time: string;
+		readonly link: string;
+	};
 }
 
-/** The name of one of the thirteen templates: `verifyEmail`, `resetPassword`, … */
+/** The name of one of the fourteen templates: `verifyEmail`, `resetPassword`, … */
 export type JanusMailTemplateName = keyof JanusMailVariables;
 
 /**
@@ -131,7 +144,7 @@ export type JanusMailTemplate<V, L extends string = JanusMailLocale> = (
 	variables: V & { readonly locale: L },
 ) => Rendered | PromiseLike<Rendered>;
 
-/** The thirteen templates, each for the locales `L`. */
+/** The fourteen templates, each for the locales `L`. */
 export type JanusMailTemplates<L extends string = JanusMailLocale> = {
 	readonly [K in JanusMailTemplateName]: JanusMailTemplate<
 		JanusMailVariables[K],

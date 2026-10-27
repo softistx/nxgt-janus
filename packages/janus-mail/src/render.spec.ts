@@ -53,6 +53,11 @@ const sends: Record<
 		),
 	welcome: (mail, locale) =>
 		mail.welcome({ name, locale, email: 'ada@example.com' }),
+	signUpAttempted: (mail, locale) =>
+		mail.signUpAttempted(
+			{ name, locale, email: 'ada@example.com' },
+			{ device: 'Firefox on macOS', time: '29/09/2026 09:12' },
+		),
 };
 
 const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
@@ -110,6 +115,10 @@ const subjects: Record<JanusMailTemplateName, { en: string; fr: string }> = {
 		en: 'Welcome, Ada <3',
 		fr: 'Bienvenue, Ada <3',
 	},
+	signUpAttempted: {
+		en: 'Someone tried to sign up with your e-mail address',
+		fr: "Quelqu'un a tenté de s'inscrire avec votre adresse e-mail",
+	},
 };
 
 /** A line break after a colon, before a line that is an address alone. */
@@ -148,7 +157,11 @@ describe('the default e-mails', () => {
 				const text = options.mailer.sent[0]?.text ?? '';
 				for (const paragraph of text.trim().split('\n\n')) {
 					// The summary's rows are lines of one paragraph, checked below.
-					if (template === 'newSignIn' && paragraph.includes('\n')) continue;
+					if (
+						(template === 'newSignIn' || template === 'signUpAttempted') &&
+						paragraph.includes('\n')
+					)
+						continue;
 					// An address may sit on its own line after its sentence's colon.
 					expect(paragraph.replace(ADDRESS_LINE, ': ')).not.toContain('\n');
 				}

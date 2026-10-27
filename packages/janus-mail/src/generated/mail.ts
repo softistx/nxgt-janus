@@ -12,6 +12,7 @@ export interface MailEmails {
 	"recovery-code-used": { readonly brand: string | number; readonly link: string; readonly name: string | number; readonly recoveryCodesLeft: string | number; readonly when: string | number };
 	"reset-password": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };
 	"sign-in-code": { readonly brand: string | number; readonly code: string | number; readonly expiresIn: string | number };
+	"sign-up-attempted": { readonly brand: string | number; readonly device: string | number; readonly link: string; readonly name: string | number; readonly time: string | number };
 	"two-factor-disabled": { readonly brand: string | number; readonly link: string; readonly name: string | number };
 	"two-factor-enabled": { readonly brand: string | number; readonly link: string; readonly name: string | number };
 	"verify-email": { readonly brand: string | number; readonly expiresIn: string | number; readonly link: string; readonly name: string | number };

@@ -3,7 +3,7 @@
 The e-mails of [`@nxgt/janus`](https://www.npmjs.com/package/@nxgt/janus)'s
 flows, ready to send: **e-mail verification, password reset, sign-in code,
 sign-in link, a step-up's confirmation code, password changed, e-mail changed, two-factor authentication turned on or
-off, a recovery code used, a sign-in from a new device, and a welcome to a new user**, in English and
+off, a recovery code used, a sign-in from a new device, a welcome to a new user, and a sign-up attempted on an existing address**, in English and
 French, with your brand
 in them. `@nxgt/janus` sends no e-mail — its flows answer what to send — and
 this package turns that answer into an e-mail and hands it to any
@@ -66,10 +66,10 @@ needs Node `^22.22.3`, `^24.15.0` or `>=26`, for Maizzle — see
 
 | Export | What it is |
 | --- | --- |
-| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `changeEmail`, `stepUp`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `newSignIn`, `welcome`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?`, `magicLink?` and `changeEmail?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
-| `janusTemplates()` | The thirteen default templates alone, each `(variables & { locale }) => Rendered` |
+| `janusMail(options)` | The e-mails, over your mailer: `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `changeEmail`, `stepUp`, `passwordChanged`, `emailChanged`, `twoFactorEnabled`, `twoFactorDisabled`, `recoveryCodeUsed`, `newSignIn`, `welcome`, `signUpAttempted`, and `templates` and `locales`. Options: `mailer`, `from`, `replyTo?`, `brand`, `links` (`verifyEmail`, `resetPassword`, `secureAccount`, `getStarted`, and `recoveryCodes?`, `magicLink?` and `changeEmail?`), `locales?`, `fallbackLocale?`, `templates?`, `clock?`. A wrong option is a bare `TypeError`, thrown here |
+| `janusTemplates()` | The fourteen default templates alone, each `(variables & { locale }) => Rendered` |
 | `JanusMail<L>`, `JanusMailOptions<L>` | What `janusMail()` answers and takes, for the locales `L` |
-| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the thirteen of them, and their names |
+| `JanusMailTemplate<V, L>`, `JanusMailTemplates<L>`, `JanusMailTemplateName` | One template, the fourteen of them, and their names |
 | `JanusMailVariables` | What each template is given: `brand`, and `name`, `link`, `code`, `expiresIn`, `newEmail`, `when`, `recoveryCodesLeft`, or `device`, `time` and `location`, as its e-mail needs |
 | `JanusMailSendOptions` | The third argument of `verifyEmail`, `resetPassword`, `signInCode`, `magicLink`, `changeEmail` and `stepUp`: `{ expiresIn? }`, the expiry as text, over the one derived |
 | `JanusMailLocale` | `'en' \| 'fr'`: the locales the defaults are built in |
@@ -98,6 +98,7 @@ class. To retry a `MailFailure` or trace each send, wrap the mailer you pass:
 | `recoveryCodeUsed(to, { when, recoveryCodesLeft })` | A notice: a recovery code was used, `when`, and how many are left — "You have 9 recovery codes left." — with `links.recoveryCodes()`, else `links.secureAccount()` | `to.email` |
 | `newSignIn(to, { device, time, location? })` | A notice: the account was signed in from a new device — which device, `time`, and `location`, "Unknown" ("Inconnu") when left out — with `links.secureAccount()` | `to.email` |
 | `welcome(to)` | A welcome to a new user — "Welcome, Ada" — with `links.getStarted()` | `to.email` |
+| `signUpAttempted(to, { device?, time? }?)` | To the owner of an address someone tried to sign up with, which already has an account — with `links.getStarted()`; "Unknown" for a device or time you do not give | `to.email` |
 
 The six e-mails of a link or a code say how long it lasts — "This link
 expires in 1 hour.", "Ce lien expire dans 1 heure." — from the flow's
@@ -470,7 +471,7 @@ and are refused with a `TypeError`; its fields (`signInCode = (variables) =>
 …`) pass.
 
 **A locale beyond `en` and `fr` needs every template.** The defaults are
-built in those two only, so `locales: ['en', 'fr', 'de']` without all thirteen
+built in those two only, so `locales: ['en', 'fr', 'de']` without all fourteen
 templates — `recoveryCodeUsed` included, since 0.5, `magicLink`, since
 0.7, `stepUp`, since 0.8, `newSignIn`, since 0.9, and `changeEmail`, since 0.10 — is a compile error, and a `TypeError` in JavaScript.
 
@@ -549,7 +550,7 @@ the e-mail change notice sent on its event, 35 and 36;
 four of the sign-in link, 37 to 40;
 [`test/types/step-up-refusals.ts`](test/types/step-up-refusals.ts) the six
 of the step-up's code, 41 to 46, beside the names of the templates, held to
-the thirteen;
+the fourteen;
 [`test/types/new-sign-in-refusals.ts`](test/types/new-sign-in-refusals.ts)
 the four of the new sign-in notice, 47 to 50; and
 [`test/types/change-email-refusals.ts`](test/types/change-email-refusals.ts)
