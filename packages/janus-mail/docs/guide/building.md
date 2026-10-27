@@ -34,7 +34,7 @@ packages/janus-mail/
     maizzle.config.ts      presets({ only: the 9 }), ui(), i18n()
     locales/en.json        {} — the presets' messages, unchanged
     locales/fr.json
-  mails/                   what the build wrote — shipped, never committed
+  mails/                   what the build wrote — inlined into dist/, never committed or shipped
     mail-manifest.json
     en/verify-email.html   en/verify-email.txt   …
     fr/verify-email.html   fr/verify-email.txt   …
@@ -44,6 +44,7 @@ packages/janus-mail/
     mail.ts                MailEmails: each e-mail and its variables
     locales.ts             LOCALES and JanusMailLocale
     codes-left.ts          CODES_LEFT: the plural of the recovery codes left
+    inline-mails.ts        INLINE_MAILS: every file of mails/ as a string — never committed
 ```
 
 ## What `build:mail` does
@@ -170,32 +171,30 @@ The presets'
 [Upgrading](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-presets/docs/troubleshooting.md#upgrading)
 entry lists every old and new key.
 
-## Why `mails/` is not in `dist/`
+## Why the e-mails are inlined in `dist/`
 
-The root `build.ts` removes from `dist/` every file it did not write itself,
-so a module moved or deleted never ships. The built e-mails would be removed
-on every TypeScript build. They live beside it, in `mails/`, listed in
-`files`, and ignored by the package's `.gitignore`.
+`scripts/build-mail.ts` writes every file of `mails/` as a string into
+`src/generated/inline-mails.ts`, which `src/mails.ts` imports, so the e-mails
+travel inside the JavaScript. An application that bundles the package into its
+own file (`bun build`, esbuild, Vite) takes them along, and needs no `mails/`
+folder at run time; an earlier version resolved `new URL('../mails/',
+import.meta.url)`, which a bundle moved.
 
-`src/mails.ts` resolves the folder from its own URL,
-`new URL('../mails/', import.meta.url)`, which is right from `src/` in the
-specs and from `dist/index.js` in the tarball — because the module sits
-directly under `src/` and the package has one entry point. A second entry
-point would move it into `dist/chunks/`, one level deeper: the artifact spec
-renders from `../dist` and would fail.
-
-`scripts/verify-artifacts.ts` checks that every `files` entry is in the
-packed tarball, so a `mails/` that was not built, or that a packer left out,
-fails before a release.
+`@nxgt/mail`'s renderer reads a folder, so the first render writes the inlined
+files once to `<tmpdir>/nxgt-janus-mail-<hash of the content>/`, aside and
+renamed into place, and every later process of the same build reuses it.
+`src/bundled.spec.ts` bundles a tiny entry with `bun build` and runs it.
+`mails/` is no longer in `files`.
 
 ## What is committed
 
 | Path | Committed | Why |
 | --- | --- | --- |
 | `mail/` | yes | The source of the build |
-| `mails/` | no | Rebuilt by every build; shipped in the tarball |
+| `mails/` | no | Rebuilt by every build; inlined into `dist/`, not shipped |
+| `src/generated/inline-mails.ts` | no | `mails/` as strings, rebuilt by every build |
 | `mail/.maizzle/` | no | Maizzle's own generated files |
-| `src/generated/` | yes | So the package type-checks without a Maizzle build. CI rebuilds it and runs `git diff --exit-code` on it: a stale copy fails. `generated/mail.ts`'s header says *never committed* — `@nxgt/mail-i18n`'s advice to an application; this package commits it on purpose |
+| the rest of `src/generated/` | yes | So the package type-checks without a Maizzle build. CI rebuilds it and runs `git diff --exit-code` on it: a stale copy fails. `generated/mail.ts`'s header says *never committed* — `@nxgt/mail-i18n`'s advice to an application; this package commits it on purpose |
 
 ## See also
 

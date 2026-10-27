@@ -1,6 +1,6 @@
 /**
- * The built artifact, as a consumer loads it: `dist/index.js` resolving
- * `../mails/` from where it sits. Run after `bun run build`, as CI does.
+ * The built artifact, as a consumer loads it: `dist/index.js`, with the
+ * e-mails inlined. Run after `bun run build`, as CI does.
  */
 import { afterAll, describe, expect, test } from 'bun:test';
 import { cp, mkdtemp, rm } from 'node:fs/promises';
@@ -18,7 +18,7 @@ await cp(join(PACKAGE_DIR, 'dist'), join(bare, 'dist'), { recursive: true });
 afterAll(() => rm(bare, { recursive: true, force: true }));
 
 describe('the built artifact', () => {
-	test('renders a default e-mail from the mails/ shipped beside dist/', async () => {
+	test('renders a default e-mail', async () => {
 		const { janusMail } = await import('../dist/index');
 		const mailer = createMemoryMailer();
 		await janusMail({
@@ -34,22 +34,16 @@ describe('the built artifact', () => {
 		expect(sent?.html).not.toContain('{{');
 	});
 
-	test('importing reads nothing: without mails/, only the first default e-mail fails', async () => {
+	test('dist/ alone, with no mails/ anywhere, still renders: the e-mails are inlined', async () => {
 		const { janusMail } = await import(join(bare, 'dist', 'index.js'));
 		const mailer = createMemoryMailer();
-		const mail = janusMail({
+		await janusMail({
 			mailer,
 			from: 'noreply@acme.example',
 			brand: 'Acme',
 			links,
 			clock: fixedClock(issuedAt),
-		});
-		const error = await mail.signInCode(signIn).then(
-			() => null,
-			(e: unknown) => e,
-		);
-		expect(error).toBeInstanceOf(Error);
-		expect((error as Error).message).toStartWith('createMailRenderer: ');
-		expect(mailer.attempts).toBe(0);
+		}).signInCode(signIn);
+		expect(mailer.sent).toHaveLength(1);
 	});
 });
