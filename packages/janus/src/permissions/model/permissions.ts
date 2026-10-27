@@ -3,7 +3,7 @@
 import type { Can } from './can';
 import type { ModelConfig } from './config';
 import type { PermissionModel } from './define';
-import type { Grant, Replace } from './grant';
+import type { Grant, Holders, Replace } from './grant';
 import type { List } from './list';
 
 /** What `permissions()` answers. */
@@ -22,6 +22,14 @@ export interface Permissions<C extends ModelConfig> {
 	 * A failure throws, as for `can()`.
 	 */
 	readonly list: List<C>;
+	/**
+	 * The single entities holding `relation` on `object`, ordered by type then
+	 * id, by pages (`first`, `after`), optionally filtered by `search` (a text
+	 * their id contains) and `matches` (a predicate, for the holder's email or
+	 * name). `nextCursor` is `null` on the last page. A subject set is not
+	 * listed. A failure throws, as for `list()`.
+	 */
+	readonly holders: Holders<C>;
 	/** Stores that `subject` holds `relation` on `object`. Idempotent. */
 	readonly grant: Grant<C>;
 	/** Removes it. Idempotent: revoking what is not held is not an error. */

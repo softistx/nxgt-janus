@@ -49,6 +49,18 @@ function outage(
 	};
 }
 
+/** A case about an optional method: passes for a store that does not have it. */
+function optional(relationCase: RelationCase): RelationCase {
+	const method = relationCase.id.slice('outage.'.length) as RelationMethod;
+	return {
+		...relationCase,
+		async run(context) {
+			if (context.store[method] === undefined) return;
+			await relationCase.run(context);
+		},
+	};
+}
+
 const seededObject: Entity = { type: 'record', id: 'seeded' };
 const seededSubject: Entity = { type: 'staff', id: 'seeded' };
 const seeded = tuple(seededObject, 'viewer', seededSubject);
@@ -80,6 +92,17 @@ export const relationOutageCases: readonly RelationCase[] = [
 		store.findSubjectSets(seededObject, 'viewer'),
 	),
 	outage('findEntities', (store) => store.findEntities(seededObject, 'viewer')),
+	optional(
+		outage('findHolders', (store) =>
+			(store.findHolders as NonNullable<typeof store.findHolders>)({
+				object: seededObject,
+				relation: 'viewer',
+				after: null,
+				limit: 10,
+				search: null,
+			}),
+		),
+	),
 	outage('findObjects', (store) =>
 		store.findObjects({
 			type: 'record',

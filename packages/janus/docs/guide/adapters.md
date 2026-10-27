@@ -32,7 +32,7 @@ describeJanusStores({
 | Port | Taken by | Methods |
 | --- | --- | --- |
 | `JanusStores` — `{ users: UserStore, sessions: SessionStore, tokens: TokenStore }` | `janus({ store })` | 6 (+ 1 optional) + 7 (+ 1 optional) + 5 (+ 1 optional) |
-| `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 |
+| `RelationStore` | `permissions({ store })`, `janus({ relations })` | 6 (+ 1 optional) |
 
 They are separate on purpose: an application that only authenticates
 implements nothing for permissions, and each of the three user slots may come
@@ -421,6 +421,7 @@ interface RelationStore {
 	has(tuple: RelationTuple): Promise<boolean>;
 	findSubjectSets(object: Entity, relation: string): Promise<readonly SubjectSet[]>;
 	findEntities(object: Entity, relation: string): Promise<readonly Entity[]>;
+	findHolders?(request: HolderPageRequest): Promise<CursorPage<Entity>>;
 	findObjects(page: ObjectPageRequest): Promise<CursorPage<string>>;
 	deleteEntity(entity: Entity): Promise<number>;
 }
@@ -428,6 +429,12 @@ interface RelationStore {
 
 One-hop questions about stored tuples, never a permission: the traversal is
 the core's. `write` is **all or nothing**, removals first, and idempotent.
+`findHolders` is **optional**: the page `access.holders()` reads, of the single
+entities holding a relation on an object, ordered by type then id, after the
+cursor `holderCursor` minted (`readHolderCursor` refuses any other), and whose
+id contains `search` — a literal, ignoring case. A store without it is served by
+the core from `findEntities`, in memory; an adapter over a database implements
+it. `pageOfHolders` is the reference. The relation suite checks it when present.
 `findObjects` is the reverse index `list()` walks, in ascending id order.
 `deleteEntity` removes every tuple naming the entity as object, as subject,
 and as the entity of a subject set.

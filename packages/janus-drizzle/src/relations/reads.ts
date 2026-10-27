@@ -4,8 +4,23 @@ import type {
 	RelationTuple,
 	SubjectSet,
 } from '@nxgt/janus';
-import type { ObjectPageRequest } from '@nxgt/janus/permissions';
-import { and, asc, eq, gt, isNotNull, isNull } from 'drizzle-orm';
+import {
+	type HolderPageRequest,
+	holderCursor,
+	type ObjectPageRequest,
+	readHolderCursor,
+} from '@nxgt/janus/permissions';
+import {
+	and,
+	asc,
+	eq,
+	gt,
+	isNotNull,
+	isNull,
+	or,
+	type SQL,
+	sql,
+} from 'drizzle-orm';
 import type { RelationContext } from './context';
 import { matching, subjectIs } from './tuples';
 
@@ -43,6 +58,55 @@ export async function findEntities(
 	return (await holding(context, object, relation, false)).map(
 		(row): Entity => ({ type: row.type, id: row.id }),
 	);
+}
+
+/**
+ * A page of the entities holding a relation, by type then id, after the
+ * cursor, whose id contains the search (`strpos`, so a literal, and `lower`,
+ * which folds ASCII under the `C` collation the columns use).
+ */
+export async function findHolders(
+	{ db, relations }: RelationContext,
+	{ object, relation, after, limit, search }: HolderPageRequest,
+): Promise<CursorPage<Entity>> {
+	const from = after === null ? null : readHolderCursor('findHolders', after);
+	const conditions: (SQL | undefined)[] = [
+		eq(relations.objectType, object.type),
+		eq(relations.objectId, object.id),
+		eq(relations.relation, relation),
+		isNull(relations.subjectRelation),
+	];
+	if (search !== null) {
+		conditions.push(
+			sql`strpos(lower(${relations.subjectId}), lower(${search})) > 0`,
+		);
+	}
+	if (from !== null) {
+		conditions.push(
+			or(
+				gt(relations.subjectType, from.type),
+				and(
+					eq(relations.subjectType, from.type),
+					gt(relations.subjectId, from.id),
+				),
+			),
+		);
+	}
+	const found = await db
+		.select({ type: relations.subjectType, id: relations.subjectId })
+		.from(relations)
+		.where(and(...conditions))
+		.orderBy(asc(relations.subjectType), asc(relations.subjectId))
+		.limit(limit + 1);
+	const items = found
+		.slice(0, limit)
+		.map((row): Entity => ({ type: row.type, id: row.id }));
+	const last = items.at(-1);
+	return {
+		items,
+		nextCursor:
+			found.length > limit && last !== undefined ? holderCursor(last) : null,
+	};
 }
 
 /** One hop from an object: its subject sets, or its entities. */

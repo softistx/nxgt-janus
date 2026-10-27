@@ -103,6 +103,7 @@ const RELATION_COMMAND_OF: Record<string, readonly string[]> = {
 	has: ['find'],
 	findSubjectSets: ['find'],
 	findEntities: ['find'],
+	findHolders: ['find'],
 	findObjects: ['find'],
 	deleteEntity: ['delete'],
 };

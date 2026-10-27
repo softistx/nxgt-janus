@@ -1,6 +1,12 @@
 /** What `grant()` and `revoke()` write: the stored relations, and who may hold them. */
 
-import type { NotASet, RelationTuple, SetOf } from '../../subjects/subject';
+import type { CursorPage } from '../../pagination/cursor-page';
+import type {
+	Entity,
+	NotASet,
+	RelationTuple,
+	SetOf,
+} from '../../subjects/subject';
 import type { ModelConfig } from './config';
 import type {
 	ObjectTypeOf,
@@ -59,3 +65,34 @@ export type Replace<C extends ModelConfig> = <
 	relation: R,
 	subjects: readonly HolderOf<C, T, R>[],
 ) => Promise<{ added: RelationTuple[]; removed: RelationTuple[] }>;
+
+/** Which holders a page of `holders()` lists, and how many. */
+export interface HoldersPage {
+	/** The `nextCursor` of the previous page; absent or `null` for the first. */
+	readonly after?: string | null;
+	/** Between 1 and 100; 20 when absent. */
+	readonly first?: number;
+	/** Keeps the holders whose id contains this text, ignoring case. Absent or `''` for all. */
+	readonly search?: string;
+	/**
+	 * Keeps the holders it answers `true` for, asked of each in order until the
+	 * page is full. For what the relation store cannot see: the holder's email
+	 * or name, read from the user store. Paging stays right; a selective
+	 * predicate costs more reads.
+	 */
+	readonly matches?: (holder: Entity) => boolean | Promise<boolean>;
+}
+
+/**
+ * The single entities holding `relation` on `object`, ordered by type then id,
+ * by pages: typed as {@link Grant}'s `object` and `relation`. Subject sets are
+ * not listed. A failure throws, as for `list()`.
+ */
+export type Holders<C extends ModelConfig> = <
+	T extends ObjectTypeOf<C>,
+	R extends GrantableOf<C, T>,
+>(
+	object: { readonly type: T; readonly id: string },
+	relation: R,
+	options?: HoldersPage,
+) => Promise<CursorPage<Entity>>;

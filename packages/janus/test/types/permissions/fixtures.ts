@@ -8,7 +8,7 @@
  * to a permission its target lacks, an object passed without the field a
  * `fromField` reads, a condition asked without its context.
  *
- * **Fifty-two plausible mistakes, fifty-two refused**, numbered across the
+ * **Fifty-seven plausible mistakes, fifty-seven refused**, numbered across the
  * files of this folder, one per behaviour; this one holds only what they
  * share. Each is verified to fail for the reason its comment names — a
  * refusal that fails for another reason proves nothing. Add a case whenever

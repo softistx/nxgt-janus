@@ -1389,6 +1389,16 @@ store must answer every holder of a relation to `findEntities` and
 `findSubjectSets`, since `replace` reads them all; the
 [permissions guide](docs/guide/permissions.md#replace) has the details.
 
+To list who holds a relation, by pages and with a search, use `holders` — the
+`@nxgt/janus-mongo` and `@nxgt/janus-drizzle` stores page it in the database:
+
+```ts
+const page = await access.holders({ type: 'platform', id: 'main' }, 'admins', { first: 20, search: 'ada' });
+const next = await access.holders({ type: 'platform', id: 'main' }, 'admins', { first: 20, after: page.nextCursor });
+```
+
+The [permissions guide](docs/guide/permissions.md#holders) has the options.
+
 **A user type may also be an object type**: declare `staff` under `types`, and
 a staff member is an object too — who may edit them is a relation on them. See
 [permissions on a user](docs/guide/permissions.md#permissions-on-a-user).
@@ -1932,7 +1942,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**Two hundred plausible mistakes, two hundred refused at compile time — and
+**Two hundred and five plausible mistakes, two hundred and five refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -1943,7 +1953,7 @@ the identity stores' port, from the point of view of the person implementing
 it), `test/types/auth/` (one hundred and seven, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`, five on avatars) and `test/types/permissions/` (fifty-two, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`, five on avatars) and `test/types/permissions/` (fifty-seven, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

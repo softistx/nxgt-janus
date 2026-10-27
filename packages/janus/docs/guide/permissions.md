@@ -585,6 +585,37 @@ Each reads, then writes its own diff, so the result can hold the union of both
 adds. A caller that needs one winner serialises them itself, with a lock or a
 queue of its own.
 
+### `holders`
+
+```ts
+holders(object, relation, { first?, after?, search?, matches? }): Promise<CursorPage<Entity>>;
+```
+
+The single entities holding `relation` on `object`, ordered by type then id,
+by pages: the reverse of `grant`, for a screen that lists who holds a role.
+Subject sets are not listed.
+
+```ts
+const platform = { type: 'platform', id: 'main' };
+
+const page = await access.holders(platform, 'admins', { first: 20, search: 'ada' });
+// page.items: [{ type: 'user', id: 'u1' }, ...]; page.nextCursor is null on the last page
+const next = await access.holders(platform, 'admins', { first: 20, search: 'ada', after: page.nextCursor });
+```
+
+- `first` is between 1 and 100, 20 when absent; `after` is the `nextCursor` of
+  the previous page. A cursor the store did not mint is `InvalidCursorError`.
+- `search` keeps the holders whose **id** contains the text, ignoring case
+  (ASCII on PostgreSQL); `%`, `_` and `.` match themselves. The relation store
+  holds ids only, so a match on the holder's email or name is `matches`, a
+  predicate over each holder (it may be async) that you answer from your user
+  store: `matches: async (h) => (await users.find(h.id))?.email.includes(text)`.
+  Paging stays right, and a selective predicate costs more reads.
+- A store with `findHolders` pages in the database. One without it still
+  works: the core pages `findEntities` in memory, which is fine for a handful
+  of holders and does not scale for thousands.
+- A failure is `STORE_FAILED`, as for `list()`.
+
 ### Deleting
 
 Wire the relation store into `janus({ relations })`, as the clinic does, and
@@ -654,7 +685,7 @@ notation, typed — `record:r1#teams@team:t1`, `team:t1#members@team:t2#members`
 
 ## The relation store
 
-`RelationStore` is six methods answering one-hop questions about stored tuples
+`RelationStore` is six methods (and an optional seventh, `findHolders`) answering one-hop questions about stored tuples
 — `write`, `has`, `findSubjectSets`, `findEntities`, `findObjects`,
 `deleteEntity`. The traversal is the core's. `createMemoryRelations()` is the
 reference implementation, and [Writing an adapter](adapters.md) covers the
