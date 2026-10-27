@@ -30,6 +30,7 @@ describe('user.passwordChanged', () => {
 				occurredAt: changed.updatedAt,
 				userId: user.id,
 				userType: 'user',
+				first: false,
 			},
 			{
 				id: expect.any(String),
@@ -37,6 +38,7 @@ describe('user.passwordChanged', () => {
 				occurredAt: set.updatedAt,
 				userId: user.id,
 				userType: 'user',
+				first: false,
 			},
 		]);
 		const written = JSON.stringify(received);
@@ -52,6 +54,10 @@ describe('user.passwordChanged', () => {
 		await auth.setPassword(user, 'a first password');
 
 		expect(types(received)).toEqual(['user.created', 'user.passwordChanged']);
+		expect(received[1]?.first).toBe(true);
+
+		await auth.setPassword(user, 'a second password');
+		expect(received[2]?.first).toBe(false);
 	});
 
 	it('is not sent by a reset, which is user.passwordReset alone', async () => {

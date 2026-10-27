@@ -72,7 +72,9 @@ export async function proveFirstEmail(
 	} finally {
 		await emit(context, 'user.emailVerified', proved, proved.updatedAt);
 		if (dropped) {
-			await emit(context, 'user.passwordChanged', proved, proved.updatedAt);
+			await emit(context, 'user.passwordChanged', proved, proved.updatedAt, {
+				first: false,
+			});
 		}
 		if (disabled) {
 			await emit(

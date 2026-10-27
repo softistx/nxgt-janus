@@ -57,6 +57,13 @@ The words — **user event**, **listener** — are defined in
 | `user.avatarRemoved` | `avatar.remove`, when the user had an avatar. It carries `formerAvatarId`, the id it had | for a user with no avatar |
 | `user.deleted` | `delete`, when it deleted the user | for a replay that finds nobody, or an id of another user type |
 
+`user.passwordChanged` carries `first`: `true` when the user had no password
+before the write (a `setPassword` on an account created without a credential),
+`false` for a change and for a first proof that dropped a password. A "your
+password was changed" notice skips `first: true`: the user just created that
+password. Like `formerEmail`, it stays in the process: an event a webhook
+delivers does not carry it.
+
 A reset whose link verifies the e-mail sends both, `user.passwordReset`
 first. **A reset does not also send `user.passwordChanged`**: a listener that
 cares about every new password handles both types, as the `switch` below
@@ -178,7 +185,7 @@ since nothing else keeps it once the write landed:
 const auth = janus({
 	...config,
 	async events(event) {
-		if (event.type === 'user.passwordChanged') {
+		if (event.type === 'user.passwordChanged' && !event.first) {
 			const user = await auth.get(event.userId);
 			await mail.passwordChanged({ name: user.name, locale: user.locale, email: user.email });
 		}

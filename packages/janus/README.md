@@ -1220,7 +1220,7 @@ await auth.signUp({ email, password }); // the listener has the event before thi
 | `user.created` | `create`, `signUp` |
 | `user.emailVerified` | `verifyEmail.confirm` (with `{ firstProof: true }` it also drops a squatter's password and factor, like the next) and `verifyEmail.proveFirst`; `changeEmail.confirm`, `resetPassword.confirm`, `magicLink.confirm` and `signInCode.confirm`, whose link or code proves the e-mail too — never for an e-mail already verified |
 | `user.passwordReset` | `resetPassword.confirm` |
-| `user.passwordChanged` | `changePassword`, `setPassword`; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
+| `user.passwordChanged` | `changePassword`, `setPassword` (`first: true` when the user had no password before — skip the "changed" notice); `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail dropped a password — never a reset, which is `user.passwordReset` alone |
 | `user.emailChanged` | `update` and `changeEmail.confirm`, when they changed the e-mail — carrying `formerEmail`, the address before (`null` for none) |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the factor is active — not `enroll`, which leaves it waiting |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an active factor; `signInCode.confirm`, `magicLink.confirm` and `verifyEmail.proveFirst` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — never for a user who had none, or one still waiting |

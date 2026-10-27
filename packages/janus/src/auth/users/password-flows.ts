@@ -59,15 +59,19 @@ export function passwordFlows(
 			checkPassword(type, password, where);
 			const hash = await requireHasher(context, where).hash(password);
 
+			let first = false;
 			const written = await writeUser(
 				context,
 				user,
 				type,
 				options,
 				where,
-				(_, now) => ({ password: { hash, updatedAt: now } }),
+				(record, now) => {
+					first = record.password === null;
+					return { password: { hash, updatedAt: now } };
+				},
 			);
-			await passwordChanged(context, written);
+			await passwordChanged(context, written, first);
 			return toUser(written);
 		},
 
