@@ -416,20 +416,19 @@ the user only; pass `recoveryCodesLeft` as
 pass the sentence rather than the count: the build has no plural for it, and
 a count is a `TypeError` at send.
 
-**`node:fs` means no edge runtime.** The default e-mails are read from the
-package's `mails/` folder, on the first one sent. On an edge runtime, pass
-every template yourself — or wait for the inlined build on the
+**`node:fs` and a writable `TMPDIR` mean no edge runtime.** The default
+e-mails are inlined in the JavaScript, but `@nxgt/mail`'s renderer reads a
+folder: the first one sent writes them to a private folder under the system's
+temporary folder, reads them, and removes it. On an edge runtime, pass every
+template yourself — or wait for rendering from memory, on the
 [roadmap](docs/roadmap.md).
 
-**Keep `@nxgt/janus-mail` out of your server bundle.** The default e-mails
-are found beside the code, at `new URL('../mails/', import.meta.url)`.
-Bundling the package into your own server file moves `import.meta.url` to
-your bundle, where there is no `mails/`, and the first e-mail sent throws
-`createMailRenderer: …/mails/mail-manifest.json cannot be read`. Mark it
-external — `external: ['@nxgt/janus-mail']` in esbuild or `Bun.build`,
-`ssr.external` in Vite — and deploy `node_modules/@nxgt/janus-mail/` whole,
-`mails/` included. See
-[troubleshooting](docs/troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder).
+**Bundling the package is fine.** The e-mails travel inside the package's
+JavaScript, so `bun build`, esbuild or Vite can bundle `@nxgt/janus-mail` into
+your server file with no `mails/` folder to deploy. What the first render needs
+is a writable `TMPDIR`; without one it throws `janus-mail: cannot write the
+default e-mails under …`. See
+[troubleshooting](docs/troubleshooting.md#janus-mail-cannot-write-the-default-e-mails).
 
 **A link answers a string, at once.** Each `links` function is called at
 send time and must return an `http(s)` or `mailto:` URL as a string: an

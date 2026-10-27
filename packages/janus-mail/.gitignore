@@ -2,3 +2,6 @@
 /mails/
 # Written by maizzle each time mail/maizzle.config.ts loads.
 /mail/.maizzle/
+
+# Written by scripts/build-mail.ts: the e-mails inlined in the JavaScript.
+/src/generated/inline-mails.ts

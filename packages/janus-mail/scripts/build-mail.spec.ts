@@ -1,8 +1,12 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
 	EXPECTED_EMAILS,
 	emailsProblem,
 	formatProblem,
+	inlineMailsModule,
 	localesModule,
 	PEER_FLOOR_READS,
 } from './build-mail';
@@ -71,5 +75,33 @@ describe('localesModule', () => {
 			'export type JanusMailLocale = (typeof LOCALES)[number];',
 		);
 		expect(source.endsWith('\n')).toBe(true);
+	});
+});
+
+describe('inlineMailsModule', () => {
+	test('writes each file as a string, sorted by path', async () => {
+		const source = inlineMailsModule({
+			'fr/b.txt': 'deux "quoted"\nligne',
+			'en/a.html': '<p>one</p>',
+		});
+		expect(source.indexOf('"en/a.html"')).toBeLessThan(
+			source.indexOf('"fr/b.txt"'),
+		);
+		const dir = mkdtempSync(join(tmpdir(), 'inline-mails-spec-'));
+		try {
+			const file = join(dir, 'inline.ts');
+			await Bun.write(file, source);
+			const { INLINE_MAILS } = await import(file);
+			expect(INLINE_MAILS).toEqual({
+				'en/a.html': '<p>one</p>',
+				'fr/b.txt': 'deux "quoted"\nligne',
+			});
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test('is empty for no file', () => {
+		expect(inlineMailsModule({})).toContain('INLINE_MAILS');
 	});
 });

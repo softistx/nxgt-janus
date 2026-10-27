@@ -33,8 +33,9 @@ export const mail = janusMail({
 ```
 
 Create it once, at start-up, beside `janus()`. It reads nothing when called:
-the default e-mails are read from the package's `mails/` folder the first
-time one is sent, and kept.
+the default e-mails are inlined in the package; the first one sent writes
+them to a private folder under `TMPDIR`, reads them into a renderer that is
+kept, and removes the folder.
 
 ## Options
 
@@ -539,7 +540,7 @@ defines no error class and wraps nothing:
 | `MailFailure` (`MAIL_FAILED`) | the mailer | The transport could not hand the e-mail over. Nothing is known to have been sent | A `503`, or a retry from a queue |
 | `MailRefused` (`MAIL_REFUSED`) | the renderer, or the mailer | The e-mail itself is wrong: a link that is not `http:`, `https:` or `mailto:`, an address that is not one | A bug to fix; sending it again fails again |
 | `TypeError` | this package, or the renderer | A call without the value a flow answered — `janusMail.resetPassword: token must be a string` — or, in JavaScript, a link that is not a string (a compile error in TypeScript) — `janusMail.verifyEmail: links.verifyEmail(token) must answer a string`. For [the expiry](#the-expiry): `janusMail.<method>: expiresAt must be a Date`, `janusMail.<method>: expiresAt is past — the link or code would not work`, `janusMail.<method>: expiresIn must be a string`, `janusMail.<method>: clock.now() must answer a Date`. For `stepUp`: `janusMail.stepUp: via must be 'email' — …` | A bug to fix — for a past `expiresAt`, issue a new token or code and send that |
-| `Error` from `createMailRenderer` | the renderer | `mails/` is missing where the package runs: a bundler inlined `@nxgt/janus-mail`, or a deploy kept `dist/` only | Keep `@nxgt/janus-mail` external to your bundle and deploy its `mails/` with it; see [troubleshooting](../troubleshooting.md#createmailrenderer-mailsmail-manifestjson-cannot-be-read--run-maizzle-build-and-deploy-its-output-folder) |
+| `Error` `janus-mail: cannot write the default e-mails under …` | the package | `TMPDIR` is not writable where the package runs | Make it writable, or pass every template yourself; see [troubleshooting](../troubleshooting.md#janus-mail-cannot-write-the-default-e-mails) |
 
 `instanceof` holds against the classes of your own `@nxgt/mail`, since it is
 a peer: one copy defines them.
