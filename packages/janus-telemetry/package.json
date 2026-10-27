@@ -51,7 +51,7 @@
 	"devDependencies": {
 		"@nxgt/janus": "workspace:^",
 		"@nxgt/telemetry": "0.2.2",
-		"@types/bun": "^1.4.2",
+		"@types/bun": "^1.4.4",
 		"zod": "^4.6.5"
 	},
 	"peerDependencies": {
