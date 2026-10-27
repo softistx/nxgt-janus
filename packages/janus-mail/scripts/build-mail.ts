@@ -24,6 +24,7 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { MANIFEST_FORMAT as PEER_FLOOR_READS } from '@nxgt/mail/renderer';
 import { MANIFEST_FORMAT } from '@nxgt/mail-i18n';
 import { $ } from 'bun';
 import { branchesOf, codesLeftMessage, codesLeftModule } from './codes-left';
@@ -61,13 +62,6 @@ const CODES_LEFT_MODULE = fileURLToPath(
 	new URL('../src/generated/codes-left.ts', import.meta.url),
 );
 
-/**
- * The newest manifest format the oldest `@nxgt/mail` the peer admits reads:
- * `>=1.1.0 <2`, and 1.1.0 reads format 1 only. It exports no
- * `MANIFEST_FORMAT`, so the number is written here, and raising it means
- * raising the peer's floor to the first `@nxgt/mail` that reads the new format.
- */
-export const PEER_FLOOR_READS = 1;
 
 /** The part of the manifest this script reads. */
 interface BuiltManifest {

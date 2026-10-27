@@ -8,7 +8,6 @@ import {
 	formatProblem,
 	inlineMailsModule,
 	localesModule,
-	PEER_FLOOR_READS,
 } from './build-mail';
 
 describe('emailsProblem', () => {
@@ -43,10 +42,6 @@ describe('formatProblem', () => {
 
 	test('holds for the format @nxgt/mail-i18n writes, when the peer floor reads it', () => {
 		expect(formatProblem(built(1), 1)).toBeNull();
-	});
-
-	test("reads format 1 as all @nxgt/mail 1.1.0, the peer's floor, reads", () => {
-		expect(PEER_FLOOR_READS).toBe(1);
 	});
 
 	test('refuses a manifest of another format than the one written: a mails/ left by another build', () => {

@@ -82,10 +82,9 @@ janus-mongo and the kit's mongo specs on @nxgt/mongo 0.17.0*, and the
 `@nxgt/redis` 0.3.1, `@nxgt/drizzle` 0.6.1 and `@nxgt/telemetry` 0.2.1 steps,
 each with the adapters that peer it and the kit's whole suite.
 `@nxgt/mail`, from
-nxgt-mail, peers `janus-mail` at `>=1.1.0 <2` — widened from `<1` when
-nxgt-mail reached 1.0.0 (1.0 removed `withTelemetry`, `withRendererTelemetry`
-and `RetryOptions`, none of which `janus-mail` imports) — and the specs run
-on 1.0.2 from the lock (the patch that takes TypeScript 7 into its peer),
+nxgt-mail, peers `janus-mail` at `>=1.1.0 <2` — the floor is the first version with
+`createMailRenderer({ files })` and the exported `MANIFEST_FORMAT` — and the
+specs run on 1.1.0 from the lock (also the floor),
 with `@nxgt/mail-i18n` 1.0.2 (whose `@nxgt/i18n-vue` is 0.4.0), `@nxgt/mail-ui`
 1.0.1, `@nxgt/mail-config` 1.0.3 and `@nxgt/mail-presets` 1.2.0 (whose
 `confirm-action` is the step-up's e-mail, `stepUp`, and `confirm-new-email`
@@ -127,7 +126,8 @@ the latest. The `mails/` build reads the same under every `@nxgt/mail` in
 the range, and **the build checks that it will**: a renderer reads every
 manifest format up to its own, `@nxgt/mail` 1.1.0 reads format 1, and
 `scripts/build-mail.ts` fails unless the manifest's `formatVersion` is
-`@nxgt/mail-i18n`'s `MANIFEST_FORMAT` and at most `PEER_FLOOR_READS`, 1. A new
+`@nxgt/mail-i18n`'s `MANIFEST_FORMAT` and at most `MANIFEST_FORMAT` of `@nxgt/mail/renderer` (exported since 1.1.0, the
+floor and the devDependency), 1. A new
 format from `@nxgt/mail-i18n` therefore fails the build here until the peer's
 floor rises to an `@nxgt/mail` that reads it
 (`packages/janus-mail/docs/guide/building.md`).

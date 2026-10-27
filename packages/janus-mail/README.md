@@ -47,15 +47,15 @@ bun add @nxgt/janus-mail @nxgt/mail @nxgt/janus
 bun add -d typescript
 ```
 
-Three peers, all required: `@nxgt/mail` (0.1 or later, below 2 — 1.0 and
-its transports included), which defines the `Mailer` port and the errors;
+Three peers, all required: `@nxgt/mail` (`>=1.1.0 <2`, its transports
+included), which defines the `Mailer` port and the errors;
 `@nxgt/janus` (0.17), whose flows' answers the methods take — types only,
 nothing of it is loaded; and `typescript` (6 or 7). **No Maizzle, no Vue, no
 Tailwind**: they run at this package's build, not in yours.
 
-The `@nxgt/mail` floor is tested, not claimed: the package's specs and its
-typecheck run on `@nxgt/mail` 1.1.0 as well, in the Floors job, on every CI
-run.
+The `@nxgt/mail` floor, 1.1.0, is tested, not claimed: the package's specs
+and its typecheck run on that exact version in the Floors job on every CI run
+(today it is also the version the lock holds).
 
 It reads its prebuilt e-mails with `node:fs`: **Node (20 or later), Bun or
 Deno**, not an edge runtime. Rebuilding the e-mails from this repository

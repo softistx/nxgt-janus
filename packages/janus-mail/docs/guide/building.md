@@ -117,11 +117,11 @@ when:
 | Message | Cause | Fix |
 | --- | --- | --- |
 | `build-mail: mails/mail-manifest.json is manifest format 2, where @nxgt/mail-i18n writes 1 — a mails/ left by another build; run the build again` | `mails/` is not what this `@nxgt/mail-i18n` wrote | Run `bun run build:mail` again |
-| `build-mail: mails/mail-manifest.json is manifest format 2, and @nxgt/mail 1.1.0, the peer's floor, reads up to 1 — raise the @nxgt/mail peer's floor to the first version that reads it` | A new `@nxgt/mail-i18n` writes a format the floor cannot read | Raise the peer's floor, then `PEER_FLOOR_READS` with it |
+| `build-mail: mails/mail-manifest.json is manifest format 2, and @nxgt/mail 1.1.0, the peer's floor, reads up to 1 — raise the @nxgt/mail peer's floor to the first version that reads it` | A new `@nxgt/mail-i18n` writes a format the floor cannot read | Raise the peer's floor, then update `@nxgt/mail` to it |
 
-`PEER_FLOOR_READS` is a constant, `1`, rather than `MANIFEST_FORMAT` from
-`@nxgt/mail/renderer`: the devDependency is newer than the floor, and
-`@nxgt/mail` 0.5.0 and earlier export no `MANIFEST_FORMAT`. The pattern is
+The format the peer reads is `MANIFEST_FORMAT` from `@nxgt/mail/renderer`,
+exported since 1.1.0 — the peer's floor, and the devDependency the build runs
+on. The pattern is
 `@nxgt/mail-i18n`'s
 [Shipping a build in a package](https://github.com/softistx/nxgt-mail/blob/develop/packages/mail-i18n/docs/guide/manifest.md#shipping-a-build-in-a-package).
 
