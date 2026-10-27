@@ -46,6 +46,13 @@ Nothing between releases.
 
 Newest first; from the first release on, the package's CHANGELOG holds every one.
 
+- **A sign-up attempted e-mail, v0.11.0.** `signUpAttempted(to, { device?,
+  time? })`, built from `@nxgt/mail-presets` 1.3.0's `sign-up-attempted` in
+  English and French: it tells the owner of an address that someone tried to
+  sign up with it, for a sign-up that answers the same whether the address is
+  new or taken. A missing device or time reads "Unknown". Fourteen e-mails
+  now, and fourteen templates to pass for a locale beyond `en` and `fr`.
+
 - **A changeEmail link template, v0.10.0.** `changeEmail(issued, to, options?)`,
   built from `@nxgt/mail-presets` 1.2.0's `confirm-new-email` in English and
   French: send what `@nxgt/janus` 0.23's `auth.<type>.changeEmail.send(user,

@@ -35,7 +35,7 @@ How the messages are shaped:
 - [`janusMail: locales holds the same locale twice`](#janusmail-locales-holds-the-same-locale-twice)
 - [`janusMail: fallbackLocale must be one of locales`](#janusmail-fallbacklocale-must-be-one-of-locales)
 - [`janusMail: templates must be an object of functions, as { verifyEmail: (variables) => rendered }`](#janusmail-templates-must-be-an-object-of-functions-as--verifyemail-variables--rendered-)
-- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, changeEmail, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-magiclink-stepup-changeemail-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-newsignin-welcome)
+- [`janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, changeEmail, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome, signUpAttempted`](#janusmail-templates-has-no-template-name--name-one-of-verifyemail-resetpassword-signincode-magiclink-stepup-changeemail-passwordchanged-emailchanged-twofactorenabled-twofactordisabled-recoverycodeused-newsignin-welcome-signupattempted)
 - [`janusMail: templates.<name> must be a function`](#janusmail-templatesname-must-be-a-function)
 - [`janusMail: templates.<name> is not an own enumerable property — pass a plain object, as { <name>: (variables) => rendered }`](#janusmail-templatesname-is-not-an-own-enumerable-property--pass-a-plain-object-as--name-variables--rendered-)
 - [`janusMail: clock must be a Clock — an object with a now function`](#janusmail-clock-must-be-a-clock--an-object-with-a-now-function)
@@ -215,7 +215,7 @@ A `fallbackLocale` the list does not hold — `'de'` with the default
 
 `templates` given as a list or a function. Key each template by its name.
 
-### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, changeEmail, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome`
+### `janusMail: templates has no template <name> — name one of verifyEmail, resetPassword, signInCode, magicLink, stepUp, changeEmail, passwordChanged, emailChanged, twoFactorEnabled, twoFactorDisabled, recoveryCodeUsed, newSignIn, welcome, signUpAttempted`
 
 A key that is not one of the fourteen — `invitation`, or the e-mail's file name
 `'verify-email'` rather than the template's, `verifyEmail`. Other e-mails are
@@ -698,7 +698,7 @@ whole.
 
 `locales` holds a locale beyond `en` and `fr`, and `templates` does not give
 all fourteen. With five or more missing, the code is `TS2740` and the list ends
-`…, and <n> more.` — `…, and 8 more.` for a `templates` holding one
+`…, and <n> more.` — `…, and 9 more.` for a `templates` holding one
 template. See [Adding a locale](guide/locales.md#adding-a-locale).
 
 ### `TS2741: Property 'recoveryCodeUsed' is missing in type '{ … }' but required in type 'JanusMailTemplates<…>'.`
