@@ -52,6 +52,10 @@ const listening = janus({
 	user: Patient,
 	store,
 	async events(event) {
+		if (event.type === 'user.passwordChanged') {
+			const first: boolean | undefined = event.first;
+			void first;
+		}
 		switch (event.type) {
 			case 'user.created':
 			case 'user.emailVerified':

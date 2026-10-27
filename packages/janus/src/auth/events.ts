@@ -13,7 +13,9 @@ import type { Context } from './context';
  * - `user.passwordChanged` — by `changePassword` and `setPassword`, and by
  *   `signInCode.confirm` and `magicLink.confirm` when their first proof of
  *   the e-mail dropped a password, after `user.emailVerified`; never by a
- *   reset, which is `user.passwordReset` alone;
+ *   reset, which is `user.passwordReset` alone. Carries `first`: `true` when
+ *   the user had no password before (a `setPassword` on an account created
+ *   without a credential), so a "your password was changed" notice can skip it;
  * - `user.emailChanged` — by `update` and `changeEmail.confirm`, when they
  *   changed the e-mail — compared
  *   normalised, the same test that makes the new one unverified. The one
@@ -98,12 +100,20 @@ export interface UserEvent {
 	 * webhook delivered.
 	 */
 	readonly formerAvatarId?: string | null;
+	/**
+	 * On `user.passwordChanged` only: `true` when the user had no password
+	 * before the write — `setPassword` on an account created without a
+	 * credential — and `false` for a change, or a first proof that dropped a
+	 * password. Absent from every other type, and from an event a webhook
+	 * delivered.
+	 */
+	readonly first?: boolean;
 }
 
 /** What an event carries beyond the user, on the types that do. */
 export type EventExtras = Pick<
 	UserEvent,
-	'formerEmail' | 'sessionId' | 'formerAvatarId'
+	'formerEmail' | 'sessionId' | 'formerAvatarId' | 'first'
 >;
 
 /**

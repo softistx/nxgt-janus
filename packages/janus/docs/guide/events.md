@@ -46,7 +46,7 @@ The words — **user event**, **listener** — are defined in
 | `user.created` | `create`, `signUp` — once the user is inserted, even if `signUp`'s session then fails to open | for a sign-up refused (`LOGIN_TAKEN`, `USER_INVALID`, `PASSWORD_TOO_SHORT`) |
 | `user.emailVerified` | `verifyEmail.confirm` and `verifyEmail.proveFirst`; `changeEmail.confirm`, whose link reached the new address; `resetPassword.confirm` and `magicLink.confirm`, whose link proves the e-mail; `signInCode.confirm`, whose code does | for an e-mail already verified — `changeEmail.confirm` to the same address in another case included — or a refused confirm |
 | `user.passwordReset` | `resetPassword.confirm` | for `setPassword` or `changePassword` — they are not resets |
-| `user.passwordChanged` | `changePassword` and `setPassword` — a first password set on a user created without one included — once the password is written — even if spending the reset links and second-factor challenges it ends then fails; `signInCode.confirm`, `magicLink.confirm`, `verifyEmail.proveFirst` and `verifyEmail.confirm(token, { firstProof: true })` when their first proof of the e-mail dropped a password, after `user.emailVerified` | for a reset, which is `user.passwordReset` alone; for a `changePassword` refused (`CREDENTIALS_INVALID`) |
+| `user.passwordChanged` | `changePassword` and `setPassword` — a first password set on a user created without one included, which carries `first: true` — once the password is written — even if spending the reset links and second-factor challenges it ends then fails; `signInCode.confirm`, `magicLink.confirm`, `verifyEmail.proveFirst` and `verifyEmail.confirm(token, { firstProof: true })` when their first proof of the e-mail dropped a password, after `user.emailVerified` | for a reset, which is `user.passwordReset` alone; for a `changePassword` refused (`CREDENTIALS_INVALID`) |
 | `user.emailChanged` | `update` and `changeEmail.confirm`, when they changed the e-mail — added, replaced or removed. It carries `formerEmail`, the address before | for an update that leaves the e-mail alone, or changes only its case (`Ada@…` for `ada@…`): compared normalised, the same test that makes the new address unverified; for a type with no e-mail; for an update refused |
 | `user.secondFactorEnabled` | `secondFactor.activate`, once the first code made the factor active | for `enroll`, which leaves the factor waiting and asked for nowhere; for a code refused |
 | `user.secondFactorDisabled` | `secondFactor.disable`, when it removed an **active** factor; `signInCode.confirm`, `magicLink.confirm`, `verifyEmail.proveFirst` and `verifyEmail.confirm(token, { firstProof: true })` when their first proof of the e-mail removed one, after `user.emailVerified` and any `user.passwordChanged` — even if an outage interrupts the sign-outs | for a user who had no factor, a factor still waiting for its first code — it was never asked for — or a second `disable` |
@@ -56,6 +56,13 @@ The words — **user event**, **listener** — are defined in
 | `user.avatarChanged` | `avatar.set`, when it wrote an id different from the user's current one. It carries `formerAvatarId`, the id replaced, `null` for a first avatar | for the same id set again; for a refused id (`AVATAR_ID_INVALID`) |
 | `user.avatarRemoved` | `avatar.remove`, when the user had an avatar. It carries `formerAvatarId`, the id it had | for a user with no avatar |
 | `user.deleted` | `delete`, when it deleted the user | for a replay that finds nobody, or an id of another user type |
+
+`user.passwordChanged` carries `first`: `true` when the user had no password
+before the write (a `setPassword` on an account created without a credential),
+`false` for a change and for a first proof that dropped a password. A "your
+password was changed" notice skips `first: true`: the user just created that
+password. Like `formerEmail`, it stays in the process: an event a webhook
+delivers does not carry it.
 
 A reset whose link verifies the e-mail sends both, `user.passwordReset`
 first. **A reset does not also send `user.passwordChanged`**: a listener that
@@ -178,7 +185,7 @@ since nothing else keeps it once the write landed:
 const auth = janus({
 	...config,
 	async events(event) {
-		if (event.type === 'user.passwordChanged') {
+		if (event.type === 'user.passwordChanged' && !event.first) {
 			const user = await auth.get(event.userId);
 			await mail.passwordChanged({ name: user.name, locale: user.locale, email: user.email });
 		}
@@ -373,6 +380,7 @@ interface UserEvent {
 	readonly formerEmail?: string | null; // on user.emailChanged only: the address before, null for none
 	readonly sessionId?: string;          // on user.newDeviceSignedIn only: the session the new device opened
 	readonly formerAvatarId?: string | null; // on user.avatarChanged and user.avatarRemoved only: the avatar id before, null for none
+	readonly first?: boolean;             // on user.passwordChanged only: true when the user had no password before
 }
 
 type UserEventListener = (event: UserEvent) => void | Promise<void>;

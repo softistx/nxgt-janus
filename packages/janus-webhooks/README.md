@@ -291,6 +291,8 @@ add those two:
 types: ['user.created', 'user.emailVerified', 'user.passwordReset', 'user.passwordChanged', 'user.emailChanged', 'user.secondFactorEnabled', 'user.secondFactorDisabled', 'user.recoveryCodesRegenerated', 'user.recoveryCodeUsed', 'user.deleted'],
 ```
 
+**`user.passwordChanged` is posted without its `first`** (a first password set on an account without one): a receiver cannot tell it from a change.
+
 **`user.emailChanged` is posted without its `formerEmail`.** `@nxgt/janus`
 hands the listener the address the user had before, so a notice can reach
 that inbox; `webhooks()` drops it before the queue, so no endpoint, queue or
