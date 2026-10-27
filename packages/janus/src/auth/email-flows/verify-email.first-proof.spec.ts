@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { ada, bearer, password } from '../../../test/auth';
+import { ada, bearer, hasher, password, person } from '../../../test/auth';
+import { changingEmailAfterRedeem } from '../../../test/changing-email';
 import { rejection } from '../../../test/rejection';
 import { enrolled, setup } from '../../../test/second-factor';
+import type { UserEvent } from '../events';
+import { janus } from '../janus';
 import { listening, squatted } from './prove-first.fixtures';
 
 describe('verifyEmail.confirm with { firstProof: true }, on an e-mail never proved', () => {
@@ -36,7 +39,9 @@ describe('verifyEmail.confirm with { firstProof: true }, on an e-mail never prov
 	});
 
 	it('drops the second factor too (a factor enrolled before the proof)', async () => {
-		const context = setup();
+		const received: UserEvent[] = [];
+		const context = setup({ events: (event) => void received.push(event) });
+		const types = () => received.map((event) => event.type);
 		const { auth } = context;
 		const { user } = await enrolled(context);
 		const link = await auth.verifyEmail.send(user);
@@ -46,6 +51,7 @@ describe('verifyEmail.confirm with { firstProof: true }, on an e-mail never prov
 		});
 
 		expect(confirmed.hasSecondFactor).toBe(false);
+		expect(types()).toContain('user.secondFactorDisabled');
 		expect(await auth.secondFactor.recoveryCodesLeft(user)).toBeNull();
 	});
 
@@ -66,15 +72,40 @@ describe('verifyEmail.confirm with { firstProof: true }, on an e-mail never prov
 	});
 
 	it('refuses a token sent to an address since changed', async () => {
-		const { auth } = listening();
-		const { user } = await squatted(auth);
+		const { auth, received, types } = listening();
+		const { user, token } = await squatted(auth);
 		const link = await auth.verifyEmail.send(user);
 		await auth.update(user.id, { email: 'other@example.com' });
+		received.length = 0;
 
 		expect(
 			await rejection(
 				auth.verifyEmail.confirm(link.token, { firstProof: true }),
 			),
 		).toMatchObject({ code: 'TOKEN_STALE' });
+		// Refused before the proof: nothing was dropped, no session revoked.
+		expect(await auth.authenticate(bearer(token))).not.toBeNull();
+		expect((await auth.get(user.id)).hasPassword).toBe(true);
+		expect(types()).toEqual([]);
+	});
+
+	it('is VERSION_CONFLICT, proving nothing, when the user is written between the read and the proof', async () => {
+		const auth = janus({
+			user: person,
+			password: { login: 'email' },
+			store: changingEmailAfterRedeem('other@example.com'),
+			hasher,
+		});
+		const { user } = await squatted(auth);
+		const link = await auth.verifyEmail.send(user);
+
+		expect(
+			await rejection(
+				auth.verifyEmail.confirm(link.token, { firstProof: true }),
+			),
+		).toMatchObject({ code: 'VERSION_CONFLICT' });
+		const after = await auth.get(user.id);
+		expect(after.emailVerified).toBe(false);
+		expect(after.hasPassword).toBe(true);
 	});
 });

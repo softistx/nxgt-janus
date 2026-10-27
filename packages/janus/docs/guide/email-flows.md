@@ -181,8 +181,13 @@ the write. Events: `user.emailVerified`, then `user.passwordChanged` and
 proved** is confirmed exactly as without the option, and a stale token is still
 `TOKEN_STALE`. The option is opt-in: without it nothing changes. It works at the
 root of several types too. Use it when the link is the first thing that proves
-the address (sign-up sends the link); leave it off for a link a signed-in user
-asked for on an address they already proved elsewhere.
+the address (sign-up sends the link). **The trade-off:** a genuine user who
+signed up and has not verified yet also loses their password, second factor and
+sessions when they follow the link, and sets a new password through
+`resetPassword`. Leave the option off where you would rather keep that
+credential. If a write lands between reading the link's user and the proof, the
+call fails with `VERSION_CONFLICT`, the link is spent and nothing is proved:
+send a new link (unlike `proveFirst`, `confirm` does not retry).
 
 ## Proving an e-mail on your own proof — `proveFirst`
 

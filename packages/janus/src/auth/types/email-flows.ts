@@ -116,7 +116,10 @@ export interface VerifyEmailApi<U> {
 		 * `user.secondFactorDisabled` when they apply. The owner then sets a
 		 * new password through `resetPassword`. An e-mail already proved is
 		 * confirmed as without the option, and nothing is dropped. Without the
-		 * option, the password and factor are kept, as before.
+		 * option, the password and factor are kept, as before. A write landing
+		 * between the read and the proof is a `VERSION_CONFLICT` with nothing
+		 * proved and the link spent (no retry, unlike `proveFirst`: ask for a new
+		 * link).
 		 */
 		confirm(token: string, options?: VerifyEmailOptions): Promise<U>;
 		/**
