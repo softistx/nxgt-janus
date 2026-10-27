@@ -9,7 +9,7 @@
  *   writes, and one `@nxgt/mail` 0.1.0 reads** — the peer is `>=0.1.0 <2`, and
  *   a renderer reads every format up to its own, so a newer format would
  *   break an application on the floor;
- * - it **fails unless exactly the thirteen e-mails** of Janus's flows were built,
+ * - it **fails unless exactly the fourteen e-mails** of Janus's flows were built,
  *   so a preset added or dropped by a new `@nxgt/mail-presets` is a failed
  *   build here, not a surprise in a consumer's outbox;
  * - it writes `src/generated/locales.ts` — the locales built, as a type —
@@ -39,6 +39,7 @@ export const EXPECTED_EMAILS = [
 	'recovery-code-used',
 	'reset-password',
 	'sign-in-code',
+	'sign-up-attempted',
 	'two-factor-disabled',
 	'two-factor-enabled',
 	'verify-email',

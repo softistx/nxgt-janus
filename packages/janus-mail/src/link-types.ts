@@ -29,7 +29,8 @@ export interface JanusMailLinks {
 	/**
 	 * Where a new user starts — your application's home, or its sign-in page
 	 * for an account someone else created. `welcome` links to it, from its
-	 * "Get started" button.
+	 * "Get started" button, and so does `signUpAttempted`, for the owner of
+	 * an address someone tried to sign up with.
 	 */
 	readonly getStarted: () => string;
 	/**

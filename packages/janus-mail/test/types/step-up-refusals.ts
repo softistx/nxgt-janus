@@ -3,7 +3,7 @@
  * `magic-link-refusals.ts`'s: each `@ts-expect-error` is one plausible
  * mistake the compiler refuses, and the README counts them with the others.
  * Below them, the sends that must keep compiling, and the names of the
- * templates, held to the thirteen the package sends.
+ * templates, held to the fourteen the package sends.
  *
  * Typechecked by `tsc --noEmit`, never run.
  */
@@ -86,7 +86,7 @@ type Equal<A, B> =
 		? true
 		: false;
 
-/** The thirteen names, `stepUp` among them: one more or one fewer fails here. */
+/** The fourteen names, `stepUp` among them: one more or one fewer fails here. */
 export const templateNames: Equal<
 	JanusMailTemplateName,
 	| 'verifyEmail'
@@ -102,6 +102,7 @@ export const templateNames: Equal<
 	| 'recoveryCodeUsed'
 	| 'newSignIn'
 	| 'welcome'
+	| 'signUpAttempted'
 > = true;
 
 /** Its template takes the step-up's variables, and a template for it compiles. */

@@ -23,7 +23,7 @@ They mean the same here. These pages add:
 
 | Word | Means | Not |
 | --- | --- | --- |
-| **e-mail** | One of the thirteen this package sends: `verify-email`, `reset-password`, `sign-in-code`, `magic-link`, `confirm-action`, `confirm-new-email`, `password-changed`, `email-changed`, `two-factor-enabled`, `two-factor-disabled`, `recovery-code-used`, `new-sign-in`, `welcome` — by the name of its built file | "mail", "message" — a *message* is what a mailer sends, addressed |
+| **e-mail** | One of the fourteen this package sends: `verify-email`, `reset-password`, `sign-in-code`, `magic-link`, `confirm-action`, `confirm-new-email`, `password-changed`, `email-changed`, `two-factor-enabled`, `two-factor-disabled`, `recovery-code-used`, `new-sign-in`, `welcome`, `sign-up-attempted` — by the name of its built file | "mail", "message" — a *message* is what a mailer sends, addressed |
 | **template** | The function that renders one e-mail: `(variables & { locale }) => Rendered`. Named in camelCase, after the method that sends it: `verifyEmail`, `signInCode` | "renderer" — the renderer is `@nxgt/mail`'s, and reads the build |
 | **default template** | A template of `janusTemplates()`: the prebuilt e-mail, filled by the renderer | "preset" — a preset is `@nxgt/mail-presets`' source, which the build compiles |
 | **override** | A template of yours, passed in `templates`, used instead of the default | "custom template" |

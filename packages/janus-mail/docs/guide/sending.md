@@ -298,6 +298,34 @@ locale and the address from the user. Calling them right after `activate` or
 `disable` answered works as well — without the events, check `hasSecondFactor`
 before the `disable`.
 
+### `signUpAttempted(to, attempt?)`
+
+```ts
+// In your sign-up route, when the address already has an account. Answer the
+// visitor exactly as you answer a new sign-up; mail the owner instead.
+const owner = await users.findByEmail(form.email);
+if (owner !== null) {
+	await mail.signUpAttempted(
+		{ name: owner.name, locale: owner.locale, email: owner.email },
+		{ device: 'Firefox on macOS', time: '29/09/2026 09:12' },
+	);
+}
+```
+
+Tells the owner of an existing account that someone tried to sign up with
+their address, with a button to `links.getStarted()` to sign in or reset the
+password. It exists for a sign-up that answers the same whether the address is
+new or taken, so accounts cannot be enumerated.
+
+- **`to.name` is the existing account's**, never the name typed in the form:
+  whoever tried could write anything there, and your brand would send it.
+- `device` and `time` are your text, in the recipient's locale, and optional:
+  without one the e-mail says "Unknown" ("Inconnu" in French) in its place.
+  Do not put what the requester typed in them.
+- Throttle it per address: a visitor who repeats the sign-up would otherwise
+  make your brand mail the owner each time.
+- A wrong argument rejects with a `TypeError` naming the method and the field.
+
 ### `welcome(to)`
 
 ```ts
@@ -491,6 +519,7 @@ a `TypeError`, and nothing reaches the mailer: revive the date with
 | `recoveryCodeUsed` | `to.email` | — |
 | `newSignIn` | `to.email` | — |
 | `welcome` | `to.email` | — |
+| `signUpAttempted` | `to.email` | `attempt.device`, `attempt.time` (optional) |
 
 `issued.email` is the address the user's record holds, as they registered
 it; what the visitor typed may differ in case or spacing. The recipient is a

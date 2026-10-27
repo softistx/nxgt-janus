@@ -10,6 +10,7 @@ import { newSignInMail } from './new-sign-in-mail';
 import { noticeMails } from './notice-mails';
 import { resolveOptions } from './options';
 import { recoveryMail } from './recovery-mail';
+import { signUpAttemptedMail } from './sign-up-attempted-mail';
 import { stepUpMail } from './step-up-mail';
 import type { JanusMail, JanusMailLocale, JanusMailOptions } from './types';
 
@@ -46,6 +47,7 @@ export function janusMail<const L extends string = JanusMailLocale>(
 		...noticeMails(resolved),
 		...recoveryMail(resolved),
 		...newSignInMail(resolved),
+		...signUpAttemptedMail(resolved),
 		...stepUpMail(resolved),
 		templates: resolved.templates,
 		locales: resolved.locales,

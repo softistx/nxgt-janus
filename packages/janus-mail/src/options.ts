@@ -30,6 +30,7 @@ export const TEMPLATE_NAMES: readonly JanusMailTemplateName[] = [
 	'recoveryCodeUsed',
 	'newSignIn',
 	'welcome',
+	'signUpAttempted',
 ];
 
 /** The options once checked, with `string` for the locales: the degenericised mirror. */

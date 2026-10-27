@@ -39,7 +39,7 @@ const newSignIn: JanusMailTemplates['newSignIn'] = ({
 	);
 
 /**
- * The thirteen default templates, in the locales they are built in. The
+ * The fourteen default templates, in the locales they are built in. The
  * renderer behind them is created on the first render, not here.
  *
  * ```ts
@@ -116,5 +116,11 @@ export function janusTemplates(): JanusMailTemplates {
 		newSignIn,
 		welcome: ({ brand, name, link, locale }): Rendered =>
 			defaultRenderer().render('welcome', { brand, name, link }, { locale }),
+		signUpAttempted: ({ brand, name, device, time, link, locale }): Rendered =>
+			defaultRenderer().render(
+				'sign-up-attempted',
+				{ brand, name, device, time, link },
+				{ locale },
+			),
 	});
 }

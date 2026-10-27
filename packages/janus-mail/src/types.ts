@@ -227,6 +227,26 @@ export interface JanusMail<L extends string = JanusMailLocale> {
 			readonly location?: string;
 		},
 	): Promise<SentMail>;
+	/**
+	 * Tells the owner of an existing account, at `to.email`, that someone
+	 * tried to sign up with their address: for a sign-up your application
+	 * answers exactly as it answers a new one, so that accounts cannot be
+	 * enumerated. Send it instead of the verification mail, to the account
+	 * that already exists: `to.name` is that account's, never the name typed
+	 * in the form. The e-mail links to `links.getStarted()`, where the owner
+	 * signs in or resets the password.
+	 *
+	 * `device` and `time` are your text, in the recipient's locale, and both
+	 * are optional: an e-mail without them says "Unknown" in their place —
+	 * "Inconnu" in French. Never put what the requester typed in them.
+	 */
+	signUpAttempted(
+		to: Recipient & { readonly email: string },
+		attempt?: {
+			readonly device?: string;
+			readonly time?: string;
+		},
+	): Promise<SentMail>;
 	/** The templates in use: the defaults, with `templates` over them. */
 	readonly templates: JanusMailTemplates<L>;
 	/** The locales sent in. */
