@@ -1,7 +1,7 @@
 /**
  * The avatar of a user — `avatar.set` and `avatar.remove`: an id that is
  * missing or no string, a remove that takes an avatar, the name `avatar`
- * given to a user type, and a schema declaring it. Cases 103–107 of the one hundred and seven — see
+ * given to a user type, and a schema declaring it. Cases 103–107 of the one hundred and twelve — see
  * `fixtures.ts`. The shapes that must keep compiling are at the end of this
  * file.
  */

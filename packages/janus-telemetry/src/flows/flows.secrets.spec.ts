@@ -61,4 +61,28 @@ describe('instrumentJanus()', () => {
 			expect(written).toContain(name);
 		}
 	});
+
+	it('writes no token, address or password for a prepared sign-up or resend', async () => {
+		const { auth } = setup();
+		const secrets: string[] = [email, password];
+		const { all } = await collect(async () => {
+			const created = await (
+				await auth.patient.signUp.prepare({ email, password })
+			).send();
+			if (created.status !== 'created') throw new Error('expected created');
+			secrets.push(created.issued.token);
+			const taken = await (
+				await auth.patient.signUp.prepare({ email, password })
+			).send();
+			expect(taken.status).toBe('taken');
+			const resent = await (
+				await auth.patient.verifyEmail.prepare(email)
+			).send();
+			if (resent === null) throw new Error('expected a token');
+			secrets.push(resent.token);
+		});
+
+		const written = JSON.stringify(all);
+		for (const secret of secrets) expect(written).not.toContain(secret);
+	});
 });

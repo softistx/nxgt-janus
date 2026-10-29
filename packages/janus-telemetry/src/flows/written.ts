@@ -38,6 +38,13 @@ export const WRITTEN: Readonly<
 	signUp: (call, outcome) => {
 		if (outcome.ok) log.info(events.signedUp(userFields(call, outcome.value)));
 	},
+	// In two steps: prepare is counted, and send creates — what signUp writes,
+	// for an account created. A taken login writes nothing: no account began.
+	'signUp.prepare.send': (call, outcome) => {
+		if (outcome.ok && statusOf(outcome.value) === 'created') {
+			log.info(events.signedUp(userFields(call, outcome.value)));
+		}
+	},
 	signIn: (call, outcome) => {
 		if (!outcome.ok && outcome.refusal.reason === 'throttled') {
 			// Too many passwords at one login: no password was compared.

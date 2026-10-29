@@ -33,6 +33,11 @@ export async function prepareSignUp(
 	where: string,
 ): Promise<PreparedSignUp<AnyUser>> {
 	const rule = passwordRule(type, where);
+	if (rule.login !== type.email) {
+		throw new TypeError(
+			`${where}: the ${type.name} type signs in with "${rule.login}", not its e-mail "${type.email}" — a taken login would reveal an account and the notice would go to the holder of another address; use signUp`,
+		);
+	}
 	const { password, active: _active, ...rest } = input ?? {};
 	const fields = await validateFields(type, rest, where);
 	const email = emailOf(type, fields);
@@ -45,10 +50,13 @@ export async function prepareSignUp(
 	checkPassword(type, password as string, where);
 	await countMailByAddress(context, type, 'signUp', email, where);
 
+	// What send() writes is a copy taken now: a later change of the caller's
+	// object, or an `active` it carried, changes nothing.
+	const written: Input = { ...rest, password };
 	const login = fields[rule.login];
 	return Object.freeze({
 		send: sendOnce(where, () =>
-			createOrFindTaken(context, type, input, String(login), email, where),
+			createOrFindTaken(context, type, written, String(login), email, where),
 		),
 	});
 }

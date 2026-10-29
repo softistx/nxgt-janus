@@ -924,7 +924,7 @@ const again = await auth.verifyEmail.prepare(email);
 void again.send().then((issued) => issued && sendMail(issued.email, `Verify: …?token=${issued.token}`));
 ```
 
-- **`password.requireVerifiedEmail: true`**: after a correct password, an
+- **`password.requireVerifiedEmail: true`** (a type with an e-mail field; a schema without one is refused at compile time): after a correct password, an
   address never verified is `EMAIL_UNVERIFIED` (403) and no session opens. A
   wrong password, an unknown login and a throttled one answer
   `CREDENTIALS_INVALID` exactly as without the option, so the new code is
@@ -935,7 +935,9 @@ void again.send().then((issued) => issued && sendMail(issued.email, `Verify: …
   `{ status: 'created', user, issued }` (the account exists, `issued` is the
   verification token to mail, nobody is signed in) or
   `{ status: 'taken', user }` (nothing written: mail the holder a notice).
-  The user type needs an e-mail field. `signUp` itself is unchanged.
+  It exists only on a type whose **login is its e-mail field**, so the
+  address typed is the holder's; elsewhere the type has no `prepare` and a
+  call is a `TypeError`. `signUp` itself is unchanged.
 - **`verifyEmail.prepare(email)`** counts the address; its `send()` issues
   for the active, unverified user of that type holding it and answers `null`
   for anybody else.
@@ -1572,6 +1574,19 @@ runner-less layer.
 
 ## Traps
 
+**A sign-up with `signUp.prepare` can squat somebody's address.**
+Anybody can register an address they do not own and choose its password. If
+the real owner then confirms the verification mail that went to it, the
+address is verified and the squatter's password stays on the account
+(account pre-hijacking). Two habits close it: the `taken` notice carries a
+`resetPassword` link — a reset proves the address and replaces the password —
+and every verification mail says to ignore it if the visitor did not ask for
+it. For an address never proved, `verifyEmail.confirm(token, { firstProof:
+true })` drops the password and the second factor, and signs out every
+session, as `magicLink.confirm` does. `signUp.prepare` exists only on a type
+whose login is its e-mail field: with a username as the login, a taken
+username would reveal an account and mail a stranger.
+
 **Upgrading: `avatar` is reserved, and a stored `fields.avatar` stops being read.**
 A schema field or a user type called `avatar` is refused, and the
 `fields.avatar` rows already hold is no longer read: `user.avatar` is janus's
@@ -2009,7 +2024,7 @@ that sends one, since it is awaited: queue the event and return.
 
 ## Type safety, counted
 
-**Two hundred and twelve plausible mistakes, two hundred and twelve refused at compile time — and
+**Two hundred and seventeen plausible mistakes, two hundred and seventeen refused at compile time — and
 two gaps, named.**
 
 The lists are typechecked and never run, with one `@ts-expect-error` per
@@ -2017,10 +2032,10 @@ mistake beside the shapes that must keep compiling. One is a single file:
 `test/types/refusals.ts` (fifteen, on the shared vocabulary). The other three
 are folders with one file per behaviour: `test/types/port/` (twenty-six, on
 the identity stores' port, from the point of view of the person implementing
-it), `test/types/auth/` (one hundred and seven, on `janus()`, from the point of view of
+it), `test/types/auth/` (one hundred and twelve, on `janus()`, from the point of view of
 the application — twelve of them on the second factor, three on sign-in codes,
 five on user events, four on step-ups, six on the sign-in throttle, five on the mail throttle, four on
-sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`, five on avatars) and `test/types/permissions/` (fifty-seven, on the
+sign-in links, six on devices, two on `findMany`, five on requests in two steps, three on signing in on the application's proof, three on finding a user by e-mail, three on proving an e-mail on the application's proof, six on changing an e-mail, eight on confirming a link at the root of several types and two on reserved type names, four on `findOrCreate`, five on avatars and five on verified sign-up) and `test/types/permissions/` (fifty-seven, on the
 permission model and the questions asked of it). The rule comes from
 `nxgt-data`, and so does the reason to distrust the claim without the files:
 when it was last measured on `@nxgt/mongo`, *seven of twelve plausible

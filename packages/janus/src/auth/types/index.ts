@@ -31,7 +31,7 @@ export type {
 } from './inference';
 export type { Janus, SharedApi, TypeApi } from './janus';
 export type { MagicLinkApi } from './magic-link';
-export type { PasswordApi } from './password';
+export type { PasswordApi, SignUpPrepareApi } from './password';
 export type {
 	PreparedCode,
 	PreparedRequest,

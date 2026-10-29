@@ -12,7 +12,12 @@ import {
 import { deviceHint } from '../devices';
 import { passwordChanged } from '../password-written';
 import { openSession } from '../sessions';
-import type { PasswordApi, SignInOptions, SignInResult } from '../types';
+import type {
+	PasswordApi,
+	SignInOptions,
+	SignInResult,
+	SignUpPrepareApi,
+} from '../types';
 import { byLogin } from './by-login';
 import { changePassword } from './change-password';
 import type { Finish, Input } from './flow-types';
@@ -29,7 +34,8 @@ export function passwordFlows(
 	type: ResolvedType,
 	at: At,
 	finish: Finish,
-): PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> {
+): PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> &
+	SignUpPrepareApi<AnyUser, Input> {
 	return {
 		signUp: Object.assign(
 			async (

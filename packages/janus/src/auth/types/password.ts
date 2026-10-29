@@ -30,34 +30,10 @@ export interface PasswordApi<
 	 * Given a `device`, mints the user's first device token: the device they
 	 * signed up on is known from the start, and never reported as new.
 	 */
-	signUp: {
-		(
-			input: In & { readonly password: string },
-			options?: SignInOptions,
-		): Promise<SignedIn<U>>;
-		/**
-		 * `signUp` for an application that verifies the e-mail and answers
-		 * the same for a new address and a taken one, in two steps.
-		 *
-		 * `prepare` runs in the visitor's request and looks nobody up: it
-		 * validates the fields (`USER_INVALID`), checks the password against
-		 * the policy (`PASSWORD_TOO_SHORT`) and counts the attempt per address
-		 * (`MAIL_THROTTLED` with `retryAfter`, `janus({ mail: { throttle } })`)
-		 * — the same store calls whatever the address. The user type needs an
-		 * e-mail.
-		 *
-		 * `send()` on the answer, run off the request, creates the user and
-		 * issues a verification token — `{ status: 'created', user, issued }`,
-		 * **no session** — or, for a login already held, writes nothing and
-		 * answers `{ status: 'taken', user }`. Mail `issued` in the first
-		 * case, a "somebody tried to sign up" notice in the second. Pair it with
-		 * `password: { requireVerifiedEmail: true }` so the address must be
-		 * verified before a session opens.
-		 */
-		prepare(
-			input: In & { readonly password: string },
-		): Promise<PreparedSignUp<U>>;
-	};
+	signUp: (
+		input: In & { readonly password: string },
+		options?: SignInOptions,
+	) => Promise<SignedIn<U>>;
 
 	/**
 	 * Checks the password and opens a session.
@@ -117,4 +93,37 @@ export interface PasswordApi<
 		change: { readonly current: string; readonly next: string },
 		options?: WriteOptions,
 	): Promise<U>;
+}
+
+/**
+ * `signUp.prepare`, on a user type whose **login is its e-mail field**: the
+ * typed address is the holder's address, so the `taken` notice goes to the
+ * person who typed it. A type that signs in with another field (a username)
+ * has no `prepare`, since a taken username would reveal an account and mail a
+ * stranger.
+ */
+export interface SignUpPrepareApi<U, In> {
+	readonly signUp: {
+		/**
+		 * `signUp` for an application that verifies the e-mail and answers
+		 * the same for a new address and a taken one, in two steps.
+		 *
+		 * `prepare` runs in the visitor's request and looks nobody up: it
+		 * validates the fields (`USER_INVALID`), checks the password against
+		 * the policy (`PASSWORD_TOO_SHORT`) and counts the attempt per address
+		 * (`MAIL_THROTTLED` with `retryAfter`, `janus({ mail: { throttle } })`)
+		 * — the same store calls whatever the address.
+		 *
+		 * `send()` on the answer, run off the request, creates the user and
+		 * issues a verification token — `{ status: 'created', user, issued }`,
+		 * **no session** — or, for a login already held, writes nothing and
+		 * answers `{ status: 'taken', user }`. Mail `issued` in the first
+		 * case, a "somebody tried to sign up" notice in the second. Pair it with
+		 * `password: { requireVerifiedEmail: true }` so the address must be
+		 * verified before a session opens.
+		 */
+		prepare(
+			input: In & { readonly password: string },
+		): Promise<PreparedSignUp<U>>;
+	};
 }

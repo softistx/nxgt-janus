@@ -83,6 +83,7 @@ describe('instrumentJanus(), a request in two steps', () => {
 			).toMatchObject({ code: 'MAIL_THROTTLED' });
 		});
 
+		expect(logs.filter((log) => log.name === 'janus.signUp')).toHaveLength(1);
 		const names = spans.map((span) => span.name);
 		expect(names).toContain('janus.patient.signUp.prepare');
 		expect(names).toContain('janus.patient.signUp.prepare.send');

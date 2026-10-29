@@ -832,7 +832,19 @@ app.post('/verify/resend', async (c) => {
   (`janus({ mail: { throttle } })`; none with `throttle: false`);
   `verifyEmail.prepare` counts per address too, apart from the per-user
   count of `verifyEmail.send`.
-- **The user type needs an e-mail field** (`email`, or `type.email`): a
-  schema that lets it be absent refuses with `USER_INVALID`.
+- **Only a type whose login is its e-mail field has `signUp.prepare`**
+  (typed away elsewhere, `TypeError` at run time): the address typed is the
+  holder's, so the `taken` notice reaches the person who owns it, and a
+  taken username reveals no account. A schema that lets the e-mail be
+  absent refuses with `USER_INVALID`.
+- **Account pre-hijacking.** Somebody can sign up with another person's
+  address and choose its password; if the real owner confirms the
+  verification mail, the address is verified and the squatter's password
+  stays. Put a `resetPassword` link in the `taken` notice (a reset proves
+  the address and replaces the password), end every verification mail with
+  "ignore this if it was not you", and confirm with
+  `verifyEmail.confirm(token, { firstProof: true })` to drop the password
+  and the second factor of an address never proved. Janus changes no
+  behaviour for this: it is the mails you write.
 - `send()` is `TypeError` on a second call, like the other prepared
   requests. `signUp` itself is unchanged.

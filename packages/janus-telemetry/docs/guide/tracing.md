@@ -95,7 +95,7 @@ janus.patient.signIn   ok   janus.refusal=CREDENTIALS_INVALID
 
 A request that sends an e-mail past its attempts — `@nxgt/janus` throttles
 `magicLink.request`, `signInCode.request`, `resetPassword.request`,
-`verifyEmail.send`, `changeEmail.send` and an e-mailed `stepUp.request` — is a
+`signUp.prepare`, `verifyEmail.prepare`, `verifyEmail.send`, `changeEmail.send` and an e-mailed `stepUp.request` — is a
 `janus.mail.throttled` warning. The span stays ok with `janus.refusal` set;
 the event names the flow and the seconds until the window ends, and never the
 address. `user.id` is there for the per-user flows (`verifyEmail.send`,
@@ -283,6 +283,11 @@ sign-in by link from one by password or by code; a user whose second factor
 is active gets `janus.signIn.status=secondFactor` and a
 `janus.signIn.secondFactor` event instead, as after a code.
 
+A correct password on an address `password.requireVerifiedEmail` has not seen
+verified is a `janus.signIn.refused` with `janus.refusal=EMAIL_UNVERIFIED` and
+the `user.id` (the password was right, so the user is known); no session was
+opened, and the span stays ok.
+
 A refused link is a `janus.signIn.refused` with its code — `TOKEN_SPENT`,
 `TOKEN_EXPIRED`, `TOKEN_UNKNOWN` with no `user.id`; `TOKEN_STALE` and
 `USER_INACTIVE` with one — and **every** refusal carries
@@ -317,7 +322,11 @@ janus.magicLink.prepare.send             janus.user.type=user  user.id=0199…
   log  janus.magicLink.sent              janus.user.type=user  user.id=0199…
 ```
 
-`signInCode.prepare` and `resetPassword.prepare` are traced the same way.
+`signInCode.prepare`, `resetPassword.prepare`, `verifyEmail.prepare` and
+`signUp.prepare` are traced the same way (`janus.<type>.signUp.prepare` and
+`janus.<type>.signUp.prepare.send`; the last writes `janus.signUp` when the
+account was created, nothing for a taken login). `signUp` itself stays
+callable once traced, and the flows nested under it are traced too.
 Past the limit, `prepare` writes `janus.mail.throttled` with
 `janus.mail.flow=magicLink.prepare`, and the span stays ok. `send()` runs on
 whatever span is current when it is called — none in a queue, so it starts

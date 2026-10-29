@@ -8,6 +8,7 @@ import type { ResolvedType } from '../config';
 import {
 	type AnyUser,
 	type Context,
+	emailOf,
 	passwordMatches,
 	passwordRule,
 	rehashed,
@@ -15,6 +16,7 @@ import {
 } from '../context';
 import { type DeviceHint, reportNewDevice } from '../devices';
 import { heldByPassword } from '../password-written';
+import type { UserRecord } from '../port/types';
 import { isActive } from '../second-factor/factor';
 import { countSignInAttempt, restartSignInCount } from '../sign-in-attempts';
 import type { SignInResult } from '../types';
@@ -65,23 +67,8 @@ export async function signIn(
 	if (!(await passwordMatches(context, record, String(password), where))) {
 		throw refuse('wrongPassword');
 	}
-	// Checked after the password, so an inactive account is only told to
-	// somebody who knows its password.
-	if (!record.active) {
-		throw new UserInactiveError(`${where}: the user is inactive`, {
-			userId: record.id,
-			userType: type.name,
-		});
-	}
-
-	// Checked after the password too: only whoever knows it is told the
-	// address is unverified, and no session opens.
-	if (type.password?.requireVerifiedEmail === true && !record.emailVerifiedAt) {
-		throw new EmailUnverifiedError(`${where}: the e-mail is not verified`, {
-			userId: record.id,
-			userType: type.name,
-		});
-	}
+	// Checked after the password, so only somebody who knows it is told.
+	refuseAfterPassword(type, record, where);
 
 	// A session opens: the login's count starts again. With a second factor
 	// to come, only its code starts it — the password alone buys no more
@@ -108,4 +95,35 @@ export async function signIn(
 	// Complete only now: a sign-in refused above reports no new device.
 	await reportNewDevice(context, result);
 	return result;
+}
+
+/**
+ * What is refused only once the password matched, so only somebody who
+ * knows it is told: an inactive account (`USER_INACTIVE`) and, with
+ * `password.requireVerifiedEmail`, an address never verified
+ * (`EMAIL_UNVERIFIED`). Either way no session opens.
+ */
+function refuseAfterPassword(
+	type: ResolvedType,
+	record: UserRecord,
+	where: string,
+): void {
+	if (!record.active) {
+		throw new UserInactiveError(`${where}: the user is inactive`, {
+			userId: record.id,
+			userType: type.name,
+		});
+	}
+	if (type.password?.requireVerifiedEmail !== true) return;
+	if (emailOf(type, record.fields) === null) {
+		throw new TypeError(
+			`${where}: password.requireVerifiedEmail needs an e-mail on the ${type.name} type — its schema has no required string "${type.email}" field`,
+		);
+	}
+	if (record.emailVerifiedAt === null) {
+		throw new EmailUnverifiedError(`${where}: the e-mail is not verified`, {
+			userId: record.id,
+			userType: type.name,
+		});
+	}
 }

@@ -73,7 +73,7 @@ janus.refusal = "CODE_INVALID" AND janus.secondFactor.attemptsLeft = 0   -- chal
 ### `janus.signIn.refused` has no `user.id`
 
 **When:** a sign-in refused with `CREDENTIALS_INVALID` carries the reason and
-the user type, and no user. (`USER_INACTIVE` does carry `user.id`: the
+the user type, and no user. (`USER_INACTIVE` and `EMAIL_UNVERIFIED` do carry `user.id`: the
 password was right, so the user is known.)
 
 **Why:** the error `@nxgt/janus` throws for bad credentials names no user —
