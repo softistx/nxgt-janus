@@ -22,6 +22,7 @@ function kindOf(code: JanusErrorCode): 'failure' | 'refusal' {
 		case 'PASSWORD_TOO_SHORT':
 		case 'CREDENTIALS_INVALID':
 		case 'USER_INACTIVE':
+		case 'EMAIL_UNVERIFIED':
 		case 'STEP_UP_REQUIRED':
 		case 'TOKEN_UNKNOWN':
 		case 'TOKEN_SPENT':

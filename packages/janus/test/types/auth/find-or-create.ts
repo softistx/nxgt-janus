@@ -2,7 +2,7 @@
  * Finding a user by their key or creating them — `findOrCreate`: asked of a
  * type with no login and no e-mail, an input that is not the type's fields, a
  * password that is no string, and the key handed over as the user. Cases
- * 85–88 of the one hundred and seven — see `fixtures.ts`. The shapes that must keep
+ * 85–88 of the one hundred and twelve — see `fixtures.ts`. The shapes that must keep
  * compiling are at the end of this file.
  */
 

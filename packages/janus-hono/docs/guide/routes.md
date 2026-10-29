@@ -226,6 +226,7 @@ The refusals need no `try`: `janusErrors()` answers them.
 | `CREDENTIALS_INVALID` | 401 `{ code }` — the same for an unknown login and a wrong password; `{ code, retryAfter }` and a `Retry-After` header once the login is throttled |
 | `MAIL_THROTTLED` | 429 `{ code, retryAfter }` and a `Retry-After` header — a request that sends an e-mail, past its attempts in the window |
 | `USER_INACTIVE` | 403 `{ code }` — only told to somebody who gave the right password |
+| `EMAIL_UNVERIFIED` | 403 `{ code }` — the right password on an address a type with `password.requireVerifiedEmail` has not seen verified; only told to somebody who gave the right password |
 
 A bearer client — a mobile app — keeps its session token itself and sends it
 as `Authorization: Bearer`. Answer it the session token in the body, not a

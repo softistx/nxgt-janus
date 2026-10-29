@@ -12,12 +12,18 @@ import {
 import { deviceHint } from '../devices';
 import { passwordChanged } from '../password-written';
 import { openSession } from '../sessions';
-import type { PasswordApi, SignInResult } from '../types';
+import type {
+	PasswordApi,
+	SignInOptions,
+	SignInResult,
+	SignUpPrepareApi,
+} from '../types';
 import { byLogin } from './by-login';
 import { changePassword } from './change-password';
 import type { Finish, Input } from './flow-types';
 import { insert } from './insert';
 import { signIn } from './sign-in';
+import { prepareSignUp } from './sign-up';
 
 /**
  * The password flows of one user type: signing up and in, finding a user by
@@ -28,18 +34,28 @@ export function passwordFlows(
 	type: ResolvedType,
 	at: At,
 	finish: Finish,
-): PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> {
+): PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> &
+	SignUpPrepareApi<AnyUser, Input> {
 	return {
-		async signUp(input, options) {
-			const where = at('signUp');
-			const device = deviceHint(context, options, where);
-			passwordRule(type, where);
-			if ((input as Input)?.['password'] === undefined) {
-				checkPassword(type, undefined as unknown as string, where);
-			}
-			const record = await insert(context, type, input as Input, where);
-			return openSession(context, type, record, device, true);
-		},
+		signUp: Object.assign(
+			async (
+				input: Input & { readonly password: string },
+				options?: SignInOptions,
+			) => {
+				const where = at('signUp');
+				const device = deviceHint(context, options, where);
+				passwordRule(type, where);
+				if (input?.['password'] === undefined) {
+					checkPassword(type, undefined as unknown as string, where);
+				}
+				const record = await insert(context, type, input, where);
+				return openSession(context, type, record, device, true);
+			},
+			{
+				prepare: (input: Input & { readonly password: string }) =>
+					prepareSignUp(context, type, input, at('signUp.prepare')),
+			},
+		),
 
 		async signIn(input, options) {
 			const where = at('signIn');

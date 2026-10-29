@@ -14,11 +14,18 @@ import {
 	toUser,
 	writeUser,
 } from '../context';
+import { signInHolder } from '../email-sign-in';
 import { emit } from '../events';
 import { proveFirstEmail } from '../first-proof';
-import { countMailByUser } from '../mail-requests';
+import { countMailByAddress, countMailByUser } from '../mail-requests';
 import { refuseStale } from '../one-time';
-import type { VerifyEmailApi, VerifyEmailOptions } from '../types';
+import { sendOnce } from '../prepared';
+import type {
+	IssuedToken,
+	PreparedRequest,
+	VerifyEmailApi,
+	VerifyEmailOptions,
+} from '../types';
 import { issueEmailToken, redeemEmailToken } from './email-token';
 import { proveFirstFlow } from './prove-first';
 
@@ -38,6 +45,11 @@ export function verifyEmailFlows(
 			// Counted per user: the application asks for a user it knows.
 			await countMailByUser(context, type, 'verifyEmail', record.id, where);
 			return issueEmailToken(context, type, 'verifyEmail', record, where);
+		},
+
+		async prepare(email) {
+			const where = at('verifyEmail.prepare');
+			return prepareVerify(context, type, String(email), where);
 		},
 
 		confirm: (secret, options) =>
@@ -92,4 +104,35 @@ export async function confirmVerify(
 		await emit(context, 'user.emailVerified', written, written.updatedAt);
 	}
 	return toUser(written);
+}
+
+type IssuedVerify = IssuedToken & { readonly user: AnyUser };
+
+/**
+ * Counts a verification asked for `email` — before it is looked up: past
+ * the limit, nobody and somebody are refused alike — and answers the `send`
+ * that issues it, once, for an active user who has not verified the address.
+ */
+async function prepareVerify(
+	context: Context,
+	type: ResolvedType,
+	email: string,
+	where: string,
+): Promise<PreparedRequest<IssuedVerify>> {
+	await countMailByAddress(context, type, 'verifyEmail', email, where);
+	return Object.freeze({
+		send: sendOnce(where, async () => {
+			// Nobody, an inactive user and a verified address: the same answer.
+			const record = await signInHolder(context, type, email);
+			if (record === null || record.emailVerifiedAt !== null) return null;
+			const issued = await issueEmailToken(
+				context,
+				type,
+				'verifyEmail',
+				record,
+				where,
+			);
+			return { ...issued, user: toUser(record) };
+		}),
+	});
 }

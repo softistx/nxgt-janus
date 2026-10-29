@@ -69,6 +69,13 @@ Nothing yet.
 The last ten, newest first, each with the version it came in. Everything
 before is in the [CHANGELOG](../CHANGELOG.md).
 
+- **Verified sign-up without revealing taken addresses** (next minor) —
+  `password.requireVerifiedEmail` refuses a correct password on an unverified
+  address with `EMAIL_UNVERIFIED`; `signUp.prepare(input)` validates and counts
+  in the request and its `send()` answers `created` (verification token, no
+  session) or `taken`; `verifyEmail.prepare(email)` counts an anonymous
+  resend per address.
+
 - **Account avatars, v0.29.0** — `auth.<type>.avatar.set(user, { id })` and
   `avatar.remove(user)` record which image is an account's, and `user.avatar`
   (`{ id, updatedAt } | null`) reads it back on every adapter. Janus keeps

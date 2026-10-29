@@ -100,6 +100,7 @@ describe('the codes a caller switches on', () => {
 				case 'SECOND_FACTOR_ACTIVE':
 					return 409;
 				case 'USER_INACTIVE':
+				case 'EMAIL_UNVERIFIED':
 				case 'STEP_UP_REQUIRED':
 					return 403;
 				case 'MAIL_THROTTLED':

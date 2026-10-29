@@ -74,6 +74,7 @@ How the messages are shaped:
 - [`HASH_UNSUPPORTED` — `<call>: no wired verifier claims the prefix "<prefix>"`](#hash_unsupported--call-no-wired-verifier-claims-the-prefix-prefix)
 - [`scryptHasher: the stored hash has the $scrypt$ prefix and not its format`](#scrypthasher-the-stored-hash-has-the-scrypt-prefix-and-not-its-format)
 - [`USER_INACTIVE` — `<call>: the user is inactive`](#user_inactive--call-the-user-is-inactive)
+- [`EMAIL_UNVERIFIED` — `<call>: the e-mail is not verified`](#email_unverified--call-the-e-mail-is-not-verified)
 - [`TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`](#token_unknown-token_spent-token_expired)
 - [`TOKEN_STALE` — `<call>: the token was sent to an e-mail the user no longer has`](#token_stale--call-the-token-was-sent-to-an-e-mail-the-user-no-longer-has)
 - [`INVALID_CURSOR` — `<call>: this cursor was not minted by this store …`](#invalid_cursor--call-this-cursor-was-not-minted-by-this-store-or-was-minted-for-another-ordering-n-characters)
@@ -996,6 +997,12 @@ janus({ ..., hasher: scryptHasher(), verifiers: [bcryptVerifier] }); // a Passwo
 **When:** `signIn`, with the **right** password, for a user set inactive. Also `changeEmail.send` and `changeEmail.confirm` (the link is spent), and `secondFactor.confirm` and `secondFactor.recover`, for a user set inactive after `signIn` asked for a code, `signInCode.confirm`, for a user set inactive after the code was sent, and `magicLink.confirm`, for one set inactive after the link was sent. And `signInProven` and `verifyEmail.proveFirst`, for an inactive user: the application's proof does not reactivate anybody, and proves nothing on an inactive one.
 **Why:** an inactive user keeps their record and password, and every sign-in is refused. It is checked after the password, so only somebody who knows the password learns the user is inactive — and after the code, so only somebody who read the e-mail does: `signInCode.request` answers `null` for an inactive user, as for nobody. On either `confirm`, the challenge is spent: reactivating the user does not revive it. `magicLink.confirm` checks after spending the link, which is spent too, and `magicLink.request` answers `null` for an inactive user.
 **Fix:** answer 403, or reactivate, then sign in again: `await auth.setActive(user, true)`.
+
+### `EMAIL_UNVERIFIED` — `<call>: the e-mail is not verified`
+
+**When:** `signIn`, with the **right** password, on a user type configured with `password: { requireVerifiedEmail: true }`, for a user whose address was never verified.
+**Why:** the option refuses a session until `verifyEmail.confirm` (or a sign-in code or link, or `verifyEmail.proveFirst`) proved the address. It is checked after the password, so only somebody who knows it learns the address is unverified; a wrong password is still `CREDENTIALS_INVALID`. No session was opened.
+**Fix:** answer 403 and offer a resend: `const pending = await auth.verifyEmail.prepare(email)` in the request, `pending.send()` off it. A new sign-up goes through `signUp.prepare`, which opens no session.
 
 ### `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`
 

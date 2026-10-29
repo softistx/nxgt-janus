@@ -15,6 +15,7 @@ export interface ResolvedType {
 		readonly login: string;
 		readonly normalize: (value: string) => string;
 		readonly minLength: number;
+		readonly requireVerifiedEmail: boolean;
 	} | null;
 	readonly email: string;
 	readonly lifespanMs: number;

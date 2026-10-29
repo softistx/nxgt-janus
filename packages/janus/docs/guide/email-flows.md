@@ -671,6 +671,9 @@ counted per address:
 | `resetPassword.prepare(email)` | the same, refusing a type with no password as `request` does | `PreparedRequest<IssuedToken & { user }>`: `{ send() }` |
 | `send()`, on any of them | the rest of `request` — the lookup, the token issued, the earlier ones spent — **once**, and counts nothing | what `request` answers: the token or code, or `null` for nobody |
 
+Two more flows are cut the same way, for sign-up and an anonymous resend of
+the verification: [`signUp.prepare` and `verifyEmail.prepare`](#verifying-at-sign-up-without-revealing-taken-addresses).
+
 Call `prepare` in the visitor's request, where its `MailThrottledError` can be
 answered; call `send()` off it:
 
@@ -766,3 +769,83 @@ never the token, and no refusal's message contains it.
 - [Sessions](sessions.md) — `signOutEverywhere`, which `resetPassword.confirm` calls for you
 - [User events](events.md) — `user.emailVerified`, `user.emailChanged` and `user.passwordReset`, which the confirms and `proveFirst` send
 - [Errors](errors.md) — every code, and the status it deserves
+
+## Verifying at sign-up without revealing taken addresses
+
+`signUp` signs the visitor in at once and throws `LOGIN_TAKEN` for a taken
+address, which tells a guesser who has an account. For an application that
+verifies the address and answers the same either way, three pieces work
+together.
+
+```ts
+const auth = janus({
+	user: User,
+	hasher,
+	store,
+	password: { login: 'email', requireVerifiedEmail: true },
+});
+
+app.post('/sign-up', async (c) => {
+	const { email, name, password } = await c.req.json();
+	// In the request: USER_INVALID and PASSWORD_TOO_SHORT are answered here, and the
+	// attempt is counted per address (MAIL_THROTTLED). Nobody is looked up.
+	const pending = await auth.signUp.prepare({ email, name, password });
+	void mailOff(async () => {
+		const outcome = await pending.send(); // hashes, writes — the time tells which
+		if (outcome.status === 'created') {
+			await mailer.send(outcome.issued.email, `https://app.example/verify?token=${outcome.issued.token}`);
+		} else {
+			await mailer.send(outcome.user.email, 'Somebody tried to sign up with your address.');
+		}
+	});
+	return c.body(null, 202); // "check your inbox": the same for a new and a taken address
+});
+
+app.post('/verify/resend', async (c) => {
+	const { email } = await c.req.json();
+	const pending = await auth.verifyEmail.prepare(email); // counted per address
+	void mailOff(async () => {
+		const issued = await pending.send(); // null for nobody, an inactive user or a verified address
+		if (issued !== null) {
+			await mailer.send(issued.email, `https://app.example/verify?token=${issued.token}`);
+		}
+	});
+	return c.body(null, 202);
+});
+```
+
+| Call | Does | Answers |
+| --- | --- | --- |
+| `signUp.prepare(input)` | validates the fields and the password policy, counts the attempt per address, looks nobody up | `PreparedSignUp<User>`: `{ send() }` |
+| `send()` on it | creates the user and issues a `verifyEmail` token, or finds the login held; **once**, counts nothing | `{ status: 'created', user, issued }` or `{ status: 'taken', user }` |
+| `verifyEmail.prepare(email)` | counts the address, looks nobody up | `PreparedRequest<IssuedToken & { user }>`: `{ send() }` |
+| `send()` on it | issues for the active user holding the address, if unverified | the token, or `null` for anybody else |
+
+- **No session is opened** by `signUp.prepare`'s `send()`. Confirm the token
+  with `verifyEmail.confirm`, then the user signs in. `requireVerifiedEmail`
+  makes that rule hold for the password too: until then a correct password is
+  `EMAIL_UNVERIFIED` (403), where a wrong one stays `CREDENTIALS_INVALID`.
+- **`taken` carries the holder**, so the application can mail them a notice.
+  A password-less holder (created by an admin or a link) counts as taken.
+  Nothing of the sign-up is written, and the holder's password is unchanged.
+- **The counts**: `signUp.prepare` counts per address in its own window
+  (`janus({ mail: { throttle } })`; none with `throttle: false`);
+  `verifyEmail.prepare` counts per address too, apart from the per-user
+  count of `verifyEmail.send`.
+- **Only a type whose login is its e-mail field has `signUp.prepare`**
+  (typed away elsewhere, `TypeError` at run time): the address typed is the
+  holder's, so the `taken` notice reaches the person who owns it, and a
+  taken username reveals no account. A schema that lets the e-mail be
+  absent refuses with `USER_INVALID`.
+- **Account pre-hijacking.** Somebody can sign up with another person's
+  address and choose its password; if the real owner confirms the
+  verification mail, the address is verified and the squatter's password
+  stays. Put a `resetPassword` link in the `taken` notice (a reset proves
+  the address and replaces the password), end every verification mail with
+  "ignore this if it was not you". Keep the password with
+  `requireVerifiedEmail`: `verifyEmail.confirm(token, { firstProof: true })`
+  would drop every honest signer's password too, so use it only where users
+  set the password after proving the address (or sign in by link or code).
+  Janus changes no behaviour for this: it is the mails you write.
+- `send()` is `TypeError` on a second call, like the other prepared
+  requests. `signUp` itself is unchanged.

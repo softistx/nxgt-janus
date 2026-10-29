@@ -38,6 +38,13 @@ export const WRITTEN: Readonly<
 	signUp: (call, outcome) => {
 		if (outcome.ok) log.info(events.signedUp(userFields(call, outcome.value)));
 	},
+	// In two steps: prepare is counted, and send creates — what signUp writes,
+	// for an account created. A taken login writes nothing: no account began.
+	'signUp.prepare.send': (call, outcome) => {
+		if (outcome.ok && statusOf(outcome.value) === 'created') {
+			log.info(events.signedUp(userFields(call, outcome.value)));
+		}
+	},
 	signIn: (call, outcome) => {
 		if (!outcome.ok && outcome.refusal.reason === 'throttled') {
 			// Too many passwords at one login: no password was compared.
@@ -58,6 +65,9 @@ export const WRITTEN: Readonly<
 			log.info(events.signedIn(signedInFields(call, outcome.value)));
 		}
 	},
+	// Counted per address, like the other requests for an e-mail.
+	'signUp.prepare': mailRequest(),
+	'verifyEmail.prepare': mailRequest(),
 	'signInCode.request': mailRequest(issued(events.signInCodeSent)),
 	// In two steps: prepare is counted, and send issues — what request writes.
 	'signInCode.prepare': mailRequest(),

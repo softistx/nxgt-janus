@@ -15,6 +15,7 @@ export type { CredentialRefusal, Issue, JanusErrorOptions } from './options';
 export {
 	AvatarIdInvalidError,
 	CredentialError,
+	EmailUnverifiedError,
 	InvalidCursorError,
 	MailThrottledError,
 	PermissionDepthError,

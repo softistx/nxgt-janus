@@ -38,6 +38,12 @@ export class UserInactiveError extends JanusError {
 	override readonly code = 'USER_INACTIVE' as const;
 }
 
+/** The password was right, the e-mail was never verified, and the user type requires it. */
+export class EmailUnverifiedError extends JanusError {
+	override name = 'EmailUnverifiedError';
+	override readonly code = 'EMAIL_UNVERIFIED' as const;
+}
+
 /**
  * A one-time token that is unknown, already spent, lapsed, or sent to an
  * e-mail the user no longer has — or a one-time code that does not match.

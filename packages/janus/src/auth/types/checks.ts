@@ -31,6 +31,15 @@ type CheckName<V, Keys extends string, What extends string> = [V] extends [Keys]
 
 type Reserved<S> = Extract<keyof OutputOf<S>, (typeof RESERVED_FIELDS)[number]>;
 
+/** The e-mail field of a type being checked: the one `email` names, or `'email'` when the schema has it. */
+type EmailKeyOf<Def, SchemaKey extends string> = Def extends {
+	readonly email: infer E extends string;
+}
+	? E
+	: 'email' extends RequiredStringKeys<OutputOf<SchemaOf<Def, SchemaKey>>>
+		? 'email'
+		: never;
+
 /** The checks on one user type: its login, its e-mail, and its field names. */
 type CheckType<Def, SchemaKey extends string> = (Def extends {
 	readonly password: { readonly login: infer L };
@@ -45,6 +54,19 @@ type CheckType<Def, SchemaKey extends string> = (Def extends {
 			};
 		}
 	: unknown) &
+	(Def extends {
+		readonly password: { readonly requireVerifiedEmail: true };
+	}
+		? [EmailKeyOf<Def, SchemaKey>] extends [never]
+			? {
+					readonly password: {
+						readonly requireVerifiedEmail: {
+							readonly [M in 'requireVerifiedEmail needs an e-mail: the schema has no required string "email" field and no `email` names one']: never;
+						};
+					};
+				}
+			: unknown
+		: unknown) &
 	(Def extends { readonly email: infer E }
 		? {
 				readonly email: CheckName<

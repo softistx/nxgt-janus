@@ -11,6 +11,7 @@ import type {
 	SecondFactorApi,
 	SignInCodeApi,
 	SignInResult,
+	SignUpPrepareApi,
 	StepUpApi,
 	StepUpByApp,
 	StepUpByEmail,
@@ -23,6 +24,7 @@ import type { Input } from './flow-types';
 export type AnyTypeApi = UserTypeApi<AnyUser, Input> &
 	AvatarApi<AnyUser> &
 	PasswordApi<AnyUser, Input, string, SignInResult<AnyUser>> &
+	SignUpPrepareApi<AnyUser, Input> &
 	SecondFactorApi<AnyUser> &
 	ProvenSignInApi<AnyUser, SignInResult<AnyUser>> &
 	SignInCodeApi<AnyUser, SignInResult<AnyUser>> &

@@ -24,7 +24,7 @@ import type {
 	UserOfType,
 } from './inference';
 import type { MagicLinkApi } from './magic-link';
-import type { PasswordApi } from './password';
+import type { PasswordApi, SignUpPrepareApi } from './password';
 import type { ProvenSignInApi } from './proven-sign-in';
 import type { AnyTypeResetPasswordApi } from './reset-password';
 import type { SecondFactorApi } from './second-factor';
@@ -73,6 +73,13 @@ export type TypeApi<
 				> &
 					SecondFactorApi<UserOfType<Name, Def>>
 			: PasswordApi<UserOfType<Name, Def>, FieldsInput<Def>, LoginOf<Def>>) &
+	([LoginOf<Def>] extends [never]
+		? unknown
+		: [EmailOf<Def>] extends [never]
+			? unknown
+			: [LoginOf<Def>] extends [EmailOf<Def>]
+				? SignUpPrepareApi<UserOfType<Name, Def>, FieldsInput<Def>>
+				: unknown) &
 	([LoginOf<Def>] extends [never]
 		? [EmailOf<Def>] extends [never]
 			? unknown
