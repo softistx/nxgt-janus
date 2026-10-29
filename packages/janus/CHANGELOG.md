@@ -1,5 +1,11 @@
 # @nxgt/janus
 
+## 0.34.0
+
+### Minor Changes
+
+- [#291](https://github.com/softistx/nxgt-janus/pull/291) [`9981a1a`](https://github.com/softistx/nxgt-janus/commit/9981a1a52af54eb5ac9e09d88367bccba7a7e118) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Verify the e-mail at sign-up without revealing taken addresses ([#290](https://github.com/softistx/nxgt-janus/issues/290)). `password.requireVerifiedEmail` refuses a correct password on an unverified address with the new `EMAIL_UNVERIFIED` code (`EmailUnverifiedError`, 403) and opens no session. `signUp.prepare(input)`, on a type whose login is its e-mail, validates the fields and the password policy and counts the attempt per address in the request; its `send()` answers `{ status: 'created', user, issued }` (verification token, no session) or `{ status: 'taken', user }`. `verifyEmail.prepare(email)` counts an anonymous resend per address. `signUp` itself is unchanged. An exhaustive switch over `JanusErrorCode` must now handle `EMAIL_UNVERIFIED`.
+
 ## 0.33.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @nxgt/janus-hono
 
+## 0.7.17
+
+### Patch Changes
+
+- [#291](https://github.com/softistx/nxgt-janus/pull/291) [`9981a1a`](https://github.com/softistx/nxgt-janus/commit/9981a1a52af54eb5ac9e09d88367bccba7a7e118) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Document `EMAIL_UNVERIFIED` as a 403 in the route error tables, and cover it in the status spec.
+- Updated dependencies [[`9981a1a`](https://github.com/softistx/nxgt-janus/commit/9981a1a52af54eb5ac9e09d88367bccba7a7e118)]:
+  - @nxgt/janus@0.34.0
+
 ## 0.7.16
 
 ### Patch Changes

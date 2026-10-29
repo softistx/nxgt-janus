@@ -1,5 +1,16 @@
 # @nxgt/janus-kit
 
+## 0.1.34
+
+### Patch Changes
+
+- Updated dependencies [[`9981a1a`](https://github.com/softistx/nxgt-janus/commit/9981a1a52af54eb5ac9e09d88367bccba7a7e118), [`9981a1a`](https://github.com/softistx/nxgt-janus/commit/9981a1a52af54eb5ac9e09d88367bccba7a7e118)]:
+  - @nxgt/janus-telemetry@0.14.5
+  - @nxgt/janus@0.34.0
+  - @nxgt/janus-drizzle@0.11.4
+  - @nxgt/janus-mongo@0.11.4
+  - @nxgt/janus-redis@0.4.23
+
 ## 0.1.33
 
 ### Patch Changes
