@@ -32,7 +32,12 @@ export type {
 export type { Janus, SharedApi, TypeApi } from './janus';
 export type { MagicLinkApi } from './magic-link';
 export type { PasswordApi } from './password';
-export type { PreparedCode, PreparedRequest } from './prepared';
+export type {
+	PreparedCode,
+	PreparedRequest,
+	PreparedSignUp,
+	SignUpOutcome,
+} from './prepared';
 export type { ProvenSignInApi } from './proven-sign-in';
 export type { AnyTypeResetPasswordApi } from './reset-password';
 export type {

@@ -69,4 +69,30 @@ describe('instrumentJanus(), a request in two steps', () => {
 
 		expect(await rejection(pending.send())).toBeInstanceOf(TypeError);
 	});
+
+	it('keeps signUp callable and traces signUp.prepare, its send and the throttle', async () => {
+		const { auth } = setup();
+		const { spans, logs } = await collect(async () => {
+			const pending = await auth.patient.signUp.prepare({ email, password });
+			expect(await pending.send()).toMatchObject({ status: 'created' });
+			for (let at = 0; at < 4; at += 1) {
+				await auth.patient.signUp.prepare({ email, password });
+			}
+			expect(
+				await rejection(auth.patient.signUp.prepare({ email, password })),
+			).toMatchObject({ code: 'MAIL_THROTTLED' });
+		});
+
+		const names = spans.map((span) => span.name);
+		expect(names).toContain('janus.patient.signUp.prepare');
+		expect(names).toContain('janus.patient.signUp.prepare.send');
+		expect(
+			logs.filter((log) => log.name === 'janus.mail.throttled'),
+		).toHaveLength(1);
+		const { user } = await auth.patient.signUp({
+			email: 'other@example.test',
+			password,
+		});
+		expect(user.email).toBe('other@example.test');
+	});
 });

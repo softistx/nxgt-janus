@@ -96,6 +96,18 @@ export interface VerifyEmailApi<U> {
 		 */
 		send(user: UserRef): Promise<IssuedToken>;
 		/**
+		 * An anonymous resend of the verification, in two steps: counts the
+		 * address — **per address**, `MAIL_THROTTLED` with `retryAfter` past
+		 * the limit — and looks nobody up. `send()` on the answer, run off the
+		 * request, issues a token for the active user of this type who holds
+		 * the address and has not verified it, and answers `null` for anybody
+		 * else (nobody, an inactive user, an address already verified), so the
+		 * visitor's answer is the same whichever it was. Sending it is yours.
+		 */
+		prepare(
+			email: string,
+		): Promise<PreparedRequest<IssuedToken & { readonly user: U }>>;
+		/**
 		 * Redeems a token and marks the e-mail verified. A token sent to an
 		 * e-mail the user has since changed is `TOKEN_STALE`.
 		 *

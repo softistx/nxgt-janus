@@ -26,6 +26,7 @@ export {
 	AvatarIdInvalidError,
 	CredentialError,
 	type CredentialRefusal,
+	EmailUnverifiedError,
 	InvalidCursorError,
 	type Issue,
 	JanusError,

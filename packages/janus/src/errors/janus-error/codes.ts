@@ -87,6 +87,12 @@ export type JanusErrorCode =
 	 * sign-in is refused. Only told to somebody who gave the right password.
 	 */
 	| 'USER_INACTIVE'
+	/**
+	 * The password was right and the e-mail was never verified, on a user type
+	 * with `password.requireVerifiedEmail`: no session is opened. Only told to
+	 * somebody who gave the right password.
+	 */
+	| 'EMAIL_UNVERIFIED'
 	/** No token holds that secret. */
 	| 'TOKEN_UNKNOWN'
 	/**

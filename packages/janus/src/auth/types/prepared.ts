@@ -6,7 +6,7 @@
  * Part of what `janus()` hands back; `./index` gathers it.
  */
 
-import type { IssuedCode } from './email-flows';
+import type { IssuedCode, IssuedToken } from './email-flows';
 
 /**
  * A request counted by the mail throttle and not yet looked up: `send()`
@@ -40,4 +40,35 @@ export interface PreparedCode<U> extends PreparedRequest<IssuedCode<U>> {
 	 * the e-mail, a URL or a log.
 	 */
 	readonly challenge: string;
+}
+
+/** What a prepared sign-up's `send()` answers. */
+export type SignUpOutcome<U> =
+	| {
+			/** The account exists now, its e-mail still to verify, and nobody is signed in. */
+			readonly status: 'created';
+			readonly user: U;
+			/** The verification token to e-mail to `issued.email`. Sending it is yours. */
+			readonly issued: IssuedToken;
+	  }
+	| {
+			/** An account already holds the login. Nothing was written. */
+			readonly status: 'taken';
+			/** The account that holds it: tell its owner that somebody tried to sign up. */
+			readonly user: U;
+	  };
+
+/**
+ * A sign-up counted and checked, and not yet written: `send()` creates the
+ * account, or finds it taken. **`send()` runs once**, as for
+ * {@link PreparedRequest}.
+ */
+export interface PreparedSignUp<U> {
+	/**
+	 * Creates the user and issues a verification token for their e-mail —
+	 * no session —, or answers `{ status: 'taken', user }` when the login is
+	 * held. Run it off the visitor's request: hashing the password and the
+	 * writes take a time that tells which of the two it was.
+	 */
+	send(): Promise<SignUpOutcome<U>>;
 }

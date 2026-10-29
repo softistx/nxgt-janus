@@ -58,6 +58,9 @@ export const WRITTEN: Readonly<
 			log.info(events.signedIn(signedInFields(call, outcome.value)));
 		}
 	},
+	// Counted per address, like the other requests for an e-mail.
+	'signUp.prepare': mailRequest(),
+	'verifyEmail.prepare': mailRequest(),
 	'signInCode.request': mailRequest(issued(events.signInCodeSent)),
 	// In two steps: prepare is counted, and send issues — what request writes.
 	'signInCode.prepare': mailRequest(),

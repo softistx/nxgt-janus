@@ -1,6 +1,7 @@
 import {
 	CredentialError,
 	type CredentialRefusal,
+	EmailUnverifiedError,
 	UserInactiveError,
 } from '../../errors/janus-error';
 import type { ResolvedType } from '../config';
@@ -68,6 +69,15 @@ export async function signIn(
 	// somebody who knows its password.
 	if (!record.active) {
 		throw new UserInactiveError(`${where}: the user is inactive`, {
+			userId: record.id,
+			userType: type.name,
+		});
+	}
+
+	// Checked after the password too: only whoever knows it is told the
+	// address is unverified, and no session opens.
+	if (type.password?.requireVerifiedEmail === true && !record.emailVerifiedAt) {
+		throw new EmailUnverifiedError(`${where}: the e-mail is not verified`, {
 			userId: record.id,
 			userType: type.name,
 		});

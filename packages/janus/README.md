@@ -191,6 +191,7 @@ if (error instanceof JanusError) {
 | `CODE_INVALID` | 401 — a one-time code that does not match: a second factor's, or one sent by e-mail; `attemptsLeft` from either `confirm` belongs in the body |
 | `SECOND_FACTOR_NOT_ENROLLED`, `SECOND_FACTOR_ACTIVE` | 409 — the factor is not in the state the call needs |
 | `USER_INACTIVE` | 403 |
+| `EMAIL_UNVERIFIED` | 403 — the right password on an address never verified, on a type with `password.requireVerifiedEmail`; no session was opened. Only told to somebody who knows the password |
 | `MAIL_THROTTLED` | 429 — too many e-mails asked for one address or one user in the window; `retryAfter` belongs in the body and a `Retry-After` header. Tell the visitor to use the last e-mail they received (it still works) or to wait. Safe to show: it reveals nothing about accounts |
 | `STEP_UP_REQUIRED` | 403 — the session proved who it is too long ago for this action: ask for a step-up, then send the request again |
 | `TOKEN_UNKNOWN`, `TOKEN_SPENT`, `TOKEN_EXPIRED`, `TOKEN_STALE` | 400 |
@@ -892,6 +893,54 @@ still goes out off their request.
 
 [The e-mail flows guide](docs/guide/email-flows.md#requests-in-two-steps)
 has a route for each flow, with Hono.
+
+### Verifying at sign-up without revealing taken addresses
+
+Three pieces answer the same page for a new address and a taken one, and keep
+an unverified address from signing in:
+
+```ts
+const auth = janus({
+	user: User,
+	password: { login: 'email', requireVerifiedEmail: true }, // EMAIL_UNVERIFIED after the right password, no session
+	// ...
+});
+
+// In the visitor's request: validated (USER_INVALID, PASSWORD_TOO_SHORT), counted per
+// address (MAIL_THROTTLED), nobody looked up.
+const pending = await auth.signUp.prepare({ email, name, password });
+
+// Off the request: created, or found taken. No session either way.
+void pending.send().then(async (outcome) => {
+	if (outcome.status === 'created') {
+		await sendMail(outcome.issued.email, `Verify: https://app.example/verify?token=${outcome.issued.token}`);
+	} else {
+		await sendMail(outcome.user.email, 'Somebody tried to sign up with your address');
+	}
+}).catch(reportError);
+
+// An anonymous resend, counted per address; the visitor's answer never depends on the address.
+const again = await auth.verifyEmail.prepare(email);
+void again.send().then((issued) => issued && sendMail(issued.email, `Verify: …?token=${issued.token}`));
+```
+
+- **`password.requireVerifiedEmail: true`**: after a correct password, an
+  address never verified is `EMAIL_UNVERIFIED` (403) and no session opens. A
+  wrong password, an unknown login and a throttled one answer
+  `CREDENTIALS_INVALID` exactly as without the option, so the new code is
+  told only to somebody who knows the password. `false` when absent.
+- **`signUp.prepare(input)`** validates the fields and the password policy and
+  counts the attempt per address (`signUp.prepare` shares nothing with the
+  other flows' windows), looking nobody up. Its `send()`, once, answers
+  `{ status: 'created', user, issued }` (the account exists, `issued` is the
+  verification token to mail, nobody is signed in) or
+  `{ status: 'taken', user }` (nothing written: mail the holder a notice).
+  The user type needs an e-mail field. `signUp` itself is unchanged.
+- **`verifyEmail.prepare(email)`** counts the address; its `send()` issues
+  for the active, unverified user of that type holding it and answers `null`
+  for anybody else.
+
+See [the e-mail flows guide](docs/guide/email-flows.md#verifying-at-sign-up-without-revealing-taken-addresses).
 
 ### Signing in on your own proof — `signInProven`
 

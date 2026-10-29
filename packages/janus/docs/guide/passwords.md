@@ -25,6 +25,21 @@ The examples below reuse `User` and `store`.
 A user type with a password and no `hasher` is refused at wiring with a
 `TypeError`. There is no silent fallback.
 
+## Requiring a verified e-mail
+
+```ts
+janus({ user: User, password: { login: 'email', requireVerifiedEmail: true }, hasher, store });
+```
+
+With `requireVerifiedEmail: true`, `signIn` checks the address after the
+password: a correct password on an address never verified is
+`EMAIL_UNVERIFIED` (403) and no session opens; a wrong password, an unknown
+login and a throttled one stay `CREDENTIALS_INVALID` on the same path as
+without the option. `signUp` still signs the new user in, so pair the option
+with [`signUp.prepare`](email-flows.md#verifying-at-sign-up-without-revealing-taken-addresses),
+which opens no session. A sign-in code or link proves the address, so it
+signs in either way.
+
 ## The two hashers
 
 | Hasher | Runs on | Hash | Parameters |

@@ -56,6 +56,12 @@ function resolvePassword(
 			`${at}: password.minLength must be an integer of at least 1`,
 		);
 	}
+	const requireVerified = password.requireVerifiedEmail ?? false;
+	if (typeof requireVerified !== 'boolean') {
+		throw new TypeError(
+			`${at}: password.requireVerifiedEmail must be a boolean`,
+		);
+	}
 	return {
 		login: fieldName(password.login, `${at}: password.login`),
 		normalize: normalizer(
@@ -63,5 +69,6 @@ function resolvePassword(
 			`${at}: password.normalize`,
 		),
 		minLength,
+		requireVerifiedEmail: requireVerified,
 	};
 }

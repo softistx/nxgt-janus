@@ -56,12 +56,18 @@ export function traceObject<O extends object>(
 		if (UNTRACED.has(key)) {
 			copy[key] = value;
 		} else if (typeof value === 'function') {
-			copy[key] = traceFunction(
+			const traced = traceFunction(
 				value as (...args: unknown[]) => unknown,
 				target,
 				[...path, key],
 				split,
 			);
+			// A function that carries flows of its own — `signUp.prepare` —
+			// keeps them, traced in turn.
+			copy[key] =
+				Object.keys(value).length === 0
+					? traced
+					: Object.assign(traced, traceObject(value, [...path, key], split));
 		} else if (
 			typeof value === 'object' &&
 			value !== null &&

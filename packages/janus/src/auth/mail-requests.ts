@@ -16,7 +16,8 @@
  * sent is bounded per flow:
  *
  * - **per address**, for the requests anybody can make with an e-mail —
- *   `magicLink.request`, `signInCode.request`, `resetPassword.request`.
+ *   `magicLink.request`, `signInCode.request`, `resetPassword.request`,
+ *   `signUp.prepare` and `verifyEmail.prepare`.
  *   Counted **before anything is looked up**, the address normalised, and
  *   whatever the user type: an address nobody holds is counted, and refused
  *   past the limit, as a registered one is, so being throttled never tells
@@ -55,6 +56,7 @@ export type MailFlow =
 	| 'signInCode'
 	| 'resetPassword'
 	| 'verifyEmail'
+	| 'signUp'
 	| 'stepUp'
 	| 'changeEmail';
 

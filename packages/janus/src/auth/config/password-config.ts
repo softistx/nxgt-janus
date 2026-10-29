@@ -13,4 +13,11 @@ export interface PasswordConfig {
 	readonly normalize?: Normalize;
 	/** At least 1. `8` when absent. */
 	readonly minLength?: number;
+	/**
+	 * `false` when absent. With `true`, a correct password on an address never
+	 * verified is refused with `EMAIL_UNVERIFIED` and opens no session; a wrong
+	 * password answers `CREDENTIALS_INVALID` as ever. Verify the address with
+	 * `verifyEmail`, or the sign-in code or link, first.
+	 */
+	readonly requireVerifiedEmail?: boolean;
 }

@@ -172,6 +172,7 @@ describe('statusOf()', () => {
 			'CREDENTIALS_INVALID',
 			'HASH_UNSUPPORTED',
 			'USER_INACTIVE',
+			'EMAIL_UNVERIFIED',
 			'TOKEN_UNKNOWN',
 			'TOKEN_SPENT',
 			'TOKEN_EXPIRED',
