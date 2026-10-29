@@ -1,5 +1,13 @@
 # @nxgt/janus-telemetry
 
+## 0.14.5
+
+### Patch Changes
+
+- [#291](https://github.com/softistx/nxgt-janus/pull/291) [`9981a1a`](https://github.com/softistx/nxgt-janus/commit/9981a1a52af54eb5ac9e09d88367bccba7a7e118) Thanks [@SteveGT96](https://github.com/SteveGT96)! - Trace `signUp.prepare` and its `send()` like the other prepared requests (`janus.signUp` is written when the account is created), keep `signUp` callable once traced, log `janus.mail.throttled` for `signUp.prepare` and `verifyEmail.prepare`, and classify the new `EMAIL_UNVERIFIED` code as a refusal. Needs `@nxgt/janus` with `EMAIL_UNVERIFIED`.
+- Updated dependencies [[`9981a1a`](https://github.com/softistx/nxgt-janus/commit/9981a1a52af54eb5ac9e09d88367bccba7a7e118)]:
+  - @nxgt/janus@0.34.0
+
 ## 0.14.4
 
 ### Patch Changes
