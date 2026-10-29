@@ -1581,9 +1581,10 @@ address is verified and the squatter's password stays on the account
 (account pre-hijacking). Two habits close it: the `taken` notice carries a
 `resetPassword` link — a reset proves the address and replaces the password —
 and every verification mail says to ignore it if the visitor did not ask for
-it. For an address never proved, `verifyEmail.confirm(token, { firstProof:
-true })` drops the password and the second factor, and signs out every
-session, as `magicLink.confirm` does. `signUp.prepare` exists only on a type
+it. Keep the password: `firstProof: true` would drop every honest signer's
+password too, so it fits only an application whose users set the password
+after proving the address (or that signs in by link or code).
+`signUp.prepare` exists only on a type
 whose login is its e-mail field: with a username as the login, a taken
 username would reveal an account and mail a stranger.
 

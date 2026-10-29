@@ -78,8 +78,7 @@ when the flow knows them — `janus.signOut` carries neither:
 
 | Event | Severity | When |
 | --- | --- | --- |
-| `janus.signUp` | info | a user signed up |
-| `janus.signUp` | info | `signUp`, or the `send()` of a `signUp.prepare` that answered `created` (a `taken` login writes nothing), with the user type and `user.id` of the account |
+| `janus.signUp` | info | a user signed up: `signUp`, or the `send()` of a `signUp.prepare` that answered `created` (a `taken` login writes nothing), with the user type and `user.id` of the account |
 | `janus.signInCode.sent` | info | `signInCode.request`, or the `send()` of a `signInCode.prepare`, issued a code, with the `user.id` it is for. A request that answered `null` writes nothing |
 | `janus.magicLink.sent` | info | `magicLink.request`, or the `send()` of a `magicLink.prepare`, issued a sign-in link, with the `user.id` it is for — never its token. A request that answered `null` writes nothing |
 | `janus.signIn` | info | a user signed in — by `signIn`; by `signInCode.confirm`, which adds `janus.signIn.code: true`; by `magicLink.confirm`, which adds `janus.signIn.magicLink: true`; by `signInProven`, which adds `janus.signIn.proven: true` — no credential was checked, the application carried the proof; by `secondFactor.confirm`, which adds `janus.signIn.secondFactor: true`; or by `secondFactor.recover`, which adds `janus.signIn.recoveryCode: true` and `janus.secondFactor.recoveryCodesLeft` — a count, never a code. Any of them adds `janus.signIn.newDevice: true` when `@nxgt/janus` answered `newDevice: true` — a device the user had not signed in from — and never the device token |
@@ -148,7 +147,7 @@ when the flow knows them — `janus.signOut` carries neither:
   writes `janus.magicLink.sent` or `janus.signInCode.sent`. A second `send()`
   is a `TypeError`, which fails its span: the calling code's bug, not a
   refusal. Needs `@nxgt/janus` 0.20; `signUp.prepare`, `verifyEmail.prepare`
-  and the `EMAIL_UNVERIFIED` code need the release that added them (0.34).
+  and the `EMAIL_UNVERIFIED` code need the release that added them.
   **`signUp` stays callable once traced**: a function that carries flows of
   its own (`signUp.prepare`) is traced as a function and keeps them, nested
   flows traced in turn. `signUp.prepare(...).send()` writes `janus.signUp` for

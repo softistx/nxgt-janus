@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 import { ada, hasher, password, person } from '../../../test/auth';
 import { rejection } from '../../../test/rejection';
 import { fixedClock } from '../../time/clock';
@@ -161,5 +162,27 @@ describe('password.requireVerifiedEmail, with the other refusals', () => {
 		expect(
 			await rejection(auth.signIn({ email: ada.email, password })),
 		).toMatchObject({ code: 'USER_INACTIVE' });
+	});
+});
+
+describe('password.requireVerifiedEmail, a user with no e-mail', () => {
+	it('is a wiring TypeError after the right password, not a lock-out', async () => {
+		const auth = janus({
+			user: z.object({ username: z.string(), email: z.email().optional() }),
+			password: { login: 'username', requireVerifiedEmail: true },
+			store: createMemoryStores(),
+			hasher,
+		} as never) as unknown as {
+			create(input: unknown): Promise<unknown>;
+			signIn(input: unknown): Promise<unknown>;
+		};
+		await auth.create({ username: 'ada', password });
+
+		expect(
+			await rejection(auth.signIn({ username: 'ada', password })),
+		).toBeInstanceOf(TypeError);
+		expect(
+			await rejection(auth.signIn({ username: 'ada', password: 'wrong one!' })),
+		).toMatchObject({ code: 'CREDENTIALS_INVALID' });
 	});
 });

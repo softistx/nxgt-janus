@@ -842,9 +842,10 @@ app.post('/verify/resend', async (c) => {
   verification mail, the address is verified and the squatter's password
   stays. Put a `resetPassword` link in the `taken` notice (a reset proves
   the address and replaces the password), end every verification mail with
-  "ignore this if it was not you", and confirm with
-  `verifyEmail.confirm(token, { firstProof: true })` to drop the password
-  and the second factor of an address never proved. Janus changes no
-  behaviour for this: it is the mails you write.
+  "ignore this if it was not you". Keep the password with
+  `requireVerifiedEmail`: `verifyEmail.confirm(token, { firstProof: true })`
+  would drop every honest signer's password too, so use it only where users
+  set the password after proving the address (or sign in by link or code).
+  Janus changes no behaviour for this: it is the mails you write.
 - `send()` is `TypeError` on a second call, like the other prepared
   requests. `signUp` itself is unchanged.
